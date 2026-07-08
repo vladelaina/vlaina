@@ -719,6 +719,63 @@ test.describe('notes blank line caret interaction', () => {
     }
   });
 
+  test('deletes a clicked blank line between a heading and an ordered list', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-heading-ordered-list-blank-delete');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      for (const key of ['Backspace', 'Delete'] as const) {
+        const opened = await openMarkdownFixture(page, {
+          filename: `heading-ordered-list-blank-${key.toLowerCase()}.md`,
+          content: ['# 1', '', '1. 1'].join('\n'),
+        });
+
+        await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: '1' })).toBeVisible({ timeout: 30_000 });
+        await expect(page.locator(`${EDITOR_SELECTOR} ol li`, { hasText: '1' })).toBeVisible({ timeout: 30_000 });
+        await expect(page.locator(BLANK_LINE_SELECTOR)).toHaveCount(1);
+
+        const blankLine = page.locator(BLANK_LINE_SELECTOR).first();
+        const box = await blankLine.boundingBox();
+        expect(box).not.toBeNull();
+        await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+        await page.keyboard.press(key);
+        await waitForEditorAnimationFrame(page);
+        await waitForEditorAnimationFrame(page);
+
+        const diagnostics = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+          blankLines: editor.querySelectorAll(
+            '[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"], p.editor-editable-markdown-blank-line, p:empty'
+          ).length,
+          headings: Array.from(editor.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((heading) => heading.textContent ?? ''),
+          orderedItems: Array.from(editor.querySelectorAll('ol li')).map((item) => item.textContent ?? ''),
+          selectedBlocks: editor.querySelectorAll('.editor-block-selected').length,
+          selectedNodes: editor.querySelectorAll('.ProseMirror-selectednode').length,
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          text: editor.textContent ?? '',
+        }));
+
+        expect(diagnostics.blankLines, `${key}\n${JSON.stringify(diagnostics, null, 2)}`).toBe(0);
+        expect(diagnostics.headings, `${key}\n${JSON.stringify(diagnostics, null, 2)}`).toEqual(['1']);
+        expect(diagnostics.orderedItems, `${key}\n${JSON.stringify(diagnostics, null, 2)}`).toEqual(['1']);
+        expect(diagnostics.selectedBlocks, `${key}\n${JSON.stringify(diagnostics, null, 2)}`).toBe(0);
+        expect(diagnostics.selectedNodes, `${key}\n${JSON.stringify(diagnostics, null, 2)}`).toBe(0);
+        expect(diagnostics.selection.empty, `${key}\n${JSON.stringify(diagnostics, null, 2)}`).toBe(true);
+
+        await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+        const saved = await page.evaluate(
+          (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+          opened.notePath,
+        );
+        expect(saved, key).not.toContain('# 1\n\n1. 1');
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps the caret out of a heading when Delete removes a blank line above it', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-heading-leading-blank-delete');
 

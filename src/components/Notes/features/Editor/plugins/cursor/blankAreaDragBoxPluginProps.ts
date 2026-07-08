@@ -22,6 +22,7 @@ import {
   handleMarkdownBlankLineTextInput,
 } from './markdownBlankLineInteraction';
 import {
+  focusEmptyUntitledDraftTitleFromBlankAreaClick,
   handleTrailingBlankClickInsideLastList,
   resolveInsideBlockTrailingPlainClick,
   shouldIgnoreBlankAreaDragBoxMouseDown,
@@ -93,6 +94,10 @@ export function createBlankAreaDragBoxPluginProps(options: CreateBlankAreaDragBo
         if (event.button !== 0) return false;
         if (shouldIgnoreBlankAreaDragBoxMouseDown(view, event)) {
           return false;
+        }
+        if (focusEmptyUntitledDraftTitleFromBlankAreaClick(view, event)) {
+          event.preventDefault();
+          return true;
         }
         const inspectedByDocumentRoute = options.documentInspectedMouseDownEvents.has(event);
         if (!inspectedByDocumentRoute) {

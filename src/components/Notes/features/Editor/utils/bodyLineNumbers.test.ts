@@ -15,6 +15,49 @@ describe('getMarkdownBodyLineNumbers', () => {
     expect(getMarkdownBodyLineNumbers(markdown)).toEqual([1, 2]);
   });
 
+  it('does not number the hidden frontmatter body separator as a body line', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: "@biva/1"',
+      'vlaina_icon: "🍓"',
+      '---',
+      '',
+      '# Title',
+      'Body',
+    ].join('\n');
+
+    expect(getMarkdownBodyLineNumbers(markdown)).toEqual([1, 2]);
+  });
+
+  it('starts body numbering after BOM-prefixed hidden frontmatter', () => {
+    const markdown = [
+      '\uFEFF---',
+      'vlaina_cover: "@biva/1"',
+      'vlaina_icon: "🍓"',
+      '---',
+      '',
+      '# Title',
+      'Body',
+    ].join('\n');
+
+    expect(getMarkdownBodyLineNumbers(markdown)).toEqual([1, 2]);
+  });
+
+  it('numbers extra body blanks after a hidden frontmatter separator', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: "@biva/1"',
+      'vlaina_icon: "🍓"',
+      '---',
+      '',
+      '',
+      '# Title',
+      'Body',
+    ].join('\n');
+
+    expect(getMarkdownBodyLineNumbers(markdown)).toEqual([1, 2, 3]);
+  });
+
   it('numbers fenced code blocks by visible code lines', () => {
     const markdown = [
       '# Title',

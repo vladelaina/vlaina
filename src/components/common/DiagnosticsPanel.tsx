@@ -43,7 +43,7 @@ export function DiagnosticsPanel() {
     <div
       data-diagnostics-panel="true"
       className={cn(
-        'fixed bottom-4 right-4 z-[var(--vlaina-z-max)] flex max-w-[calc(100vw_-_var(--vlaina-size-32px))] items-center gap-1.5 rounded-full border border-[var(--vlaina-color-subtle-border)] bg-[var(--vlaina-color-setting-panel)] px-2 py-1.5 text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-lg)]',
+        'pointer-events-none fixed bottom-4 right-4 z-[var(--vlaina-z-max)] flex max-w-[calc(100vw_-_var(--vlaina-size-32px))] items-center gap-1.5 rounded-full border border-[var(--vlaina-color-subtle-border)] bg-[var(--vlaina-color-setting-panel)] px-2 py-1.5 text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-lg)]',
       )}
     >
       <span
@@ -57,7 +57,7 @@ export function DiagnosticsPanel() {
         aria-label={copyAriaLabel}
         data-diagnostics-action="copy"
         onClick={() => void handleCopy()}
-        className="inline-flex size-7 items-center justify-center rounded-full text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)]"
+        className="pointer-events-auto inline-flex size-7 items-center justify-center rounded-full text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)]"
       >
         <Icon name={copyState === 'copied' ? 'common.check' : 'common.copy'} size="xs" />
       </button>
@@ -66,7 +66,7 @@ export function DiagnosticsPanel() {
         aria-label={clearAriaLabel}
         data-diagnostics-action="clear"
         onClick={handleClear}
-        className="inline-flex size-7 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-bg-tertiary)] hover:text-[var(--vlaina-sidebar-notes-text)]"
+        className="pointer-events-auto inline-flex size-7 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-bg-tertiary)] hover:text-[var(--vlaina-sidebar-notes-text)]"
       >
         <Icon name="common.delete" size="xs" />
       </button>

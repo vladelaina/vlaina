@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MarkdownEditor } from './MarkdownEditor';
 
@@ -170,7 +170,7 @@ vi.mock('./EditorTopRightToolbar', () => ({
 }));
 
 vi.mock('./NoteHeader', () => ({
-  NoteHeader: () => null,
+  NoteHeader: () => <textarea aria-label="Note title" data-note-title-input="true" />,
 }));
 
 vi.mock('../Cover', () => ({
@@ -301,6 +301,42 @@ describe('MarkdownEditor source fallback', () => {
 
     expect(screen.queryByLabelText('Markdown source editor')).toBeNull();
     expect(screen.getByTestId('milkdown-live-dom')).toBeInstanceOf(HTMLElement);
+  });
+
+  it('focuses the title when clicking the editor shell for an empty untitled draft', () => {
+    mocks.milkdownRuntimeMode.value = 'live-dom-never-ready';
+    mocks.notesState.currentNote = { path: 'draft:test', content: '#' };
+    mocks.notesState.openTabs = [{ path: 'draft:test', name: 'Untitled', isDirty: false }];
+    mocks.notesState.draftNotes = { 'draft:test': { parentPath: null, name: '' } };
+    mocks.notesState.noteMetadata = { notes: {} };
+
+    render(<MarkdownEditor />);
+
+    const titleInput = screen.getByLabelText('Note title');
+    const shell = document.querySelector('[data-note-toolbar-root="true"]');
+    expect(shell).toBeInstanceOf(HTMLElement);
+
+    fireEvent.click(shell as HTMLElement);
+
+    expect(document.activeElement).toBe(titleInput);
+  });
+
+  it('focuses the title when an empty untitled draft source fallback receives a body click', async () => {
+    mocks.notesState.currentNote = { path: 'draft:test', content: '#' };
+    mocks.notesState.openTabs = [{ path: 'draft:test', name: 'Untitled', isDirty: false }];
+    mocks.notesState.draftNotes = { 'draft:test': { parentPath: null, name: '' } };
+    mocks.notesState.noteMetadata = { notes: {} };
+
+    render(<MarkdownEditor />);
+
+    const titleInput = screen.getByLabelText('Note title');
+    const sourceEditor = await screen.findByLabelText('Markdown source editor');
+    const mouseDown = createEvent.mouseDown(sourceEditor, { button: 0 });
+
+    fireEvent(sourceEditor, mouseDown);
+
+    expect(mouseDown.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(titleInput);
   });
 
   it('refreshes the toolbar starred state when the starred registry changes', async () => {

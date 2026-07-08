@@ -306,6 +306,49 @@ describe('slashCommandDefinitions', () => {
     await editor.destroy();
   });
 
+  it('replaces the following empty paragraph when inserting an HTML block from the previous line end', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const paragraph = schema.nodes.paragraph;
+    expect(paragraph).toBeDefined();
+
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+      paragraph.create(null, schema.text('hi/html')),
+      paragraph.create(),
+      paragraph.create(null, schema.text('1')),
+    ]));
+
+    const slashEndPos = 1 + 'hi/html'.length;
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, slashEndPos)));
+    const slashRange = getSlashTextRange(view);
+    expect(slashRange).not.toBeNull();
+    view.dispatch(view.state.tr.delete(slashRange!.deleteFrom, slashRange!.deleteTo));
+    applySlashCommand(editor.ctx, 'html-block');
+
+    const children: Array<{ type: string; text: string; value?: string }> = [];
+    view.state.doc.forEach((node) => {
+      children.push({
+        type: node.type.name,
+        text: node.textContent,
+        value: typeof node.attrs.value === 'string' ? node.attrs.value : undefined,
+      });
+    });
+    expect(children).toEqual([
+      { type: 'paragraph', text: 'hi', value: undefined },
+      { type: 'html_block', text: '', value: '' },
+      { type: 'paragraph', text: '1', value: undefined },
+    ]);
+
+    await editor.destroy();
+  });
+
   it('replaces a middle empty slash paragraph and its editable blank-line boundaries', async () => {
     const editor = Editor.make()
       .config((ctx) => {

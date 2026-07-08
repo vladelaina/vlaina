@@ -101,8 +101,12 @@ describe('SidebarSearchResultsList', () => {
 
     expect(screen.getByText('Alpha Note')).toBeInTheDocument();
     const betaRow = screen.getByText('Beta Note').closest('button');
+    const snippet = Array.from(betaRow?.querySelectorAll('div') ?? [])
+      .find((element) => element.textContent === 'Contains the search phrase.');
     expect(betaRow).not.toBeNull();
     expect(betaRow).toHaveTextContent('Contains the search phrase.');
+    expect(snippet).toHaveClass('text-[var(--vlaina-font-11)]');
+    expect(snippet).toHaveClass('leading-[var(--vlaina-leading-145)]');
     expect(measureMock).toHaveBeenCalled();
 
     fireEvent.click(screen.getByText('Beta Note'));
@@ -148,6 +152,7 @@ describe('SidebarSearchResultsList', () => {
     expect(name).not.toHaveClass('truncate');
     expect(location).toHaveClass('whitespace-normal');
     expect(location).toHaveClass('break-words');
+    expect(location).toHaveClass('leading-[var(--vlaina-leading-145)]');
     expect(location).toHaveClass('[overflow-wrap:anywhere]');
     expect(location).not.toHaveClass('truncate');
   });
@@ -269,7 +274,7 @@ describe('SidebarSearchResultsList', () => {
 
     const highlighted = screen.getByText('Note');
 
-    expect(highlighted).toHaveClass('text-[var(--vlaina-color-status-info-fg)]');
+    expect(highlighted).toHaveClass('text-[var(--vlaina-sidebar-row-selected-text)]');
   });
 
   it('keeps the pending label visible while content scanning is running', () => {

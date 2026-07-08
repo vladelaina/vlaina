@@ -28,9 +28,12 @@ describe('DiagnosticsPanel', () => {
 
   it('lets the user copy and clear explicit diagnostics', async () => {
     mocks.writeTextToClipboard.mockResolvedValue(true);
-    render(<DiagnosticsPanel />);
+    const { container } = render(<DiagnosticsPanel />);
 
     expect(screen.getByLabelText('0 diagnostics entries')).toBeInTheDocument();
+    expect(container.querySelector('[data-diagnostics-panel="true"]')).toHaveClass('pointer-events-none');
+    expect(screen.getByRole('button', { name: 'Copy diagnostics' })).toHaveClass('pointer-events-auto');
+    expect(screen.getByRole('button', { name: 'Clear diagnostics' })).toHaveClass('pointer-events-auto');
 
     act(() => {
       logDiagnostic('test', 'diagnostic-event', { value: 1 });

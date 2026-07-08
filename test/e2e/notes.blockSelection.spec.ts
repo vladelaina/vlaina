@@ -1110,6 +1110,111 @@ test.describe("notes block selection", () => {
     }
   });
 
+  test('selects blocks from wide viewport side whitespace outside the editor content root', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-wide-side-whitespace');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1920, height: 1000 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-wide-side-whitespace.md',
+        content: [
+          '# Wide Side Whitespace',
+          '',
+          ...Array.from({ length: 12 }, (_, index) => `- Wide whitespace row ${index}`),
+        ].join('\n'),
+      });
+
+      const dragTarget = await page.evaluate(async () => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const contentRoot = editor?.closest('[data-note-content-root="true"]') as HTMLElement | null;
+        const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+        if (!editor || !contentRoot || !scrollRoot) return null;
+
+        const items = Array.from(editor.querySelectorAll<HTMLElement>('li'))
+          .filter((element) => element.textContent?.includes('Wide whitespace row'));
+        const startItem = items.find((element) => element.textContent?.includes('Wide whitespace row 1')) ?? null;
+        const endItem = items.find((element) => element.textContent?.includes('Wide whitespace row 5')) ?? null;
+        if (!startItem || !endItem) return null;
+
+        startItem.scrollIntoView({ block: 'center', inline: 'nearest' });
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+        const startRect = startItem.getBoundingClientRect();
+        const endRect = endItem.getBoundingClientRect();
+        const contentRootRect = contentRoot.getBoundingClientRect();
+        const scrollRootRect = scrollRoot.getBoundingClientRect();
+        const startY = startRect.top + startRect.height / 2;
+        const startCandidates = [
+          contentRootRect.left - 120,
+          contentRootRect.left - 80,
+          contentRootRect.left - 40,
+          contentRootRect.right + 120,
+          contentRootRect.right + 80,
+          contentRootRect.right + 40,
+        ]
+          .map((x) => Math.min(scrollRootRect.right - 32, Math.max(scrollRootRect.left + 32, x)))
+          .filter((x, index, values) => values.findIndex((value) => Math.abs(value - x) < 0.5) === index)
+          .filter((x) => x < contentRootRect.left - 8 || x > contentRootRect.right + 8);
+        const startX = startCandidates.find((x) => {
+          const candidateHit = document.elementFromPoint(x, startY);
+          return candidateHit instanceof Node &&
+            !editor.contains(candidateHit) &&
+            !contentRoot.contains(candidateHit) &&
+            scrollRoot.contains(candidateHit);
+        }) ?? null;
+        if (startX === null) return null;
+
+        const endX = endRect.left + Math.min(
+          Math.max(120, endRect.width * 0.35),
+          Math.max(24, endRect.width - 24),
+        );
+        const hit = document.elementFromPoint(startX, startY);
+
+        return {
+          startX,
+          startY,
+          endX,
+          endY: endRect.top + endRect.height / 2,
+          hitInsideEditor: hit instanceof Node && editor.contains(hit),
+          hitInsideContentRoot: hit instanceof Node && contentRoot.contains(hit),
+          hitInsideScrollRoot: hit instanceof Node && scrollRoot.contains(hit),
+          hitTagName: hit instanceof HTMLElement ? hit.tagName : null,
+          hitClassName: hit instanceof HTMLElement ? hit.className : null,
+        };
+      });
+
+      expect(dragTarget, 'wide viewport side whitespace drag target').not.toBeNull();
+      expect(dragTarget!.hitInsideEditor, JSON.stringify(dragTarget, null, 2)).toBe(false);
+      expect(dragTarget!.hitInsideContentRoot, JSON.stringify(dragTarget, null, 2)).toBe(false);
+      expect(dragTarget!.hitInsideScrollRoot, JSON.stringify(dragTarget, null, 2)).toBe(true);
+
+      await page.mouse.move(dragTarget!.startX, dragTarget!.startY);
+      await page.mouse.down();
+      await page.mouse.move(dragTarget!.endX, dragTarget!.endY, { steps: 16 });
+      await page.mouse.up();
+
+      await expect.poll(async () => page.evaluate(() => {
+        const selected = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror .editor-block-selected'))
+          .map((element) => element.textContent?.trim() ?? '');
+        return {
+          selected,
+          selectedCount: selected.length,
+          hasStart: selected.some((text) => text.includes('Wide whitespace row 1')),
+          hasEnd: selected.some((text) => text.includes('Wide whitespace row 5')),
+        };
+      })).toMatchObject({
+        selectedCount: expect.any(Number),
+        hasStart: true,
+        hasEnd: true,
+      });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('updates blank-area drag selection in the same pointer move on long documents', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-long-drag-sync');
 

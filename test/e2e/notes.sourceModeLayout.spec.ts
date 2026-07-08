@@ -139,6 +139,23 @@ async function getSourceEditorValue(page: Page): Promise<string> {
   );
 }
 
+async function setSourceEditorValue(page: Page, value: string): Promise<void> {
+  await page.locator(SOURCE_EDITOR_SELECTOR).focus();
+  await page.evaluate((nextValue) => {
+    const textarea = document.querySelector<HTMLTextAreaElement>('[data-note-source-editor="true"]');
+    if (!textarea) {
+      throw new Error('Source editor textarea was not mounted');
+    }
+    textarea.setSelectionRange(0, textarea.value.length);
+    textarea.setRangeText(nextValue, 0, textarea.value.length, 'end');
+    textarea.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      data: nextValue,
+      inputType: 'insertText',
+    }));
+  }, value);
+}
+
 async function getCurrentNoteContent(page: Page): Promise<string> {
   return page.evaluate(() =>
     String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
@@ -656,6 +673,29 @@ test.describe('notes source mode layout', () => {
       expect(sourceValue).toContain('<div class="raw-html-block">');
       expect(sourceValue).toContain('const markdown = `# not a real heading inside code`;');
       expect(sourceValue.endsWith('\n')).toBe(true);
+
+      const editedMarkdown = expectedMarkdown.replace(
+        'Trailing blank line sentinel follows.\n',
+        [
+          'Trailing blank line sentinel follows.',
+          '',
+          '',
+          'Source mode saved blank one.',
+          '',
+          '',
+          'Source mode saved blank two.',
+          '',
+        ].join('\n'),
+      );
+      await setSourceEditorValue(page, editedMarkdown);
+      await expect.poll(() => getCurrentNoteContent(page), { timeout: 10_000 })
+        .toBe(editedMarkdown);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const savedMarkdown = await page.evaluate((pathToRead) =>
+        (window as any).__vlainaE2E.readTextFile(pathToRead), opened.notePath
+      );
+      expect(savedMarkdown).toBe(editedMarkdown);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

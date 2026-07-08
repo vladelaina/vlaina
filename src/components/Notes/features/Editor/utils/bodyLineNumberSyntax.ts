@@ -1,4 +1,5 @@
 const LINE_ENDING_PATTERN = /\r\n?/g;
+const UTF8_BOM = '\uFEFF';
 const FENCE_START_PATTERN = /^(\s*)(`{3,}|~{3,})(.*)$/;
 const INDENTED_CODE_LINE_PATTERN = /^(?: {4,}|\t)\S/;
 const LIST_ITEM_PATTERN = /^\s*(?:[-+*]|\d+[.)])\s+(?:\[[ xX]\]\s+)?\S?/;
@@ -20,8 +21,12 @@ export function normalizeLineEndings(value: string): string {
   return value.replace(LINE_ENDING_PATTERN, '\n');
 }
 
+function stripLeadingBom(value: string): string {
+  return value.startsWith(UTF8_BOM) ? value.slice(1) : value;
+}
+
 export function findLeadingFrontmatterEnd(lines: readonly string[]): number {
-  if (!FRONTMATTER_BOUNDARY_PATTERN.test(lines[0] ?? '')) {
+  if (!FRONTMATTER_BOUNDARY_PATTERN.test(stripLeadingBom(lines[0] ?? ''))) {
     return -1;
   }
 

@@ -169,12 +169,12 @@ export function createToolbarEventDelegation(
       const clearPreparedAction = () => {
         if (didClear) return;
         didClear = true;
-        document.removeEventListener('pointerup', clearPreparedAction);
-        document.removeEventListener('pointercancel', clearPreparedAction);
+        document.removeEventListener('pointerup', clearPreparedAction, true);
+        document.removeEventListener('pointercancel', clearPreparedAction, true);
         setTimeout(() => actionController.cancelPreparedAction(action), 0);
       };
-      document.addEventListener('pointerup', clearPreparedAction);
-      document.addEventListener('pointercancel', clearPreparedAction);
+      document.addEventListener('pointerup', clearPreparedAction, true);
+      document.addEventListener('pointercancel', clearPreparedAction, true);
     }
   };
 

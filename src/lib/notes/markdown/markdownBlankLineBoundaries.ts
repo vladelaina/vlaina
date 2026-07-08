@@ -26,6 +26,21 @@ export function isListBoundaryBlankLine(lines: readonly string[], index: number)
   return LIST_ITEM_MARKER_PATTERN.test(previous) || LIST_ITEM_MARKER_PATTERN.test(next);
 }
 
+export function isEditableListBoundaryBlankLine(lines: readonly string[], index: number): boolean {
+  if (lines[index]?.trim() !== '') return false;
+
+  const previous = findNearestNonBlankLine(lines, index, -1);
+  const next = findNearestNonBlankLine(lines, index, 1);
+  if (!previous || !next) return false;
+
+  const previousIsListItem = isListItemLine(previous);
+  const nextIsListItem = isListItemLine(next);
+  if (previousIsListItem === nextIsListItem) return false;
+
+  const nonListLine = previousIsListItem ? next : previous;
+  return !isIndentedListContinuationLine(nonListLine);
+}
+
 export function isBetweenListItemsBlankLine(lines: readonly string[], index: number): boolean {
   if (lines[index]?.trim() !== '') return false;
 
@@ -214,6 +229,10 @@ function isDefinitionListMarkerLine(line: string | null): boolean {
 
 function isListItemLine(line: string | null): boolean {
   return line !== null && LIST_ITEM_MARKER_PATTERN.test(line);
+}
+
+function isIndentedListContinuationLine(line: string): boolean {
+  return /^(?: {2,}|\t)/.test(line);
 }
 
 function isAdjacentBlankToNonBlank(

@@ -192,7 +192,7 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
       '# Heading',
       MARKDOWN_BLANK_LINE_PLACEHOLDER,
       '底线（-/=）方式（**不推荐**）：\\\\\\',
-      '',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
       '- item\\',
     ].join('\n'));
   });
@@ -240,6 +240,25 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
         '- two',
       ].join('\n')
     );
+  });
+
+  it('uses visible editor-only placeholders between headings and top-level lists', () => {
+    const headingBeforeList = ['# 1', '', '1. 1'].join('\n');
+    const listBeforeHeading = ['1. 1', '', '# 2'].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(headingBeforeList)).toBe(
+      ['# 1', MARKDOWN_BLANK_LINE_PLACEHOLDER, '1. 1'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument(
+      preserveMarkdownBlankLinesForEditor(headingBeforeList)
+    )).toBe(headingBeforeList);
+
+    expect(preserveMarkdownBlankLinesForEditor(listBeforeHeading)).toBe(
+      ['1. 1', MARKDOWN_BLANK_LINE_PLACEHOLDER, '# 2'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument(
+      preserveMarkdownBlankLinesForEditor(listBeforeHeading)
+    )).toBe(listBeforeHeading);
   });
 
   it('uses plain bullet placeholders for task-list blank lines', () => {

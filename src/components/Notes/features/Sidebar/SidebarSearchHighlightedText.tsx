@@ -79,7 +79,7 @@ export function HighlightedSearchText({
       {parts.map((part, index) => (
         <span
           key={`${part.text}-${index}`}
-          className={part.highlighted ? 'text-[var(--vlaina-color-status-info-fg)]' : undefined}
+          className={part.highlighted ? 'text-[var(--vlaina-sidebar-row-selected-text)]' : undefined}
         >
           {part.text}
         </span>

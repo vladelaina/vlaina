@@ -115,6 +115,7 @@ describe('typecheck quality gate', () => {
       'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(ICON_COLOR_KEY, color);',
       'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(ACTIVE_TAB_KEY, tab);',
       'src/components/Notes/features/Editor/plugins/floating-toolbar/components/ai-dropdown/usageRanking.ts:window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));',
+      'src/components/Whiteboard/hooks/useWhiteboardPersistence.ts:window.localStorage.setItem(WHITEBOARD_STORAGE_KEY, JSON.stringify(snapshot));',
 
       // Navigation/history caches that do not drive live cross-window state.
       'src/stores/notes/storagePreferences.ts:localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(normalizeRecentNotePaths(paths)));',

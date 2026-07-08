@@ -56,6 +56,9 @@ function getCurrentBlankTextBlockReplaceRange(selection: TextSelection) {
 export function replaceSelectionOrCurrentBlankTextBlockWithNode<TNode, TTransaction>(state: {
   selection: unknown;
   tr: {
+    doc: {
+      nodeAt: (pos: number) => { content?: { size?: number }; nodeSize?: number; type?: { name?: string } } | null;
+    };
     replaceSelectionWith: (node: TNode, inheritMarks?: boolean) => TTransaction;
     replaceWith: (from: number, to: number, node: TNode) => TTransaction;
   };
@@ -73,6 +76,21 @@ export function replaceSelectionOrCurrentBlankTextBlockWithNode<TNode, TTransact
   ) {
     const range = getCurrentBlankTextBlockReplaceRange(selection);
     return state.tr.replaceWith(range.from, range.to, node);
+  }
+
+  if (
+    selection instanceof TextSelection &&
+    selection.empty &&
+    selection.$from.depth === 1 &&
+    selection.$from.parent.type.name === 'paragraph' &&
+    selection.$from.parent.content.size > 0 &&
+    selection.$from.parentOffset === selection.$from.parent.content.size
+  ) {
+    const nextPos = selection.$from.after(1);
+    const nextNode = state.tr.doc.nodeAt(nextPos);
+    if (nextNode?.type?.name === 'paragraph' && nextNode.content?.size === 0) {
+      return state.tr.replaceWith(nextPos, nextPos + Math.max(1, nextNode.nodeSize ?? 1), node);
+    }
   }
 
   return state.tr.replaceSelectionWith(node);

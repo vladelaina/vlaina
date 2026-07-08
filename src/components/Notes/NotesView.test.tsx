@@ -8,6 +8,10 @@ import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { messageDialog } from '@/lib/storage/dialog';
 import { NATIVE_CARET_OVERLAY_REFRESH_EVENT } from '@/hooks/useNativeCaretOverlay';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
+import {
+  runOpenNewChatShortcut,
+  runTemporaryChatWelcomeShortcut,
+} from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { NotesView } from './NotesView';
 import { useAbsoluteNoteExternalRenameSync } from './hooks/useAbsoluteNoteExternalRenameSync';
 import { useCurrentNotesRootExternalPathSync } from './hooks/useCurrentNotesRootExternalPathSync';
@@ -566,6 +570,8 @@ describe('NotesView', () => {
     vi.mocked(useCurrentNotesRootExternalPathSync).mockClear();
     vi.mocked(useNotesExternalSync).mockClear();
     vi.mocked(openStoredNotePath).mockReset();
+    vi.mocked(runOpenNewChatShortcut).mockClear();
+    vi.mocked(runTemporaryChatWelcomeShortcut).mockClear();
 
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
@@ -1977,6 +1983,62 @@ describe('NotesView', () => {
     expect(document.querySelector('[data-notes-chat-floating-resize-handle="left"]')).toBeInTheDocument();
     expect(document.querySelector('[data-notes-chat-floating-resize-handle="top"]')).toBeInTheDocument();
     expect(document.querySelector('[data-notes-chat-floating-resize-handle="top-left"]')).toBeInTheDocument();
+  });
+
+  it('opens a new chat from the floating notes chat panel without docking it', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatFloatingOpen = true;
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'openNewChat' &&
+      event.key.toLowerCase() === 'o' &&
+      event.ctrlKey &&
+      event.shiftKey
+    ));
+
+    render(<NotesView />);
+    await waitForNotesRootInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'O',
+      ctrlKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    screen.getByTestId('embedded-chat-view').dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(runOpenNewChatShortcut).toHaveBeenCalledTimes(1);
+    expect(uiState.setNotesChatPanelCollapsed).not.toHaveBeenCalled();
+    expect(uiState.setNotesChatFloatingOpen).not.toHaveBeenCalled();
+  });
+
+  it('opens a temporary chat from the floating notes chat panel without docking it', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatFloatingOpen = true;
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleTemporaryChatWelcome' &&
+      event.key.toLowerCase() === 'j' &&
+      event.ctrlKey &&
+      event.shiftKey
+    ));
+
+    render(<NotesView />);
+    await waitForNotesRootInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'J',
+      ctrlKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    screen.getByTestId('embedded-chat-view').dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(runTemporaryChatWelcomeShortcut).toHaveBeenCalledTimes(1);
+    expect(uiState.setNotesChatPanelCollapsed).not.toHaveBeenCalled();
+    expect(uiState.setNotesChatFloatingOpen).not.toHaveBeenCalled();
   });
 
   it('opens the notes chat side panel as a docked resizable panel', async () => {

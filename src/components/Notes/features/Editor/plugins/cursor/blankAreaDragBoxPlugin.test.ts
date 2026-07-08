@@ -16,10 +16,12 @@ import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { listTabIndentPlugin } from '../task-list';
 import { clipboardPlugin } from '../clipboard/clipboardPlugin';
 import { insertImageNodeAtSelection } from '../image-upload/imageNodeInsertion';
+import { useNotesStore } from '@/stores/useNotesStore';
 import {
   normalizeSerializedMarkdownDocument,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { NOTE_TITLE_INPUT_DATA_ATTR } from '../../utils/titleInputDom';
 
 function createMouseEvent(type: string, init: MouseEventInit = {}) {
   return new MouseEvent(type, {
@@ -658,6 +660,36 @@ describe('blankAreaDragBoxPlugin document routing', () => {
     }
   });
 
+  it('focuses the title instead of the editor body when an empty untitled draft receives a blank-area click', async () => {
+    const { editor, view } = await createBlockSelectionEditor('#');
+
+    try {
+      const scrollRoot = attachNoteScrollRoot(view);
+      const titleInput = document.createElement('textarea');
+      titleInput.setAttribute(NOTE_TITLE_INPUT_DATA_ATTR, 'true');
+      scrollRoot.insertBefore(titleInput, view.dom);
+      useNotesStore.setState({
+        currentNote: { path: 'draft:test', content: '#' },
+        draftNotes: { 'draft:test': { parentPath: null, name: '' } },
+        noteMetadata: { notes: {} },
+      });
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 320,
+        clientY: 50,
+      });
+
+      view.dom.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(titleInput);
+      expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    } finally {
+      useNotesStore.setState(useNotesStore.getInitialState(), true);
+      await editor.destroy();
+    }
+  });
+
   it('ignores right-clicks outside the editor so sidebar context menus do not change block selection', async () => {
     const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
     const sidebarRow = document.createElement('div');
@@ -710,6 +742,45 @@ describe('blankAreaDragBoxPlugin document routing', () => {
       expect(mouseDown.defaultPrevented).toBe(false);
       expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      sidebarScrollRoot.remove();
+      await editor.destroy();
+    }
+  });
+
+  it('does not move the editor caret when plain-clicking the file tree root sidebar blank area', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+    const sidebarScrollRoot = document.createElement('div');
+    sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
+    const sidebarBlankArea = document.createElement('div');
+    sidebarBlankArea.setAttribute('data-notes-sidebar-blank-drag-root', 'true');
+    sidebarBlankArea.setAttribute('data-notes-external-block-selection-root', 'true');
+    sidebarBlankArea.setAttribute('data-file-tree-root-drop-target', 'true');
+    sidebarScrollRoot.appendChild(sidebarBlankArea);
+
+    try {
+      document.body.appendChild(sidebarScrollRoot);
+      const startSelection = TextSelection.create(view.state.doc, view.state.doc.content.size - 1);
+      view.dispatch(view.state.tr.setSelection(startSelection));
+
+      const mouseDown = createMouseEvent('mousedown', {
+        button: 0,
+        buttons: 1,
+        clientX: 24,
+        clientY: 24,
+      });
+      sidebarBlankArea.dispatchEvent(mouseDown);
+      document.dispatchEvent(createMouseEvent('mouseup', {
+        clientX: 24,
+        clientY: 24,
+      }));
+      await waitForPointerClickSettled();
+
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+      expect(view.state.selection.from).toBe(startSelection.from);
+      expect(view.state.selection.to).toBe(startSelection.to);
     } finally {
       sidebarScrollRoot.remove();
       await editor.destroy();

@@ -63,6 +63,33 @@ describe('frontmatterMarkdown', () => {
     ).toBe('# Heading');
   });
 
+  it('does not expose the body separator after hidden-only frontmatter as a leading editor blank line', () => {
+    expect(
+      normalizeLeadingFrontmatterMarkdown([
+        '---',
+        'vlaina_cover: "@biva/1"',
+        'vlaina_icon: "🍓"',
+        '---',
+        '',
+        '# Heading',
+      ].join('\n')),
+    ).toBe('# Heading');
+  });
+
+  it('keeps extra body blank lines after hidden-only frontmatter visible in the editor', () => {
+    expect(
+      normalizeLeadingFrontmatterMarkdown([
+        '---',
+        'vlaina_cover: "@biva/1"',
+        'vlaina_icon: "🍓"',
+        '---',
+        '',
+        '',
+        '# Heading',
+      ].join('\n')),
+    ).toBe('\n# Heading');
+  });
+
   it('serializes the internal fenced block back to markdown frontmatter', () => {
     expect(
       serializeLeadingFrontmatterMarkdown(
@@ -87,11 +114,29 @@ describe('frontmatterMarkdown', () => {
     ).toBe('---\ntitle: Demo\n---\n\n# Heading');
   });
 
-  it('preserves body blank lines when hidden-only frontmatter is restored', () => {
+  it('preserves editor-visible body blank lines when hidden-only frontmatter is restored', () => {
     expect(
       serializeLeadingFrontmatterMarkdown(
         '\n# Heading',
         '---\nvlaina_cover: "@biva/1"\n---\n\n# Heading',
+      ),
+    ).toBe('---\nvlaina_cover: "@biva/1"\n---\n\n\n# Heading');
+  });
+
+  it('restores the hidden-only frontmatter body separator without requiring an editor blank line', () => {
+    expect(
+      serializeLeadingFrontmatterMarkdown(
+        '# Heading',
+        '---\nvlaina_cover: "@biva/1"\nvlaina_icon: "🍓"\n---\n\n# Heading',
+      ),
+    ).toBe('---\nvlaina_cover: "@biva/1"\nvlaina_icon: "🍓"\n---\n\n# Heading');
+  });
+
+  it('restores a hidden-only frontmatter body separator that contains spaces', () => {
+    expect(
+      serializeLeadingFrontmatterMarkdown(
+        '# Heading',
+        '---\nvlaina_cover: "@biva/1"\n---\n   \n# Heading',
       ),
     ).toBe('---\nvlaina_cover: "@biva/1"\n---\n\n# Heading');
   });

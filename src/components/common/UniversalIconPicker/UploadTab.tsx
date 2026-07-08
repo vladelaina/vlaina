@@ -259,7 +259,7 @@ export function UploadTab({
                             onClick={open}
                             className={cn(
                                 "relative group border border-dashed rounded-lg px-3 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all duration-[var(--vlaina-duration-300)]",
-                                "hover:bg-[var(--vlaina-hover)] hover:border-[var(--vlaina-color-accent-border-hover)]",
+                                "hover:border-[var(--vlaina-color-accent-border-hover)]",
                                 isDragActive ? "border-[var(--vlaina-accent)] bg-[var(--vlaina-accent-light)] scale-[var(--vlaina-scale-99)]" : "border-[var(--vlaina-border)]"
                             )}
                         >
@@ -276,7 +276,6 @@ export function UploadTab({
                     <div className="flex-1 flex flex-col min-h-0 bg-[var(--vlaina-bg-primary)] px-3">
                         <UploadTabLibrary
                             customIcons={customIcons}
-                            emptyLabel={t('icon.uploadImageForNoteIcon')}
                             imageLoader={imageLoader}
                             allowLegacyImageScheme={allowLegacyImageScheme}
                             onSelect={handleLibraryItemClick}

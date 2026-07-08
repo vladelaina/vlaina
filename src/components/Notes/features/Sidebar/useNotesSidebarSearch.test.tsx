@@ -77,7 +77,7 @@ describe('useNotesSidebarSearch', () => {
     expect(result.current.searchQuery).toBe('');
   });
 
-  it('keeps notes search open when notes search is disabled by app view', () => {
+  it('closes notes search when notes search is disabled by app view', () => {
     const { result, rerender } = renderHook(
       ({ enabled }) => useNotesSidebarSearch(enabled),
       { initialProps: { enabled: true } },
@@ -91,10 +91,6 @@ describe('useNotesSidebarSearch', () => {
 
     rerender({ enabled: false });
 
-    act(() => {
-      useUIStore.getState().setNotesSidebarView('outline');
-    });
-
-    expect(useUIStore.getState().sidebarSearchOpen).toBe(true);
+    expect(useUIStore.getState().sidebarSearchOpen).toBe(false);
   });
 });

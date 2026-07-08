@@ -16,8 +16,19 @@ vi.mock('@/stores/uiSlice', () => ({
 }));
 
 vi.mock('./UnifiedTitleBar', () => ({
-  UnifiedTitleBar: forwardRef<HTMLDivElement>(function UnifiedTitleBar(_props, ref) {
-    return <div ref={ref} data-testid="titlebar" />;
+  UnifiedTitleBar: forwardRef<HTMLDivElement, {
+    onCollapsedSidebarToggleHoverChange?: (hovered: boolean) => void;
+  }>(function UnifiedTitleBar({ onCollapsedSidebarToggleHoverChange }, ref) {
+    return (
+      <div ref={ref} data-testid="titlebar">
+        <button
+          type="button"
+          data-testid="collapsed-sidebar-toggle"
+          onMouseEnter={() => onCollapsedSidebarToggleHoverChange?.(true)}
+          onMouseLeave={() => onCollapsedSidebarToggleHoverChange?.(false)}
+        />
+      </div>
+    );
   }),
 }));
 
@@ -126,6 +137,7 @@ describe('AppShell', () => {
     expect(peekSidebar).not.toBeNull();
     expect(peekSidebar).toHaveAttribute('data-open', 'false');
     expect(peekSidebar).toHaveAttribute('aria-hidden', 'true');
+    expect(hotzone!.style.width).toBe('48px');
     expect(peekSidebar!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('300px');
     expect(peekSidebar).toHaveClass('duration-[var(--vlaina-duration-100)]');
 
@@ -138,6 +150,31 @@ describe('AppShell', () => {
 
     expect(peekSidebar).toHaveAttribute('data-open', 'false');
     expect(peekSidebar).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('shows collapsed sidebar content from the titlebar toggle hover', () => {
+    const { container } = render(
+      <AppShell
+        sidebarWidth={300}
+        sidebarCollapsed
+        sidebarContent={<div data-testid="sidebar-content">Sidebar</div>}
+        onSidebarWidthChange={() => {}}
+        onSidebarToggle={() => {}}
+      >
+        <div>Main</div>
+      </AppShell>
+    );
+
+    const toggle = container.querySelector<HTMLElement>('[data-testid="collapsed-sidebar-toggle"]');
+    const peekSidebar = container.querySelector<HTMLElement>('[data-shell-sidebar-peek="true"]');
+    expect(toggle).not.toBeNull();
+    expect(peekSidebar).not.toBeNull();
+    expect(peekSidebar).toHaveAttribute('data-open', 'false');
+
+    fireEvent.mouseEnter(toggle!);
+
+    expect(peekSidebar).toHaveAttribute('data-open', 'true');
+    expect(peekSidebar).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('keeps the sidebar container mounted while toggling collapse state', () => {

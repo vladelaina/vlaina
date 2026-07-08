@@ -17,6 +17,11 @@ const VISIBLE_SIDEBAR_RENDER_DELAY_MS = import.meta.env.DEV ? 750 : 120;
 export const INITIAL_UNIFIED_VIEW_WAIT_TIMEOUT_MS = import.meta.env.DEV ? null : 3000;
 
 type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard'>;
+const PREWARMED_APP_VIEW_MODES = [
+  'notes',
+  'chat',
+  ...(import.meta.env.DEV ? ['whiteboard' as const] : []),
+] satisfies readonly ReadyAppViewMode[];
 
 interface UseAppContentViewLifecycleOptions {
   appViewMode: AppViewMode;
@@ -24,6 +29,39 @@ interface UseAppContentViewLifecycleOptions {
   hasLaunchViewMode: boolean;
   initialUnifiedAppViewMode: AppViewMode | null;
   shouldWaitForInitialUnifiedView: boolean;
+}
+
+function isPrewarmedAppViewMode(viewMode: AppViewMode): viewMode is ReadyAppViewMode {
+  return PREWARMED_APP_VIEW_MODES.includes(viewMode as ReadyAppViewMode);
+}
+
+function addPrewarmedAppViews(views: Set<AppViewMode>) {
+  if (PREWARMED_APP_VIEW_MODES.every((viewMode) => views.has(viewMode))) return views;
+  return new Set([...views, ...PREWARMED_APP_VIEW_MODES]);
+}
+
+function preloadActiveViewModule(viewMode: AppViewMode) {
+  if (viewMode === 'notes') {
+    void preloadNotesViewModule();
+    return;
+  }
+
+  if (viewMode === 'chat') {
+    void preloadChatViewModule();
+    return;
+  }
+
+  if (import.meta.env.DEV && viewMode === 'whiteboard') {
+    void preloadWhiteboardViewModule();
+  }
+}
+
+function preloadPrewarmedViewModules() {
+  void preloadNotesViewModule();
+  void preloadChatViewModule();
+  if (import.meta.env.DEV) {
+    void preloadWhiteboardViewModule();
+  }
 }
 
 export function useAppContentViewLifecycle({
@@ -113,19 +151,7 @@ export function useAppContentViewLifecycle({
     if (preloadedPrimaryViewRef.current === effectiveAppViewMode) return;
     preloadedPrimaryViewRef.current = effectiveAppViewMode;
 
-    if (effectiveAppViewMode === 'notes') {
-      void preloadNotesViewModule();
-      return;
-    }
-
-    if (effectiveAppViewMode === 'chat') {
-      void preloadChatViewModule();
-      return;
-    }
-
-    if (import.meta.env.DEV && effectiveAppViewMode === 'whiteboard') {
-      void preloadWhiteboardViewModule();
-    }
+    preloadActiveViewModule(effectiveAppViewMode);
   }, [effectiveAppViewMode, shouldWaitForInitialUnifiedView]);
 
   useEffect(() => {
@@ -172,7 +198,7 @@ export function useAppContentViewLifecycle({
 
   useEffect(() => {
     if (!shouldRenderDeferredChrome) return;
-    if (effectiveAppViewMode !== 'notes' && effectiveAppViewMode !== 'chat') return;
+    if (!isPrewarmedAppViewMode(effectiveAppViewMode)) return;
 
     setRenderedSidebarAppViews((views) => {
       if (views.has(effectiveAppViewMode)) return views;
@@ -182,24 +208,17 @@ export function useAppContentViewLifecycle({
 
   useEffect(() => {
     if (!activeViewReady || !primaryContentReady) return;
-    if (effectiveAppViewMode !== 'notes' && effectiveAppViewMode !== 'chat') return;
+    if (!isPrewarmedAppViewMode(effectiveAppViewMode)) return;
 
-    void preloadNotesViewModule();
-    void preloadChatViewModule();
+    preloadPrewarmedViewModules();
     void preloadNotesSidebarModule();
     void preloadChatSidebarModule();
     void preloadNotesTabRowModule();
     void preloadModelSelectorModule();
     void preloadTemporaryChatToggleModule();
 
-    setMountedAppViews((views) => {
-      if (views.has('notes') && views.has('chat')) return views;
-      return new Set([...views, 'notes', 'chat']);
-    });
-    setRenderedSidebarAppViews((views) => {
-      if (views.has('notes') && views.has('chat')) return views;
-      return new Set([...views, 'notes', 'chat']);
-    });
+    setMountedAppViews(addPrewarmedAppViews);
+    setRenderedSidebarAppViews(addPrewarmedAppViews);
   }, [activeViewReady, effectiveAppViewMode, primaryContentReady]);
 
   return {

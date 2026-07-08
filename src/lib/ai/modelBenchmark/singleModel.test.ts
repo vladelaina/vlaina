@@ -117,6 +117,29 @@ describe('checkModelHealth', () => {
     expect(result.error).toContain('Unexpected benchmark response');
   });
 
+  it('uses a minimal text prompt and output cap for chat health checks', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content: '6' } }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(provider, createModel('gpt-4o-mini'));
+    expect(result.status).toBe('success');
+    expect(result.endpoint).toBe('chat');
+
+    const [url, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/v1/chat/completions');
+    const body = JSON.parse(String(requestInit.body));
+    expect(body).toMatchObject({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: 'say 6' }],
+      max_tokens: 1,
+      stream: false,
+    });
+  });
+
   it('uses responses endpoint for codex-style models', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ output: [] }), {
@@ -132,7 +155,8 @@ describe('checkModelHealth', () => {
     const [url, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.example.com/v1/responses');
     const body = JSON.parse(String(requestInit.body));
-    expect(body.input).toBe('hi');
+    expect(body.input).toBe('say 6');
+    expect(body.max_output_tokens).toBe(1);
   });
 
   it('accepts image benchmark success bodies larger than the error-body limit', async () => {
@@ -177,8 +201,8 @@ describe('checkModelHealth', () => {
     const body = JSON.parse(String(requestInit.body));
     expect(body).toMatchObject({
       model: 'claude-sonnet-4-5',
-      messages: [{ role: 'user', content: 'hi' }],
-      max_tokens: 16,
+      messages: [{ role: 'user', content: 'say 6' }],
+      max_tokens: 1,
     });
   });
 
