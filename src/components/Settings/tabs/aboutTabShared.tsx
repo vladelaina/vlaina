@@ -3,6 +3,7 @@ import { getExternalLinkProps } from '@/lib/navigation/externalLinks';
 import type { AppLanguage, MessageKey, MessageValues } from '@/lib/i18n';
 
 export const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
+export const termsOfServiceUrl = 'https://github.com/vladelaina/vlaina/blob/main/TERMS.md';
 export const officialWebsiteUrl = 'https://vlaina.com';
 export const officialWebsiteLabel = 'vlaina.com';
 export const githubRepositoryUrl = 'https://github.com/vladelaina/vlaina';

@@ -390,4 +390,12 @@ describe('AccountSignInOptions', () => {
 
     expect(openExternalHrefMock).toHaveBeenCalledWith('https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md');
   });
+
+  it('opens the terms from the sign-in agreement', () => {
+    render(<AccountSignInOptions {...buildProps()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /terms of service/i }));
+
+    expect(openExternalHrefMock).toHaveBeenCalledWith('https://github.com/vladelaina/vlaina/blob/main/TERMS.md');
+  });
 });

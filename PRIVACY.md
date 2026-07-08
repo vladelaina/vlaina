@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: May 23, 2026
+Last updated: July 8, 2026
 
 This Privacy Policy explains how vlaina handles information when you use the vlaina desktop app, website, API, account features, managed AI service, billing features, support/admin systems, and redirect links operated by vlaina.
 
@@ -24,6 +24,8 @@ Files you open or create remain under your control in the folders you choose. vl
 
 If you configure your own AI provider in the desktop app, your provider settings and API keys are intended to stay on your device. You are responsible for the providers and keys you choose to use.
 
+The desktop app may write local diagnostic or error logs on your device to help troubleshoot crashes or failures. These logs may include app version, platform, error messages, stack traces, URL or route information, and limited runtime diagnostics, but they are not automatically uploaded to vlaina unless you choose to provide them in a support request.
+
 ## Account Information
 
 If you sign in or use online features, vlaina may process account information such as:
@@ -31,7 +33,7 @@ If you sign in or use online features, vlaina may process account information su
 - Email address.
 - Display name.
 - Avatar URL or profile image URL.
-- Authentication provider, such as Google, GitHub, or email sign-in.
+- Authentication provider or sign-in method, such as Google or email sign-in.
 - Provider account identifiers.
 - Account creation and update timestamps.
 - Authentication status and session status.
@@ -40,7 +42,7 @@ If you sign in or use online features, vlaina may process account information su
 
 For email sign-in, we process your email address to send and verify login codes. Login codes are stored as hashes, but the email address, request attempts, expiration time, and related operational metadata may be stored so the sign-in flow, abuse prevention, and support tools can work.
 
-For OAuth sign-in, Google or GitHub may provide profile information such as your email address, display name, avatar URL, and provider account identifier. Their own privacy policies apply to their handling of your information.
+For OAuth sign-in, Google may provide profile information such as your email address, display name, avatar URL, and provider account identifier. Google's own privacy policy applies to its handling of your information.
 
 ## Sessions, Security, and Abuse Prevention
 
@@ -157,7 +159,7 @@ We do not sell your personal data. We also do not share personal information for
 We may share or transmit information when needed to provide features you choose to use, including with:
 
 - AI providers and model gateways.
-- Authentication providers such as Google or GitHub.
+- Authentication providers such as Google.
 - Email delivery providers for login codes and service emails.
 - Payment processors such as Stripe.
 - Hosting, database, infrastructure, and security providers.

@@ -119,14 +119,14 @@ export const webAccountCommands = {
     assertSupportedWebAccountOrigin();
 
     try {
-      const res = await retryTransientAccountNetworkError(() =>
-        fetchAccount(`${API_BASE}${authStartPath(provider)}`, {
+      return await retryTransientAccountNetworkError(async () => {
+        const res = await fetchAccount(`${API_BASE}${authStartPath(provider)}`, {
           cache: 'no-store',
           credentials: 'include',
-        })
-      );
-      if (!res.ok) return null;
-      return await withAccountRequestTimeout((signal) => readAccountJson<{ authUrl: string; state: string }>(res, signal));
+        });
+        if (!res.ok) return null;
+        return await withAccountRequestTimeout((signal) => readAccountJson<{ authUrl: string; state: string }>(res, signal));
+      });
     } catch {
       return null;
     }
