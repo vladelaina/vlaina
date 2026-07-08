@@ -748,6 +748,45 @@ describe('blankAreaDragBoxPlugin document routing', () => {
     }
   });
 
+  it('does not move the editor caret when plain-clicking the file tree root sidebar blank area', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+    const sidebarScrollRoot = document.createElement('div');
+    sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
+    const sidebarBlankArea = document.createElement('div');
+    sidebarBlankArea.setAttribute('data-notes-sidebar-blank-drag-root', 'true');
+    sidebarBlankArea.setAttribute('data-notes-external-block-selection-root', 'true');
+    sidebarBlankArea.setAttribute('data-file-tree-root-drop-target', 'true');
+    sidebarScrollRoot.appendChild(sidebarBlankArea);
+
+    try {
+      document.body.appendChild(sidebarScrollRoot);
+      const startSelection = TextSelection.create(view.state.doc, view.state.doc.content.size - 1);
+      view.dispatch(view.state.tr.setSelection(startSelection));
+
+      const mouseDown = createMouseEvent('mousedown', {
+        button: 0,
+        buttons: 1,
+        clientX: 24,
+        clientY: 24,
+      });
+      sidebarBlankArea.dispatchEvent(mouseDown);
+      document.dispatchEvent(createMouseEvent('mouseup', {
+        clientX: 24,
+        clientY: 24,
+      }));
+      await waitForPointerClickSettled();
+
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+      expect(view.state.selection.from).toBe(startSelection.from);
+      expect(view.state.selection.to).toBe(startSelection.to);
+    } finally {
+      sidebarScrollRoot.remove();
+      await editor.destroy();
+    }
+  });
+
   it('keeps a recovered markdown blank-line selection stable when left-clicking the notes sidebar', async () => {
     const { editor, view } = await createBlockSelectionEditor([
       'Alpha',

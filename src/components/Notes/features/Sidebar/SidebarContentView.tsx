@@ -186,6 +186,8 @@ export function SidebarContentView({
               <div
                 ref={rootBlankAreaRef}
                 data-notes-sidebar-blank-drag-root="true"
+                data-notes-external-block-selection-root={displayRootFolder ? 'true' : undefined}
+                data-file-tree-root-drop-target={displayRootFolder ? 'true' : undefined}
                 className={cn(
                   'flex flex-1 justify-center',
                   hasFileTreeEntries ? 'min-h-0 items-center' : 'min-h-[var(--vlaina-size-160px)] items-center',

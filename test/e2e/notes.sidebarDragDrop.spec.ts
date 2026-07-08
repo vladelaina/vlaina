@@ -10,6 +10,7 @@ import {
 
 const FILE_TREE_PATH_SELECTOR = (path: string) => `[data-file-tree-path="${path}"]`;
 const FILE_TREE_FOLDER_SELECTOR = (path: string) => `[data-file-tree-kind="folder"][data-file-tree-path="${path}"]`;
+const NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR = '[data-notes-sidebar-blank-drag-root="true"]';
 
 async function dragTreeItemToTarget(page: Page, sourceSelector: string, targetSelector: string) {
   const result = await page.evaluate(({ sourceSelector, targetSelector }) => {
@@ -105,6 +106,7 @@ test.describe('notes sidebar drag and drop', () => {
     try {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 960 });
 
       const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-sidebar-drag-drop-root',
@@ -126,7 +128,7 @@ test.describe('notes sidebar drag and drop', () => {
       await dragTreeItemToTarget(
         page,
         `${FILE_TREE_FILE_SELECTOR}${FILE_TREE_PATH_SELECTOR('docs/nested-to-root.md')}`,
-        `${FILE_TREE_FILE_SELECTOR}${FILE_TREE_PATH_SELECTOR('root-anchor.md')}`,
+        NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR,
       );
       await expectPathVisible(page, 'nested-to-root.md');
       await expectPathGone(page, 'docs/nested-to-root.md');

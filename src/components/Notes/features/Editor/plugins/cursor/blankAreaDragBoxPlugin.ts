@@ -135,6 +135,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           dispatchTailBlankClickAction(view);
           return;
         }
+        if (zone === 'external-sidebar-blank') {
+          clearBlockSelection(view);
+          return;
+        }
         if (!action) {
           clearBlockSelection(view);
           return;

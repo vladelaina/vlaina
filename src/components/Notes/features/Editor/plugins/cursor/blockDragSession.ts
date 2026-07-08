@@ -1,7 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { createDragSelectionRect, type RectBounds } from './blockSelectionUtils';
 
-export type BlockDragStartZone = 'outside-editor' | 'below-last-block';
+export type BlockDragStartZone = 'outside-editor' | 'below-last-block' | 'external-sidebar-blank';
 
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 
