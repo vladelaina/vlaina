@@ -24,7 +24,7 @@ import type { CommunitySettings } from './aboutCommunitySettings';
 import { AboutHero } from './AboutHero';
 import { CommunityPills } from './AboutCommunityPills';
 import { DeveloperNotePanel } from './AboutDeveloperNotePanel';
-import { privacyPolicyUrl } from './aboutTabShared';
+import { privacyPolicyUrl, termsOfServiceUrl } from './aboutTabShared';
 
 type UpdateStatus = 'idle' | 'checking' | 'current' | 'available' | 'error';
 type UpdateInfo = DesktopUpdateInfo;
@@ -187,11 +187,21 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
       {isAccountConnected ? <FeedbackTab compact /> : null}
 
       <div>
-        <SettingsSectionHeader>{t('settings.about.privacy')}</SettingsSectionHeader>
+        <SettingsSectionHeader>{t('settings.about.legal')}</SettingsSectionHeader>
         <SettingsItem title={t('settings.about.openPrivacyPolicy')} className="hover:!shadow-[var(--vlaina-shadow-raised-soft)]">
           <button
             type="button"
             onClick={() => void openExternalHref(privacyPolicyUrl)}
+            className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-selection-soft)]"
+          >
+            <ExternalLink size={themeIconTokens.sizeSidebar} />
+            {t('common.open')}
+          </button>
+        </SettingsItem>
+        <SettingsItem title={t('settings.about.openTermsOfService')} className="hover:!shadow-[var(--vlaina-shadow-raised-soft)]">
+          <button
+            type="button"
+            onClick={() => void openExternalHref(termsOfServiceUrl)}
             className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-selection-soft)]"
           >
             <ExternalLink size={themeIconTokens.sizeSidebar} />

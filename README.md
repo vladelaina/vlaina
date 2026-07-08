@@ -24,9 +24,11 @@ This repository is open-source under the GNU AGPLv3.
 
 See [LICENSE](LICENSE).
 
-## Privacy
+## Privacy and Terms
 
 See [PRIVACY.md](PRIVACY.md) for a summary of how vlaina handles local data, AI provider requests, account features, web access, and update checks.
+
+See [TERMS.md](TERMS.md) for the service terms that apply to vlaina accounts, managed AI, billing, and other online features.
 
 ### Linux
 
