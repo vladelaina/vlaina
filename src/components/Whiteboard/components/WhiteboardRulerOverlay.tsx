@@ -5,6 +5,7 @@ import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
 
 interface WhiteboardRulerOverlayProps {
   closeLabel: string;
+  interactive: boolean;
   ruler: WhiteboardRulerState;
   rotateLabel: string;
   zoom: number;
@@ -14,6 +15,7 @@ interface WhiteboardRulerOverlayProps {
 
 export const WhiteboardRulerOverlay = memo(function WhiteboardRulerOverlay({
   closeLabel,
+  interactive,
   ruler,
   rotateLabel,
   zoom,
@@ -29,11 +31,13 @@ export const WhiteboardRulerOverlay = memo(function WhiteboardRulerOverlay({
 
   return (
     <div
-      className="absolute cursor-move select-none rounded-[var(--vlaina-radius-8px)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-whiteboard-ruler-bg)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-blur-sm)]"
-      onPointerDown={(event) => onPointerDown(event, 'move')}
+      className="absolute select-none rounded-[var(--vlaina-radius-8px)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-whiteboard-ruler-bg)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-blur-sm)]"
+      onPointerDown={interactive ? (event) => onPointerDown(event, 'move') : undefined}
       style={{
+        cursor: interactive ? 'move' : 'default',
         height: themeWhiteboardTokens.rulerHeightPx,
         left: ruler.x - themeWhiteboardTokens.rulerWidthPx / 2,
+        pointerEvents: interactive ? 'auto' : 'none',
         top: ruler.y - themeWhiteboardTokens.rulerHeightPx / 2,
         transform: `rotate(${ruler.angle}deg) scale(${1 / zoom})`,
         transformOrigin: '50% 50%',
@@ -80,6 +84,7 @@ export const WhiteboardRulerOverlay = memo(function WhiteboardRulerOverlay({
         className="absolute right-10 top-1/2 flex size-[var(--vlaina-size-24px)] -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--vlaina-radius-circle)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-floating-surface)] text-[var(--vlaina-color-text-secondary)] hover:text-[var(--vlaina-color-text-primary)]"
         onClick={onClose}
         onPointerDown={handleClosePointerDown}
+        style={{ pointerEvents: 'auto' }}
       >
         <Icon name="common.close" size={themeIconTokens.sizeXs} />
       </button>
@@ -88,6 +93,7 @@ export const WhiteboardRulerOverlay = memo(function WhiteboardRulerOverlay({
         aria-label={rotateLabel}
         className="absolute right-2 top-1/2 flex size-[var(--vlaina-size-24px)] -translate-y-1/2 cursor-alias items-center justify-center rounded-[var(--vlaina-radius-circle)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-floating-surface)] text-[var(--vlaina-color-text-secondary)] hover:text-[var(--vlaina-color-text-primary)]"
         onPointerDown={(event) => onPointerDown(event, 'rotate')}
+        style={{ pointerEvents: 'auto' }}
       >
         <Icon name="common.refresh" size={themeIconTokens.sizeXs} />
       </button>

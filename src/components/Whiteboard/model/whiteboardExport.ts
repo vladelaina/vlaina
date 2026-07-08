@@ -1,4 +1,5 @@
 import { themeWhiteboardTokens } from '@/styles/themeTokens';
+import { writeImageBlobToClipboard } from '@/lib/clipboard';
 import {
   WHITEBOARD_BRUSHES,
   getStrokeWidth,
@@ -10,6 +11,8 @@ import {
 import { getStrokeBounds } from './whiteboardSelection';
 import { getPressureStrokePath, getStrokeRenderWidth } from './whiteboardStrokeGeometry';
 
+export type WhiteboardExportFormat = 'jpeg' | 'png' | 'svg' | 'webp';
+
 interface WhiteboardExportOptions {
   connectors: WhiteboardConnector[];
   elements: WhiteboardElement[];
@@ -17,30 +20,60 @@ interface WhiteboardExportOptions {
   strokes: WhiteboardStroke[];
 }
 
-export async function exportWhiteboardPng({
+export async function exportWhiteboard({
   connectors,
   elements,
   root,
   strokes,
-}: WhiteboardExportOptions) {
+}: WhiteboardExportOptions, format: WhiteboardExportFormat) {
+  const blob = await createWhiteboardExportBlob({ connectors, elements, root, strokes }, format);
+  if (!blob) return false;
+  downloadBlob(blob, `whiteboard-${new Date().toISOString().slice(0, 10)}.${format === 'jpeg' ? 'jpg' : format}`);
+  return true;
+}
+
+export async function copyWhiteboardImageToClipboard(options: WhiteboardExportOptions) {
+  const blob = await createWhiteboardExportBlob(options, 'png');
+  return blob ? writeImageBlobToClipboard(blob) : false;
+}
+
+export async function createWhiteboardExportBlob({
+  connectors,
+  elements,
+  root,
+  strokes,
+}: WhiteboardExportOptions, format: WhiteboardExportFormat): Promise<Blob | null> {
   const styles = root ? window.getComputedStyle(root) : document.documentElement.style;
   const bounds = getExportBounds(elements, strokes);
   const svg = buildExportSvg({ bounds, connectors, elements, strokes, styles });
+  if (format === 'svg') {
+    return new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  }
   const image = await loadSvgImage(svg);
   const canvas = document.createElement('canvas');
   canvas.width = bounds.width;
   canvas.height = bounds.height;
   const context = canvas.getContext('2d');
-  if (!context) return;
+  if (!context) return null;
   context.drawImage(image, 0, 0);
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-  if (!blob) return;
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, getRasterMimeType(format), format === 'jpeg' ? 0.92 : undefined);
+  });
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
+  link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function getRasterMimeType(format: WhiteboardExportFormat): string {
+  if (format === 'jpeg') return 'image/jpeg';
+  if (format === 'webp') return 'image/webp';
+  return 'image/png';
 }
 
 interface BuildExportSvgOptions {

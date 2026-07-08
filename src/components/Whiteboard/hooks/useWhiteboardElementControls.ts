@@ -67,11 +67,14 @@ export function useWhiteboardElementControls({
     if (nextIds.length === 0) return;
     pushHistory();
     const movingStrokeIds = keepStrokeSelection ? selectedStrokeIds : [];
+    const originalElements = elements.filter((item) => nextIds.includes(item.id));
+    const originalStrokes = strokes.filter((stroke) => movingStrokeIds.includes(stroke.id));
     setDragState({
       kind: 'move-elements',
       elementIds: nextIds,
-      originalElements: elements.filter((item) => nextIds.includes(item.id)),
-      originalStrokes: strokes.filter((stroke) => movingStrokeIds.includes(stroke.id)),
+      currentPoint: point,
+      originalElementsById: new Map(originalElements.map((item) => [item.id, item])),
+      originalStrokesById: new Map(originalStrokes.map((stroke) => [stroke.id, stroke])),
       startPoint: point,
       strokeIds: movingStrokeIds,
     });
@@ -99,7 +102,7 @@ export function useWhiteboardElementControls({
       return element.id === dragState.id ? { ...element, x: Math.round(point.x - dragState.offsetX), y: Math.round(point.y - dragState.offsetY) } : element;
     }
     if (dragState.kind === 'move-elements') {
-      const original = dragState.originalElements.find((item) => item.id === element.id);
+      const original = dragState.originalElementsById.get(element.id);
       return original ? { ...element, x: Math.round(original.x + point.x - dragState.startPoint.x), y: Math.round(original.y + point.y - dragState.startPoint.y) } : element;
     }
     if (dragState.kind !== 'resize') return element;
@@ -119,12 +122,14 @@ export function useWhiteboardElementControls({
     const point = getBoardPoint(event.clientX, event.clientY);
     event.currentTarget.setPointerCapture(event.pointerId);
     pushHistory();
+    const originalElements = elements.filter((item) => selectedElementIds.includes(item.id));
+    const originalStrokes = strokes.filter((stroke) => selectedStrokeIds.includes(stroke.id));
     setDragState({
       bounds,
       handle,
       kind: 'resize-selection',
-      originalElements: elements.filter((item) => selectedElementIds.includes(item.id)),
-      originalStrokes: strokes.filter((stroke) => selectedStrokeIds.includes(stroke.id)),
+      originalElementsById: new Map(originalElements.map((item) => [item.id, item])),
+      originalStrokesById: new Map(originalStrokes.map((stroke) => [stroke.id, stroke])),
       preserveAspectRatio: event.shiftKey,
       startPoint: point,
     });
@@ -132,8 +137,8 @@ export function useWhiteboardElementControls({
 
   const resizeSelection = useCallback((state: Extract<WhiteboardDragState, { kind: 'resize-selection' }>, point: WhiteboardPoint) => {
     const nextBounds = getResizedSelectionBounds(state.bounds, state.startPoint, point, state.handle, state.preserveAspectRatio);
-    setElements((current) => resizeSelectionElements(current, state.originalElements, state.bounds, nextBounds));
-    setStrokes((current) => resizeSelectionStrokes(current, state.originalStrokes, state.bounds, nextBounds));
+    setElements((current) => resizeSelectionElements(current, state.originalElementsById, state.bounds, nextBounds));
+    setStrokes((current) => resizeSelectionStrokes(current, state.originalStrokesById, state.bounds, nextBounds));
   }, [setElements, setStrokes]);
 
   return { handleElementPointerDown, handleResizePointerDown, handleSelectionResizePointerDown, moveOrResizeElement, resizeSelection, selectElement, setElementText };

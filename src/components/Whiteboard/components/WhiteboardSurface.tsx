@@ -14,6 +14,7 @@ import {
 import type { WhiteboardSelectionRect } from '../model/whiteboardSelection';
 import type { WhiteboardResizeHandle } from '../model/whiteboardSelection';
 import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
+import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
 
 interface WhiteboardSurfaceProps {
   brushCursorColor: string;
@@ -26,6 +27,7 @@ interface WhiteboardSurfaceProps {
   elementTextLabel: string;
   elements: WhiteboardElement[];
   isPanning: boolean;
+  movePreview: WhiteboardMovePreview | null;
   resizeLabel: string;
   ruler: WhiteboardRulerState;
   rulerCloseLabel: string;
@@ -67,6 +69,7 @@ export function WhiteboardSurface({
   elementTextLabel,
   elements,
   isPanning,
+  movePreview,
   resizeLabel,
   ruler,
   rulerCloseLabel,
@@ -161,6 +164,7 @@ export function WhiteboardSurface({
         draftStroke={draftStroke}
         elementTextLabel={elementTextLabel}
         elements={elements}
+        movePreview={movePreview}
         resizeLabel={resizeLabel}
         ruler={ruler}
         rulerCloseLabel={rulerCloseLabel}

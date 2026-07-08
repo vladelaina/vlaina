@@ -14,6 +14,8 @@ type RulerDragState =
   | { kind: 'rotate'; startAngle: number; startPointerAngle: number };
 interface RulerBoardSize { height: number; width: number; zoom: number }
 type RulerSnapEdge = 'top' | 'bottom';
+interface RulerSnapResult { blocked: boolean; breakBefore?: boolean; edge: RulerSnapEdge | null; point: WhiteboardPoint }
+interface RulerSnapOptions { hasPreviousPoint?: boolean }
 
 const DEFAULT_RULER: WhiteboardRulerState = {
   angle: -8,
@@ -52,14 +54,15 @@ export function useWhiteboardRuler(initialRuler?: Partial<WhiteboardRulerState>)
     const snappedPoints: WhiteboardStrokePoint[] = [];
     const size = getRulerBoardSize(zoom);
     for (const point of points) {
-      const snap = snapPointToRuler(point, ruler, snapEdgeRef.current, size);
+      const snap = snapPointToRuler(point, ruler, snapEdgeRef.current, size, {
+        hasPreviousPoint: hasStrokePointRef.current || snappedPoints.length > 0,
+      });
       if (snap.blocked) {
         nextPointBreakRef.current = hasStrokePointRef.current || snappedPoints.length > 0;
-        snapEdgeRef.current = null;
         continue;
       }
       snapEdgeRef.current = snap.edge;
-      snappedPoints.push({ ...point, ...snap.point, breakBefore: nextPointBreakRef.current || point.breakBefore });
+      snappedPoints.push({ ...point, ...snap.point, breakBefore: snap.breakBefore || nextPointBreakRef.current || point.breakBefore });
       hasStrokePointRef.current = true;
       nextPointBreakRef.current = false;
     }
@@ -110,24 +113,40 @@ export function useWhiteboardRuler(initialRuler?: Partial<WhiteboardRulerState>)
   };
 }
 
-function snapPointToRuler(
+export function snapPointToRuler(
   point: WhiteboardPoint,
   ruler: WhiteboardRulerState,
   lockedEdge: RulerSnapEdge | null,
   size: RulerBoardSize,
-): { blocked: boolean; edge: RulerSnapEdge | null; point: WhiteboardPoint } {
+  options: RulerSnapOptions = {},
+): RulerSnapResult {
   const local = toRulerLocal(point, ruler, size);
-  if (local.x < 0 || local.x > size.width) return { blocked: false, edge: null, point };
-  if (local.y > 0 && local.y < size.height) return { blocked: true, edge: null, point };
+  if (local.x < 0 || local.x > size.width) return getReleasedRulerPoint(point, lockedEdge);
   const topDistance = Math.abs(local.y);
   const bottomDistance = Math.abs(local.y - size.height);
   const nearestEdge: RulerSnapEdge = topDistance < bottomDistance ? 'top' : 'bottom';
   const edge = lockedEdge ?? nearestEdge;
-  const snapDistance = themeWhiteboardTokens.rulerSnapDistancePx / Math.max(zoomFloor, size.zoom);
+  const edgeDistance = edge === 'top' ? topDistance : bottomDistance;
+  const captureDistance = themeWhiteboardTokens.rulerCaptureDistancePx / Math.max(zoomFloor, size.zoom);
+  const releaseDistance = themeWhiteboardTokens.rulerSnapDistancePx / Math.max(zoomFloor, size.zoom);
+  const snapDistance = lockedEdge ? releaseDistance : captureDistance;
   const insideRulerBand = local.y >= -snapDistance && local.y <= size.height + snapDistance;
-  if (!insideRulerBand) return { blocked: false, edge: null, point };
+  if (!insideRulerBand || (!lockedEdge && edgeDistance > snapDistance && (local.y < 0 || local.y > size.height))) {
+    return getReleasedRulerPoint(point, lockedEdge);
+  }
   const y = edge === 'top' ? 0 : size.height;
-  return { blocked: false, edge, point: fromRulerLocal({ x: local.x, y }, ruler, size) };
+  return {
+    blocked: false,
+    breakBefore: options.hasPreviousPoint && !lockedEdge,
+    edge,
+    point: fromRulerLocal({ x: local.x, y }, ruler, size),
+  };
+}
+
+function getReleasedRulerPoint(point: WhiteboardPoint, lockedEdge: RulerSnapEdge | null): RulerSnapResult {
+  return lockedEdge
+    ? { blocked: false, breakBefore: true, edge: null, point }
+    : { blocked: false, edge: null, point };
 }
 
 const zoomFloor = 0.01;

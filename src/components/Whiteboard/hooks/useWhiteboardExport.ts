@@ -1,5 +1,9 @@
 import { useCallback, type RefObject } from 'react';
-import { exportWhiteboardPng } from '../model/whiteboardExport';
+import {
+  copyWhiteboardImageToClipboard,
+  exportWhiteboard,
+  type WhiteboardExportFormat,
+} from '../model/whiteboardExport';
 import type { WhiteboardConnector, WhiteboardElement, WhiteboardStroke } from '../model/whiteboardModel';
 
 interface WhiteboardExportOptions {
@@ -15,12 +19,23 @@ export function useWhiteboardExport({
   strokes,
   viewportRef,
 }: WhiteboardExportOptions) {
-  return useCallback(() => {
-    void exportWhiteboardPng({
+  const exportBoard = useCallback((format: WhiteboardExportFormat = 'png') => {
+    void exportWhiteboard({
+      connectors,
+      elements,
+      root: viewportRef.current,
+      strokes,
+    }, format);
+  }, [connectors, elements, strokes, viewportRef]);
+
+  const copyBoardToClipboard = useCallback(() => {
+    void copyWhiteboardImageToClipboard({
       connectors,
       elements,
       root: viewportRef.current,
       strokes,
     });
   }, [connectors, elements, strokes, viewportRef]);
+
+  return { copyBoardToClipboard, exportBoard };
 }
