@@ -1,5 +1,6 @@
 import { useI18n } from '@/lib/i18n';
 import { WhiteboardSurface } from './components/WhiteboardSurface';
+import { WhiteboardMoreMenu } from './components/WhiteboardMoreMenu';
 import { WhiteboardToolbar } from './components/WhiteboardToolbar';
 import { useWhiteboardController } from './hooks/useWhiteboardController';
 
@@ -34,6 +35,7 @@ export function WhiteboardView({
         elementTextLabel={t('whiteboard.elementText')}
         elements={board.elements}
         isPanning={board.isPanning}
+        movePreview={board.movePreview}
         resizeLabel={t('whiteboard.resizeElement')}
         ruler={board.ruler}
         rulerCloseLabel={t('common.close')}
@@ -64,6 +66,21 @@ export function WhiteboardView({
         onWheel={board.handleWheel}
       />
 
+      {board.persistenceStatus && !board.persistenceStatus.ok ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none absolute right-3 top-14 z-[var(--vlaina-z-20)] rounded-[var(--vlaina-radius-pill)] border border-[var(--vlaina-color-status-danger-border)] bg-[var(--vlaina-color-status-danger-bg)] px-3 py-1.5 text-[var(--vlaina-font-12)] font-medium text-[var(--vlaina-color-status-danger-fg)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]"
+        >
+          {t('app.closeSaveFailedTitle')}
+        </div>
+      ) : null}
+
+      <WhiteboardMoreMenu
+        onCopyImage={board.copyBoardToClipboard}
+        onExport={board.exportBoard}
+      />
+
       <WhiteboardToolbar
         brushColors={board.brushColors}
         brushSizes={board.brushSizes}
@@ -76,7 +93,7 @@ export function WhiteboardView({
         onClear={board.clearBoard}
         onCopy={board.onCopy}
         onDuplicate={board.onDuplicate}
-        onExport={board.exportBoard}
+        onExport={() => board.exportBoard('png')}
         onFitView={board.fitView}
         onImageAdd={board.importImage}
         onPaste={board.onPaste}

@@ -289,6 +289,7 @@ export const themeWhiteboardTokens = {
   fitViewPaddingPx: 96,
   rulerWidthPx: 560,
   rulerHeightPx: 72,
+  rulerCaptureDistancePx: 14,
   rulerSnapDistancePx: 32,
   rulerTickCount: 29,
   rulerMajorTickEvery: 4,

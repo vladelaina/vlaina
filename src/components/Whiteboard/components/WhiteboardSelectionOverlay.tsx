@@ -10,9 +10,13 @@ import {
   type WhiteboardSelectionRect,
 } from '../model/whiteboardSelection';
 import type { WhiteboardElement, WhiteboardStroke } from '../model/whiteboardModel';
+import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
+
+const EMPTY_MOVING_IDS: string[] = [];
 
 interface WhiteboardSelectionOverlayProps {
   elements: WhiteboardElement[];
+  movePreview: WhiteboardMovePreview | null;
   selectedElementIds: string[];
   selectedStrokeIds: string[];
   selectionRect: WhiteboardSelectionRect | null;
@@ -22,6 +26,7 @@ interface WhiteboardSelectionOverlayProps {
 
 export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverlay({
   elements,
+  movePreview,
   selectedElementIds,
   selectedStrokeIds,
   selectionRect,
@@ -30,20 +35,30 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
 }: WhiteboardSelectionOverlayProps) {
   const elementById = useMemo(() => new Map(elements.map((element) => [element.id, element])), [elements]);
   const strokeById = useMemo(() => new Map(strokes.map((stroke) => [stroke.id, stroke])), [strokes]);
-  const selectedStrokeBounds = useMemo(() => selectedStrokeIds.flatMap((id) => {
+  const movingElementIds = movePreview?.elementIds ?? EMPTY_MOVING_IDS;
+  const movingStrokeIds = movePreview?.strokeIds ?? EMPTY_MOVING_IDS;
+  const movingStrokeIdSet = useMemo(() => new Set(movingStrokeIds), [movingStrokeIds]);
+  const movingIdSet = useMemo(() => new Set([...movingElementIds, ...movingStrokeIds]), [movingElementIds, movingStrokeIds]);
+  const baseSelectedStrokeBounds = useMemo(() => selectedStrokeIds.flatMap((id) => {
     const stroke = strokeById.get(id);
     if (!stroke) return [];
     const bounds = getStrokeBounds(stroke);
     return bounds ? [{ ...bounds, id: stroke.id }] : [];
   }), [selectedStrokeIds, strokeById]);
-  const selectedElementBounds = useMemo(() => selectedElementIds.flatMap((id) => {
+  const baseSelectedElementBounds = useMemo(() => selectedElementIds.flatMap((id) => {
     const element = elementById.get(id);
     return element ? [{ ...getElementBounds(element), id: element.id }] : [];
   }), [elementById, selectedElementIds]);
-  const selectedBounds = [...selectedElementBounds, ...selectedStrokeBounds];
-  const groupBounds = selectedBounds.length > 1 ? getBoundsUnion(selectedBounds) : null;
-  const strokeBounds = groupBounds ? [] : selectedStrokeBounds;
-  const resizeBounds = !selectionRect && selectedBounds.length > 0 ? groupBounds ?? selectedBounds[0] : null;
+  const baseSelectedBounds = useMemo(() => [...baseSelectedElementBounds, ...baseSelectedStrokeBounds], [baseSelectedElementBounds, baseSelectedStrokeBounds]);
+  const baseGroupBounds = useMemo(() => (baseSelectedBounds.length > 1 ? getBoundsUnion(baseSelectedBounds) : null), [baseSelectedBounds]);
+  const groupBounds = baseGroupBounds ? offsetRect(baseGroupBounds, movePreview) : null;
+  const strokeBounds = useMemo(() => (
+    groupBounds ? [] : baseSelectedStrokeBounds.map((bounds) => offsetMovingRect(bounds, bounds.id, movingStrokeIdSet, movePreview))
+  ), [baseSelectedStrokeBounds, groupBounds, movePreview, movingStrokeIdSet]);
+  const singleBounds = baseSelectedBounds.length === 1
+    ? offsetMovingRect(baseSelectedBounds[0], baseSelectedBounds[0].id, movingIdSet, movePreview)
+    : null;
+  const resizeBounds = !selectionRect && baseSelectedBounds.length > 0 ? groupBounds ?? singleBounds : null;
   const preview = useMemo(() => getMarqueePreview(elements, strokes, selectionRect), [elements, selectionRect, strokes]);
 
   return (
@@ -183,6 +198,19 @@ function SelectionResizeHandles({
       ))}
     </g>
   );
+}
+
+function offsetMovingRect<T extends WhiteboardSelectionRect>(
+  rect: T,
+  id: string,
+  movingIds: Set<string>,
+  movePreview: WhiteboardMovePreview | null,
+): T {
+  return movePreview && movingIds.has(id) ? { ...rect, x: rect.x + movePreview.dx, y: rect.y + movePreview.dy } : rect;
+}
+
+function offsetRect<T extends WhiteboardSelectionRect>(rect: T, movePreview: WhiteboardMovePreview | null): T {
+  return movePreview ? { ...rect, x: rect.x + movePreview.dx, y: rect.y + movePreview.dy } : rect;
 }
 
 function getMarqueePreview(

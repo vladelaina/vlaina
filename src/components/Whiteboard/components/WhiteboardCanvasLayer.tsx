@@ -18,6 +18,9 @@ import {
 import { getElementBounds, getStrokeBounds, rectsOverlap, type WhiteboardResizeHandle, type WhiteboardSelectionRect } from '../model/whiteboardSelection';
 import { getVisibleBoardRect } from '../model/whiteboardViewport';
 import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
+import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
+
+const EMPTY_MOVING_IDS: string[] = [];
 
 interface WhiteboardCanvasLayerProps {
   brushCursorColor: string;
@@ -29,6 +32,7 @@ interface WhiteboardCanvasLayerProps {
   draftStroke: WhiteboardStroke | null;
   elementTextLabel: string;
   elements: WhiteboardElement[];
+  movePreview: WhiteboardMovePreview | null;
   resizeLabel: string;
   ruler: WhiteboardRulerState;
   rulerCloseLabel: string;
@@ -60,6 +64,7 @@ export function WhiteboardCanvasLayer({
   draftStroke,
   elementTextLabel,
   elements,
+  movePreview,
   resizeLabel,
   ruler,
   rulerCloseLabel,
@@ -93,6 +98,7 @@ export function WhiteboardCanvasLayer({
         connectors={connectors}
         elementTextLabel={elementTextLabel}
         elements={elements}
+        movePreview={movePreview}
         resizeLabel={resizeLabel}
         ruler={ruler}
         rulerCloseLabel={rulerCloseLabel}
@@ -129,6 +135,7 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
   connectors,
   elementTextLabel,
   elements,
+  movePreview,
   resizeLabel,
   ruler,
   rulerCloseLabel,
@@ -154,6 +161,11 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
 }) {
   const selectedElementIdSet = useMemo(() => new Set(selectedElementIds), [selectedElementIds]);
   const selectedStrokeIdSet = useMemo(() => new Set(selectedStrokeIds), [selectedStrokeIds]);
+  const movingElementIds = movePreview?.elementIds ?? EMPTY_MOVING_IDS;
+  const movingStrokeIds = movePreview?.strokeIds ?? EMPTY_MOVING_IDS;
+  const movingElementIdSet = useMemo(() => new Set<string>(movingElementIds), [movingElementIds]);
+  const movingStrokeIdSet = useMemo(() => new Set<string>(movingStrokeIds), [movingStrokeIds]);
+  const elementMovePreview = movingElementIds.length > 0 ? movePreview : null;
   const elementsById = useMemo(() => new Map(elements.map((element) => [element.id, element])), [elements]);
   const visibleElements = useMemo(() => elements.filter((element) => (
     selectedElementIdSet.has(element.id) || !visibleRect || rectsOverlap(getElementBounds(element), visibleRect)
@@ -163,20 +175,31 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
     const bounds = getStrokeBounds(stroke);
     return !visibleRect || (bounds ? rectsOverlap(bounds, visibleRect) : false);
   }), [selectedStrokeIdSet, strokes, visibleRect]);
+  const staticVisibleStrokes = useMemo(() => visibleStrokes.filter((stroke) => !movingStrokeIdSet.has(stroke.id)), [movingStrokeIdSet, visibleStrokes]);
+  const movingVisibleStrokes = useMemo(() => visibleStrokes.filter((stroke) => movingStrokeIdSet.has(stroke.id)), [movingStrokeIdSet, visibleStrokes]);
+  const staticVisibleElements = useMemo(() => visibleElements.filter((element) => !movingElementIdSet.has(element.id)), [movingElementIdSet, visibleElements]);
+  const movingVisibleElements = useMemo(() => visibleElements.filter((element) => movingElementIdSet.has(element.id)), [movingElementIdSet, visibleElements]);
+  const moveCssTransform = movePreview ? `translate(${movePreview.dx}px, ${movePreview.dy}px)` : undefined;
   const connectorLines = useMemo(() => connectors.flatMap((connector) => {
     const from = elementsById.get(connector.fromId);
     const to = elementsById.get(connector.toId);
     if (!from || !to) return [];
-    const line = { ...connector, from: getWhiteboardElementCenter(from), to: getWhiteboardElementCenter(to) };
+    const line = {
+      ...connector,
+      from: offsetMovingPoint(getWhiteboardElementCenter(from), connector.fromId, movingElementIdSet, elementMovePreview),
+      to: offsetMovingPoint(getWhiteboardElementCenter(to), connector.toId, movingElementIdSet, elementMovePreview),
+    };
     return isConnectorVisible(line, visibleRect, selectedElementIdSet) ? [line] : [];
-  }), [connectors, elementsById, selectedElementIdSet, visibleRect]);
+  }), [connectors, elementMovePreview, elementsById, movingElementIdSet, selectedElementIdSet, visibleRect]);
   const selectedItemCount = selectedElementIds.length + selectedStrokeIds.length;
 
   return (
     <>
-      <WhiteboardStrokeLayer strokes={visibleStrokes} />
+      <WhiteboardStrokeLayer strokes={staticVisibleStrokes} />
+      {movingVisibleStrokes.length > 0 ? <WhiteboardStrokeLayer cssTransform={moveCssTransform} strokes={movingVisibleStrokes} /> : null}
       <WhiteboardSelectionOverlay
         elements={elements}
+        movePreview={movePreview}
         selectedElementIds={selectedElementIds}
         selectedStrokeIds={selectedStrokeIds}
         selectionRect={selectionRect}
@@ -186,6 +209,7 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
       <WhiteboardRulerOverlay
         ruler={ruler}
         closeLabel={rulerCloseLabel}
+        interactive={tool === 'ruler'}
         rotateLabel={rulerRotateLabel}
         zoom={viewportZoom}
         onClose={onRulerClose}
@@ -205,24 +229,44 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
           />
         ))}
       </svg>
-      {visibleElements.map((element) => (
-        <WhiteboardElementNode
-          key={element.id}
-          connectorSource={connectorSourceId === element.id}
-          element={element}
-          elementTextLabel={elementTextLabel}
-          resizeLabel={resizeLabel}
-          selected={selectedItemCount <= 1 && selectedElementIds.includes(element.id)}
-          tool={tool}
-          onConnectorTarget={onConnectorTarget}
-          onPointerDown={onElementPointerDown}
-          onResizePointerDown={onResizePointerDown}
-          onSelect={onSelectElement}
-          onTextChange={onElementTextChange}
-        />
-      ))}
+      <WhiteboardElementList connectorSourceId={connectorSourceId} elementTextLabel={elementTextLabel} elements={staticVisibleElements} resizeLabel={resizeLabel} selectedElementIds={selectedElementIds} selectedItemCount={selectedItemCount} tool={tool} onConnectorTarget={onConnectorTarget} onElementPointerDown={onElementPointerDown} onElementTextChange={onElementTextChange} onResizePointerDown={onResizePointerDown} onSelectElement={onSelectElement} />
+      <WhiteboardElementList connectorSourceId={connectorSourceId} elementTextLabel={elementTextLabel} elements={movingVisibleElements} resizeLabel={resizeLabel} selectedElementIds={selectedElementIds} selectedItemCount={selectedItemCount} tool={tool} transform={moveCssTransform} onConnectorTarget={onConnectorTarget} onElementPointerDown={onElementPointerDown} onElementTextChange={onElementTextChange} onResizePointerDown={onResizePointerDown} onSelectElement={onSelectElement} />
     </>
   );
+});
+
+const WhiteboardElementList = memo(function WhiteboardElementList({
+  connectorSourceId, elementTextLabel, elements, resizeLabel, selectedElementIds, selectedItemCount,
+  tool, transform, onConnectorTarget, onElementPointerDown, onElementTextChange, onResizePointerDown, onSelectElement,
+}: {
+  connectorSourceId: string | null; elementTextLabel: string; elements: WhiteboardElement[]; resizeLabel: string;
+  selectedElementIds: string[]; selectedItemCount: number; tool: WhiteboardTool; transform?: string;
+  onConnectorTarget: (id: string) => void;
+  onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
+  onElementTextChange: (id: string, text: string) => void;
+  onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => void;
+  onSelectElement: (id: string) => void;
+}) {
+  const nodes = useMemo(() => elements.map((element) => (
+    <WhiteboardElementNode
+      key={element.id}
+      connectorSource={connectorSourceId === element.id}
+      element={element}
+      elementTextLabel={elementTextLabel}
+      resizeLabel={resizeLabel}
+      selected={selectedItemCount <= 1 && selectedElementIds.includes(element.id)}
+      tool={tool}
+      onConnectorTarget={onConnectorTarget}
+      onPointerDown={onElementPointerDown}
+      onResizePointerDown={onResizePointerDown}
+      onSelect={onSelectElement}
+      onTextChange={onElementTextChange}
+    />
+  )), [
+    connectorSourceId, elementTextLabel, elements, onConnectorTarget, onElementPointerDown, onElementTextChange,
+    onResizePointerDown, onSelectElement, resizeLabel, selectedElementIds, selectedItemCount, tool,
+  ]);
+  return transform ? <div className="absolute inset-0 overflow-visible" style={{ transform }}>{nodes}</div> : nodes;
 });
 
 function isConnectorVisible(
@@ -238,4 +282,13 @@ function isConnectorVisible(
     y: Math.min(line.from.y, line.to.y),
   };
   return rectsOverlap(bounds, visibleRect);
+}
+
+function offsetMovingPoint(
+  point: WhiteboardPoint,
+  id: string,
+  movingIds: Set<string>,
+  movePreview: WhiteboardMovePreview | null,
+): WhiteboardPoint {
+  return movePreview && movingIds.has(id) ? { x: point.x + movePreview.dx, y: point.y + movePreview.dy } : point;
 }

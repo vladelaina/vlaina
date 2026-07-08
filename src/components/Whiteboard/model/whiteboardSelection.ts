@@ -117,11 +117,11 @@ export function getResizedSelectionBounds(
 
 export function resizeSelectionElements(
   elements: WhiteboardElement[],
-  originalElements: WhiteboardElement[],
+  originalElements: WhiteboardElement[] | Map<string, WhiteboardElement>,
   startBounds: WhiteboardSelectionRect,
   nextBounds: WhiteboardSelectionRect,
 ): WhiteboardElement[] {
-  const originalById = new Map(originalElements.map((element) => [element.id, element]));
+  const originalById = toElementMap(originalElements);
   return elements.map((element) => {
     const original = originalById.get(element.id);
     if (!original) return element;
@@ -132,11 +132,11 @@ export function resizeSelectionElements(
 
 export function resizeSelectionStrokes(
   strokes: WhiteboardStroke[],
-  originalStrokes: WhiteboardStroke[],
+  originalStrokes: WhiteboardStroke[] | Map<string, WhiteboardStroke>,
   startBounds: WhiteboardSelectionRect,
   nextBounds: WhiteboardSelectionRect,
 ): WhiteboardStroke[] {
-  const originalById = new Map(originalStrokes.map((stroke) => [stroke.id, stroke]));
+  const originalById = toStrokeMap(originalStrokes);
   return strokes.map((stroke) => {
     const original = originalById.get(stroke.id);
     if (!original) return stroke;
@@ -177,16 +177,20 @@ export function translateStroke(stroke: WhiteboardStroke, dx: number, dy: number
 
 export function translateStrokesFromOriginals(
   strokes: WhiteboardStroke[],
-  originalStrokes: WhiteboardStroke[],
+  originalStrokes: WhiteboardStroke[] | Map<string, WhiteboardStroke>,
   dx: number,
   dy: number,
 ): WhiteboardStroke[] {
-  const originalById = new Map(originalStrokes.map((stroke) => [stroke.id, stroke]));
+  const originalById = toStrokeMap(originalStrokes);
   return strokes.map((stroke) => {
     const original = originalById.get(stroke.id);
     return original ? translateStroke(original, dx, dy) : stroke;
   });
 }
+
+const toElementMap = (elements: WhiteboardElement[] | Map<string, WhiteboardElement>) => elements instanceof Map ? elements : new Map(elements.map((element) => [element.id, element]));
+
+const toStrokeMap = (strokes: WhiteboardStroke[] | Map<string, WhiteboardStroke>) => strokes instanceof Map ? strokes : new Map(strokes.map((stroke) => [stroke.id, stroke]));
 
 function isPointNearStroke(stroke: WhiteboardStroke, point: WhiteboardPoint, tolerance: number): boolean {
   if (stroke.points.length === 0) return false;

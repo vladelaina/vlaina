@@ -37,9 +37,11 @@ export function useWhiteboardStrokeSelection({
     setSelectedStrokeIds(nextIds);
     if (nextIds.length === 0) return;
     pushHistory();
+    const originalStrokes = strokes.filter((stroke) => nextIds.includes(stroke.id));
     setDragState({
       kind: 'move-strokes',
-      originalStrokes: strokes.filter((stroke) => nextIds.includes(stroke.id)),
+      currentPoint: point,
+      originalStrokesById: new Map(originalStrokes.map((stroke) => [stroke.id, stroke])),
       startPoint: point,
       strokeIds: nextIds,
     });

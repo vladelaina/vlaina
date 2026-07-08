@@ -47,6 +47,7 @@ export interface WhiteboardElement {
   y: number;
   width: number;
   height: number;
+  imageAssetPath?: string;
   imageSrc?: string;
   text: string;
 }

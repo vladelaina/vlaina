@@ -12,8 +12,9 @@ export type WhiteboardDragState =
   | {
     kind: 'move-elements';
     elementIds: string[];
-    originalElements: WhiteboardElement[];
-    originalStrokes: WhiteboardStroke[];
+    currentPoint: WhiteboardPoint;
+    originalElementsById: Map<string, WhiteboardElement>;
+    originalStrokesById: Map<string, WhiteboardStroke>;
     startPoint: WhiteboardPoint;
     strokeIds: string[];
   }
@@ -30,8 +31,8 @@ export type WhiteboardDragState =
     bounds: WhiteboardSelectionRect;
     handle: WhiteboardResizeHandle;
     kind: 'resize-selection';
-    originalElements: WhiteboardElement[];
-    originalStrokes: WhiteboardStroke[];
+    originalElementsById: Map<string, WhiteboardElement>;
+    originalStrokesById: Map<string, WhiteboardStroke>;
     preserveAspectRatio: boolean;
     startPoint: WhiteboardPoint;
   }
@@ -49,7 +50,8 @@ export type WhiteboardDragState =
   }
   | {
     kind: 'move-strokes';
-    originalStrokes: WhiteboardStroke[];
+    currentPoint: WhiteboardPoint;
+    originalStrokesById: Map<string, WhiteboardStroke>;
     startPoint: WhiteboardPoint;
     strokeIds: string[];
   }
@@ -61,6 +63,29 @@ export type WhiteboardDragState =
   | {
     kind: 'draw';
   };
+
+export interface WhiteboardMovePreview {
+  dx: number;
+  dy: number;
+  elementIds: string[];
+  strokeIds: string[];
+}
+
+export type WhiteboardMoveDragState = Extract<WhiteboardDragState, { kind: 'move-elements' | 'move-strokes' }>;
+
+export function isWhiteboardMoveDragState(state: WhiteboardDragState | null): state is WhiteboardMoveDragState {
+  return state?.kind === 'move-elements' || state?.kind === 'move-strokes';
+}
+
+export function getWhiteboardMovePreview(state: WhiteboardDragState | null): WhiteboardMovePreview | null {
+  if (!isWhiteboardMoveDragState(state)) return null;
+  return {
+    dx: state.currentPoint.x - state.startPoint.x,
+    dy: state.currentPoint.y - state.startPoint.y,
+    elementIds: state.kind === 'move-elements' ? state.elementIds : [],
+    strokeIds: state.strokeIds,
+  };
+}
 
 export function isEditableTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && Boolean(target.closest('input, textarea, [contenteditable="true"]'));

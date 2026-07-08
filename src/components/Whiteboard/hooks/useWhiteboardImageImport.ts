@@ -7,6 +7,7 @@ import {
   type WhiteboardTool,
   type WhiteboardViewport,
 } from '../model/whiteboardModel';
+import { useWhiteboardStore } from '../stores/useWhiteboardStore';
 
 interface WhiteboardImageImportOptions {
   pushHistory: () => void;
@@ -27,9 +28,12 @@ export function useWhiteboardImageImport({
   viewport,
   viewportRef,
 }: WhiteboardImageImportOptions) {
+  const writeActiveAsset = useWhiteboardStore((state) => state.writeActiveAsset);
+
   return useCallback(async (file: File, clientPoint?: WhiteboardPoint) => {
     const imageSrc = await readImageFile(file);
     const size = await getImageSize(imageSrc);
+    const imageAssetPath = await writeActiveAsset(file);
     const rect = viewportRef.current?.getBoundingClientRect();
     const viewportPoint = clientPoint && rect
       ? { x: clientPoint.x - rect.left, y: clientPoint.y - rect.top }
@@ -39,6 +43,7 @@ export function useWhiteboardImageImport({
     const nextElement: WhiteboardElement = {
       height: fittedSize.height,
       id: `wb-image-${Date.now()}`,
+      ...(imageAssetPath ? { imageAssetPath } : {}),
       imageSrc,
       text: file.name,
       type: 'image',
@@ -51,7 +56,7 @@ export function useWhiteboardImageImport({
     setSelectedElementId(nextElement.id);
     setSelectedStrokeIds([]);
     setTool('select');
-  }, [pushHistory, setElements, setSelectedElementId, setSelectedStrokeIds, setTool, viewport, viewportRef]);
+  }, [pushHistory, setElements, setSelectedElementId, setSelectedStrokeIds, setTool, viewport, viewportRef, writeActiveAsset]);
 }
 
 function readImageFile(file: File): Promise<string> {

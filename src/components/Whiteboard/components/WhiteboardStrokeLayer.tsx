@@ -4,14 +4,16 @@ import { getCenterStrokePath, getPressureStrokePath, getStrokeRenderWidth } from
 import { themeWhiteboardTokens } from '@/styles/themeTokens';
 
 interface WhiteboardStrokeLayerProps {
+  cssTransform?: string;
   strokes: WhiteboardStroke[];
 }
 
-export const WhiteboardStrokeLayer = memo(function WhiteboardStrokeLayer({ strokes }: WhiteboardStrokeLayerProps) {
+export const WhiteboardStrokeLayer = memo(function WhiteboardStrokeLayer({ cssTransform, strokes }: WhiteboardStrokeLayerProps) {
+  const strokeNodes = useMemo(() => strokes.map((stroke) => <WhiteboardStrokeNode key={stroke.id} stroke={stroke} />), [strokes]);
   return (
-    <svg aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-visible">
+    <svg aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-visible" style={cssTransform ? { transform: cssTransform, transformOrigin: '0 0', willChange: 'transform' } : undefined}>
       <g>
-        {strokes.map((stroke) => <WhiteboardStrokeNode key={stroke.id} stroke={stroke} />)}
+        {strokeNodes}
       </g>
     </svg>
   );
