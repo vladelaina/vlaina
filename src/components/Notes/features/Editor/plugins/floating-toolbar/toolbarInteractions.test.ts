@@ -631,6 +631,32 @@ describe('toolbar interactions', () => {
     delegation.destroy();
   });
 
+  it('clears prepared copy suppression when pointer up stops bubbling', async () => {
+    const toolbar = document.createElement('div');
+    const copyButton = document.createElement('button');
+    const blocker = document.createElement('div');
+    const view = {
+      dom: document.createElement('div'),
+    } as any;
+    copyButton.dataset.action = 'copy';
+    toolbar.append(copyButton);
+    document.body.append(toolbar, blocker);
+    blocker.addEventListener('pointerup', (event) => event.stopPropagation());
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    copyButton.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(true);
+
+    blocker.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(false);
+
+    delegation.destroy();
+  });
+
   it('previews only active link buttons because inactive links open the editor instead', () => {
     const toolbar = document.createElement('div');
     const inactiveLink = document.createElement('button');
