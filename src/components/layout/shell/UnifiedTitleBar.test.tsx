@@ -64,7 +64,7 @@ describe('UnifiedTitleBar', () => {
     expect(toggleButton.parentElement).toHaveClass('pl-2');
   });
 
-  it('reports hover on the collapsed sidebar toggle', () => {
+  it('reports hover on the collapsed sidebar toggle area', () => {
     const handleHoverChange = vi.fn();
 
     render(
@@ -76,8 +76,11 @@ describe('UnifiedTitleBar', () => {
     );
 
     const toggleButton = screen.getByRole('button', { name: 'Toggle sidebar' });
-    fireEvent.mouseEnter(toggleButton);
-    fireEvent.mouseLeave(toggleButton);
+    const toggleArea = toggleButton.parentElement;
+    expect(toggleArea).not.toBeNull();
+
+    fireEvent.mouseEnter(toggleArea!);
+    fireEvent.mouseLeave(toggleArea!);
 
     expect(handleHoverChange).toHaveBeenNthCalledWith(1, true);
     expect(handleHoverChange).toHaveBeenNthCalledWith(2, false);

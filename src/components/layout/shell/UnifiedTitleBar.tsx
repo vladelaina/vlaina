@@ -94,13 +94,15 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
       {shouldShowTrafficLightPreview ? <MacOSTrafficLightPreviewControls /> : null}
 
       {sidebarCollapsed ? (
-        <div className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-transparent ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}>
+        <div
+          className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-transparent ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}
+          onMouseEnter={() => onCollapsedSidebarToggleHoverChange?.(true)}
+          onMouseLeave={() => onCollapsedSidebarToggleHoverChange?.(false)}
+        >
           <button
             type="button"
             aria-label={translate('shortcut.action.toggleSidebar')}
             onClick={onToggleSidebar}
-            onMouseEnter={() => onCollapsedSidebarToggleHoverChange?.(true)}
-            onMouseLeave={() => onCollapsedSidebarToggleHoverChange?.(false)}
             className={cn(
               "app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",
               chatComposerGhostIconButtonClass
