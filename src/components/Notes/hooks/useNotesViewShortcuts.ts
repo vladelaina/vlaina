@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
-import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
+import { isEventInsideDialog, isEventInsideNotesChatSurface } from '@/lib/shortcuts/dialogGuards';
 import { shouldSkipShortcutForEditableSystemShortcut } from '@/lib/shortcuts/editableGuards';
 import {
   runOpenNewChatShortcut,
   runTemporaryChatWelcomeShortcut,
 } from '@/components/Chat/features/Temporary/temporaryChatCommands';
+import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { getAdjacentTreeNotePath } from '@/components/Notes/features/common/noteTreeNavigation';
 import {
   canOpenSidebarDiscussionForSelection,
@@ -61,7 +62,9 @@ export function useNotesViewShortcuts({
         return;
       }
 
-      if (matchesShortcutBinding(event, 'toggleEmbeddedChat')) {
+      const isInsideNotesChatSurface = isEventInsideNotesChatSurface(event.target);
+
+      if (!isInsideNotesChatSurface && matchesShortcutBinding(event, 'toggleEmbeddedChat')) {
         event.preventDefault();
         if (!chatPanelCollapsed) {
           closeChatPanel();
@@ -83,22 +86,32 @@ export function useNotesViewShortcuts({
         return;
       }
 
+      const focusChatComposerAfterShortcut = () => {
+        if (!isInsideNotesChatSurface || !chatFloatingOpen) {
+          focusNotesChatComposer();
+          return;
+        }
+
+        requestAnimationFrame(() => {
+          focusComposerInput();
+        });
+      };
+
       if (matchesShortcutBinding(event, 'openNewChat')) {
         event.preventDefault();
         runOpenNewChatShortcut();
-        focusNotesChatComposer();
+        focusChatComposerAfterShortcut();
         return;
       }
 
       if (matchesShortcutBinding(event, 'toggleTemporaryChatWelcome')) {
         event.preventDefault();
         runTemporaryChatWelcomeShortcut();
-        focusNotesChatComposer();
+        focusChatComposerAfterShortcut();
         return;
       }
 
-      const target = event.target;
-      if (target instanceof Element && target.closest('[data-notes-chat-panel="true"]')) {
+      if (isInsideNotesChatSurface) {
         return;
       }
 
