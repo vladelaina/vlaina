@@ -150,6 +150,19 @@ export function CoverPicker({
   useEffect(() => {
     if (!isOpen) return;
 
+    const handleOutsideMouseDown = (e: MouseEvent) => {
+      const target = e.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      if (target.closest('[data-slot="popover-content"], [data-no-editor-drag-box="true"], [data-note-cover-region="true"]')) {
+        return;
+      }
+
+      onPreview?.(null);
+      onClose();
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.isComposing) {
         return;
@@ -192,9 +205,11 @@ export function CoverPicker({
       }
     };
 
+    document.addEventListener('mousedown', handleOutsideMouseDown);
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('paste', handlePaste);
     return () => {
+      document.removeEventListener('mousedown', handleOutsideMouseDown);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('paste', handlePaste);
     };
