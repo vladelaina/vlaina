@@ -595,6 +595,20 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['hi', '', '<div>h1</div>', '', '1'].join('\n'));
   });
 
+  it('does not duplicate editor empty-line placeholders after one-line html blocks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument([
+        'hi',
+        '',
+        '<p>Fresh middle HTML body</p>',
+        '',
+        '\u200B',
+        '',
+        '1',
+      ].join('\n'))
+    ).toBe(['hi', '', '<p>Fresh middle HTML body</p>', '', '1'].join('\n'));
+  });
+
   it('strips editor rendered-boundary comments after multi-line html blocks', () => {
     expect(
       normalizeSerializedMarkdownDocument([
