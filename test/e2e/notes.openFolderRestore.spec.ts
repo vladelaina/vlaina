@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -24,15 +24,25 @@ function getNotesRootStorageKey(notesRootPath: string): string {
   return `notes-root-${(hash >>> 0).toString(36)}`;
 }
 
+function getNotesRootWorkspacePath(userDataDir: string, notesRootPath: string): string {
+  return path.join(userDataDir, '.vlaina', 'notes', 'notes-roots', getNotesRootStorageKey(notesRootPath), 'workspace.json');
+}
+
+const FILE_TREE_FOLDER_SELECTOR = (folderPath: string) =>
+  `[data-file-tree-kind="folder"][data-file-tree-path="${folderPath}"]`;
+
+const FILE_TREE_FOLDER_ROW_SELECTOR = (folderPath: string) =>
+  `${FILE_TREE_FOLDER_SELECTOR(folderPath)} > div`;
+
 async function writeNotesRootWorkspace(
   userDataDir: string,
   notesRootPath: string,
   currentNotePath: string,
 ): Promise<void> {
-  const workspaceDir = path.join(userDataDir, '.vlaina', 'notes', 'notes-roots', getNotesRootStorageKey(notesRootPath));
+  const workspaceDir = path.dirname(getNotesRootWorkspacePath(userDataDir, notesRootPath));
   await fs.mkdir(workspaceDir, { recursive: true });
   await fs.writeFile(
-    path.join(workspaceDir, 'workspace.json'),
+    getNotesRootWorkspacePath(userDataDir, notesRootPath),
     JSON.stringify({
       currentNotePath,
       expandedFolders: [],
@@ -40,6 +50,20 @@ async function writeNotesRootWorkspace(
     }, null, 2),
     'utf8',
   );
+}
+
+async function readNotesRootWorkspace(userDataDir: string, notesRootPath: string): Promise<{
+  currentNotePath: string | null;
+  expandedFolders: string[];
+}> {
+  return JSON.parse(await fs.readFile(getNotesRootWorkspacePath(userDataDir, notesRootPath), 'utf8'));
+}
+
+async function waitForExpandedFolders(page: Page, expandedFolders: string[]) {
+  await expect.poll(async () => page.evaluate(() => {
+    const metrics = (window as any).__vlainaE2E.getNotesTreeMetrics();
+    return [...metrics.expandedFolders].sort();
+  }), { timeout: 30_000 }).toEqual([...expandedFolders].sort());
 }
 
 function createLongRestoreMarkdown(): string {
@@ -187,6 +211,83 @@ test.describe('notes open folder restore', () => {
         currentNotePath: 'alpha.md',
         openTabPaths: ['alpha.md'],
       });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('restores expanded and collapsed folder state from the recent folder entry', async () => {
+    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-open-folder-restore-tree-state');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const fixture = await createNotesRootFilesFixture(page, {
+        name: 'restore-tree-state',
+        files: [
+          {
+            filename: 'docs/alpha.md',
+            content: '# Alpha\n\nExpanded parent sentinel.\n',
+          },
+          {
+            filename: 'docs/drafts/beta.md',
+            content: '# Beta\n\nCollapsed child sentinel.\n',
+          },
+          {
+            filename: 'archive/old.md',
+            content: '# Old\n\nSibling sentinel.\n',
+          },
+        ],
+      });
+
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Tree State Restore',
+        minFileCount: 0,
+      });
+
+      await page.locator(FILE_TREE_FOLDER_ROW_SELECTOR('docs')).first().click();
+      await waitForExpandedFolders(page, ['docs']);
+      await expect(page.locator(FILE_TREE_FOLDER_SELECTOR('docs/drafts'))).toHaveCount(1, { timeout: 30_000 });
+
+      await page.locator(FILE_TREE_FOLDER_ROW_SELECTOR('docs/drafts')).first().click();
+      await waitForExpandedFolders(page, ['docs', 'docs/drafts']);
+      await expect(page.locator('[data-file-tree-kind="file"][data-file-tree-path="docs/drafts/beta.md"]')).toHaveCount(1);
+
+      await page.locator(FILE_TREE_FOLDER_ROW_SELECTOR('docs/drafts')).first().click();
+      await waitForExpandedFolders(page, ['docs']);
+      await expect.poll(async () => {
+        const workspace = await readNotesRootWorkspace(userDataDir, fixture.notesRootPath).catch(() => null);
+        return workspace?.expandedFolders ?? null;
+      }, { timeout: 30_000 }).toEqual(['docs']);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.closeNotesRoot());
+      await expect.poll(async () => page.evaluate(() => {
+        const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
+        return {
+          currentNotesRootPath: notesRootState.currentNotesRoot?.path ?? null,
+          hasEmptyWorkspacePanel: Boolean(document.querySelector('[data-testid="empty-workspace-panel"]')),
+        };
+      }), { timeout: 30_000 }).toMatchObject({
+        currentNotesRootPath: null,
+        hasEmptyWorkspacePanel: true,
+      });
+
+      await page
+        .locator('[data-testid="empty-workspace-panel"]')
+        .getByRole('button', { name: 'Tree State Restore' })
+        .first()
+        .click();
+      await expect.poll(async () => page.evaluate(() => {
+        const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
+        return notesRootState.currentNotesRoot?.path ?? null;
+      }), { timeout: 30_000 }).toBe(fixture.notesRootPath);
+      await waitForExpandedFolders(page, ['docs']);
+      await expect(page.locator('[data-file-tree-kind="file"][data-file-tree-path="docs/alpha.md"]')).toHaveCount(1);
+      await expect(page.locator(FILE_TREE_FOLDER_SELECTOR('docs/drafts'))).toHaveCount(1);
+      await expect(page.locator('[data-file-tree-kind="file"][data-file-tree-path="docs/drafts/beta.md"]')).toHaveCount(0);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

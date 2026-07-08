@@ -15,6 +15,7 @@ type NotesBridgeActions = Pick<
   | 'createNotesRootFilesFixture'
   | 'initializeNotesRootStore'
   | 'openNotesRoot'
+  | 'closeNotesRoot'
   | 'getNotesRootState'
   | 'removeRecentNotesRoot'
   | 'readNotesRootConfig'
@@ -92,6 +93,9 @@ export function createSyncE2ENotesActions(): NotesBridgeActions {
     },
     openNotesRoot: async (path, name) => {
       return useNotesRootStore.getState().openNotesRoot(path, name, { preserveSidebarTree: false });
+    },
+    closeNotesRoot: async () => {
+      return useNotesRootStore.getState().closeNotesRoot();
     },
     getNotesRootState: () => {
       const { currentNotesRoot, recentNotesRoots, error, isLoading } = useNotesRootStore.getState();

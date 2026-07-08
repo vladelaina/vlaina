@@ -516,7 +516,7 @@ describe('notes metadata storage', () => {
     );
   });
 
-  it('merges expanded workspace folders from disk before saving', async () => {
+  it('overwrites expanded workspace folders when saving a current snapshot', async () => {
     const workspaceFile = `/app/.vlaina/notes/notes-roots/${getNotesRootStorageKey('/notes-root-a')}/workspace.json`;
 
     adapter.exists.mockResolvedValue(true);
@@ -537,13 +537,13 @@ describe('notes metadata storage', () => {
       workspaceFile,
       JSON.stringify({
         currentNotePath: 'alpha.md',
-        expandedFolders: ['archive', 'docs'],
+        expandedFolders: ['docs'],
         fileTreeSortMode: 'updated-desc',
       }, null, 2)
     );
   });
 
-  it('caps merged expanded workspace folders before saving', async () => {
+  it('caps current expanded workspace folders before saving', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: 128 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
@@ -561,7 +561,7 @@ describe('notes metadata storage', () => {
     const [, writtenContent] = adapter.writeFile.mock.calls.at(-1) ?? [];
     expect(JSON.parse(writtenContent as string)).toEqual({
       currentNotePath: 'alpha.md',
-      expandedFolders: Array.from({ length: 5000 }, (_, index) => `disk-${index}`),
+      expandedFolders: Array.from({ length: 5000 }, (_, index) => `current-${index}`),
       fileTreeSortMode: 'updated-desc',
     });
   });

@@ -94,18 +94,8 @@ export async function saveWorkspaceState(notesRootPath: string, state: Workspace
     await ensureSystemDirectory(storePath);
 
     const wsPath = await joinPath(storePath, WORKSPACE_FILE);
-    const existingState = await loadWorkspaceState(notesRootPath);
     const normalizedState = normalizeWorkspaceState(state);
-    const mergedState = normalizedState && existingState
-      ? {
-          ...normalizedState,
-          expandedFolders: Array.from(new Set([
-            ...existingState.expandedFolders,
-            ...normalizedState.expandedFolders,
-          ])),
-        }
-      : normalizedState;
-    await safeWriteTextFile(wsPath, JSON.stringify(normalizeWorkspaceState(mergedState), null, 2));
+    await safeWriteTextFile(wsPath, JSON.stringify(normalizedState, null, 2));
   } catch (error) {
   }
 }

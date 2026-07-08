@@ -149,6 +149,7 @@ export interface E2EBridge {
   setAppViewMode(mode: 'notes' | 'chat'): Promise<void>;
   initializeNotesRootStore(): Promise<void>;
   openNotesRoot(path: string, name?: string): Promise<boolean>;
+  closeNotesRoot(): Promise<boolean>;
   getNotesRootState(): {
     currentNotesRoot: NotesRootInfo | null;
     recentNotesRoots: NotesRootInfo[];
