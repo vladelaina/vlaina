@@ -306,7 +306,61 @@ describe('slashCommandDefinitions', () => {
     await editor.destroy();
   });
 
-  it('does not insert an extra empty paragraph before an existing markdown blank-line block', async () => {
+  it('replaces a middle empty slash paragraph and its editable blank-line boundaries', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const paragraph = schema.nodes.paragraph;
+    const htmlBlock = schema.nodes.html_block;
+    const markdownBlankLineValue = '<!--vlaina-markdown-blank-line-->';
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+      paragraph.create(null, schema.text('hi')),
+      htmlBlock.create({ value: markdownBlankLineValue }),
+      paragraph.create(),
+      htmlBlock.create({ value: markdownBlankLineValue }),
+      paragraph.create(null, schema.text('1')),
+    ]));
+
+    let emptyParagraphPos = -1;
+    view.state.doc.forEach((node, offset) => {
+      if (emptyParagraphPos >= 0) return;
+      if (node.type.name === 'paragraph' && node.content.size === 0) {
+        emptyParagraphPos = offset;
+      }
+    });
+    expect(emptyParagraphPos).toBeGreaterThanOrEqual(0);
+    view.dispatch(
+      view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, emptyParagraphPos + 1)
+      )
+    );
+
+    applySlashCommand(editor.ctx, 'html-block');
+
+    const children: Array<{ type: string; text: string; value?: string }> = [];
+    view.state.doc.forEach((node) => {
+      children.push({
+        type: node.type.name,
+        text: node.textContent,
+        value: typeof node.attrs.value === 'string' ? node.attrs.value : undefined,
+      });
+    });
+    expect(children).toEqual([
+      { type: 'paragraph', text: 'hi', value: undefined },
+      { type: 'html_block', text: '', value: '' },
+      { type: 'paragraph', text: '1', value: undefined },
+    ]);
+
+    await editor.destroy();
+  });
+
+  it('replaces an editable blank-line slash query and its blank-line boundaries', async () => {
     const editor = Editor.make()
       .config((ctx) => {
         ctx.set(defaultValueCtx, '');
@@ -357,9 +411,7 @@ describe('slashCommandDefinitions', () => {
     });
     expect(children).toEqual([
       { type: 'paragraph', text: 'hi', value: undefined },
-      { type: 'html_block', text: '', value: markdownBlankLineValue },
       { type: 'html_block', text: '', value: '' },
-      { type: 'html_block', text: '', value: markdownBlankLineValue },
       { type: 'paragraph', text: '1', value: undefined },
     ]);
 

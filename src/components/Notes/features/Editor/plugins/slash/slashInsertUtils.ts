@@ -2,6 +2,11 @@ import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
+import {
+  findTopLevelBlockAfter,
+  findTopLevelBlockBefore,
+  isMarkdownBlankLinePlaceholderNode,
+} from '../cursor/markdownBlankLineShared';
 export {
   findInsertedNodePos,
   moveSelectionAfterInsertedNode,
@@ -29,6 +34,25 @@ function isEditableBlankLineText(text: string): boolean {
   return text.replace(EDITABLE_BLANK_LINE_PLACEHOLDER_PATTERN, '').trim().length === 0;
 }
 
+function getCurrentBlankTextBlockReplaceRange(selection: TextSelection) {
+  const from = selection.$from.before(1);
+  const to = selection.$from.after(1);
+  const previous = findTopLevelBlockBefore(selection.$from.doc, from);
+  const next = findTopLevelBlockAfter(selection.$from.doc, to);
+
+  if (
+    isMarkdownBlankLinePlaceholderNode(previous?.node) &&
+    isMarkdownBlankLinePlaceholderNode(next?.node)
+  ) {
+    return {
+      from: previous.from,
+      to: next.to,
+    };
+  }
+
+  return { from, to };
+}
+
 export function replaceSelectionOrCurrentBlankTextBlockWithNode<TNode, TTransaction>(state: {
   selection: unknown;
   tr: {
@@ -42,9 +66,13 @@ export function replaceSelectionOrCurrentBlankTextBlockWithNode<TNode, TTransact
     selection.empty &&
     selection.$from.depth === 1 &&
     selection.$from.parent.type.name === 'paragraph' &&
-    isEditableBlankLineText(selection.$from.parent.textContent)
+    (
+      selection.$from.parent.content.size === 0 ||
+      isEditableBlankLineText(selection.$from.parent.textContent)
+    )
   ) {
-    return state.tr.replaceWith(selection.$from.before(1), selection.$from.after(1), node);
+    const range = getCurrentBlankTextBlockReplaceRange(selection);
+    return state.tr.replaceWith(range.from, range.to, node);
   }
 
   return state.tr.replaceSelectionWith(node);

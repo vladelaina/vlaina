@@ -679,39 +679,82 @@ describe('markdownBlankLineInteraction', () => {
     }
   });
 
-  it('deletes an editable blank line below a heading without moving the cursor into the heading', async () => {
-    const editor = await createEditor('Alpha');
-    const view = editor.ctx.get(editorViewCtx);
+  it.each(['Backspace', 'Delete'] as const)(
+    'deletes an editable blank line below a heading on %s and moves the cursor to the heading end',
+    async (key) => {
+      const editor = await createEditor('Alpha');
+      const view = editor.ctx.get(editorViewCtx);
 
-    try {
-      const { schema } = view.state;
-      replaceDocument(view, [
-        createHeading(view, 'Heading before blank'),
-        createEditableBlankLineParagraph(view),
-        schema.nodes.paragraph.create(null, schema.text('Body')),
-      ]);
-      const blankLinePos = topLevelNodePos(
-        view,
-        (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
-      );
-      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, blankLinePos + 1)));
+      try {
+        const { schema } = view.state;
+        replaceDocument(view, [
+          createHeading(view, 'Heading before blank'),
+          createEditableBlankLineParagraph(view),
+          schema.nodes.paragraph.create(null, schema.text('Body')),
+        ]);
+        const blankLinePos = topLevelNodePos(
+          view,
+          (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+        );
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          blankLinePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length,
+        )));
 
-      const event = createDeleteEvent('Backspace');
-      const handled = handleMarkdownBlankLineDeletion(view, event);
+        const event = createDeleteEvent(key);
+        const handled = handleMarkdownBlankLineDeletion(view, event);
 
-      expect(handled).toBe(true);
-      expect(event.defaultPrevented).toBe(true);
-      expect(view.state.doc.childCount).toBe(2);
-      expect(view.state.doc.child(0).type.name).toBe('heading');
-      expect(view.state.doc.child(1).textContent).toBe('Body');
-      expect(view.state.selection).toBeInstanceOf(TextSelection);
-      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
-      expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
-      expect(view.state.selection.$from.parentOffset).toBe(0);
-    } finally {
-      await editor.destroy();
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(view.state.doc.childCount).toBe(2);
+        expect(view.state.doc.child(0).type.name).toBe('heading');
+        expect(view.state.doc.child(1).textContent).toBe('Body');
+        expect(view.state.selection).toBeInstanceOf(TextSelection);
+        expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+        expect(view.state.selection.$from.parent.type.name).toBe('heading');
+        expect(view.state.selection.$from.parentOffset).toBe('Heading before blank'.length);
+      } finally {
+        await editor.destroy();
+      }
     }
-  });
+  );
+
+  it.each(['Backspace', 'Delete'] as const)(
+    'deletes a terminal editable blank line below a heading on %s and moves the cursor to the heading end',
+    async (key) => {
+      const editor = await createEditor('Alpha');
+      const view = editor.ctx.get(editorViewCtx);
+
+      try {
+        replaceDocument(view, [
+          createHeading(view, 'Heading before blank'),
+          createEditableBlankLineParagraph(view),
+        ]);
+        const blankLinePos = topLevelNodePos(
+          view,
+          (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+        );
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          blankLinePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length,
+        )));
+
+        const event = createDeleteEvent(key);
+        const handled = handleMarkdownBlankLineDeletion(view, event);
+
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(view.state.doc.childCount).toBe(1);
+        expect(view.state.doc.child(0).type.name).toBe('heading');
+        expect(view.state.selection).toBeInstanceOf(TextSelection);
+        expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+        expect(view.state.selection.$from.parent.type.name).toBe('heading');
+        expect(view.state.selection.$from.parentOffset).toBe('Heading before blank'.length);
+      } finally {
+        await editor.destroy();
+      }
+    }
+  );
 
   it('deletes editable blank lines beside representative structural blocks without moving the cursor into them', async () => {
     const editor = await createEditor('Alpha');
@@ -774,9 +817,15 @@ describe('markdownBlankLineInteraction', () => {
         expect(view.state.selection, `${testCase.label} below on Backspace`).toBeInstanceOf(TextSelection);
         expect(view.state.selection, `${testCase.label} below on Backspace`).not.toBeInstanceOf(NodeSelection);
         expect(view.state.selection.$from.depth, `${testCase.label} below on Backspace`).toBe(1);
-        expect(view.state.selection.$from.parent.type.name, `${testCase.label} below on Backspace`).toBe('paragraph');
-        expect(view.state.selection.$from.parent.textContent, `${testCase.label} below on Backspace`).toBe(afterText);
-        expect(view.state.selection.$from.parentOffset, `${testCase.label} below on Backspace`).toBe(0);
+        if (testCase.typeName === 'heading') {
+          expect(view.state.selection.$from.parent.type.name, `${testCase.label} below on Backspace`).toBe('heading');
+          expect(view.state.selection.$from.parent.textContent, `${testCase.label} below on Backspace`).toBe('Structural heading');
+          expect(view.state.selection.$from.parentOffset, `${testCase.label} below on Backspace`).toBe('Structural heading'.length);
+        } else {
+          expect(view.state.selection.$from.parent.type.name, `${testCase.label} below on Backspace`).toBe('paragraph');
+          expect(view.state.selection.$from.parent.textContent, `${testCase.label} below on Backspace`).toBe(afterText);
+          expect(view.state.selection.$from.parentOffset, `${testCase.label} below on Backspace`).toBe(0);
+        }
       }
     } finally {
       await editor.destroy();

@@ -14,6 +14,9 @@ export {
   handleMarkdownBlankLineDeletion,
 } from './markdownBlankLineDeletion';
 export {
+  handleEditableMarkdownBlankLineAfterHeadingKeyboardDelete,
+} from './markdownBlankLineHeadingDeletion';
+export {
   handleMarkdownBlankLineKeyboardNavigation,
 } from './markdownBlankLineNavigation';
 export {
