@@ -11,6 +11,7 @@ import { dispatchOpenMarkdownTargetEvent } from '../../../../OpenTarget/openTarg
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const MAX_EDITOR_MARKDOWN_LINK_HREF_CHARS = 16 * 1024;
 const MAX_EDITOR_LINK_FRAGMENT_CHARS = 2 * 1024;
+const BROWSER_SEARCH_URL_PREFIX = 'https://www.google.com/search?q=';
 
 function getPathWithoutFragmentOrQuery(href: string): string {
     const hashIndex = href.indexOf('#');
@@ -21,6 +22,20 @@ function getPathWithoutFragmentOrQuery(href: string): string {
 
 function hasExplicitUrlScheme(value: string): boolean {
     return EXPLICIT_URL_SCHEME_PATTERN.test(value.trim());
+}
+
+function normalizeBrowserSearchFallbackHref(href: string): string | null {
+    const safeHref = sanitizeNoteLinkHref(href);
+    if (
+        !safeHref ||
+        safeHref.startsWith('//') ||
+        hasExplicitUrlScheme(safeHref) ||
+        normalizeExternalHref(safeHref)
+    ) {
+        return null;
+    }
+
+    return `${BROWSER_SEARCH_URL_PREFIX}${encodeURIComponent(safeHref)}`;
 }
 
 function decodeMarkdownLinkPath(path: string): string | null {
@@ -138,5 +153,11 @@ export async function openEditorLinkHref(
     const target = await resolveEditorMarkdownLinkTarget(trimmed);
     if (target) {
         dispatchOpenMarkdownTargetEvent(target);
+        return;
+    }
+
+    const browserFallbackHref = normalizeBrowserSearchFallbackHref(trimmed);
+    if (browserFallbackHref) {
+        await openExternalHref(browserFallbackHref);
     }
 }

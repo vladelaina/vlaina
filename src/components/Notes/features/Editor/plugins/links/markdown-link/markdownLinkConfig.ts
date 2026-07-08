@@ -10,7 +10,7 @@ export const MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS = 1024 * 1024;
 export const MAX_MARKDOWN_LINK_TRANSACTION_STEP_TEXT_CHARS = 200_000;
 export const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
 export const MAX_MARKDOWN_LINK_PASTE_NODES = 5000;
-export const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)]/;
+export const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)【】（）]/;
 
 export interface MarkdownLinkPluginState {
     hasRawMarkdownLink: boolean;

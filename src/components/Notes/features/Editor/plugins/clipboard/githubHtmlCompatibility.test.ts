@@ -135,8 +135,8 @@ describe('GitHub README HTML compatibility', () => {
     });
   });
 
-  it('matches the current GitHub URL protocol allowlist exactly', () => {
-    expect(Array.from(GITHUB_ALLOWED_LINK_PROTOCOLS)).toEqual(['http:', 'https:', 'mailto:']);
+  it('matches the current note URL protocol allowlist exactly', () => {
+    expect(Array.from(GITHUB_ALLOWED_LINK_PROTOCOLS)).toEqual(['http:', 'https:', 'mailto:', 'weixin:']);
     expect(Array.from(GITHUB_ALLOWED_MEDIA_PROTOCOLS)).toEqual(['http:', 'https:']);
   });
 
@@ -197,7 +197,9 @@ describe('GitHub README HTML compatibility', () => {
       '<video src="//example.com/demo.mp4"></video>',
       '<a href="HTTPS://example.com/Upper">upper</a>',
       '<a href="MAILTO:user@example.com">mail</a>',
+      '<a href="weixin://">wx</a>',
       '<img src="MAILTO:user@example.com">',
+      '<img src="weixin://">',
     ].join(''));
 
     expect(result).toContain('<a>protocol relative</a>');
@@ -206,8 +208,10 @@ describe('GitHub README HTML compatibility', () => {
     expect(result).toContain('<video src="https://example.com/demo.mp4"></video>');
     expect(result).toContain('href="HTTPS://example.com/Upper"');
     expect(result).toContain('href="MAILTO:user@example.com"');
+    expect(result).toContain('href="weixin://"');
     expect(result).toContain('<img>');
     expect(result).not.toContain('src="MAILTO:user@example.com"');
+    expect(result).not.toContain('src="weixin://"');
   });
 
   it('drops only GFM-disallowed raw HTML plus Selma remove-content extras', () => {

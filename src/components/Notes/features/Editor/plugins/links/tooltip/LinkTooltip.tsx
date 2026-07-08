@@ -4,9 +4,27 @@ import { LinkEditor } from './components/LinkEditor';
 import { LinkViewer } from './components/LinkViewer';
 
 export interface LinkTooltipProps extends UseLinkStateProps {
+    editorElement?: HTMLElement;
     onOpen: () => void;
     onUnlink: () => void;
     onRemove: () => void;
+}
+
+function resolveEventElement(target: EventTarget | null): Element | null {
+    return target instanceof Element
+        ? target
+        : target instanceof Node
+            ? target.parentElement
+            : null;
+}
+
+function isEditorLinkTarget(target: EventTarget | null, editorElement?: HTMLElement): boolean {
+    if (!editorElement) return false;
+
+    const targetElement = resolveEventElement(target);
+    if (!targetElement || !editorElement.contains(targetElement)) return false;
+
+    return targetElement.closest('a[href], .autolink') !== null;
 }
 
 const LinkTooltip = (props: LinkTooltipProps) => {
@@ -39,11 +57,11 @@ const LinkTooltip = (props: LinkTooltipProps) => {
                 return;
             }
 
-            const target = event.target instanceof Element
-                ? event.target
-                : event.target instanceof Node
-                    ? event.target.parentElement
-                    : null;
+            if (mode !== 'edit' && isEditorLinkTarget(event.target, props.editorElement)) {
+                return;
+            }
+
+            const target = resolveEventElement(event.target);
 
             if (target?.closest('[data-radix-popper-content-wrapper]') || target?.closest('[role="menu"]')) {
                 return;
@@ -75,7 +93,7 @@ const LinkTooltip = (props: LinkTooltipProps) => {
             document.removeEventListener('pointerdown', handlePressOutside, true);
             document.removeEventListener('mousedown', handlePressOutside, true);
         };
-    }, [mode, handleSaveEdit, props.containerElement, props.onClose]);
+    }, [mode, handleSaveEdit, props.containerElement, props.editorElement, props.onClose]);
 
 
     if (mode === 'edit') {

@@ -86,10 +86,15 @@ export function dispatchLinkTextCursorFromMouseEvent(view: EditorView, event: Mo
         event.clientY,
         resolveLinkTextRootFromMouseEvent(view, event),
     );
-    return pos !== null && dispatchEditorTextSelection(view, pos);
+    return pos !== null && dispatchEditorTextSelection(view, pos, pos, { hideFloatingToolbar: false });
 }
 
-function dispatchEditorTextSelection(view: EditorView, anchor: number, head = anchor): boolean {
+function dispatchEditorTextSelection(
+    view: EditorView,
+    anchor: number,
+    head = anchor,
+    options: { hideFloatingToolbar?: boolean } = {},
+): boolean {
     if (!view.dom.isConnected) return false;
 
     const nextAnchor = clampDocPosition(view, anchor);
@@ -102,13 +107,15 @@ function dispatchEditorTextSelection(view: EditorView, anchor: number, head = an
     }
 
     try {
-        view.dispatch(
-            view.state.tr
-                .setSelection(TextSelection.create(view.state.doc, nextAnchor, nextHead))
-                .setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE })
-                .setMeta('addToHistory', false)
-                .scrollIntoView()
-        );
+        let tr = view.state.tr
+            .setSelection(TextSelection.create(view.state.doc, nextAnchor, nextHead));
+        if (options.hideFloatingToolbar !== false) {
+            tr = tr.setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE });
+        }
+        tr = tr
+            .setMeta('addToHistory', false)
+            .scrollIntoView();
+        view.dispatch(tr);
         view.dom.focus({ preventScroll: true });
         view.focus();
         return true;
@@ -189,9 +196,9 @@ export function startLinkTextSelectionSession(
         upEvent.stopImmediatePropagation();
 
         if (!moved) {
-            dispatchEditorTextSelection(view, anchor);
+            dispatchEditorTextSelection(view, anchor, anchor, { hideFloatingToolbar: false });
             window.setTimeout(() => {
-                dispatchEditorTextSelection(view, anchor);
+                dispatchEditorTextSelection(view, anchor, anchor, { hideFloatingToolbar: false });
             }, 0);
             return;
         }
@@ -202,7 +209,7 @@ export function startLinkTextSelectionSession(
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    dispatchEditorTextSelection(view, anchor);
+    dispatchEditorTextSelection(view, anchor, anchor, { hideFloatingToolbar: false });
     ownerDocument.addEventListener('mousemove', handleMouseMove, true);
     ownerDocument.addEventListener('mouseup', handleMouseUp, true);
     return true;

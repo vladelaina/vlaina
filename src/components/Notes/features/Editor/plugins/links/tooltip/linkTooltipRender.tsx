@@ -33,6 +33,7 @@ export function renderExistingLinkTooltip({
             href={href}
             initialText={getBoundedLinkTooltipText(link)}
             containerElement={containerElement}
+            editorElement={view.dom}
             onOpen={() => void openEditorLinkHref(href, { view })}
             onEdit={onEdit}
             onUnlink={onUnlink}

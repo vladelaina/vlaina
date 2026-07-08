@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
+import { baseKeymap } from '@milkdown/kit/prose/commands';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
+import { history } from '@milkdown/kit/plugin/history';
+import { listener } from '@milkdown/kit/plugin/listener';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { customPlugins } from '../../../config/plugins';
+import { configureTheme } from '../../../theme';
 import {
   MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES,
   MAX_MARKDOWN_LINK_DOC_SCAN_NODES,
@@ -13,6 +19,7 @@ import {
   getMarkdownLinkInputTextBeforeCursor,
   isMarkdownImagePatternBeforeCursor,
   markdownLinkPlugin,
+  markdownLinkPluginKey,
   rangeTouchesRawMarkdownLink,
 } from './markdownLinkPlugin';
 import { shouldHandleMarkdownLinkPaste } from './markdownLinkParser';
@@ -69,11 +76,57 @@ function simulatePasteText(view: any, text: string): boolean {
   return handled;
 }
 
+function typeText(view: any, input: string): void {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+    view.someProp('handleTextInput', (handleTextInput: any) => {
+      const didHandle = handleTextInput(view, from, to, text);
+      handled = didHandle || handled;
+      return didHandle || undefined;
+    });
+    if (!handled) {
+      view.dispatch(view.state.tr.insertText(text, from, to));
+    }
+  }
+}
+
+function pressEnter(view: any): boolean {
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    key: 'Enter',
+  });
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    const didHandle = handleKeyDown(view, event);
+    handled = didHandle || handled;
+    return didHandle || undefined;
+  });
+  return handled || baseKeymap.Enter(view.state, view.dispatch, view);
+}
+
 function insertEmptyParagraphAfterDocumentEnd(view: any): void {
   const paragraphType = view.state.schema.nodes.paragraph;
   const tr = view.state.tr.insert(view.state.doc.content.size, paragraphType.create());
   const cursorPos = tr.doc.content.size - 1;
   view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)));
+}
+
+async function createFullStackEditor(defaultValue = '') {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, defaultValue);
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(history)
+    .use(listener)
+    .use(configureTheme)
+    .use(customPlugins);
+
+  await editor.create();
+  return editor;
 }
 
 function getFirstLinkHref(view: any): string | null {
@@ -341,6 +394,160 @@ describe('shouldHandleMarkdownLinkPaste', () => {
 
     const serializer = editor.ctx.get(serializerCtx);
     expect(serializer(view.state.doc).trim()).toBe('[Docs](https://example.com)');
+
+    await editor.destroy();
+  });
+
+  it('pastes weixin markdown links as link marks', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[wx](weixin://)')).toBe(true);
+
+    expect(view.state.doc.textContent).toBe('wx');
+    expect(getFirstLinkHref(view)).toBe('weixin://');
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe('[wx](weixin://)');
+
+    await editor.destroy();
+  });
+
+  it('collapses typed weixin markdown links on newline as link marks', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '[wx](weixin://)\n');
+
+    expect(view.state.doc.textContent).toBe('wx\n');
+    expect(getFirstLinkHref(view)).toBe('weixin://');
+
+    await editor.destroy();
+  });
+
+  it('collapses typed weixin markdown links when Enter splits the paragraph', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '[wx](weixin://)');
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(pressEnter(view)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('wx');
+    expect(getFirstLinkHref(view)).toBe('weixin://');
+
+    await editor.destroy();
+  });
+
+  it('collapses typed weixin markdown links on Enter with the full editor plugin stack', async () => {
+    const editor = await createFullStackEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '[wx](weixin://)');
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(pressEnter(view)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('wx');
+    expect(getFirstLinkHref(view)).toBe('weixin://');
+
+    await editor.destroy();
+  });
+
+  it('collapses typed plain relative markdown links on Enter with the full editor plugin stack', async () => {
+    const editor = await createFullStackEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '[1](1)');
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(pressEnter(view)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('1');
+    expect(getFirstLinkHref(view)).toBe('1');
+
+    await editor.destroy();
+  });
+
+  it.each([
+    ['[Docs](https://example.com)', 'Docs', 'https://example.com'],
+    ['[Mail](mailto:user@example.com)', 'Mail', 'mailto:user@example.com'],
+    ['[wx](weixin://)', 'wx', 'weixin://'],
+    ['[1](1)', '1', '1'],
+    ['[Heading](#section)', 'Heading', '#section'],
+    ['[Relative](docs/page.md)', 'Relative', 'docs/page.md'],
+    ['[Dot](./docs/page.md)', 'Dot', './docs/page.md'],
+    ['[Parent](../docs/page.md)', 'Parent', '../docs/page.md'],
+    ['[Paren](docs/a(b).md)', 'Paren', 'docs/a(b).md'],
+    ['[Title](https://example.com "Docs")', 'Title', 'https://example.com'],
+    ['【全角】（1）', '全角', '1'],
+    ['【wx】（weixin://）', 'wx', 'weixin://'],
+    ['【外链】（https://example.com）', '外链', 'https://example.com'],
+    ['[半全角]（1）', '半全角', '1'],
+    ['【半全角】(1)', '半全角', '1'],
+    ['【标题】（https://example.com "Docs"）', '标题', 'https://example.com'],
+  ])('collapses typed markdown link on Enter with the full editor stack: %s', async (source, text, href) => {
+    const editor = await createFullStackEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, source);
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(pressEnter(view)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe(text);
+    expect(getFirstLinkHref(view)).toBe(href);
+
+    await editor.destroy();
+  });
+
+  it('collapses typed unsafe markdown links on Enter as plain text with the full editor stack', async () => {
+    const editor = await createFullStackEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '[Bad](javascript:alert)');
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(pressEnter(view)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('Bad');
+    expect(getFirstLinkHref(view)).toBeNull();
+
+    await editor.destroy();
+  });
+
+  it('collapses typed unsafe localized markdown links on Enter as plain text with the full editor stack', async () => {
+    const editor = await createFullStackEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '【Bad】（javascript:alert）');
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(pressEnter(view)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('Bad');
+    expect(getFirstLinkHref(view)).toBeNull();
 
     await editor.destroy();
   });

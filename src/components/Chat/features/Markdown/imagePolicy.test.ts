@@ -262,8 +262,10 @@ describe("createMarkdownSanitizeSchema", () => {
     expect(srcProtocols).toContain("app-file");
     expect(srcProtocols).toContain("data");
     expect(srcProtocols).toContain("blob");
+    expect(hrefProtocols).toContain("weixin");
     expect(hrefProtocols).not.toContain("asset");
     expect(hrefProtocols).not.toContain("file");
+    expect(srcProtocols).not.toContain("weixin");
     expect(srcProtocols).not.toContain("file");
     expect(srcProtocols).not.toContain("app");
   });

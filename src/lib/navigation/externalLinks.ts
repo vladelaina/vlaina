@@ -2,8 +2,8 @@ import type { MouseEvent as ReactMouseEvent, MouseEventHandler } from "react";
 import { openExternalUrl } from "@/lib/desktop/shell";
 import { isLocalNetworkHttpUrl } from "@/lib/notes/markdown/urlSecurity";
 
-const EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
-const ALLOWED_LINK_PREFIX_REGEX = /^(https?:\/\/|mailto:)/i;
+const EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:", "weixin:"]);
+const ALLOWED_LINK_PREFIX_REGEX = /^(https?:\/\/|mailto:|weixin:)/i;
 const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const MAX_EXTERNAL_HREF_CHARS = 4096;
 

@@ -14,7 +14,7 @@ import {
 } from './renderableImagePolicy';
 
 const SAFE_RAW_HTML_MEDIA_SRC_SCHEMES = new Set(['http:', 'https:']);
-const SAFE_RAW_HTML_LINK_SRC_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
+const SAFE_RAW_HTML_LINK_SRC_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'weixin:']);
 const RAW_HTML_LOADABLE_OR_URL_PROPERTY_NAMES = new Set([
   'action',
   'cite',

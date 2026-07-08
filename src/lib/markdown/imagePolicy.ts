@@ -153,7 +153,7 @@ export function createMarkdownSanitizeSchema() {
     },
     protocols: {
       ...protocols,
-      href: Array.from(new Set([...hrefProtocols, 'tel'])),
+      href: Array.from(new Set([...hrefProtocols, 'tel', 'weixin'])),
       src: Array.from(new Set([...srcProtocols, 'http', 'https', 'data', 'blob', 'asset', 'attachment', 'app-file'])),
     },
     attributes: {

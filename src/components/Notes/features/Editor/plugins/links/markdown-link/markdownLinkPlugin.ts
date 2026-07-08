@@ -88,11 +88,12 @@ export const markdownLinkPlugin = $prose(() => {
                             hasRawMarkdownLink: docHasRawMarkdownLink(tr.doc),
                         };
                     }
-                    if (!transactionMayCreateMarkdownLink(tr)) {
+                    const hasAffectedRawMarkdownLink = transactionChangeMayAffectRawMarkdownLink(oldState.doc, tr.doc, tr);
+                    if (!transactionMayCreateMarkdownLink(tr) && !hasAffectedRawMarkdownLink) {
                         return previous;
                     }
                     return {
-                        hasRawMarkdownLink: transactionChangeMayAffectRawMarkdownLink(oldState.doc, tr.doc, tr),
+                        hasRawMarkdownLink: hasAffectedRawMarkdownLink,
                     };
                 }
 

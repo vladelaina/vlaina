@@ -314,6 +314,8 @@ it('does not insert or update images with unsafe command sources', async () => {
 it('sanitizes link hrefs consistently for schema and component editors', () => {
   expect(sanitizeLinkHref('https://example.com/path')).toBe('https://example.com/path')
   expect(sanitizeLinkHref('mailto:user@example.com')).toBe('mailto:user@example.com')
+  expect(sanitizeLinkHref('weixin://')).toBe('weixin://')
+  expect(sanitizeLinkHref('weixin://dl/chat')).toBe('weixin://dl/chat')
   expect(sanitizeLinkHref('#heading')).toBe('#heading')
   expect(sanitizeLinkHref('../docs/readme.md')).toBe('../docs/readme.md')
   expect(sanitizeLinkHref('.notes/readme.md')).toBe('.notes/readme.md')
@@ -338,6 +340,26 @@ it('sanitizes link hrefs consistently for schema and component editors', () => {
   expect(sanitizeLinkHref(String.raw`\\example.com\path`)).toBe(null)
   expect(sanitizeLinkHref('C:\\Users\\secret.txt')).toBe(null)
   expect(sanitizeLinkHref('https://example.com/\u202Ecod.exe')).toBe(null)
+})
+
+it('keeps weixin markdown links as editable link marks', async () => {
+  const editor = createEditor('[wx](weixin://)')
+
+  await editor.create()
+
+  const doc = editor.ctx.get(parserCtx)(editor.ctx.get(defaultValueCtx))
+  let linkHref: string | null = null
+  doc.descendants((node) => {
+    const link = node.marks.find((mark) => mark.type.name === 'link')
+    if (!link) return true
+    linkHref = link.attrs.href
+    return false
+  })
+
+  expect(doc.textContent).toBe('wx')
+  expect(linkHref).toBe('weixin://')
+
+  await editor.destroy()
 })
 
 it('bounds link title attrs consistently', () => {

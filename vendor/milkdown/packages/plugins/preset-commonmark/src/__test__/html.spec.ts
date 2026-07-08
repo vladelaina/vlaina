@@ -249,6 +249,16 @@ it('should drop protocol-relative links in github html', () => {
   expect(result).toBe('<a>protocol</a>')
 })
 
+it('should keep weixin raw links but reject weixin media in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<a href="weixin://">wx</a>',
+    '<a href="weixin://dl/chat">chat</a>',
+    '<img src="weixin://">',
+  ].join(''))
+
+  expect(result).toBe('<a href="weixin://">wx</a><a href="weixin://dl/chat">chat</a><img>')
+})
+
 it('should keep plain relative links in github html', () => {
   const result = sanitizeGithubHtml([
     '<a href="readme.md">readme</a>',

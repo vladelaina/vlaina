@@ -53,7 +53,7 @@ export function sanitizeEditorLinkHref(value: unknown): string | null {
     }
 
     if (trimmed.startsWith('//') || EXPLICIT_SCHEME_PATTERN.test(trimmed)) {
-        return null;
+        return sanitizeNoteLinkHref(trimmed);
     }
 
     return sanitizeNoteLinkHref(trimmed);

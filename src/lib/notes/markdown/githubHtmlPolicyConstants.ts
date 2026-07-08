@@ -90,7 +90,7 @@ export const GITHUB_LOADABLE_OR_URL_ATTRIBUTES = new Set([
 ]);
 
 export const GITHUB_ALLOWED_RELATIVE_PROTOCOL_MARKERS = new Set(['#', '/']);
-export const GITHUB_ALLOWED_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+export const GITHUB_ALLOWED_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'weixin:']);
 export const GITHUB_ALLOWED_MEDIA_PROTOCOLS = new Set(['http:', 'https:']);
 export const GITHUB_FORCED_IFRAME_SANDBOX = 'allow-scripts';
 export const GITHUB_ALLOWED_IFRAME_SANDBOX_TOKENS = new Set(['allow-scripts', 'allow-forms', 'allow-popups', 'allow-presentation']);

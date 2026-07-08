@@ -199,6 +199,7 @@ describe('desktop runtime adapters', () => {
     expect(await showDesktopConfirm('Continue?', { kind: 'warning' })).toBe(true);
     await showDesktopMessage('Saved', { title: 'Done' });
     await openExternalUrl('https://example.com');
+    await openExternalUrl('weixin://dl/chat');
     await openPathInFileManager('/tmp/themes');
     await revealItemInFolder('/tmp/file.md');
     await moveDesktopItemToTrash('/tmp/file.md');
@@ -210,6 +211,7 @@ describe('desktop runtime adapters', () => {
     expect(mocks.bridge.dialog.confirm).toHaveBeenCalledWith('Continue?', { kind: 'warning' });
     expect(mocks.bridge.dialog.message).toHaveBeenCalledWith('Saved', { title: 'Done' });
     expect(mocks.bridge.shell.openExternal).toHaveBeenCalledWith('https://example.com/');
+    expect(mocks.bridge.shell.openExternal).toHaveBeenCalledWith('weixin://dl/chat');
     expect(mocks.bridge.shell.openPath).toHaveBeenCalledWith('/tmp/themes');
     expect(mocks.bridge.shell.revealItem).toHaveBeenCalledWith('/tmp/file.md');
     expect(mocks.bridge.shell.trashItem).toHaveBeenCalledWith('/tmp/file.md');

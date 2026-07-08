@@ -36,7 +36,7 @@ const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
   ),
   protocols: {
     ...(BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA.protocols || {}),
-    href: ['http', 'https', 'mailto'],
+    href: ['http', 'https', 'mailto', 'weixin'],
     src: ['http', 'https', 'data'],
   },
 };

@@ -26,7 +26,7 @@ vi.mock('../../../../OpenTarget/openTargetEvents', () => ({
 vi.mock('@/lib/navigation/externalLinks', () => ({
     normalizeExternalHref: (href: string | null | undefined) => {
         if (!href) return null;
-        return /^(https?:\/\/|mailto:)/i.test(href.trim()) ? href.trim() : null;
+        return /^(https?:\/\/|mailto:|weixin:)/i.test(href.trim()) ? href.trim() : null;
     },
     openExternalHref: (href: string | null | undefined) => mocks.openExternalHref(href),
 }));
@@ -45,6 +45,13 @@ describe('openEditorLinkHref', () => {
         await openEditorLinkHref('https://example.com/docs');
 
         expect(mocks.openExternalHref).toHaveBeenCalledWith('https://example.com/docs');
+        expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
+    });
+
+    it('opens weixin links with the external link handler', async () => {
+        await openEditorLinkHref('weixin://');
+
+        expect(mocks.openExternalHref).toHaveBeenCalledWith('weixin://');
         expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
     });
 
@@ -169,8 +176,42 @@ describe('openEditorLinkHref', () => {
         expect(mocks.openExternalHref).not.toHaveBeenCalled();
     });
 
-    it('ignores non-markdown relative links instead of sending them to the external opener', async () => {
+    it('opens safe non-markdown relative links as browser searches', async () => {
         await openEditorLinkHref('./image.png');
+        await openEditorLinkHref('/docs/image.png');
+
+        expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
+        expect(mocks.openExternalHref).toHaveBeenNthCalledWith(
+            1,
+            'https://www.google.com/search?q=.%2Fimage.png',
+        );
+        expect(mocks.openExternalHref).toHaveBeenNthCalledWith(
+            2,
+            'https://www.google.com/search?q=%2Fdocs%2Fimage.png',
+        );
+    });
+
+    it('opens plain non-url hrefs as browser searches', async () => {
+        await openEditorLinkHref('workspace-note');
+        await openEditorLinkHref('1');
+
+        expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
+        expect(mocks.openExternalHref).toHaveBeenNthCalledWith(
+            1,
+            'https://www.google.com/search?q=workspace-note',
+        );
+        expect(mocks.openExternalHref).toHaveBeenNthCalledWith(
+            2,
+            'https://www.google.com/search?q=1',
+        );
+    });
+
+    it('does not use browser search fallback for unsafe hrefs', async () => {
+        await openEditorLinkHref('javascript:alert(1)');
+        await openEditorLinkHref('obsidian://open?vault=demo');
+        await openEditorLinkHref('//example.com/path');
+        await openEditorLinkHref(String.raw`https\://example.com`);
+        await openEditorLinkHref('.vlaina/workspace.md');
 
         expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
         expect(mocks.openExternalHref).not.toHaveBeenCalled();

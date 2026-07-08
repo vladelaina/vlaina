@@ -31,6 +31,8 @@ describe("externalLinks", () => {
       expect(normalizeExternalHref("mailto:hello@example.com")).toBe(
         "mailto:hello@example.com",
       );
+      expect(normalizeExternalHref("weixin://")).toBe("weixin://");
+      expect(normalizeExternalHref("weixin://dl/chat")).toBe("weixin://dl/chat");
     });
 
     it("rejects non-external or unsafe protocols", () => {
@@ -39,6 +41,7 @@ describe("externalLinks", () => {
       expect(normalizeExternalHref("/internal/path")).toBeNull();
       expect(normalizeExternalHref("ftp://example.com")).toBeNull();
       expect(normalizeExternalHref("   ")).toBeNull();
+      expect(normalizeExternalHref(String.raw`weixin\://dl/chat`)).toBeNull();
     });
 
     it("rejects oversized external hrefs before URL parsing", () => {
@@ -77,10 +80,11 @@ describe("externalLinks", () => {
       fc.assert(
         fc.property(fc.string(), (input) => {
           const lower = input.trim().toLowerCase();
-          const hasAllowedPrefix =
+      const hasAllowedPrefix =
             lower.startsWith("http://") ||
             lower.startsWith("https://") ||
-            lower.startsWith("mailto:");
+            lower.startsWith("mailto:") ||
+            lower.startsWith("weixin:");
           if (!hasAllowedPrefix) {
             expect(normalizeExternalHref(input)).toBeNull();
           }

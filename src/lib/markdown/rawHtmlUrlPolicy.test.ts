@@ -114,12 +114,18 @@ describe('sanitizeRawHtmlUrlProperties', () => {
   it('drops local-network raw anchor URLs at the HAST layer', () => {
     const local = element('a', { href: 'http://127.0.0.1:3000/admin' });
     const publicLink = element('a', { href: 'https://example.com/docs' });
+    const weixinLink = element('a', { href: 'weixin://dl/chat' });
+    const weixinImage = element('img', { src: 'weixin://' });
 
     sanitizeRawHtmlUrlProperties(local);
     sanitizeRawHtmlUrlProperties(publicLink);
+    sanitizeRawHtmlUrlProperties(weixinLink);
+    sanitizeRawHtmlUrlProperties(weixinImage);
 
     expect(local.properties).not.toHaveProperty('href');
     expect(publicLink.properties.href).toBe('https://example.com/docs');
+    expect(weixinLink.properties.href).toBe('weixin://dl/chat');
+    expect(weixinImage.properties).not.toHaveProperty('src');
   });
 
   it('forces safe iframe referrer policy at the HAST layer', () => {

@@ -87,7 +87,7 @@ describe('MarkdownEditor compatibility', () => {
       '',
       '# Heading',
       '',
-      'Paragraph with `inline code`, #project/tag, [external](https://example.com), and [local](docs/page.md).',
+      'Paragraph with `inline code`, #project/tag, [external](https://example.com), [wx](weixin://), and [local](docs/page.md).',
       '',
       '> quote',
       '',
@@ -142,6 +142,8 @@ describe('MarkdownEditor compatibility', () => {
 
     const externalLink = view.dom.querySelector('a[href="https://example.com"].external-link');
     expect(externalLink).toBeInstanceOf(HTMLAnchorElement);
+    const weixinLink = view.dom.querySelector('a[href="weixin://"].external-link');
+    expect(weixinLink).toBeInstanceOf(HTMLAnchorElement);
     const localLink = view.dom.querySelector('a[href="docs/page.md"]');
     expect(localLink).toBeInstanceOf(HTMLAnchorElement);
     expect(localLink?.classList.contains('external-link')).toBe(false);

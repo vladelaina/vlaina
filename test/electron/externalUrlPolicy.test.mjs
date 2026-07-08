@@ -12,6 +12,8 @@ describe('electron external URL policy', () => {
   it('normalizes supported external URL protocols', () => {
     expect(normalizeExternalUrl(' https://example.com/path?q=1 ')).toBe('https://example.com/path?q=1');
     expect(normalizeExternalUrl('mailto:support@example.com')).toBe('mailto:support@example.com');
+    expect(normalizeExternalUrl('weixin://')).toBe('weixin://');
+    expect(normalizeExternalUrl('weixin://dl/chat')).toBe('weixin://dl/chat');
   });
 
   it('rejects unsupported and overlong external URLs', () => {

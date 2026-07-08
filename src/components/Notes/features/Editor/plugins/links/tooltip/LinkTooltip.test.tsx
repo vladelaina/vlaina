@@ -92,6 +92,33 @@ describe('LinkTooltip', () => {
         expect(onEdit).not.toHaveBeenCalled();
     });
 
+    it('keeps a viewing tooltip open when pressing editor link text', () => {
+        const editorElement = document.createElement('div');
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'hi';
+        editorElement.append(link);
+        document.body.append(editorElement);
+        const { onClose, onEdit } = renderInTooltipContainer({
+            editorElement,
+            href: 'https://example.com/docs',
+            initialText: 'hi',
+        });
+        const linkText = link.firstChild;
+
+        linkText?.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        linkText?.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        expect(onClose).not.toHaveBeenCalled();
+        expect(onEdit).not.toHaveBeenCalled();
+    });
+
     it('treats a non-element event target outside the tooltip as an outside click', () => {
         const { onEdit } = renderInTooltipContainer();
         const textNode = document.createTextNode('outside text');

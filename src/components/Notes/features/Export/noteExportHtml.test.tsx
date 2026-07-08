@@ -41,7 +41,9 @@ describe('renderNoteExportHtml', () => {
         '<a href="https://example.com/.git/config.md">external git path</a>',
         '<a href="https://example.com" onclick="alert(5)">safe</a>',
         '<a href="mailto:user@example.com">mail</a>',
+        '<a href="weixin://dl/chat">wx raw</a>',
         '<img src="assets/demo.png" onerror="alert(6)" alt="demo">',
+        '<img src="weixin://" alt="wx image">',
         '[protocol markdown](//example.com/markdown)',
         '[absolute markdown](/etc/passwd)',
         '[local markdown](http://localhost:3000/secret)',
@@ -49,6 +51,7 @@ describe('renderNoteExportHtml', () => {
         '[internal markdown](.vlaina/workspace.md)',
         '[git markdown](docs/.git/config.md)',
         '[dot markdown](.notes/alpha.md)',
+        '[wx markdown](weixin://)',
       ].join('\n'),
       'Unsafe <Title>',
     );
@@ -90,7 +93,10 @@ describe('renderNoteExportHtml', () => {
     expect(doc.querySelector('a[href="https://example.com/.git/config.md"]')?.textContent).toBe('external git path');
     expect(doc.querySelector('a[href="https://example.com"]')?.textContent).toBe('safe');
     expect(doc.querySelector('a[href="mailto:user@example.com"]')?.textContent).toBe('mail');
+    expect(doc.querySelector('a[href="weixin://dl/chat"]')?.textContent).toBe('wx raw');
+    expect(doc.querySelector('a[href="weixin://"]')?.textContent).toBe('wx markdown');
     expect(doc.querySelector('img[src="assets/demo.png"]')?.getAttribute('alt')).toBe('demo');
+    expect(doc.querySelector('img[src^="weixin:"]')).toBeNull();
   });
 
   it('strips arbitrary raw div data attributes from exported markdown', async () => {

@@ -143,7 +143,7 @@ describe('installLinkTooltipEvents', () => {
         link.href = 'https://example.com/docs';
         link.textContent = 'docs';
         editorDom.appendChild(link);
-        const { doc } = useTextSelectionCapableView(editorDom, handlers);
+        const { doc, tr } = useTextSelectionCapableView(editorDom, handlers);
 
         const cleanup = installLinkTooltipEvents(handlers);
         const mouseDown = new MouseEvent('mousedown', {
@@ -173,8 +173,9 @@ describe('installLinkTooltipEvents', () => {
         await flushAsyncHandlers();
 
         expect(mouseDown.defaultPrevented).toBe(true);
-        expect(handlers.clearShowTimer).toHaveBeenCalled();
-        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(handlers.clearShowTimer).not.toHaveBeenCalled();
+        expect(handlers.hide).not.toHaveBeenCalled();
+        expect(tr.setMeta).not.toHaveBeenCalledWith(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE });
         expect(openEditorLinkHref).not.toHaveBeenCalled();
 
         link.dispatchEvent(click);
@@ -183,6 +184,8 @@ describe('installLinkTooltipEvents', () => {
         expect(click.defaultPrevented).toBe(true);
         expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 5);
         expect(handlers.view.dispatch).toHaveBeenCalled();
+        expect(handlers.hide).not.toHaveBeenCalled();
+        expect(tr.setMeta).not.toHaveBeenCalledWith(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE });
         expect(openEditorLinkHref).not.toHaveBeenCalled();
 
         cleanup();
@@ -280,7 +283,7 @@ describe('installLinkTooltipEvents', () => {
         stubClientRect(link, { left: 5, right: 45, top: 5, bottom: 25, width: 40, height: 20 });
         listItem.appendChild(link);
         editorDom.appendChild(listItem);
-        const { doc } = useTextSelectionCapableView(editorDom, handlers);
+        const { doc, tr } = useTextSelectionCapableView(editorDom, handlers);
 
         const cleanup = installLinkTooltipEvents(handlers);
         const mouseDown = new MouseEvent('mousedown', {
@@ -302,22 +305,23 @@ describe('installLinkTooltipEvents', () => {
         await flushAsyncHandlers();
 
         expect(mouseDown.defaultPrevented).toBe(true);
-        expect(handlers.clearShowTimer).toHaveBeenCalled();
-        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(handlers.clearShowTimer).not.toHaveBeenCalled();
+        expect(handlers.hide).not.toHaveBeenCalled();
         expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 5);
+        expect(tr.setMeta).not.toHaveBeenCalledWith(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE });
         expect(openEditorLinkHref).not.toHaveBeenCalled();
 
         cleanup();
         editorDom.remove();
     });
 
-    it('hides a pending tooltip when a plain editor link click prepares text selection', async () => {
+    it('keeps the tooltip visible when a plain editor link click prepares text selection', async () => {
         const { editorDom, handlers } = createHandlers();
         const link = document.createElement('a');
         link.href = 'https://example.com/docs';
         link.textContent = 'docs';
         editorDom.appendChild(link);
-        const { doc } = useTextSelectionCapableView(editorDom, handlers);
+        const { doc, tr } = useTextSelectionCapableView(editorDom, handlers);
 
         const cleanup = installLinkTooltipEvents(handlers);
         const click = new MouseEvent('click', {
@@ -332,9 +336,10 @@ describe('installLinkTooltipEvents', () => {
         await flushAsyncHandlers();
 
         expect(click.defaultPrevented).toBe(true);
-        expect(handlers.clearShowTimer).toHaveBeenCalled();
-        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(handlers.clearShowTimer).not.toHaveBeenCalled();
+        expect(handlers.hide).not.toHaveBeenCalled();
         expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 5);
+        expect(tr.setMeta).not.toHaveBeenCalledWith(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE });
         expect(openEditorLinkHref).not.toHaveBeenCalled();
 
         cleanup();
@@ -347,7 +352,7 @@ describe('installLinkTooltipEvents', () => {
         link.href = 'https://example.com/docs';
         link.textContent = 'docs';
         editorDom.appendChild(link);
-        const { doc } = useTextSelectionCapableView(
+        const { doc, tr } = useTextSelectionCapableView(
             editorDom,
             handlers,
             ({ left }) => left < 50 ? 5 : 15,
@@ -394,6 +399,7 @@ describe('installLinkTooltipEvents', () => {
         expect(click.defaultPrevented).toBe(true);
         expect(handlers.clearShowTimer).toHaveBeenCalled();
         expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(tr.setMeta).toHaveBeenCalledWith(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE });
         expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 5);
         expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 15);
         expect(handlers.view.dispatch).toHaveBeenCalled();

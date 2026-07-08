@@ -1,7 +1,7 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
-const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'weixin:']);
 const UNSAFE_EXTERNAL_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 export const MAX_DESKTOP_EXTERNAL_URL_CHARS = 4096;

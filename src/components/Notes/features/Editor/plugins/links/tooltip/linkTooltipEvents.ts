@@ -152,10 +152,11 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         }
 
         setKeyboardInteraction(false);
-        if (startLinkTextSelectionSession(view, event, suppressNextEditorClick)) {
+        if (startLinkTextSelectionSession(view, event, () => {
             clearShowTimer();
             hide(true);
-        }
+            suppressNextEditorClick();
+        })) return;
     };
 
     const handleEditorClick = async (event: MouseEvent) => {
@@ -177,8 +178,6 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         }
 
         if (isPlainMouseClick(event)) {
-            clearShowTimer();
-            hide(true);
             if (dispatchLinkTextCursorFromMouseEvent(view, event)) {
                 return;
             }

@@ -184,7 +184,7 @@ export function normalizeExternalUrl(rawUrl, {
   }
 
   const parsed = new URL(trimmed);
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && parsed.protocol !== 'mailto:') {
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && parsed.protocol !== 'mailto:' && parsed.protocol !== 'weixin:') {
     throw new Error(`Unsupported external URL protocol: ${parsed.protocol}`);
   }
   if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) {

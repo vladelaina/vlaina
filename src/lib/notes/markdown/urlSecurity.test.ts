@@ -194,8 +194,11 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteLinkHref('http://127.0.0.1:3000/path')).toBeNull();
     expect(sanitizeNoteLinkHref('http://router/path')).toBeNull();
     expect(sanitizeNoteLinkHref('https://example.com/path')).toBe('https://example.com/path');
+    expect(sanitizeNoteLinkHref('weixin://')).toBe('weixin://');
+    expect(sanitizeNoteLinkHref('weixin://dl/chat')).toBe('weixin://dl/chat');
     expect(sanitizeNoteLinkHref('https:example.com/path')).toBeNull();
     expect(sanitizeNoteLinkHref('http:/example.com/path')).toBeNull();
+    expect(sanitizeNoteLinkHref(String.raw`weixin\://dl/chat`)).toBeNull();
   });
 
   it('rejects relative links into internal note folders', () => {

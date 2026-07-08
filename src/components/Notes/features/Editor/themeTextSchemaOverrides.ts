@@ -45,7 +45,7 @@ function getHeadingCompatibilityClass(level: unknown): string {
 }
 
 function isExternalLinkHref(href: string | null): boolean {
-    return typeof href === 'string' && /^(?:https?:|mailto:)/i.test(href.trim());
+    return typeof href === 'string' && /^(?:https?:|mailto:|weixin:)/i.test(href.trim());
 }
 
 export function applyTextSchemaOverrides(ctx: Ctx) {
