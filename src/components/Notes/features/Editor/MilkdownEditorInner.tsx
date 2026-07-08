@@ -15,6 +15,7 @@ import { useMilkdownEditorFactory } from './useMilkdownEditorFactory';
 import { useMilkdownExternalContentSync } from './useMilkdownExternalContentSync';
 import { useMilkdownThemeRuntime } from './useMilkdownThemeRuntime';
 import { getMilkdownEditorClassName } from './milkdownEditorClassName';
+import { focusCurrentEditorAtViewportPoint } from './utils/focusEditorAtPoint';
 
 export { createLargePlainMarkdownDocJSON, shouldUseLazyBlockVisibility } from './milkdownLargePlainMarkdown';
 export {
@@ -259,6 +260,30 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     preserveStartupEditorPosition,
   });
 
+  const handleEditorShellMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    if (target.closest('.ProseMirror, [data-no-editor-drag-box="true"]')) {
+      return;
+    }
+
+    const editor = editorShellRef.current?.querySelector<HTMLElement>('.ProseMirror');
+    const editorRect = editor?.getBoundingClientRect();
+    const clientX = editorRect && editorRect.width > 0
+      ? Math.min(Math.max(event.clientX, editorRect.left + 1), editorRect.right - 1)
+      : event.clientX;
+
+    if (focusCurrentEditorAtViewportPoint({ clientX, clientY: event.clientY })) {
+      event.preventDefault();
+    }
+  }, []);
+
   return (
     <div
       ref={editorShellRef}
@@ -281,6 +306,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       data-markdown-theme-color-scheme={markdownThemeRuntimeColorScheme.colorScheme}
       data-markdown-theme-color-scheme-mode={markdownThemeRuntimeColorScheme.mode}
       data-theme={markdownThemeRuntimeColorScheme.colorScheme}
+      onMouseDown={handleEditorShellMouseDown}
     >
       {showBodyLineNumbers && (
         <BodyLineNumberGutter

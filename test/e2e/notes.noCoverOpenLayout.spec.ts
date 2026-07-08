@@ -10,6 +10,8 @@ import {
   openNotesRootInNotes,
 } from './notesE2E';
 
+const NOTE_COVER_ADD_OVERLAY_SELECTOR = '[data-note-cover-add-overlay="true"]';
+
 const COVER_SVG = [
   '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400">',
   '<rect width="1200" height="400" fill="#2563eb"/>',
@@ -185,6 +187,12 @@ test.describe('notes no-cover open layout stability', () => {
       expect(visiblePlainSamples.length).toBeGreaterThan(2);
       expect(maxHeadingTop - minHeadingTop).toBeLessThanOrEqual(2);
       expect(maxParagraphTop - minParagraphTop).toBeLessThanOrEqual(2);
+
+      const addCoverOverlay = page.locator(NOTE_COVER_ADD_OVERLAY_SELECTOR);
+      await expect(addCoverOverlay).toBeVisible();
+      await addCoverOverlay.click();
+      await expect(page.locator(NOTE_COVER_REGION_SELECTOR)).toBeVisible();
+      await expect(page.locator('[data-slot="popover-content"]')).toBeVisible();
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
