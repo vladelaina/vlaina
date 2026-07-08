@@ -48,8 +48,8 @@ export function ChatInputActions({
 
   const handleTriggerFileSelect = () => {
     if (disabled) return;
-    setActionsOpen(false);
     onTriggerFileSelect();
+    setActionsOpen(false);
   };
 
   const handleTriggerMentionSelect = () => {

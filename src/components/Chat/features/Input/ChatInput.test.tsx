@@ -128,6 +128,30 @@ describe('ChatInput', () => {
     expect(document.querySelector('[data-mention-preview-token="true"]')).toHaveTextContent('@Source');
   });
 
+  it('opens the native file picker from the upload action', () => {
+    const originalShowPicker = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'showPicker');
+    const showPicker = vi.fn();
+    Object.defineProperty(HTMLInputElement.prototype, 'showPicker', {
+      configurable: true,
+      value: showPicker,
+    });
+
+    try {
+      renderChatInput();
+
+      fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
+      fireEvent.click(screen.getByText('chat.uploadFile'));
+
+      expect(showPicker).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalShowPicker) {
+        Object.defineProperty(HTMLInputElement.prototype, 'showPicker', originalShowPicker);
+      } else {
+        delete HTMLInputElement.prototype.showPicker;
+      }
+    }
+  });
+
   it('adds note mentions when opened folder markdown files are dropped into chat', async () => {
     getDroppedExternalPathsMock.mockReturnValue([
       '/notesRoot/docs/Source.md',

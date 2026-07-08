@@ -244,7 +244,20 @@ export function useChatAttachments() {
   }, [flushRemovedAttachmentUndoStack]);
 
   const triggerFileSelect = useCallback(() => {
-    fileInputRef.current?.click();
+    const input = fileInputRef.current;
+    if (!input) return;
+
+    input.value = '';
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        input.click();
+        return;
+      }
+    }
+    input.click();
   }, []);
 
   const handleFileChange = useCallback(

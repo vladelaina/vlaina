@@ -122,6 +122,22 @@ export function WhiteboardToolbar({
     event.target.value = '';
     if (file) onImageAdd(file);
   };
+  const handleImageSelect = () => {
+    const input = imageInputRef.current;
+    if (!input) return;
+
+    input.value = '';
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        input.click();
+        return;
+      }
+    }
+    input.click();
+  };
 
   return (
     <div className="pointer-events-none absolute inset-x-3 bottom-4 z-[var(--vlaina-z-20)] flex justify-center">
@@ -212,10 +228,10 @@ export function WhiteboardToolbar({
           <ToolButton active={false} icon="common.refresh" label={t('whiteboard.resetView')} onClick={onResetView} />
           <ToolButton active={false} icon="nav.fullscreen" label={t('whiteboard.fitView')} onClick={onFitView} />
         </ToolbarGroup>
-        <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+        <input ref={imageInputRef} type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
         <ToolbarGroup>
           <ToolButton active={false} icon="common.download" label={t('whiteboard.exportPng')} onClick={onExport} />
-          <ToolButton active={false} icon="whiteboard.image" label={t('whiteboard.addImage')} onClick={() => imageInputRef.current?.click()} />
+          <ToolButton active={false} icon="whiteboard.image" label={t('whiteboard.addImage')} onClick={handleImageSelect} />
           <ToolButton active={false} icon="common.delete" label={t('whiteboard.clear')} onClick={onClear} />
         </ToolbarGroup>
       </div>

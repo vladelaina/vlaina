@@ -120,7 +120,20 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
   }, []);
 
   const handleClick = useCallback(() => {
-    fileInputRef.current?.click();
+    const input = fileInputRef.current;
+    if (!input) return;
+
+    input.value = '';
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        input.click();
+        return;
+      }
+    }
+    input.click();
   }, []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,7 +219,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
         type="file"
         accept="image/*"
         onChange={handleFileChange}
-        className="hidden"
+        className="sr-only"
       />
     </div>
   );
