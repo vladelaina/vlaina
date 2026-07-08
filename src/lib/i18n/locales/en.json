@@ -523,6 +523,8 @@
   "editor.insertBlock": "Insert block",
   "editor.invalidCropState": "Invalid crop state. Please try again.",
   "editor.linkPlaceholder": "URL...",
+  "editor.frontmatterPlaceholder": "Input YAML front matter.",
+  "editor.linkUrlHint": "Press Enter to apply link",
   "editor.mermaidNotAvailable": "Mermaid not available. Install with: pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaid Error: Unable to render diagram. Check the diagram syntax.",
   "editor.preview.saveAsImage": "Save as image",

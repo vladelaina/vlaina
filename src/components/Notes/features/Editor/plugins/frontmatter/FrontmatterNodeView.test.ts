@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { useUIStore } from '@/stores/uiSlice';
 import { FrontmatterNodeView } from './FrontmatterNodeView';
 
 function createMockNode(textContent = 'title: note'): ProseNode {
@@ -64,6 +65,7 @@ function clearPendingMeasureFrame(nodeView: FrontmatterNodeView) {
 describe('FrontmatterNodeView', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    useUIStore.setState({ languagePreference: 'en' });
   });
 
   it('adds the Typora frontmatter alias class to the node view root', () => {
@@ -71,6 +73,28 @@ describe('FrontmatterNodeView', () => {
 
     expect(nodeView.dom.classList.contains('frontmatter-block-container')).toBe(true);
     expect(nodeView.dom.classList.contains('md-meta-block')).toBe(true);
+
+    nodeView.destroy();
+  });
+
+  it('sets localized empty frontmatter placeholder copy', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    const nodeView = new FrontmatterNodeView(createMockNode(''), createMockView(), () => 0);
+
+    expect(nodeView.dom.dataset.empty).toBe('true');
+    expect(nodeView.dom.dataset.placeholder).toBe('输入 YAML Front Matter。');
+
+    nodeView.destroy();
+  });
+
+  it('refreshes empty frontmatter placeholder copy after language changes', () => {
+    const nodeView = new FrontmatterNodeView(createMockNode(''), createMockView(), () => 0);
+
+    expect(nodeView.dom.dataset.placeholder).toBe('Input YAML front matter.');
+
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+
+    expect(nodeView.dom.dataset.placeholder).toBe('输入 YAML Front Matter。');
 
     nodeView.destroy();
   });

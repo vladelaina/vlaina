@@ -523,6 +523,8 @@
   "editor.insertBlock": "Вставить блок",
   "editor.invalidCropState": "Недопустимое состояние обрезки. Пожалуйста, попробуйте еще раз.",
   "editor.linkPlaceholder": "URL...",
+  "editor.frontmatterPlaceholder": "Введите YAML front matter.",
+  "editor.linkUrlHint": "Нажмите Enter, чтобы применить ссылку",
   "editor.mermaidNotAvailable": "Mermaid недоступен. Установите с помощью: pnpm add mermaid",
   "editor.mermaidRenderError": "Ошибка Mermaid: Невозможно отрисовать диаграмму. Проверьте синтаксис диаграммы.",
   "editor.preview.saveAsImage": "Сохранить как изображение",

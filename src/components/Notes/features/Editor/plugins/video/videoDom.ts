@@ -158,3 +158,26 @@ export function createVideoDom(attrs: VideoAttrs): HTMLElement {
 
   return wrapper;
 }
+
+export function refreshVideoDomI18n(wrapper: HTMLElement): void {
+  const attrs = getVideoElementAttrs(wrapper);
+  const parsed = parseVideoUrl(attrs.src);
+
+  if (!attrs.src) {
+    const placeholder = wrapper.querySelector<HTMLElement>('.video-placeholder');
+    if (placeholder) placeholder.textContent = translate('editor.video.noUrl');
+    return;
+  }
+
+  if (!parsed) {
+    const error = wrapper.querySelector<HTMLElement>('.video-error');
+    if (error) error.textContent = translate('editor.video.unsupportedUrl', { url: attrs.src });
+    return;
+  }
+
+  const button = wrapper.querySelector<HTMLButtonElement>('.video-external-action');
+  if (button) {
+    button.textContent = translate('editor.video.open');
+    button.title = translate('editor.video.openInBrowser');
+  }
+}

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { useUIStore } from '@/stores/uiSlice';
 import { renderLinkEditor } from './LinkEditor';
 
 const commandMocks = vi.hoisted(() => ({
@@ -25,6 +26,7 @@ function createView(): EditorView {
 describe('LinkEditor', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    useUIStore.setState({ languagePreference: 'en' });
     commandMocks.setLink.mockReset();
     collapseMocks.collapseSelectionAfterToolbarApply.mockReset();
   });
@@ -63,5 +65,16 @@ describe('LinkEditor', () => {
     expect(commandMocks.setLink).toHaveBeenCalledWith(view, null);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(collapseMocks.collapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);
+  });
+
+  it('renders localized link input copy', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    renderLinkEditor(container, createView(), { linkUrl: null } as never, vi.fn());
+
+    expect(container.querySelector<HTMLInputElement>('.link-editor-rail-input')?.placeholder).toBe('链接...');
+    expect(container.querySelector('.link-editor-rail-hint')?.textContent).toBe('按回车应用链接');
   });
 });

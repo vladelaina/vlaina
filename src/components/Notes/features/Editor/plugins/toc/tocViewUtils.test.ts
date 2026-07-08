@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useUIStore } from '@/stores/uiSlice';
 import {
   extractHeadings,
   getTocEmptyText,
@@ -24,6 +25,10 @@ function createDoc(headings: Array<{ level: number; text: string; pos?: number }
 }
 
 describe('tocViewUtils', () => {
+  beforeEach(() => {
+    useUIStore.setState({ languagePreference: 'en' });
+  });
+
   it('normalizes TOC max levels from DOM attrs and node attrs', () => {
     expect(normalizeTocMaxLevel('2')).toBe(2);
     expect(normalizeTocMaxLevel('999')).toBe(6);
@@ -136,5 +141,14 @@ describe('tocViewUtils', () => {
     }], 2);
 
     expect(content.querySelector('.toc-empty')).toHaveTextContent(getTocEmptyText());
+  });
+
+  it('localizes empty placeholder text', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    const content = document.createElement('div');
+
+    renderTocContent(content, [], 6);
+
+    expect(content.querySelector('.toc-empty')).toHaveTextContent('还没有标题');
   });
 });

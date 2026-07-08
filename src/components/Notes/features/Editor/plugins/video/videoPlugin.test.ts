@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   Editor,
   commandsCtx,
@@ -9,6 +9,7 @@ import {
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { TextSelection } from '@milkdown/kit/prose/state';
+import { useUIStore } from '@/stores/uiSlice';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import {
   isSupportedVideoUrl,
@@ -17,7 +18,7 @@ import {
   sanitizeVideoUrlInput,
   sanitizeVideoDebugPayload,
 } from './index';
-import { createVideoDom, getVideoElementAttrs } from './videoDom';
+import { createVideoDom, getVideoElementAttrs, refreshVideoDomI18n } from './videoDom';
 import { remarkVideoImages } from './videoMarkdown';
 import { insertVideoCommand, videoPlugin } from './videoPlugin';
 
@@ -83,6 +84,10 @@ function createDeepVideoMarkdownTree(leaf: any) {
 }
 
 describe('videoPlugin URL support', () => {
+  beforeEach(() => {
+    useUIStore.setState({ languagePreference: 'en' });
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -305,6 +310,38 @@ describe('videoPlugin URL support', () => {
     });
     expect(dom.outerHTML).not.toContain('token=secret');
     expect(dom.outerHTML).not.toContain('private title');
+  });
+
+  it('refreshes localized video placeholder copy after language changes', () => {
+    const dom = createVideoDom({
+      src: '',
+      title: '',
+      width: 560,
+      height: 315,
+    });
+
+    expect(dom.querySelector('.video-placeholder')).toHaveTextContent('No video URL');
+
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    refreshVideoDomI18n(dom);
+
+    expect(dom.querySelector('.video-placeholder')).toHaveTextContent('没有视频 URL');
+  });
+
+  it('refreshes localized unsupported video URL copy after language changes', () => {
+    const dom = createVideoDom({
+      src: 'https://example.com/article',
+      title: '',
+      width: 560,
+      height: 315,
+    });
+
+    expect(dom.querySelector('.video-error')).toHaveTextContent('Unsupported video URL: https://example.com/article');
+
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    refreshVideoDomI18n(dom);
+
+    expect(dom.querySelector('.video-error')).toHaveTextContent('不支持的视频 URL：https://example.com/article');
   });
 
   it('normalizes non-string video dimension attrs without coercion', () => {

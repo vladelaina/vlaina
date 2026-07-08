@@ -9,6 +9,7 @@ import { createMarkdownComponents } from "@/components/Chat/features/Markdown/ma
 import { useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
 import { createChatStreamTextPlugin } from "@/components/Chat/features/Markdown/chatStreamTextPlugin";
 import { MAX_CHAT_MARKDOWN_RENDER_CHARS } from "@/components/Chat/features/Markdown/chatMarkdownRenderLimits";
+import { useI18n } from "@/lib/i18n";
 
 interface ThinkingMarkdownContentProps {
   componentOptions: Parameters<typeof createMarkdownComponents>[0];
@@ -71,9 +72,14 @@ export const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
   renderedThinking,
   streamBlocks,
 }: ThinkingMarkdownContentProps) {
+  const { t } = useI18n();
+  const localizedComponentOptions = useMemo(() => ({
+    ...componentOptions,
+    unavailableImageLabel: t('chat.imageUnavailable'),
+  }), [componentOptions, t]);
   const components = useMemo(
-    () => createMarkdownComponents(componentOptions),
-    [componentOptions],
+    () => createMarkdownComponents(localizedComponentOptions),
+    [localizedComponentOptions],
   );
 
   if (renderedThinking.length > MAX_CHAT_MARKDOWN_RENDER_CHARS) {
@@ -103,7 +109,7 @@ export const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
         <StreamingThinkingMarkdownBlock
           key={block.key}
           block={block}
-          componentOptions={componentOptions}
+          componentOptions={localizedComponentOptions}
         />
       ))}
     </>

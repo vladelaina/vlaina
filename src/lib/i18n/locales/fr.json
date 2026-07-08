@@ -523,6 +523,8 @@
   "editor.insertBlock": "Insérer un bloc",
   "editor.invalidCropState": "État de recadrage invalide. Veuillez réessayer.",
   "editor.linkPlaceholder": "URL...",
+  "editor.frontmatterPlaceholder": "Saisissez le front matter YAML.",
+  "editor.linkUrlHint": "Appuyez sur Entrée pour appliquer le lien",
   "editor.mermaidNotAvailable": "Mermaid non disponible. Installez avec : pnpm add mermaid",
   "editor.mermaidRenderError": "Erreur Mermaid : Impossible de rendre le diagramme. Vérifiez la syntaxe du diagramme.",
   "editor.preview.saveAsImage": "Enregistrer comme image",

@@ -523,6 +523,8 @@
   "editor.insertBlock": "Block einfügen",
   "editor.invalidCropState": "Ungültiger Zuschneidezustand. Bitte versuchen Sie es erneut.",
   "editor.linkPlaceholder": "URL...",
+  "editor.frontmatterPlaceholder": "YAML-Frontmatter eingeben.",
+  "editor.linkUrlHint": "Mit Eingabetaste Link anwenden",
   "editor.mermaidNotAvailable": "Mermaid nicht verfügbar. Installieren mit: pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaid-Fehler: Diagramm kann nicht gerendert werden. Überprüfen Sie die Diagrammsyntax.",
   "editor.preview.saveAsImage": "Als Bild speichern",

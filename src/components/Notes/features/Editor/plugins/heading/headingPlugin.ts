@@ -6,6 +6,8 @@ import {
     transactionMayAffectHeadingPlaceholders,
 } from './headingPlaceholder';
 
+export const HEADING_PLACEHOLDER_I18N_REFRESH_META = 'headingPlaceholderI18nRefresh';
+
 const firstParagraphPlugin = $prose(() => {
     return new Plugin({
         key: new PluginKey('firstParagraph'),
@@ -45,6 +47,9 @@ const headingPlaceholderPlugin = $prose(() => {
                 return createHeadingPlaceholderDecorations(state.doc);
             },
             apply(tr, oldDecorations, oldState, newState) {
+                if (tr.getMeta(HEADING_PLACEHOLDER_I18N_REFRESH_META)) {
+                    return createHeadingPlaceholderDecorations(newState.doc);
+                }
                 if (tr.docChanged) {
                     if (!transactionMayAffectHeadingPlaceholders(oldDecorations as DecorationSet, tr, oldState.doc, newState.doc)) {
                         return (oldDecorations as DecorationSet).map(tr.mapping, tr.doc);

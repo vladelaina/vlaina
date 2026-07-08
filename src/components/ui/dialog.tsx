@@ -4,7 +4,7 @@ import { Icon } from "@/components/ui/icons"
 import { BlurBackdrop, type BlurBackdropProps } from "@/components/common/BlurBackdrop"
 
 import { cn } from "@/lib/utils"
-import { translate } from "@/lib/i18n"
+import { useI18n } from "@/lib/i18n"
 
 function Dialog({
   ...props
@@ -60,6 +60,8 @@ function DialogContent({
   containerClassName?: string
   blurBackdropProps?: Partial<Pick<BlurBackdropProps, "className" | "overlayClassName" | "zIndex" | "blurPx" | "duration">>
 }) {
+  const { t } = useI18n()
+
   return (
     <DialogPortal data-slot="dialog-portal">
       {useBlurBackdrop ? (
@@ -91,7 +93,7 @@ function DialogContent({
               className="ring-offset-[var(--background)] focus:ring-[var(--ring)] data-[state=open]:bg-[var(--accent)] data-[state=open]:text-[var(--muted-foreground)] absolute top-4 right-4 rounded-xs opacity-[var(--vlaina-opacity-70)] transition-opacity hover:opacity-[var(--vlaina-opacity-100)] focus:ring-2 app-focus-ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--vlaina-size-18px)]"
             >
               <Icon name="common.close" />
-              <span className="sr-only">{translate('common.close')}</span>
+              <span className="sr-only">{t('common.close')}</span>
             </DialogPrimitive.Close>
           )}
         </DialogPrimitive.Content>

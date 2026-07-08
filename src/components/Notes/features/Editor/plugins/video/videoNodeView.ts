@@ -1,8 +1,9 @@
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
+import { useUIStore } from '@/stores/uiSlice';
 import type { VideoAttrs } from './types';
 import { selectVideoBlock } from './videoBlockSelection';
-import { createVideoDom } from './videoDom';
+import { createVideoDom, refreshVideoDomI18n } from './videoDom';
 import { shouldStopVideoNodeEvent } from './videoNodeViewEvents';
 
 const PARKED_VIDEO_DOM_TTL_MS = 1000;
@@ -66,6 +67,8 @@ export class VideoNodeView implements NodeView {
   private readonly handleMouseDown: (event: MouseEvent) => void;
   private readonly handleWindowMouseMove: (event: MouseEvent) => void;
   private readonly handleWindowMouseUp: () => void;
+  private readonly unsubscribeLanguagePreference: () => void;
+  private readonly handleLanguageChange: () => void;
   private mouseDownState: {
     x: number;
     y: number;
@@ -84,8 +87,15 @@ export class VideoNodeView implements NodeView {
     this.handleWindowMouseUp = () => {
       this.clearMouseDownState();
     };
+    this.handleLanguageChange = () => refreshVideoDomI18n(this.dom);
+    this.unsubscribeLanguagePreference = useUIStore.subscribe((state, previousState) => {
+      if (state.languagePreference !== previousState.languagePreference) {
+        this.handleLanguageChange();
+      }
+    });
     this.dom.addEventListener('dblclick', this.handleDoubleClick);
     this.dom.addEventListener('mousedown', this.handleMouseDown, true);
+    window.addEventListener('languagechange', this.handleLanguageChange);
   }
   private handleNodeDoubleClick(event: MouseEvent) {
     if (event.shiftKey) {
@@ -198,6 +208,8 @@ export class VideoNodeView implements NodeView {
     this.clearMouseDownState();
     this.dom.removeEventListener('dblclick', this.handleDoubleClick);
     this.dom.removeEventListener('mousedown', this.handleMouseDown, true);
+    this.unsubscribeLanguagePreference();
+    window.removeEventListener('languagechange', this.handleLanguageChange);
     parkVideoDom(this.node.attrs as VideoAttrs, this.dom);
   }
 }

@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { translate } from "@/lib/i18n"
+import { useI18n } from "@/lib/i18n"
 
 function Command({
   className,
@@ -44,8 +44,9 @@ function CommandDialog({
   className?: string
   showCloseButton?: boolean
 }) {
-  const resolvedTitle = title ?? translate('command.paletteTitle')
-  const resolvedDescription = description ?? translate('command.paletteDescription')
+  const { t } = useI18n()
+  const resolvedTitle = title ?? t('command.paletteTitle')
+  const resolvedDescription = description ?? t('command.paletteDescription')
 
   return (
     <Dialog {...props}>

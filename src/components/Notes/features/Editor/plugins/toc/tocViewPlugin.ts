@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { useUIStore } from '@/stores/uiSlice';
 import {
   createHeadingsSignature,
   extractHeadings,
@@ -62,7 +63,7 @@ export const tocViewPlugin = $prose(() => {
 
       editorView.dom.addEventListener('click', handleTocClick);
 
-      const syncTocBlocks = (view: EditorView) => {
+      const syncTocBlocks = (view: EditorView, force = false) => {
         if (!tocViewPluginKey.getState(view.state)?.hasToc) {
           lastDoc = view.state.doc;
           lastHeadingSignature = '';
@@ -82,6 +83,7 @@ export const tocViewPlugin = $prose(() => {
         const headings = extractHeadings(doc, 6);
         const headingSignature = createHeadingsSignature(headings);
         if (
+          !force &&
           lastDoc === doc
           && lastHeadingSignature === headingSignature
           && lastTocCount === tocElements.length
@@ -102,6 +104,14 @@ export const tocViewPlugin = $prose(() => {
       };
 
       syncTocBlocks(editorView);
+      const refreshLocalizedToc = () => syncTocBlocks(editorView, true);
+      const unsubscribeLanguagePreference = useUIStore.subscribe((state, previousState) => {
+        if (state.languagePreference !== previousState.languagePreference) {
+          refreshLocalizedToc();
+        }
+      });
+      const ownerWindow = editorView.dom.ownerDocument.defaultView;
+      ownerWindow?.addEventListener('languagechange', refreshLocalizedToc);
 
       return {
         update(view) {
@@ -109,6 +119,8 @@ export const tocViewPlugin = $prose(() => {
         },
         destroy() {
           editorView.dom.removeEventListener('click', handleTocClick);
+          unsubscribeLanguagePreference();
+          ownerWindow?.removeEventListener('languagechange', refreshLocalizedToc);
         },
       };
     },

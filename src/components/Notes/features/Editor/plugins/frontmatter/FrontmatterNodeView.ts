@@ -6,6 +6,8 @@ import {
   drawSelection,
   type ViewUpdate,
 } from '@codemirror/view';
+import { translate } from '@/lib/i18n';
+import { useUIStore } from '@/stores/uiSlice';
 import { codeBlockLanguageLoader } from '../code/codeBlockLanguageLoader';
 import {
   bindCodeBlockFontMetricsSync,
@@ -38,9 +40,13 @@ export class FrontmatterNodeView implements NodeView {
   private pendingMeasureFrame: number | null = null;
   private readonly disposeFontMetricsSync: () => void;
   private readonly unsubscribeSelectionSync: () => void;
+  private readonly unsubscribeLanguagePreference: () => void;
   private destroyed = false;
   private findHighlightStateKey = '[]';
   private mirroredOuterSelection = false;
+  private readonly handleLanguageChange = () => {
+    this.updatePlaceholder();
+  };
 
   constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
     this.node = node;
@@ -90,6 +96,15 @@ export class FrontmatterNodeView implements NodeView {
     this.unsubscribeSelectionSync = subscribeCodeBlockSelectionSync(
       this.dom.ownerDocument,
       this.syncProseMirrorSelection
+    );
+    this.unsubscribeLanguagePreference = useUIStore.subscribe((state, previousState) => {
+      if (state.languagePreference !== previousState.languagePreference) {
+        this.updatePlaceholder();
+      }
+    });
+    getFrontmatterOwnerWindow(this.dom, this.editorDOM, this.view)?.addEventListener(
+      'languagechange',
+      this.handleLanguageChange
     );
 
     this.updatePlaceholder();
@@ -170,6 +185,7 @@ export class FrontmatterNodeView implements NodeView {
 
   private updatePlaceholder() {
     this.dom.dataset.empty = this.cm.state.doc.length === 0 ? 'true' : 'false';
+    this.dom.dataset.placeholder = translate('editor.frontmatterPlaceholder');
   }
 
   private scheduleMeasure() {
@@ -291,6 +307,8 @@ export class FrontmatterNodeView implements NodeView {
     }
     this.disposeFontMetricsSync();
     this.unsubscribeSelectionSync();
+    this.unsubscribeLanguagePreference();
+    window?.removeEventListener('languagechange', this.handleLanguageChange);
     this.cm.destroy();
     this.dom.remove();
   }

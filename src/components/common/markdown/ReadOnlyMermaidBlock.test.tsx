@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MERMAID_FORMAT_FIXTURES } from '@/test/fixtures/mermaidFormatFixtures';
+import { useUIStore } from '@/stores/uiSlice';
 
 vi.mock('./mermaidRenderer', () => ({
   generateMermaidId: () => 'mermaid-readonly-test',
@@ -20,6 +21,7 @@ import { MAX_MERMAID_CODE_CHARS, renderMermaid } from './mermaidRenderer';
 
 describe('ReadOnlyMermaidBlock', () => {
   beforeEach(() => {
+    useUIStore.setState({ languagePreference: 'en' });
     clearReadOnlyMermaidRenderCaches();
     vi.mocked(renderMermaid).mockReset();
   });
@@ -58,6 +60,22 @@ describe('ReadOnlyMermaidBlock', () => {
     expect(container.innerHTML).not.toContain('secret token');
   });
 
+  it('refreshes read-only Mermaid placeholder copy when language changes', () => {
+    vi.mocked(renderMermaid).mockImplementation(
+      () => new Promise(() => undefined)
+    );
+
+    render(<ReadOnlyMermaidBlock code="sequenceDiagram\nAlice->Bob: hi" />);
+
+    expect(screen.getByText('Enter Mermaid diagram...')).toBeInTheDocument();
+
+    act(() => {
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+    });
+
+    expect(screen.getByText('输入图表内容...')).toBeInTheDocument();
+  });
+
   it('marks Gantt diagrams for readable chart sizing while loading and rendered', async () => {
     vi.mocked(renderMermaid).mockResolvedValueOnce('<svg><text>rendered</text></svg>');
     const code = ['%% Schedule', 'gantt', 'dateFormat YYYY-MM-DD'].join('\n');
@@ -91,6 +109,15 @@ describe('ReadOnlyMermaidBlock', () => {
     await expect(first).resolves.toContain('rendered');
     await expect(second).resolves.toContain('rendered');
     expect(getPendingReadOnlyMermaidRenderCount()).toBe(0);
+  });
+
+  it('does not reuse cached read-only Mermaid markup across languages', async () => {
+    vi.mocked(renderMermaid).mockResolvedValue('<svg><text>rendered</text></svg>');
+
+    await resolveReadOnlyMermaidMarkup('sequenceDiagram\nAlice->Bob: hi', 'en');
+    await resolveReadOnlyMermaidMarkup('sequenceDiagram\nAlice->Bob: hi', 'zh-CN');
+
+    expect(renderMermaid).toHaveBeenCalledTimes(2);
   });
 
   it('passes the shared Mermaid format fixtures through the read-only renderer', async () => {

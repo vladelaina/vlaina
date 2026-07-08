@@ -27,6 +27,7 @@ type CreateMarkdownComponentsOptions = {
   imageIdBase?: string;
   imageSrcByToken?: Map<string, string>;
   onCopyCodeBlock?: (blockId: string) => void;
+  unavailableImageLabel?: string;
 };
 
 type MarkdownAnchorProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
@@ -149,13 +150,13 @@ function isInternalHashHref(href: unknown): href is string {
   return typeof href === 'string' && /^#[A-Za-z0-9_-]+$/.test(href);
 }
 
-function renderUnavailableImage() {
+function renderUnavailableImage(unavailableImageLabel = translate('chat.imageUnavailable')) {
   return (
     <span
       className="inline-block rounded-md bg-[var(--vlaina-color-unavailable-bg)] px-2 py-1 text-xs text-[var(--vlaina-color-unavailable-fg)]"
       data-chat-selection-excluded="true"
     >
-      [{translate('chat.imageUnavailable')}]
+      [{unavailableImageLabel}]
     </span>
   );
 }
@@ -170,6 +171,7 @@ export function createMarkdownComponents({
   imageIdBase,
   imageSrcByToken,
   onCopyCodeBlock,
+  unavailableImageLabel,
 }: CreateMarkdownComponentsOptions) {
   let imageRenderIndex = imageIndexOffset;
   let codeBlockRenderIndex = codeBlockIndexOffset;
@@ -259,7 +261,7 @@ export function createMarkdownComponents({
       const rawSrc = typeof src === 'string' ? src : null;
       const normalizedRawSrc = normalizeRenderableImageSrc(rawSrc);
       if (!normalizedRawSrc) {
-        return renderUnavailableImage();
+        return renderUnavailableImage(unavailableImageLabel);
       }
 
       const resolvedSrc = resolveCompactedChatImageSrc(normalizedRawSrc, imageSrcByToken);
@@ -269,7 +271,7 @@ export function createMarkdownComponents({
 
       const safeSrc = normalizeChatMessageImageSource(resolvedSrc);
       if (!safeSrc) {
-        return renderUnavailableImage();
+        return renderUnavailableImage(unavailableImageLabel);
       }
 
       if (imageRenderIndex >= MAX_CHAT_MESSAGE_IMAGE_SOURCES) {

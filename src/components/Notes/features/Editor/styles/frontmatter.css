@@ -77,7 +77,7 @@
 }
 
 .milkdown .frontmatter-block-container[data-empty='true'] .cm-content::before {
-  content: 'input YAML Front Matter.';
+  content: attr(data-placeholder);
   position: absolute;
   inset: var(--vlaina-inset-frontmatter-placeholder);
   color: var(--vlaina-color-editor-frontmatter-placeholder);

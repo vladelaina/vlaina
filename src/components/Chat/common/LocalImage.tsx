@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { cn } from '@/lib/utils';
-import { translate } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
 import {
     extractStoredAttachmentFilename,
     inferAttachmentMimeTypeFromFilename,
@@ -141,6 +141,7 @@ function assertReadableStoredAttachmentInfo(
 }
 
 export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style, 'data-vlaina-crop': cropData }: LocalImageProps) {
+    const { t } = useI18n();
     const [displaySrc, setDisplaySrc] = useState<string | null>(null);
     const [error, setError] = useState(false);
     const onResolvedSrcRef = useRef(onResolvedSrc);
@@ -234,7 +235,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                     minWidth: themeDomStyleTokens.localImageUnavailableSize,
                 }}
             >
-                {translate('chat.imageUnavailable')}
+                {t('chat.imageUnavailable')}
             </span>
         );
     }

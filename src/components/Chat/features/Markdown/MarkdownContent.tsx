@@ -9,6 +9,7 @@ import { readonlyMarkdownUrlTransform } from '@/components/common/markdown/urlTr
 import { useChatStreamBlocks } from './chatStreamTextAnimation';
 import { createChatStreamTextPlugin } from './chatStreamTextPlugin';
 import { MAX_CHAT_MARKDOWN_RENDER_CHARS } from './chatMarkdownRenderLimits';
+import { useI18n } from '@/lib/i18n';
 
 interface MarkdownContentProps {
   componentOptions: Parameters<typeof createMarkdownComponents>[0];
@@ -71,9 +72,14 @@ export const MarkdownContent = memo(function MarkdownContent({
   shouldAnimateStream,
   streamBlocks,
 }: MarkdownContentProps) {
+  const { t } = useI18n();
+  const localizedComponentOptions = useMemo(() => ({
+    ...componentOptions,
+    unavailableImageLabel: t('chat.imageUnavailable'),
+  }), [componentOptions, t]);
   const components = useMemo(
-    () => createMarkdownComponents(componentOptions),
-    [componentOptions],
+    () => createMarkdownComponents(localizedComponentOptions),
+    [localizedComponentOptions],
   );
 
   if (markdown.length > MAX_CHAT_MARKDOWN_RENDER_CHARS) {
@@ -103,7 +109,7 @@ export const MarkdownContent = memo(function MarkdownContent({
         <StreamingMarkdownBlock
           key={block.key}
           block={block}
-          componentOptions={componentOptions}
+          componentOptions={localizedComponentOptions}
         />
       ))}
     </>

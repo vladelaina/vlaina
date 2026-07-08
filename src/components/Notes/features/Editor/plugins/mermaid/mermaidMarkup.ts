@@ -4,7 +4,9 @@ import {
   getMermaidCodeForLooseSyntaxScan,
 } from '@/components/common/markdown/mermaidDirective';
 import { translate } from '@/lib/i18n';
+import { getEffectiveAppLanguage } from '@/lib/i18n/languages';
 import { normalizeMermaidCodeForRender } from './mermaidFenceCode';
+import { useUIStore } from '@/stores/uiSlice';
 
 export type MermaidRender = (code: string, id: string) => Promise<string>;
 
@@ -26,6 +28,11 @@ function escapeHtmlText(value: string): string {
 
 function generateMermaidId(): string {
   return `mermaid-${Date.now()}-${mermaidIdCounter++}`;
+}
+
+function getMermaidMarkupCacheKey(code: string) {
+  const language = getEffectiveAppLanguage(useUIStore.getState().languagePreference);
+  return `${language}\0${code}`;
 }
 
 export function mermaidRenderErrorMarkup(): string {
@@ -116,19 +123,23 @@ async function renderMermaidHtml(
   }
 }
 
-export function readCachedMermaidMarkup(code: string) {
-  const cached = mermaidMarkupCache.get(code);
+function readCachedMermaidMarkupByKey(cacheKey: string) {
+  const cached = mermaidMarkupCache.get(cacheKey);
   if (cached == null) {
     return null;
   }
 
-  mermaidMarkupCache.delete(code);
-  mermaidMarkupCache.set(code, cached);
+  mermaidMarkupCache.delete(cacheKey);
+  mermaidMarkupCache.set(cacheKey, cached);
   return cached;
 }
 
-function cacheMermaidMarkup(code: string, markup: string) {
-  mermaidMarkupCache.set(code, markup);
+export function readCachedMermaidMarkup(code: string) {
+  return readCachedMermaidMarkupByKey(getMermaidMarkupCacheKey(code));
+}
+
+function cacheMermaidMarkup(cacheKey: string, markup: string) {
+  mermaidMarkupCache.set(cacheKey, markup);
   while (mermaidMarkupCache.size > MERMAID_RENDER_CACHE_LIMIT) {
     const oldestKey = mermaidMarkupCache.keys().next().value;
     if (typeof oldestKey !== 'string') {
@@ -163,12 +174,13 @@ export async function resolveMermaidMarkup(
     return sanitizeMermaidMarkup(await renderMermaidHtml(code, render));
   }
 
-  const cached = readCachedMermaidMarkup(code);
+  const cacheKey = getMermaidMarkupCacheKey(code);
+  const cached = readCachedMermaidMarkupByKey(cacheKey);
   if (cached != null) {
     return cached;
   }
 
-  const existingPromise = mermaidRenderPromiseCache.get(code);
+  const existingPromise = mermaidRenderPromiseCache.get(cacheKey);
   if (existingPromise) {
     return existingPromise;
   }
@@ -178,10 +190,10 @@ export async function resolveMermaidMarkup(
 
   const promise = renderMermaidHtml(code, defaultRenderMermaid)
     .then(sanitizeMermaidMarkup)
-    .then((markup) => cacheMermaidMarkup(code, markup))
+    .then((markup) => cacheMermaidMarkup(cacheKey, markup))
     .finally(() => {
-      mermaidRenderPromiseCache.delete(code);
+      mermaidRenderPromiseCache.delete(cacheKey);
     });
-  mermaidRenderPromiseCache.set(code, promise);
+  mermaidRenderPromiseCache.set(cacheKey, promise);
   return promise;
 }
