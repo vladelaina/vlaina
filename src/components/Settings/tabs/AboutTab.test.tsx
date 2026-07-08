@@ -36,9 +36,10 @@ vi.mock('@/lib/i18n', () => ({
         'settings.about.openDiscord': 'Open Discord',
         'settings.about.openGithub': 'Open GitHub',
         'settings.about.openPrivacyPolicy': 'Open privacy policy',
+        'settings.about.openTermsOfService': 'Open terms of service',
         'settings.about.openSlack': 'Open Slack',
         'settings.about.openWebsite': 'Open website',
-        'settings.about.privacy': 'Privacy',
+        'settings.about.legal': 'Legal',
         'settings.about.qqGroup': 'QQ group',
         'settings.about.slack': 'Slack',
         'settings.about.updateAction': 'Update',
@@ -134,6 +135,25 @@ describe('AboutTab community QR pills', () => {
 
     expect(openExternalHref).toHaveBeenCalledWith('https://vlaina.com/r/discord');
     expect(openExternalHref).toHaveBeenCalledWith('https://vlaina.com/r/slack');
+  });
+
+  it('opens the privacy policy and terms from the legal section', () => {
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    const legalButtons = screen.getAllByRole('button', { name: 'Open' });
+    fireEvent.click(legalButtons[0]);
+    fireEvent.click(legalButtons[1]);
+
+    expect(openExternalHref).toHaveBeenCalledWith('https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md');
+    expect(openExternalHref).toHaveBeenCalledWith('https://github.com/vladelaina/vlaina/blob/main/TERMS.md');
   });
 
   it('opens the platform-specific update package URL returned by the desktop updater', async () => {

@@ -18,6 +18,7 @@ interface AccountSignInOptionsProps {
 }
 
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
+const termsOfServiceUrl = 'https://github.com/vladelaina/vlaina/blob/main/TERMS.md';
 
 export function AccountSignInOptions({
   isConnecting,
@@ -75,7 +76,7 @@ export function AccountSignInOptions({
           </div>
         ) : null}
 
-        <p className="px-8 text-[var(--vlaina-font-11)] text-center leading-relaxed text-[var(--vlaina-text-tertiary)] font-medium opacity-[var(--vlaina-opacity-80)]">
+        <p className="px-8 text-[var(--vlaina-font-10)] text-center leading-snug text-[var(--vlaina-text-tertiary)] font-medium opacity-[var(--vlaina-opacity-80)]">
           {t('account.privacyAgreement')}{' '}
           <button
             type="button"
@@ -83,6 +84,15 @@ export function AccountSignInOptions({
             className="inline p-0 underline cursor-pointer opacity-[var(--vlaina-opacity-80)] transition-opacity hover:opacity-[var(--vlaina-opacity-100)]"
           >
             {t('account.privacyPolicy')}
+          </button>
+          {' '}
+          {t('account.termsConnector')}{' '}
+          <button
+            type="button"
+            onClick={() => void openExternalHref(termsOfServiceUrl)}
+            className="inline p-0 underline cursor-pointer opacity-[var(--vlaina-opacity-80)] transition-opacity hover:opacity-[var(--vlaina-opacity-100)]"
+          >
+            {t('account.termsOfService')}
           </button>
           .
         </p>
