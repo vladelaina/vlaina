@@ -68,7 +68,7 @@ export function NotesOutline({
         <NotesSidebarTopActions />
         <NotesSidebarScrollArea
           ref={scrollRootRef}
-          className={cn(isPeeking ? 'app-scrollbar-rounded pt-4 pb-4' : 'pt-0')}
+          className={cn('pt-0', isPeeking && 'app-scrollbar-rounded')}
           scrollbarInsetRight={SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT}
           data-notes-sidebar-scroll-root="true"
         >

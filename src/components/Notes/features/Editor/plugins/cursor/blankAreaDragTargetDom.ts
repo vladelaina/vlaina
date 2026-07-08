@@ -2,6 +2,17 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 
 export const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 export const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
+export const NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR = '[data-notes-sidebar-blank-drag-root="true"]';
+export const FILE_TREE_ROOT_DROP_TARGET_SELECTOR = '[data-file-tree-root-drop-target="true"]';
+export const EXTERNAL_BLOCK_SELECTION_BLANK_ROOT_SELECTOR = '[data-notes-external-block-selection-root="true"]';
+export const EXTERNAL_BLOCK_SELECTION_BLANK_EXCLUDED_SELECTOR = [
+  '[data-notes-external-block-selection-excluded="true"]',
+  '[data-chat-selection-excluded="true"]',
+  '[data-chat-input="true"]',
+  'img',
+  'video',
+  'canvas',
+].join(', ');
 export const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 export const NOTE_CONTENT_ROOT_SELECTOR = '[data-note-content-root="true"]';
 export const NO_EDITOR_DRAG_BOX_SELECTOR = '[data-no-editor-drag-box="true"]';
@@ -55,6 +66,14 @@ export function isPointInsideElementClientRects(element: Element, clientX: numbe
     }
   }
   return false;
+}
+
+export function isExternalBlockSelectionBlankTarget(target: HTMLElement): boolean {
+  return target.closest(EXTERNAL_BLOCK_SELECTION_BLANK_ROOT_SELECTOR) instanceof HTMLElement;
+}
+
+export function isExternalBlockSelectionBlankExcludedTarget(target: HTMLElement): boolean {
+  return target.closest(EXTERNAL_BLOCK_SELECTION_BLANK_EXCLUDED_SELECTOR) instanceof HTMLElement;
 }
 
 export function isSameEditorExternalBlankAreaTarget(

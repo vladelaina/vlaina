@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 import { UnifiedSidebarContainer } from './UnifiedSidebarContainer';
 import { UnifiedTitleBar } from './UnifiedTitleBar';
 
@@ -145,7 +146,8 @@ export function AppShell({
           >
             <div
               data-shell-sidebar-peek-hotzone="true"
-              className="pointer-events-auto absolute inset-y-0 left-0 w-3"
+              className="pointer-events-auto absolute inset-y-0 left-0"
+              style={{ width: themeDomStyleTokens.hoverPeekTriggerWidthPx }}
               aria-hidden="true"
               onMouseEnter={openSidebarPeek}
             />

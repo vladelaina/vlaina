@@ -36,6 +36,13 @@ const MANAGED_INVALID_REQUEST_CODES = new Set([
   'INVALID_REQUEST',
 ])
 
+export function isDesktopCustomProviderConnectionFailureMessage(message: string): boolean {
+  const normalizedMessage = normalizeUserFacingMessage(message).toLowerCase()
+  return normalizedMessage.includes('desktop:ai-provider:request:start')
+    && normalizedMessage.includes('ai provider request to ')
+    && normalizedMessage.includes('failed before an http response was received')
+}
+
 export function getUserFacingMessage(type: AIErrorType): string {
   switch (type) {
     case AIErrorType.NETWORK_ERROR:
@@ -61,6 +68,14 @@ export function getSpecificUserFacingOverride(message: string, code: string): Us
   const normalized = normalizeUserFacingMessage(message).toLowerCase()
   const normalizedCode = code.trim()
   const normalizedCodeLower = normalizedCode.toLowerCase()
+
+  if (isDesktopCustomProviderConnectionFailureMessage(message)) {
+    return {
+      type: AIErrorType.NETWORK_ERROR,
+      code: normalizedCode,
+      message: translate('chat.error.customProviderConnectionFailed'),
+    }
+  }
 
   if (normalized === 'web search is unavailable for this model.') {
     return {

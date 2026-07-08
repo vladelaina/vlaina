@@ -137,6 +137,7 @@ describe('AppShell', () => {
     expect(peekSidebar).not.toBeNull();
     expect(peekSidebar).toHaveAttribute('data-open', 'false');
     expect(peekSidebar).toHaveAttribute('aria-hidden', 'true');
+    expect(hotzone!.style.width).toBe('48px');
     expect(peekSidebar!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('300px');
     expect(peekSidebar).toHaveClass('duration-[var(--vlaina-duration-100)]');
 

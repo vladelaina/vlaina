@@ -15,6 +15,7 @@ import { useMilkdownEditorFactory } from './useMilkdownEditorFactory';
 import { useMilkdownExternalContentSync } from './useMilkdownExternalContentSync';
 import { useMilkdownThemeRuntime } from './useMilkdownThemeRuntime';
 import { getMilkdownEditorClassName } from './milkdownEditorClassName';
+import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
 
 export { createLargePlainMarkdownDocJSON, shouldUseLazyBlockVisibility } from './milkdownLargePlainMarkdown';
 export {
@@ -25,6 +26,17 @@ export {
 } from './milkdownEditorMarkdownReplacement';
 
 interface MilkdownEditorInnerProps { active?: boolean; showBodyLineNumbers?: boolean; preserveStartupEditorPosition?: boolean; onEditorViewReady?: () => void; }
+
+const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+const EDITOR_CONTENT_INTERACTIVE_SELECTOR = [
+  'button',
+  'input',
+  'textarea',
+  'select',
+  'a[href]',
+  '[contenteditable="false"]',
+  '[data-no-editor-drag-box="true"]',
+].join(',');
 
 export function MilkdownEditorRuntime({
   active = true,
@@ -259,9 +271,29 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     preserveStartupEditorPosition,
   });
 
+  const handleContentMouseDownCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+    if (!activeRef.current) return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest(EDITOR_CONTENT_INTERACTIVE_SELECTOR)
+    ) {
+      return;
+    }
+
+    if (focusCurrentEmptyUntitledDraftTitle(
+      event.currentTarget.closest(NOTE_SCROLL_ROOT_SELECTOR) ?? event.currentTarget.ownerDocument,
+    )) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, []);
+
   return (
     <div
       ref={editorShellRef}
+      onMouseDownCapture={handleContentMouseDownCapture}
       className={getMilkdownEditorClassName({
         importedMarkdownThemeId,
         importedMarkdownThemePlatform,

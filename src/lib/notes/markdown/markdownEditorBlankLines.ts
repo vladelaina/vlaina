@@ -2,6 +2,7 @@ import {
   isAlignmentCommentBoundaryBlankLine,
   isBetweenListItemsBlankLine,
   isDefinitionListBoundaryBlankLine,
+  isEditableListBoundaryBlankLine,
   isHtmlImageStructuralBoundaryBlankLine,
   isIndentedCodeBoundaryBlankLine,
   isIndentedContinuationBoundaryBlankLine,
@@ -71,14 +72,21 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
     }
 
     if (
-      isListBoundaryBlankLine(lines, index)
-      || isDefinitionListBoundaryBlankLine(lines, index)
+      isDefinitionListBoundaryBlankLine(lines, index)
       || isHtmlImageStructuralBoundaryBlankLine(lines, index)
       || isMarkdownImageStructuralBoundaryBlankLine(lines, index)
       || isIndentedCodeBoundaryBlankLine(lines, index)
       || isIndentedContinuationBoundaryBlankLine(lines, index)
       || isAlignmentCommentBoundaryBlankLine(lines, index)
     ) {
+      return line;
+    }
+
+    if (isEditableListBoundaryBlankLine(lines, index)) {
+      return EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER;
+    }
+
+    if (isListBoundaryBlankLine(lines, index)) {
       return line;
     }
 

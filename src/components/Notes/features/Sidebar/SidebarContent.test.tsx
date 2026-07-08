@@ -197,7 +197,9 @@ vi.mock('./NotesSidebarRow', () => ({
 }));
 
 vi.mock('./NotesSidebarPrimitives', () => ({
-  NotesSidebarScrollArea: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  NotesSidebarScrollArea: ({ children, className }: { children?: ReactNode; className?: string }) => (
+    <div data-testid="notes-sidebar-scroll-area" className={className}>{children}</div>
+  ),
   NotesSidebarPillEmptyHint: ({ actions }: { actions?: Array<{ label: string; onAction: () => void }> }) => (
     <div data-testid="pill-empty-hint">
       {actions?.map((action) => (
@@ -579,7 +581,7 @@ describe('SidebarContent search highlight cleanup', () => {
   });
 
   it('renders the empty panel inside the sidebar blank area before a root folder exists', () => {
-    const { getByTestId } = render(
+    const { container, getByTestId } = render(
       <SidebarContent
         rootFolder={null}
         isLoading={false}
@@ -593,6 +595,35 @@ describe('SidebarContent search highlight cleanup', () => {
     const panel = getByTestId('empty-workspace-panel');
 
     expect(panel.closest('[data-notes-sidebar-blank-drag-root="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-notes-sidebar-blank-drag-root="true"]'))
+      .not.toHaveAttribute('data-file-tree-root-drop-target');
+    expect(container.querySelector('[data-notes-sidebar-blank-drag-root="true"]'))
+      .not.toHaveAttribute('data-notes-external-block-selection-root');
+  });
+
+  it('uses the sidebar blank area as a root drop target after a root folder exists', () => {
+    const { container } = render(
+      <SidebarContent
+        rootFolder={{
+          id: 'root',
+          path: '',
+          name: 'NotesRoot',
+          isFolder: true,
+          expanded: true,
+          children: [{ id: 'a', path: 'a.md', name: 'a.md', isFolder: false }],
+        }}
+        isLoading={false}
+        currentNotePath="a.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(container.querySelector('[data-notes-sidebar-blank-drag-root="true"]'))
+      .toHaveAttribute('data-file-tree-root-drop-target', 'true');
+    expect(container.querySelector('[data-notes-sidebar-blank-drag-root="true"]'))
+      .toHaveAttribute('data-notes-external-block-selection-root', 'true');
   });
 
   it('hides the empty hint when the sidebar is collapsed', () => {
@@ -628,6 +659,28 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(getByTestId('empty-workspace-panel')).toBeInTheDocument();
+  });
+
+  it('keeps the peeking files view aligned with the expanded top spacing', () => {
+    hoisted.uiState.sidebarCollapsed = true;
+
+    render(
+      <SidebarContent
+        rootFolder={{ id: 'root', path: '', name: 'NotesRoot', isFolder: true, expanded: true, children: [] }}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+        isPeeking
+      />,
+    );
+
+    const scrollArea = screen.getByTestId('notes-sidebar-scroll-area');
+    expect(scrollArea).toHaveClass('pt-0');
+    expect(scrollArea).toHaveClass('app-scrollbar-rounded');
+    expect(scrollArea).not.toHaveClass('pt-4');
+    expect(scrollArea).not.toHaveClass('pb-4');
   });
 
   it('does not show the open hint while a notesRoot root is still loading', () => {
