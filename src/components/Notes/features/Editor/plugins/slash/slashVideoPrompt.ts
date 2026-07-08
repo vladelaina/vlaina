@@ -6,6 +6,7 @@ import { renderUrlRailEditor } from '../floating-toolbar/components/UrlRailEdito
 import { isSupportedVideoUrl, normalizeVideoUrlInput } from '../video';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
+import { isEditableShortcutTarget } from '@/lib/shortcuts/editableGuards';
 
 function getPromptPosition(view: EditorView) {
   try {
@@ -37,6 +38,7 @@ export function openSlashVideoPrompt(args: {
   const handleOutsideMouseDown = (event: MouseEvent) => {
     if (event.target instanceof Node && prompt.contains(event.target)) return;
     close();
+    if (isEditableShortcutTarget(event.target)) return;
     view.focus();
   };
 

@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { isEventInsideDialog, isEventInsideNotesChatSurface } from '@/lib/shortcuts/dialogGuards';
-import { shouldSkipShortcutForEditableSystemShortcut } from '@/lib/shortcuts/editableGuards';
+import {
+  isEditableShortcutTarget,
+  shouldSkipShortcutForEditableSystemShortcut,
+} from '@/lib/shortcuts/editableGuards';
 import {
   runOpenNewChatShortcut,
   runTemporaryChatWelcomeShortcut,
@@ -63,6 +66,9 @@ export function useNotesViewShortcuts({
       }
 
       const isInsideNotesChatSurface = isEventInsideNotesChatSurface(event.target);
+      if (isEditableShortcutTarget(event.target) && !isInsideNotesChatSurface) {
+        return;
+      }
 
       if (!isInsideNotesChatSurface && matchesShortcutBinding(event, 'toggleEmbeddedChat')) {
         event.preventDefault();

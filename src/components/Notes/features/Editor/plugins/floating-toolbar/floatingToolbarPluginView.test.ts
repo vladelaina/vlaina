@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { Schema } from '@milkdown/kit/prose/model';
+import { EditorState, TextSelection } from '@milkdown/kit/prose/state';
 import { shouldLockPreviewToolbarPosition } from './floatingToolbarPluginView';
 import { installFloatingToolbarPluginViewEventMethods } from './floatingToolbarPluginViewEventMethods';
 import {
@@ -56,6 +58,77 @@ describe('floatingToolbarPluginView', () => {
     } finally {
       ctx.unbindGlobalListeners(null);
       editorBody.remove();
+    }
+  });
+
+  it('does not collapse the editor selection when clicking an external text control', () => {
+    const schema = new Schema({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          content: 'text*',
+          group: 'block',
+          toDOM: () => ['p', 0],
+          parseDOM: [{ tag: 'p' }],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const doc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('Selected body text')),
+    ]);
+    const state = EditorState.create({
+      doc,
+      selection: TextSelection.create(doc, 1, 9),
+    });
+    const toolbar = createToolbarElement();
+    const selectionToolbar = createToolbarElement();
+    const editorBody = document.createElement('div');
+    const titleInput = document.createElement('textarea');
+    const dispatch = vi.fn();
+    const ctx: Record<string, any> = {
+      bindGlobalListeners: vi.fn(),
+      editorView: {
+        dispatch,
+        dom: editorBody,
+        state,
+      },
+      handleClickOutside: vi.fn(),
+      handleDocumentFormatShortcut: vi.fn(),
+      handleDocumentToolbarPointerMove: vi.fn(),
+      handleEscape: vi.fn(),
+      handleMouseDown: vi.fn(),
+      handleMouseUp: vi.fn(),
+      handleToolbarPointerEnter: vi.fn(),
+      handleToolbarPointerLeave: vi.fn(),
+      interactionState: {
+        isMouseDown: false,
+        isPointerInsideToolbar: false,
+        pendingShow: false,
+      },
+      scheduleToolbarUpdate: vi.fn(),
+      scrollRoot: null,
+      toolbarElement: toolbar,
+      selectionToolbarElement: selectionToolbar,
+      toolbarKey: {
+        getState: () => ({ isVisible: true, subMenu: null }),
+      },
+      toolbarRoot: null,
+      unbindGlobalListeners: vi.fn(),
+    };
+
+    installFloatingToolbarPluginViewEventMethods(ctx as never);
+    ctx.bindGlobalListeners(null);
+    document.body.append(editorBody, titleInput);
+
+    try {
+      titleInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+      expect(dispatch).not.toHaveBeenCalled();
+    } finally {
+      ctx.unbindGlobalListeners(null);
+      editorBody.remove();
+      titleInput.remove();
     }
   });
 

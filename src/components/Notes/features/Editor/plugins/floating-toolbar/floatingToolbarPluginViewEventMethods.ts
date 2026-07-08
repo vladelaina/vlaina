@@ -211,7 +211,8 @@ export function installFloatingToolbarPluginViewEventMethods(ctx: FloatingToolba
       !ctx.toolbarElement ||
       ctx.toolbarElement.contains(event.target as Node) ||
       ctx.selectionToolbarElement.contains(event.target as Node) ||
-      ctx.editorView.dom.contains(event.target as Node)
+      ctx.editorView.dom.contains(event.target as Node) ||
+      isEditableShortcutTarget(event.target)
     ) {
       return;
     }

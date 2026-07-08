@@ -85,6 +85,12 @@ export function collapseNativeNodeSelectionForExternalMouseDown(view: EditorView
   const target = event.target;
   if (target instanceof Node && view.dom.contains(target)) return false;
   if (isIgnoredBlankAreaDragBoxTarget(target)) return false;
+  const targetElement = target instanceof HTMLElement
+    ? target
+    : target instanceof Node
+      ? target.parentElement
+      : null;
+  if (targetElement && isTextEditingElement(targetElement, view.dom)) return false;
 
   const currentSelection = view.state.selection;
   const nextSelection =
