@@ -1,6 +1,7 @@
 import electron from 'electron';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { ensurePrivateDirectory, writePrivateFile } from './privateFilePermissions.mjs';
 import {
   getDevelopmentUserDataOverridePath,
   isProtectedFsAccessPath,
@@ -140,15 +141,14 @@ export async function writeAuthorizedFsPaths() {
       authorizedFsWatchRootPaths,
       MAX_AUTHORIZED_FS_PATH_ENTRIES - roots.length - files.length
     );
-    await mkdir(path.dirname(storePath), { recursive: true });
-    await writeFile(
+    await ensurePrivateDirectory(path.dirname(storePath));
+    await writePrivateFile(
       storePath,
       JSON.stringify({
         roots,
         files,
         watchRoots,
       }, null, 2),
-      'utf8',
     );
   });
 

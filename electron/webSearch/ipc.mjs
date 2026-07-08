@@ -97,7 +97,11 @@ function normalizeReadUrls(urls) {
   return inputUrls.slice(0, MAX_IPC_BATCH_READ_URLS).map(normalizeReadUrl);
 }
 
-export function createWebSearchServices({ fetchImpl } = {}) {
+export function createWebSearchServices({
+  fetchImpl,
+  searchFetchImpl = fetchImpl,
+  crawlerFetchImpl,
+} = {}) {
   let runtimePromise = null;
 
   const loadRuntime = async () => {
@@ -114,10 +118,10 @@ export function createWebSearchServices({ fetchImpl } = {}) {
         return {
           searchService: new SearchService({
             providers: [
-              new LocalSearchProvider({ fetchImpl }),
+              new LocalSearchProvider({ fetchImpl: searchFetchImpl }),
             ],
           }),
-          crawler: new Crawler({ fetchImpl }),
+          crawler: new Crawler({ fetchImpl: crawlerFetchImpl }),
         };
       }).catch((error) => {
         runtimePromise = null;

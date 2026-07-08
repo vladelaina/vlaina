@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -90,6 +90,35 @@ describe('accountCredentialStore', () => {
     expect(JSON.parse(rawSecrets).appSessionToken).toMatchObject({
       __secure: 'electron.safeStorage.v1',
     });
+  });
+
+  it('stores account credentials in private files on POSIX', async () => {
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');
+    const store = createAccountCredentialStore({
+      desktopLegacySessionHeader: 'x-app-session-token',
+    });
+
+    await store.writeStoredAccountCredentials({
+      appSessionToken: 'nts_super_secret_token',
+      provider: 'google',
+      username: 'alice',
+      primaryEmail: 'alice@example.com',
+      avatarUrl: null,
+      authenticatedAt: 1,
+    });
+
+    const accountDir = path.join(mocks.userDataPath, '.vlaina', 'app', 'account');
+    const secretsDir = path.join(mocks.userDataPath, '.vlaina', 'app', 'secrets');
+    const metaPath = path.join(accountDir, 'profile.json');
+    const secretsPath = path.join(secretsDir, 'account.json');
+    expect((await stat(accountDir)).mode & 0o777).toBe(0o700);
+    expect((await stat(secretsDir)).mode & 0o777).toBe(0o700);
+    expect((await stat(metaPath)).mode & 0o777).toBe(0o600);
+    expect((await stat(secretsPath)).mode & 0o777).toBe(0o600);
   });
 
   it('normalizes account metadata before storing it', async () => {
@@ -195,6 +224,7 @@ describe('accountCredentialStore', () => {
 
   it('ignores account credential content that exceeds the limit after read', async () => {
     const fsMocks = {
+      chmod: vi.fn(async () => undefined),
       mkdir: vi.fn(async () => undefined),
       readFile: vi.fn(async () => 'x'.repeat(256 * 1024 + 1)),
       rm: vi.fn(async () => undefined),

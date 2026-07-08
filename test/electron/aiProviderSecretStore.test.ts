@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -64,6 +64,23 @@ describe('aiProviderSecretStore', () => {
     });
   });
 
+  it('stores provider secrets in private files on POSIX', async () => {
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    const { updateSecretsStore } = await import('../../electron/aiProviderSecretStore.mjs');
+
+    await updateSecretsStore(async (data) => {
+      data['provider-a'] = 'sk-a';
+    });
+
+    const secretsDir = path.join(mocks.userDataPath, '.vlaina', 'app', 'secrets');
+    const secretsPath = path.join(secretsDir, 'ai-providers.json');
+    expect((await stat(secretsDir)).mode & 0o777).toBe(0o700);
+    expect((await stat(secretsPath)).mode & 0o777).toBe(0o600);
+  });
+
   it('drops unsafe legacy provider ids from the secret file', async () => {
     const { readSecretsStore } = await import('../../electron/aiProviderSecretStore.mjs');
     const secretsPath = path.join(
@@ -108,6 +125,7 @@ describe('aiProviderSecretStore', () => {
 
   it('ignores secret store content that exceeds the limit after read', async () => {
     const fsMocks = {
+      chmod: vi.fn(async () => undefined),
       mkdir: vi.fn(async () => undefined),
       readFile: vi.fn(async () => 'x'.repeat(512 * 1024 + 1)),
       stat: vi.fn(async () => ({ isFile: () => true, size: 128 })),

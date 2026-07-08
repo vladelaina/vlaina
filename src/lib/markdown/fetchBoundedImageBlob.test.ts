@@ -51,6 +51,20 @@ describe('fetchBoundedImageBlob', () => {
     });
   });
 
+  it('rejects local files and local-network image fetch URLs before fetching', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchBoundedImageBlobResult('file:///home/alice/secret.png')).rejects.toThrow(
+      'Image fetch URL is not allowed',
+    );
+    await expect(fetchBoundedImageBlobResult('http://127.0.0.1:8080/secret.png')).rejects.toThrow(
+      'Image fetch URL is not allowed',
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('rejects unknown-size non-streaming responses before reading blob data', async () => {
     const blob = vi.fn(async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }));
 

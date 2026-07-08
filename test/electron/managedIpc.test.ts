@@ -231,6 +231,31 @@ describe('managed ipc stream bridge', () => {
     expect(options.requestManagedJson).not.toHaveBeenCalled();
   });
 
+  it('rejects managed image edit headers that could override desktop session credentials', async () => {
+    const { handlers, options } = registerHarness();
+    const bodyBase64 = Buffer.from('multipart-body').toString('base64');
+
+    await expect(
+      handlers.get('desktop:managed:image-edit')?.({}, {
+        bodyBase64,
+        headers: {
+          'Content-Type': 'multipart/form-data; boundary=test',
+          Authorization: 'Bearer attacker',
+        },
+      }),
+    ).rejects.toThrow('Invalid managed binary request header.');
+    await expect(
+      handlers.get('desktop:managed:image-edit')?.({}, {
+        bodyBase64,
+        headers: {
+          'x-app-session-token': 'attacker',
+        },
+      }),
+    ).rejects.toThrow('Invalid managed binary request header.');
+
+    expect(options.requestManagedJson).not.toHaveBeenCalled();
+  });
+
   it('rejects object request ids and managed headers without coercion', async () => {
     const { handlers, options } = registerHarness();
     let stringReads = 0;

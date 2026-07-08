@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import electron from 'electron';
 import {
   isPathInsideDirectory,
@@ -24,7 +25,12 @@ const hoisted = vi.hoisted(() => {
 
   class MockBrowserWindow {
     options: Record<string, unknown>;
-    webContents: { printToPDF: ReturnType<typeof vi.fn> };
+    webContents: {
+      on: ReturnType<typeof vi.fn>;
+      printToPDF: ReturnType<typeof vi.fn>;
+      session: { webRequest: { onBeforeRequest: ReturnType<typeof vi.fn> } };
+      setWindowOpenHandler: ReturnType<typeof vi.fn>;
+    };
     loadFile = vi.fn(async () => undefined);
     loadURL = vi.fn(async () => undefined);
     destroy = vi.fn(() => {
@@ -35,7 +41,14 @@ const hoisted = vi.hoisted(() => {
     constructor(options: Record<string, unknown>) {
       this.options = options;
       this.webContents = {
+        on: vi.fn(),
         printToPDF: vi.fn(async () => nextPrintToPDFResult),
+        session: {
+          webRequest: {
+            onBeforeRequest: vi.fn(),
+          },
+        },
+        setWindowOpenHandler: vi.fn(),
       };
       windows.push(this);
     }
@@ -1156,6 +1169,13 @@ describe('desktop export ipc', () => {
     ).resolves.toEqual(new Uint8Array([1, 2, 3]));
 
     const win = hoisted.windows[0];
+    expect(win.options.webPreferences).toMatchObject({
+      contextIsolation: true,
+      javascript: false,
+      nodeIntegration: false,
+      sandbox: true,
+    });
+    expect(String((win.options.webPreferences as Record<string, unknown>).partition)).toMatch(/^vlaina-export-/);
     expect(win.loadFile).toHaveBeenCalledTimes(1);
     const loadedFilePath = String(win.loadFile.mock.calls[0]?.[0]);
     expect(path.basename(loadedFilePath)).toBe('export.html');
@@ -1175,6 +1195,42 @@ describe('desktop export ipc', () => {
       },
     });
     expect(win.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks PDF export windows from loading local files or remote resources', async () => {
+    hoisted.windows.length = 0;
+    hoisted.resetPrintToPDFResult();
+    const { handlers } = registerHarness();
+
+    await handlers.get('desktop:export:html-to-pdf')?.(
+      {},
+      '<!doctype html><html><body><img src="file:///home/alice/secret.png"><img src="https://example.com/pixel.png"></body></html>',
+      { pageSize: 'A4' },
+    );
+
+    const win = hoisted.windows[0];
+    const loadedFilePath = String(win.loadFile.mock.calls[0]?.[0]);
+    const requestListener = win.webContents.session.webRequest.onBeforeRequest.mock.calls[0]?.[1];
+    expect(win.webContents.session.webRequest.onBeforeRequest).toHaveBeenCalledWith(
+      { urls: ['file://*/*', 'http://*/*', 'https://*/*'] },
+      expect.any(Function),
+    );
+    const windowOpenHandler = win.webContents.setWindowOpenHandler.mock.calls[0]?.[0];
+    expect(windowOpenHandler({ url: 'https://example.com' })).toEqual({
+      action: 'deny',
+    });
+
+    const allowDocument = vi.fn();
+    requestListener({ url: pathToFileURL(loadedFilePath).toString() }, allowDocument);
+    expect(allowDocument).toHaveBeenCalledWith({ cancel: false });
+
+    const blockLocal = vi.fn();
+    requestListener({ url: 'file:///home/alice/secret.png' }, blockLocal);
+    expect(blockLocal).toHaveBeenCalledWith({ cancel: true });
+
+    const blockRemote = vi.fn();
+    requestListener({ url: 'https://example.com/pixel.png' }, blockRemote);
+    expect(blockRemote).toHaveBeenCalledWith({ cancel: true });
   });
 
   it('rejects oversized PDF export HTML before creating a render window', async () => {

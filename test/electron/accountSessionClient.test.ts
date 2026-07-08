@@ -1,4 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('electron', () => ({
+  default: {
+    app: {
+      getPath: vi.fn(() => '/tmp/vlaina-account-session-client-test'),
+    },
+    safeStorage: {
+      isEncryptionAvailable: vi.fn(() => false),
+    },
+  },
+}));
+
 import { createDesktopAccountSessionClient } from '../../electron/accountSessionClient.mjs';
 
 const credentials = {
@@ -77,6 +89,28 @@ describe('desktop account session client', () => {
     controller.abort();
 
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('prevents request headers from overriding stored session credentials', async () => {
+    const fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { client } = createHarness({
+      readStoredAccountCredentials: vi.fn(async () => ({
+        ...credentials,
+        appSessionToken: 'legacy_session_token',
+      })),
+    });
+
+    await client.fetchWithStoredSession('https://api.example.com/managed', {
+      headers: {
+        Authorization: 'Bearer attacker',
+        'x-app-session-token': 'attacker',
+      },
+    });
+
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer legacy_session_token');
+    expect(headers['x-app-session-token']).toBe('legacy_session_token');
   });
 
   it('cancels 401 activation retry delays before retrying', async () => {

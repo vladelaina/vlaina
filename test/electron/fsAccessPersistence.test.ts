@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  chmod: vi.fn(),
   mkdir: vi.fn(),
   readFile: vi.fn(),
   realpath: vi.fn(async (filePath: string) => filePath),
@@ -20,12 +21,14 @@ vi.mock('electron', () => ({
 vi.mock('node:fs/promises', () => ({
   default: {
     mkdir: mocks.mkdir,
+    chmod: mocks.chmod,
     readFile: mocks.readFile,
     realpath: mocks.realpath,
     stat: mocks.stat,
     writeFile: mocks.writeFile,
   },
   mkdir: mocks.mkdir,
+  chmod: mocks.chmod,
   readFile: mocks.readFile,
   realpath: mocks.realpath,
   stat: mocks.stat,
@@ -35,12 +38,14 @@ vi.mock('node:fs/promises', () => ({
 vi.mock('fs/promises', () => ({
   default: {
     mkdir: mocks.mkdir,
+    chmod: mocks.chmod,
     readFile: mocks.readFile,
     realpath: mocks.realpath,
     stat: mocks.stat,
     writeFile: mocks.writeFile,
   },
   mkdir: mocks.mkdir,
+  chmod: mocks.chmod,
   readFile: mocks.readFile,
   realpath: mocks.realpath,
   stat: mocks.stat,
@@ -52,6 +57,7 @@ describe('desktop filesystem authorization persistence', () => {
     vi.resetModules();
     vi.clearAllMocks();
     mocks.app.getPath.mockReturnValue('/tmp/vlaina-user-data');
+    mocks.chmod.mockResolvedValue(undefined);
     mocks.mkdir.mockResolvedValue(undefined);
     mocks.readFile.mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
     mocks.realpath.mockImplementation(async (filePath: string) => filePath);
@@ -79,6 +85,27 @@ describe('desktop filesystem authorization persistence', () => {
     expect(mocks.writeFile).toHaveBeenCalledTimes(2);
     const persistedPayload = JSON.parse(String(mocks.writeFile.mock.calls[1]?.[1]));
     expect(persistedPayload.roots).toContain(expectedProjectTwoKey);
+  });
+
+  it('persists authorization files with private permissions', async () => {
+    const {
+      authorizeFsPath,
+      resetAuthorizedFsPathsForTests,
+    } = await import('../../electron/fsAccess.mjs');
+    resetAuthorizedFsPathsForTests();
+
+    await expect(authorizeFsPath('/tmp/project-one', 'root')).resolves.toBe('/tmp/project-one');
+
+    const permissionsDir = '/tmp/vlaina-user-data/.vlaina/app/permissions';
+    const permissionsPath = `${permissionsDir}/filesystem.json`;
+    expect(mocks.mkdir).toHaveBeenCalledWith(permissionsDir, { recursive: true, mode: 0o700 });
+    expect(mocks.writeFile).toHaveBeenCalledWith(
+      permissionsPath,
+      expect.any(String),
+      { encoding: 'utf8', mode: 0o600 },
+    );
+    expect(mocks.chmod).toHaveBeenCalledWith(permissionsDir, 0o700);
+    expect(mocks.chmod).toHaveBeenCalledWith(permissionsPath, 0o600);
   });
 
   it('ignores oversized persisted authorization files before reading them', async () => {

@@ -112,4 +112,31 @@ describe('error log service', () => {
     });
     expect(JSON.stringify(entry)).not.toContain('C:/Users/example/private-note.md');
   });
+
+  it('redacts sensitive values and stores logs with private POSIX permissions', () => {
+    const service = createErrorLogService({ app: createMockApp() });
+    const error = new Error(
+      'Request failed Authorization: Bearer sk-secret-value-123456 x-api-key=secret_header_value url=https://example.com/?token=nts_query_secret_123456'
+    );
+    error.stack = [
+      'Error: Request failed',
+      'x-app-session-token: nts_stack_secret_123456',
+      'at demo (app.js:1:1)',
+    ].join('\n');
+
+    const logFilePath = service.logMainError(error, 'main');
+
+    expect(logFilePath).toBeTruthy();
+    const rawLog = fs.readFileSync(logFilePath!, 'utf8');
+    expect(rawLog).not.toContain('sk-secret-value-123456');
+    expect(rawLog).not.toContain('secret_header_value');
+    expect(rawLog).not.toContain('nts_query_secret_123456');
+    expect(rawLog).not.toContain('nts_stack_secret_123456');
+    expect(rawLog).toContain('[redacted]');
+
+    if (process.platform !== 'win32') {
+      expect(fs.statSync(path.dirname(logFilePath!)).mode & 0o777).toBe(0o700);
+      expect(fs.statSync(logFilePath!).mode & 0o777).toBe(0o600);
+    }
+  });
 });
