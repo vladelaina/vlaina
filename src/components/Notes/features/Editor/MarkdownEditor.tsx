@@ -26,6 +26,7 @@ import {
 } from '../Sidebar/sidebarSearchNavigation';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { themeEditorLayoutTokens, themeRenderingTokens } from '@/styles/themeTokens';
+import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
 import 'katex/dist/katex.min.css';
 import './styles/index.css';
 
@@ -151,6 +152,10 @@ export function MarkdownEditor({
     }
 
     if (e.target === e.currentTarget) {
+      if (focusCurrentEmptyUntitledDraftTitle(e.currentTarget)) {
+        return;
+      }
+
       const editor = document.querySelector(
         isSourceMode
           ? '[data-note-source-editor="true"]'

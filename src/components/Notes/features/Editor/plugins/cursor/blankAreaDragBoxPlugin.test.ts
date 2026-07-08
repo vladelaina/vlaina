@@ -16,10 +16,12 @@ import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { listTabIndentPlugin } from '../task-list';
 import { clipboardPlugin } from '../clipboard/clipboardPlugin';
 import { insertImageNodeAtSelection } from '../image-upload/imageNodeInsertion';
+import { useNotesStore } from '@/stores/useNotesStore';
 import {
   normalizeSerializedMarkdownDocument,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { NOTE_TITLE_INPUT_DATA_ATTR } from '../../utils/titleInputDom';
 
 function createMouseEvent(type: string, init: MouseEventInit = {}) {
   return new MouseEvent(type, {
@@ -654,6 +656,36 @@ describe('blankAreaDragBoxPlugin document routing', () => {
     } finally {
       view.dom.removeEventListener('mousedown', viewCaptureListener, true);
       vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('focuses the title instead of the editor body when an empty untitled draft receives a blank-area click', async () => {
+    const { editor, view } = await createBlockSelectionEditor('#');
+
+    try {
+      const scrollRoot = attachNoteScrollRoot(view);
+      const titleInput = document.createElement('textarea');
+      titleInput.setAttribute(NOTE_TITLE_INPUT_DATA_ATTR, 'true');
+      scrollRoot.insertBefore(titleInput, view.dom);
+      useNotesStore.setState({
+        currentNote: { path: 'draft:test', content: '#' },
+        draftNotes: { 'draft:test': { parentPath: null, name: '' } },
+        noteMetadata: { notes: {} },
+      });
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 320,
+        clientY: 50,
+      });
+
+      view.dom.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(titleInput);
+      expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    } finally {
+      useNotesStore.setState(useNotesStore.getInitialState(), true);
       await editor.destroy();
     }
   });
