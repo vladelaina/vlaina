@@ -10,6 +10,7 @@ import {
 } from './notesE2E';
 
 const SETTINGS_MODAL_SELECTOR = '[data-settings-modal="true"]';
+const TEXTBLOCK_CARET_OVERLAY_SELECTOR = '.editor-textblock-caret-overlay';
 
 function createLongTypingMarkdown() {
   const lines = ['# Typing Caret Position', ''];
@@ -75,6 +76,24 @@ type TypingDiagnostics = {
   } | null;
   isDirty: boolean;
   currentContentIncludesMarkers: boolean[];
+};
+
+type TypewriterScrollCaretSnapshot = {
+  scrollTop: number;
+  requestedScrollTop: number;
+  selectionEmpty: boolean | null;
+  selectedBlockText: string | null;
+  caretRect: {
+    top: number;
+    bottom: number;
+    centerY: number;
+  } | null;
+  selectedBlockRect: {
+    top: number;
+    bottom: number;
+    centerY: number;
+  } | null;
+  centerDelta: number | null;
 };
 
 async function setContentCommitThrottleMs(page: Page, throttleMs: number): Promise<void> {
@@ -230,6 +249,118 @@ async function expectEditorFocusedAtFirstLineEnd(page: Page): Promise<void> {
     atFirstLineEnd: true,
     selectionEmpty: true,
   });
+}
+
+async function installTypewriterScrollCaretProbe(page: Page): Promise<void> {
+  const installed = await page.evaluate(({ caretSelector, editorSelector, scrollRootSelector }) => {
+    const scrollRoot = document.querySelector<HTMLElement>(scrollRootSelector);
+    if (!scrollRoot) return false;
+
+    let prototype: object | null = scrollRoot;
+    let descriptor: PropertyDescriptor | undefined;
+    while (prototype && !descriptor) {
+      descriptor = Object.getOwnPropertyDescriptor(prototype, 'scrollTop');
+      prototype = Object.getPrototypeOf(prototype);
+    }
+    if (!descriptor?.get || !descriptor.set) return false;
+
+    const snapshots: TypewriterScrollCaretSnapshot[] = [];
+    const readScrollTop = () => descriptor.get!.call(scrollRoot) as number;
+
+    const readSnapshot = (requestedScrollTop: number): void => {
+      const editor = document.querySelector<HTMLElement>(editorSelector);
+      const caret = document.querySelector<HTMLElement>(caretSelector);
+      if (!editor || !caret) return;
+
+      const selection = window.getSelection();
+      const anchorNode = selection?.anchorNode ?? null;
+      const anchorElement = anchorNode instanceof HTMLElement
+        ? anchorNode
+        : anchorNode?.parentElement ?? null;
+      const selectedBlock = anchorElement?.closest<HTMLElement>('p, h1, h2, h3, h4, h5, h6, li') ?? null;
+      if (!selectedBlock || !editor.contains(selectedBlock)) return;
+
+      const caretRect = caret.getBoundingClientRect();
+      const selectedBlockRect = selectedBlock.getBoundingClientRect();
+      const caretCenterY = (caretRect.top + caretRect.bottom) / 2;
+      const selectedBlockCenterY = (selectedBlockRect.top + selectedBlockRect.bottom) / 2;
+      snapshots.push({
+        scrollTop: readScrollTop(),
+        requestedScrollTop,
+        selectionEmpty: selection?.isCollapsed ?? null,
+        selectedBlockText: selectedBlock.textContent ?? null,
+        caretRect: {
+          top: caretRect.top,
+          bottom: caretRect.bottom,
+          centerY: caretCenterY,
+        },
+        selectedBlockRect: {
+          top: selectedBlockRect.top,
+          bottom: selectedBlockRect.bottom,
+          centerY: selectedBlockCenterY,
+        },
+        centerDelta: Math.abs(caretCenterY - selectedBlockCenterY),
+      });
+    };
+
+    Object.defineProperty(scrollRoot, 'scrollTop', {
+      configurable: true,
+      get() {
+        return descriptor.get!.call(this);
+      },
+      set(value: number) {
+        descriptor.set!.call(this, value);
+        queueMicrotask(() => readSnapshot(value));
+      },
+    });
+
+    (window as any).__vlainaTypewriterScrollCaretProbe = {
+      snapshots,
+    };
+    return true;
+  }, {
+    caretSelector: TEXTBLOCK_CARET_OVERLAY_SELECTOR,
+    editorSelector: EDITOR_SELECTOR,
+    scrollRootSelector: NOTE_SCROLL_ROOT_SELECTOR,
+  });
+
+  expect(installed).toBe(true);
+}
+
+async function readTypewriterScrollCaretProbe(page: Page): Promise<TypewriterScrollCaretSnapshot[]> {
+  return page.evaluate(() => (
+    (window as any).__vlainaTypewriterScrollCaretProbe?.snapshots ?? []
+  ));
+}
+
+async function resetTypewriterScrollCaretProbe(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const probe = (window as any).__vlainaTypewriterScrollCaretProbe;
+    if (probe?.snapshots) {
+      probe.snapshots.length = 0;
+    }
+  });
+}
+
+function expectCaretSnapshotsAligned(
+  snapshots: TypewriterScrollCaretSnapshot[],
+  options: { requireBlankLine: boolean },
+): void {
+  const matchingSnapshots = snapshots.filter((snapshot) => (
+    snapshot.selectionEmpty === true &&
+    snapshot.selectedBlockRect !== null &&
+    snapshot.caretRect !== null &&
+    (
+      !options.requireBlankLine ||
+      snapshot.selectedBlockText === '' ||
+      snapshot.selectedBlockText === '\u200B'
+    )
+  ));
+  expect(matchingSnapshots.length, { snapshots }).toBeGreaterThan(0);
+
+  for (const snapshot of matchingSnapshots) {
+    expect(snapshot.centerDelta, { snapshot, snapshots }).toBeLessThanOrEqual(6);
+  }
 }
 
 async function getTypingDiagnostics(page: Page, markers: string[]): Promise<TypingDiagnostics> {
@@ -804,6 +935,57 @@ test.describe('notes typing caret position', () => {
       expect(afterType.focused, JSON.stringify(afterType, null, 2)).toBe(true);
       expect(afterType.selection?.empty, JSON.stringify(afterType, null, 2)).toBe(true);
       expect(afterType.paragraphTexts, JSON.stringify(afterType, null, 2)).toEqual([beforeText, marker]);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps the typewriter caret overlay aligned while editing consecutive blank lines', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typewriter-consecutive-blank-caret');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await enableMarkdownTypewriterMode(page);
+
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      await openMarkdownFixture(page, {
+        filename: 'typewriter-consecutive-blank-caret-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      await scrollTextIntoView(page, targetText);
+      await clickText(page, targetText);
+      await expect(page.locator(TEXTBLOCK_CARET_OVERLAY_SELECTOR)).toBeVisible({ timeout: 10_000 });
+
+      await installTypewriterScrollCaretProbe(page);
+      await page.keyboard.press('End');
+      await page.keyboard.press('Enter');
+      await waitForEditorAnimationFrame(page);
+      await page.keyboard.press('Enter');
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+
+      const snapshots = await readTypewriterScrollCaretProbe(page);
+      expectCaretSnapshotsAligned(snapshots, { requireBlankLine: true });
+
+      await page.evaluate((scrollRootSelector) => {
+        const scrollRoot = document.querySelector<HTMLElement>(scrollRootSelector);
+        if (scrollRoot) {
+          scrollRoot.scrollTop += 160;
+        }
+      }, NOTE_SCROLL_ROOT_SELECTOR);
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+      await resetTypewriterScrollCaretProbe(page);
+      await page.keyboard.press('Backspace');
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+
+      const afterBackspaceSnapshots = await readTypewriterScrollCaretProbe(page);
+      expectCaretSnapshotsAligned(afterBackspaceSnapshots, { requireBlankLine: false });
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

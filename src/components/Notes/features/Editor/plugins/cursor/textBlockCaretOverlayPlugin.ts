@@ -17,6 +17,7 @@ const TEXTBLOCK_CARET_STYLE_ID = 'editor-textblock-caret-overlay-style';
 const TEXTBLOCK_CARET_ELEMENT_CLASS = 'editor-textblock-caret-overlay';
 const FORCED_LINE_END_CARET_CLASS = 'editor-forced-line-end-caret-active';
 const KEY_EVENT_LISTENER_OPTIONS = { capture: true };
+export const TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT = 'editor:textblock-caret-overlay-refresh';
 
 export const textBlockCaretOverlayPluginKey = new PluginKey('textBlockCaretOverlay');
 
@@ -107,6 +108,7 @@ export class TextBlockCaretOverlayView {
     view.dom.addEventListener('keyup', this.handleKeyUp, KEY_EVENT_LISTENER_OPTIONS);
     view.dom.addEventListener('compositionstart', this.hide);
     view.dom.addEventListener('compositionend', this.scheduleUpdate);
+    view.dom.addEventListener(TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT, this.refreshNow);
     view.dom.ownerDocument.addEventListener('selectionchange', this.scheduleUpdate);
     view.dom.ownerDocument.defaultView?.addEventListener('resize', this.scheduleUpdate);
     view.dom.closest('[data-note-scroll-root="true"]')?.addEventListener('scroll', this.scheduleUpdate, { passive: true });
@@ -131,6 +133,7 @@ export class TextBlockCaretOverlayView {
     this.view.dom.removeEventListener('keyup', this.handleKeyUp, KEY_EVENT_LISTENER_OPTIONS);
     this.view.dom.removeEventListener('compositionstart', this.hide);
     this.view.dom.removeEventListener('compositionend', this.scheduleUpdate);
+    this.view.dom.removeEventListener(TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT, this.refreshNow);
     this.view.dom.ownerDocument.removeEventListener('selectionchange', this.scheduleUpdate);
     this.view.dom.ownerDocument.defaultView?.removeEventListener('resize', this.scheduleUpdate);
     this.view.dom.closest('[data-note-scroll-root="true"]')?.removeEventListener('scroll', this.scheduleUpdate);
@@ -155,6 +158,11 @@ export class TextBlockCaretOverlayView {
     this.view.dom.ownerDocument.defaultView?.cancelAnimationFrame(this.frameId);
     this.frameId = null;
   }
+
+  private refreshNow = (): void => {
+    this.cancelFrame();
+    this.render();
+  };
 
   private removeCaretOverlay(): void {
     releaseCaretBlink(this.caret);

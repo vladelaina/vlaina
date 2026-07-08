@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isTagTokenBoundaryAtTextblock, TextBlockCaretOverlayView } from './textBlockCaretOverlayPlugin';
+import {
+  isTagTokenBoundaryAtTextblock,
+  TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT,
+  TextBlockCaretOverlayView,
+} from './textBlockCaretOverlayPlugin';
 
 function createParent(text: string) {
   return {
@@ -129,6 +133,49 @@ describe('textBlockCaretOverlayPlugin', () => {
 
     overlay.destroy();
     expect(TestResizeObserver.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes the caret overlay immediately when requested after a scroll write', () => {
+    const animationFrames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(vi.fn());
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+
+    const editorDom = document.createElement('div');
+    document.body.appendChild(editorDom);
+
+    let top = 12;
+    const view = {
+      dom: editorDom,
+      composing: false,
+      hasFocus: () => true,
+      coordsAtPos: vi.fn(() => ({
+        left: 24,
+        top,
+        bottom: top + 20,
+      })),
+      domAtPos: vi.fn(),
+      state: {
+        selection: createTextblockSelection(),
+      },
+    };
+
+    const overlay = new TextBlockCaretOverlayView(view as any);
+    animationFrames.shift()?.(0);
+    const caret = document.querySelector<HTMLElement>('.editor-textblock-caret-overlay');
+    expect(caret?.style.top).toBe('12px');
+
+    top = 48;
+    overlay.update(view as any);
+    editorDom.dispatchEvent(new Event(TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT));
+
+    expect(caret?.style.top).toBe('48px');
+    expect(cancelAnimationFrame).toHaveBeenCalledTimes(1);
+
+    overlay.destroy();
   });
 
   it('does not refresh the caret overlay during IME composition keydown', () => {
