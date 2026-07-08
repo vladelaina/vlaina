@@ -98,6 +98,7 @@ describe('i18n messages', () => {
       'chat.error.providerNotFound',
       'chat.error.channelOff',
       'chat.error.network',
+      'chat.error.customProviderConnectionFailed',
       'chat.error.timeout',
       'chat.error.authExpired',
       'chat.error.authFailed',
