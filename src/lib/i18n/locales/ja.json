@@ -700,7 +700,6 @@
   "icon.searchResults": "結果（{count}）",
   "icon.animationPreserved": "アニメーションを保持",
   "icon.originalFormat": "元の形式",
-  "icon.uploadImageForNoteIcon": "画像をアップロードしてノートアイコンに使用",
   "asset.noImagesYet": "画像はまだありません",
   "asset.uploadImagesForCovers": "ノートのカバーに使う画像をアップロード",
   "cover.imageAlt": "カバー",

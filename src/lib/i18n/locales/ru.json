@@ -700,7 +700,6 @@
   "icon.searchResults": "Результаты ({count})",
   "icon.animationPreserved": "Анимация сохранена",
   "icon.originalFormat": "Исходный формат",
-  "icon.uploadImageForNoteIcon": "Загрузите изображение для значка заметки",
   "asset.noImagesYet": "Изображений пока нет",
   "asset.uploadImagesForCovers": "Загрузите изображения для обложек заметок",
   "cover.imageAlt": "Обложка",

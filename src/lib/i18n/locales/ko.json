@@ -700,7 +700,6 @@
   "icon.searchResults": "결과({count})",
   "icon.animationPreserved": "애니메이션 유지됨",
   "icon.originalFormat": "원본 형식",
-  "icon.uploadImageForNoteIcon": "노트 아이콘으로 사용할 이미지 업로드",
   "asset.noImagesYet": "아직 이미지가 없습니다",
   "asset.uploadImagesForCovers": "노트 표지로 사용할 이미지 업로드",
   "cover.imageAlt": "표지",

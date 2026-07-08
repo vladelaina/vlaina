@@ -700,7 +700,6 @@
   "icon.searchResults": "Sonuçlar ({count})",
   "icon.animationPreserved": "Animasyon korundu",
   "icon.originalFormat": "Özgün biçim",
-  "icon.uploadImageForNoteIcon": "Not simgesi olarak kullanmak için bir görsel yükleyin",
   "asset.noImagesYet": "Henüz görsel yok",
   "asset.uploadImagesForCovers": "Not kapakları için görseller yükleyin",
   "cover.imageAlt": "Kapak",

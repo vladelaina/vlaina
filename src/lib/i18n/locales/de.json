@@ -700,7 +700,6 @@
   "icon.searchResults": "Ergebnisse ({count})",
   "icon.animationPreserved": "Animation beibehalten",
   "icon.originalFormat": "Originalformat",
-  "icon.uploadImageForNoteIcon": "Bild hochladen, um es als Notizsymbol zu verwenden",
   "asset.noImagesYet": "Noch keine Bilder",
   "asset.uploadImagesForCovers": "Bilder hochladen, um sie als Notizcover zu verwenden",
   "cover.imageAlt": "Notizcover",

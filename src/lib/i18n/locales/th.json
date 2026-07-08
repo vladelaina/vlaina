@@ -700,7 +700,6 @@
   "icon.searchResults": "ผลลัพธ์ ({count})",
   "icon.animationPreserved": "คงภาพเคลื่อนไหวไว้",
   "icon.originalFormat": "รูปแบบต้นฉบับ",
-  "icon.uploadImageForNoteIcon": "อัปโหลดรูปภาพเพื่อใช้เป็นไอคอนโน้ต",
   "asset.noImagesYet": "ยังไม่มีรูปภาพ",
   "asset.uploadImagesForCovers": "อัปโหลดรูปภาพเพื่อใช้เป็นปกโน้ต",
   "cover.imageAlt": "ปก",

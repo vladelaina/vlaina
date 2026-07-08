@@ -700,7 +700,6 @@
   "icon.searchResults": "Results ({count})",
   "icon.animationPreserved": "Animation Preserved",
   "icon.originalFormat": "Original Format",
-  "icon.uploadImageForNoteIcon": "Upload an image to use it as the note icon",
   "asset.noImagesYet": "No images yet",
   "asset.uploadImagesForCovers": "Upload images to use as covers for your notes",
   "cover.imageAlt": "Cover",

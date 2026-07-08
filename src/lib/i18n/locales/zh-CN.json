@@ -700,7 +700,6 @@
   "icon.searchResults": "结果（{count}）",
   "icon.animationPreserved": "保留动画",
   "icon.originalFormat": "保留原格式",
-  "icon.uploadImageForNoteIcon": "上传图片作为笔记图标",
   "asset.noImagesYet": "还没有图片",
   "asset.uploadImagesForCovers": "上传图片作为笔记封面",
   "cover.imageAlt": "封面",

@@ -5,7 +5,6 @@ import type { CustomIcon } from './UploadTab';
 
 interface UploadTabLibraryProps {
     customIcons: CustomIcon[];
-    emptyLabel: string;
     imageLoader?: (src: string) => Promise<string>;
     allowLegacyImageScheme: boolean;
     onSelect: (url: string) => void;
@@ -15,7 +14,6 @@ interface UploadTabLibraryProps {
 
 export function UploadTabLibrary({
     customIcons,
-    emptyLabel,
     imageLoader,
     allowLegacyImageScheme,
     onSelect,
@@ -42,11 +40,6 @@ export function UploadTabLibrary({
                     />
                 </div>
             ))}
-            {customIcons.length === 0 && (
-                <div className="col-span-7 py-8 text-center text-xs text-muted-foreground italic">
-                    {emptyLabel}
-                </div>
-            )}
         </div>
     );
 }

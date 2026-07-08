@@ -700,7 +700,6 @@
   "icon.searchResults": "Resultados ({count})",
   "icon.animationPreserved": "Animación conservada",
   "icon.originalFormat": "Formato original",
-  "icon.uploadImageForNoteIcon": "Sube una imagen para usarla como icono de la nota",
   "asset.noImagesYet": "Aún no hay imágenes",
   "asset.uploadImagesForCovers": "Sube imágenes para usarlas como portadas de tus notas",
   "cover.imageAlt": "Portada",

@@ -202,6 +202,18 @@ describe('markdown blank line reopen regressions', () => {
       ].join('\n'),
       texts: ['1', '', '2', '', '', '3'],
     },
+    {
+      name: 'hidden cover and icon frontmatter with source body separator',
+      markdown: [
+        '---',
+        'vlaina_cover: "assets/cover.png" x=50 y=50 height=220 scale=1',
+        'vlaina_icon: "🍓"',
+        '---',
+        '',
+        'First paragraph after hidden metadata.',
+      ].join('\n'),
+      texts: ['First paragraph after hidden metadata.'],
+    },
   ])('reopens and immediately resaves stable blank lines: $name', async ({ markdown, texts }) => {
     const firstReopen = await reopenMarkdown(markdown);
     expect(firstReopen.texts).toEqual(texts);
