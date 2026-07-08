@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { shouldLockPreviewToolbarPosition } from './floatingToolbarPluginView';
+import { installFloatingToolbarPluginViewEventMethods } from './floatingToolbarPluginViewEventMethods';
 import {
   collectToolbarSubmenus,
   correctToolbarSubmenusToContentBounds,
@@ -12,6 +13,50 @@ describe('floatingToolbarPluginView', () => {
     const toolbar = createToolbarElement();
 
     expect(toolbar.getAttribute('data-no-editor-drag-box')).toBe('true');
+  });
+
+  it('finishes text selection when editor mouseup stops bubbling', () => {
+    const toolbar = createToolbarElement();
+    const selectionToolbar = createToolbarElement();
+    const editorBody = document.createElement('div');
+    const interactionState = {
+      isMouseDown: true,
+      isPointerInsideToolbar: false,
+      pendingShow: false,
+    };
+    const ctx: Record<string, any> = {
+      bindGlobalListeners: vi.fn(),
+      editorView: { dom: editorBody },
+      handleClickOutside: vi.fn(),
+      handleDocumentFormatShortcut: vi.fn(),
+      handleDocumentToolbarPointerMove: vi.fn(),
+      handleEscape: vi.fn(),
+      handleMouseDown: vi.fn(),
+      handleMouseUp: vi.fn(),
+      handleToolbarPointerEnter: vi.fn(),
+      handleToolbarPointerLeave: vi.fn(),
+      interactionState,
+      scheduleToolbarUpdate: vi.fn(),
+      scrollRoot: null,
+      toolbarElement: toolbar,
+      selectionToolbarElement: selectionToolbar,
+      toolbarRoot: null,
+      unbindGlobalListeners: vi.fn(),
+    };
+
+    installFloatingToolbarPluginViewEventMethods(ctx as never);
+    ctx.bindGlobalListeners(null);
+    editorBody.addEventListener('mouseup', (event) => event.stopPropagation());
+    document.body.append(editorBody);
+
+    try {
+      editorBody.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      expect(interactionState.isMouseDown).toBe(false);
+    } finally {
+      ctx.unbindGlobalListeners(null);
+      editorBody.remove();
+    }
   });
 
   it('locks toolbar position while preview submenus are open', () => {

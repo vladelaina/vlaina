@@ -79,4 +79,49 @@ describe('bindAiReviewDrag', () => {
     });
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
   });
+
+  it('finishes the drag when mouseup stops bubbling', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 800 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 600 });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+
+    const container = document.createElement('div');
+    const dragHandle = document.createElement('button');
+    const blocker = document.createElement('div');
+    container.style.left = '100px';
+    container.style.top = '120px';
+    Object.defineProperty(container, 'offsetWidth', { configurable: true, value: 240 });
+    Object.defineProperty(container, 'offsetHeight', { configurable: true, value: 180 });
+    container.append(dragHandle);
+    document.body.append(container, blocker);
+    blocker.addEventListener('mouseup', (event) => event.stopPropagation());
+    const view = createEditorView();
+
+    bindAiReviewDrag({ container, dragHandle, view });
+
+    dragHandle.dispatchEvent(new MouseEvent('mousedown', {
+      button: 0,
+      clientX: 40,
+      clientY: 50,
+      bubbles: true,
+      cancelable: true,
+    }));
+    window.dispatchEvent(new MouseEvent('mousemove', {
+      clientX: 72,
+      clientY: 92,
+    }));
+    blocker.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+    expect(view.state.tr.setMeta).toHaveBeenCalledWith(expect.anything(), {
+      type: TOOLBAR_ACTIONS.UPDATE_POSITION,
+      payload: {
+        dragPosition: {
+          x: 132,
+          y: 162,
+        },
+      },
+    });
+    expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
+  });
 });
