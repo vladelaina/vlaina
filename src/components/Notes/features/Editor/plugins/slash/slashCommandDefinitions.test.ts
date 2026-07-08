@@ -83,7 +83,7 @@ describe('slashCommandDefinitions', () => {
     }
   });
 
-  it('persists an empty slash-created heading as unambiguous markdown', async () => {
+  it('persists an empty slash-created heading without adding closing marker text', async () => {
     const editor = Editor.make()
       .config((ctx) => {
         ctx.set(defaultValueCtx, '');
@@ -104,7 +104,7 @@ describe('slashCommandDefinitions', () => {
     );
 
     expect(view.state.doc.firstChild?.type.name).toBe('heading');
-    expect(normalized).toBe('# #');
+    expect(normalized).toBe('#');
 
     await editor.destroy();
   });

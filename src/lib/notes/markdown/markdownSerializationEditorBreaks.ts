@@ -6,7 +6,6 @@ import {
   BR_ONLY_PATTERN,
   EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN,
   EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN,
-  EMPTY_ATX_HEADING_MARKER_PATTERN,
   EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN,
   ESCAPED_HIGHLIGHT_PATTERN,
   INLINE_TERMINAL_LIST_BR_PATTERN,
@@ -31,13 +30,7 @@ import {
 } from './markdownSerializationInternalBlankComments';
 
 export function normalizeEmptyAtxHeadingMarkers(text: string): string {
-  if (!text.includes('#')) return text;
-
-  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
-    segment.replace(EMPTY_ATX_HEADING_MARKER_PATTERN, (_match, indent: string, marker: string) =>
-      `${indent}${marker} ${marker}`
-    )
-  );
+  return text;
 }
 
 export function normalizeEscapedHighlightSyntax(text: string): string {

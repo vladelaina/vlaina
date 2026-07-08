@@ -7,9 +7,9 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { gfm } from '@milkdown/kit/preset/gfm';
+import { gfm, remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
 import { configureTheme } from '../../theme';
-import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { notesRemarkGfmOptions, notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import {
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
@@ -47,19 +47,19 @@ const slashPersistencePlugins = [
 ];
 
 const slashCommandPersistenceCases = [
-  ['heading-1', '# #'],
-  ['heading-2', '## ##'],
-  ['heading-3', '### ###'],
-  ['heading-4', '#### ####'],
-  ['heading-5', '##### #####'],
-  ['heading-6', '###### ######'],
+  ['heading-1', '#'],
+  ['heading-2', '##'],
+  ['heading-3', '###'],
+  ['heading-4', '####'],
+  ['heading-5', '#####'],
+  ['heading-6', '######'],
   ['task-list', '- [ ]'],
   ['ordered-list', '1.'],
   ['bullet-list', '-'],
   ['quote', '>'],
   ['divider', '---'],
   ['code-block', ['```', '```'].join('\n')],
-  ['table', ['|   |   |   |', '| :----- | :----- | :----- |', '|   |   |   |', '|   |   |   |'].join('\n')],
+  ['table', ['| | | |', '|:-|:-|:-|', '| | | |', '| | | |'].join('\n')],
   ['frontmatter', ['---', '---'].join('\n')],
   ['equation', ['$$', '$$'].join('\n')],
   ['inline-math', '$$'],
@@ -86,6 +86,7 @@ async function runSlashCommandAndPersist(commandId: SlashCommandId, markdown = '
         ...prev,
         ...notesRemarkStringifyOptions,
       }));
+      ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
     })
     .use(commonmark)
     .use(gfm)
@@ -119,6 +120,7 @@ async function reopenMarkdownAndPersist(markdown: string) {
         ...prev,
         ...notesRemarkStringifyOptions,
       }));
+      ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
     })
     .use(commonmark)
     .use(gfm)

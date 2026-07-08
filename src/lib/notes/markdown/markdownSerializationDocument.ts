@@ -26,7 +26,6 @@ import { normalizeGenericHtmlBlockClosingSpacing } from './markdownSerialization
 import { normalizeInternalMarkdownBlankLineComments } from './markdownSerializationInternalBlankComments';
 import { normalizeInternalTightHeadingComments } from './markdownSerializationInternalTightComments';
 import { normalizeMailtoEmailMarkdownLinks } from './markdownSerializationLinks';
-import { normalizeMissingOrderedListMarkerSpaces } from './markdownSerializationListMarkers';
 import {
   normalizeInternalClipboardArtifacts,
   normalizeLeakedInternalArtifacts,
@@ -233,9 +232,7 @@ export function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterStandaloneBreakHtml);
   const afterRedundantMarkdownEscapes = normalizeRedundantMarkdownEscapes(afterMarkdownSpaceEntities);
-  const afterMissingOrderedListMarkerSpaces =
-    normalizeMissingOrderedListMarkerSpaces(afterRedundantMarkdownEscapes);
-  const output = normalizeUrlSerializationArtifacts(afterMissingOrderedListMarkerSpaces);
+  const output = normalizeUrlSerializationArtifacts(afterRedundantMarkdownEscapes);
 
   return {
     input: text,
@@ -258,7 +255,6 @@ export function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterStandaloneBreakHtml,
     afterMarkdownSpaceEntities,
     afterRedundantMarkdownEscapes,
-    afterMissingOrderedListMarkerSpaces,
     output,
   };
 }

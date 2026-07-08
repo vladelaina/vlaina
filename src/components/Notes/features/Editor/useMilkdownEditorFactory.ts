@@ -7,13 +7,13 @@ import {
   remarkStringifyOptionsCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { gfm } from '@milkdown/kit/preset/gfm';
+import { gfm, remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { tableBlock } from '@milkdown/kit/component/table-block';
 import { clipboardPlugin } from './plugins/clipboard/clipboardPlugin';
 import { configureTheme } from './theme';
 import { customPlugins } from './config/plugins';
-import { notesRemarkStringifyOptions } from './config/stringifyOptions';
+import { notesRemarkGfmOptions, notesRemarkStringifyOptions } from './config/stringifyOptions';
 import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
 import { preserveMarkdownBlankLinesForEditor } from '@/lib/notes/markdown/markdownSerializationUtils';
@@ -80,6 +80,7 @@ export function useMilkdownEditorFactory(args: {
           ...prev,
           ...notesRemarkStringifyOptions,
         }));
+        ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
 
         const handleMarkdownUpdated = configureMarkdownListener(ctx, initialContent);
         ctx.update(prosePluginsCtx, (plugins) => plugins.concat(

@@ -271,40 +271,26 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'mermaid flow fence alias',
       markdown: ['```flow', 'flowchart TD', '  A --> B', '```'].join('\n'),
-      expected: ['```mermaid', 'flowchart TD', '  A --> B', '```'].join('\n'),
     },
     {
       name: 'mermaid flow fence alias without directive',
       markdown: ['```flow', 'A --> B', '```'].join('\n'),
-      expected: ['```mermaid', 'flowchart TD', 'A --> B', '```'].join('\n'),
     },
     {
       name: 'mermaid flowchart-v2 fence alias without directive',
       markdown: ['```flowchart-v2', 'A --> B', '```'].join('\n'),
-      expected: ['```mermaid', 'flowchart TD', 'A --> B', '```'].join('\n'),
     },
     {
       name: 'mermaid flow alias with frontmatter before missing directive',
       markdown: ['```flow', '---', 'title: Flow', '---', 'A --> B', '```'].join('\n'),
-      expected: [
-        '```mermaid',
-        '---',
-        'title: Flow',
-        '---',
-        'flowchart TD',
-        'A --> B',
-        '```',
-      ].join('\n'),
     },
     {
       name: 'mermaid flow fence alias with direction',
       markdown: ['```mermaid', 'flow LR', 'A --> B', '```'].join('\n'),
-      expected: ['```mermaid', 'flowchart LR', 'A --> B', '```'].join('\n'),
     },
     {
       name: 'mermaid sequence fence alias',
       markdown: ['```sequence', 'Alice->Bob: Hello', '```'].join('\n'),
-      expected: ['```mermaid', 'sequenceDiagram', 'Alice->Bob: Hello', '```'].join('\n'),
     },
     {
       name: 'mermaid init directive before short sequence alias',
@@ -315,13 +301,6 @@ describe('markdown syntax persistence matrix', () => {
         'Alice->Bob: Hello',
         '```',
       ].join('\n'),
-      expected: [
-        '```mermaid',
-        '%%{init: {"theme": "default"}}%%',
-        'sequenceDiagram',
-        'Alice->Bob: Hello',
-        '```',
-      ].join('\n'),
     },
     {
       name: 'mermaid comment before short flow alias',
@@ -329,13 +308,6 @@ describe('markdown syntax persistence matrix', () => {
         '```mermaid',
         '%% keep this comment',
         'flow',
-        'A --> B',
-        '```',
-      ].join('\n'),
-      expected: [
-        '```mermaid',
-        '%% keep this comment',
-        'flowchart TD',
         'A --> B',
         '```',
       ].join('\n'),
@@ -350,25 +322,14 @@ describe('markdown syntax persistence matrix', () => {
         'Alice->Bob: Hi Bob',
         '```',
       ].join('\n'),
-      expected: [
-        '```mermaid',
-        'zenuml',
-        'title Declare participant',
-        'Bob',
-        'Alice',
-        'Alice->Bob: Hi Bob',
-        '```',
-      ].join('\n'),
     },
     {
       name: 'mermaid detector fence alias',
       markdown: ['```packet-beta', '0-7: "Source"', '```'].join('\n'),
-      expected: ['```mermaid', 'packet-beta', '0-7: "Source"', '```'].join('\n'),
     },
     {
       name: 'code block language alias',
       markdown: ['```JS', 'const value = 1;', '```'].join('\n'),
-      expected: ['```ecmascript', 'const value = 1;', '```'].join('\n'),
     },
     {
       name: 'video image syntax',

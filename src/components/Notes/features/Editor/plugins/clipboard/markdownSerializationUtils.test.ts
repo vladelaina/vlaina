@@ -655,15 +655,15 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ].join('\n'));
   });
 
-  it('canonicalizes missing ordered list marker spaces while normalizing persisted markdown', () => {
+  it('does not add missing ordered list marker spaces while normalizing persisted markdown', () => {
     expect(
       normalizeSerializedMarkdownDocument(['1.苹果', '2.香蕉', '3.橘子'].join('\n'))
-    ).toBe(['1. 苹果', '2. 香蕉', '3. 橘子'].join('\n'));
+    ).toBe(['1.苹果', '2.香蕉', '3.橘子'].join('\n'));
     expect(normalizeSerializedMarkdownDocument(['1.1', '2.1'].join('\n'))).toBe(
-      ['1. 1', '2. 1'].join('\n')
+      ['1.1', '2.1'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument(['0.安装', '', '1.调用笔记'].join('\n'))).toBe(
-      ['0. 安装', '', '1. 调用笔记'].join('\n')
+      ['0.安装', '', '1.调用笔记'].join('\n')
     );
   });
 
@@ -679,6 +679,12 @@ describe('normalizeSerializedMarkdownDocument', () => {
     );
     expect(normalizeSerializedMarkdownDocument(['-苹果', '-香蕉'].join('\n'))).toBe(
       ['-苹果', '-香蕉'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument(['#标题', '##子标题'].join('\n'))).toBe(
+      ['#标题', '##子标题'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument(['>引用', '>>嵌套引用'].join('\n'))).toBe(
+      ['>引用', '>>嵌套引用'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument(['＃标题', '＞引用'].join('\n'))).toBe(
       ['＃标题', '＞引用'].join('\n')
@@ -842,7 +848,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
-  it('does not fast-path large documents with empty atx headings', () => {
+  it('keeps large documents with empty atx headings unchanged', () => {
     const paragraph = 'This is a long plain paragraph for large markdown normalization. '.repeat(200);
     const markdown = [
       '#',
@@ -851,7 +857,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ].join('\n\n');
 
     expect(markdown.length).toBeGreaterThan(1_000_000);
-    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown.replace(/^#$/m, '# #'));
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
   it('does not add hard breaks to large documents with soft line breaks', () => {
@@ -879,13 +885,13 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toContain('Large Setext Document\n===');
   });
 
-  it('canonicalizes empty atx headings so they reopen as headings', () => {
+  it('keeps empty atx headings without adding closing markers', () => {
     expect(
       normalizeSerializedMarkdownDocument(['#', '##', '', 'Body'].join('\n'))
-    ).toBe(['# #', '## ##', '', 'Body'].join('\n'));
+    ).toBe(['#', '##', '', 'Body'].join('\n'));
     expect(
       normalizeSerializedMarkdownDocument(['   ###   ', '', 'Body'].join('\n'))
-    ).toBe(['   ### ###', '', 'Body'].join('\n'));
+    ).toBe(['   ###   ', '', 'Body'].join('\n'));
   });
 
   it('does not canonicalize empty atx-like markers inside fenced code', () => {
@@ -894,10 +900,10 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
-  it('canonicalizes empty atx headings on the editor-state persistence path', () => {
+  it('keeps empty atx headings on the editor-state persistence path', () => {
     expect(
       normalizeEditorStateMarkdownDocument(['#', '##', '', 'Body'].join('\n'))
-    ).toBe(['# #', '## ##', '', 'Body'].join('\n'));
+    ).toBe(['#', '##', '', 'Body'].join('\n'));
 
     const fenced = ['```md', '#', '##', '```'].join('\n');
     expect(normalizeEditorStateMarkdownDocument(fenced)).toBe(fenced);
@@ -1294,18 +1300,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     );
   });
 
-  it('canonicalizes adjacent callout list items to the editor spread structure', () => {
+  it('does not add blank blockquote lines between adjacent callout list items while normalizing persisted markdown', () => {
     expect(
       normalizeSerializedMarkdownDocument(['> 💡 Callout title', '>', '> - First item', '> - Second item'].join('\n'))
-    ).toBe(['> 💡 Callout title', '>', '> - First item', '>', '> - Second item'].join('\n'));
+    ).toBe(['> 💡 Callout title', '>', '> - First item', '> - Second item'].join('\n'));
   });
 
-  it('canonicalizes thematic break variants to unambiguous separators', () => {
+  it('does not canonicalize thematic break variants while normalizing persisted markdown', () => {
     expect(normalizeSerializedMarkdownDocument(['before', '', '***', '', 'after'].join('\n'))).toBe(
-      ['before', '', '---', '', 'after'].join('\n')
+      ['before', '', '***', '', 'after'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument(['before', '', '___', '', 'after'].join('\n'))).toBe(
-      ['before', '', '---', '', 'after'].join('\n')
+      ['before', '', '___', '', 'after'].join('\n')
     );
   });
 
