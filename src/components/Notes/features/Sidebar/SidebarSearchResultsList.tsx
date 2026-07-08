@@ -81,12 +81,12 @@ function SidebarSearchResultRow({
             </div>
           ) : null}
           {locationLabel ? (
-            <div className="whitespace-normal break-words text-[var(--vlaina-font-11)] leading-3 text-[var(--vlaina-sidebar-notes-text-soft)] [overflow-wrap:anywhere]">
+            <div className="whitespace-normal break-words text-[var(--vlaina-font-11)] leading-[var(--vlaina-leading-145)] text-[var(--vlaina-sidebar-notes-text-soft)] [overflow-wrap:anywhere]">
               <HighlightedSearchText text={locationLabel} query={query} />
             </div>
           ) : null}
           {contentSnippet ? (
-            <div className="whitespace-normal break-words text-[var(--vlaina-font-xs)] leading-3 text-[var(--vlaina-sidebar-notes-text-soft)]">
+            <div className="whitespace-normal break-words text-[var(--vlaina-font-11)] leading-[var(--vlaina-leading-145)] text-[var(--vlaina-sidebar-notes-text-soft)]">
               <HighlightedSearchText text={contentSnippet} query={query} />
             </div>
           ) : null}
