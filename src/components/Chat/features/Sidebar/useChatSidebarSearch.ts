@@ -38,6 +38,12 @@ export function useChatSidebarSearch({
 
   useEffect(() => {
     if (!enabled) {
+      closeSearch();
+    }
+  }, [closeSearch, enabled]);
+
+  useEffect(() => {
+    if (!enabled) {
       return;
     }
 
