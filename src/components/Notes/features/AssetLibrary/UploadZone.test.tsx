@@ -115,7 +115,7 @@ describe('UploadZone', () => {
       if (originalShowPicker) {
         Object.defineProperty(HTMLInputElement.prototype, 'showPicker', originalShowPicker);
       } else {
-        delete HTMLInputElement.prototype.showPicker;
+        Reflect.deleteProperty(HTMLInputElement.prototype, 'showPicker');
       }
     }
   });

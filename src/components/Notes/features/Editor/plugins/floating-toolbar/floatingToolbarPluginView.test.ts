@@ -1,6 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Schema } from '@milkdown/kit/prose/model';
-import { EditorState, TextSelection } from '@milkdown/kit/prose/state';
 import { shouldLockPreviewToolbarPosition } from './floatingToolbarPluginView';
 import { installFloatingToolbarPluginViewEventMethods } from './floatingToolbarPluginViewEventMethods';
 import {
@@ -62,25 +60,10 @@ describe('floatingToolbarPluginView', () => {
   });
 
   it('does not collapse the editor selection when clicking an external text control', () => {
-    const schema = new Schema({
-      nodes: {
-        doc: { content: 'block+' },
-        paragraph: {
-          content: 'text*',
-          group: 'block',
-          toDOM: () => ['p', 0],
-          parseDOM: [{ tag: 'p' }],
-        },
-        text: { group: 'inline' },
-      },
-    });
-    const doc = schema.node('doc', null, [
-      schema.nodes.paragraph.create(null, schema.text('Selected body text')),
-    ]);
-    const state = EditorState.create({
-      doc,
-      selection: TextSelection.create(doc, 1, 9),
-    });
+    const state = {
+      doc: { content: { size: 18 } },
+      selection: { empty: false, from: 1, to: 9 },
+    };
     const toolbar = createToolbarElement();
     const selectionToolbar = createToolbarElement();
     const editorBody = document.createElement('div');

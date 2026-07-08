@@ -49,6 +49,7 @@ interface MilkdownNodeType {
 
 interface MilkdownResolvedPos {
   pos: number;
+  doc: MilkdownNode;
   depth: number;
   parent: MilkdownNode;
   parentOffset: number;
@@ -729,7 +730,15 @@ declare module '@milkdown/kit/preset/gfm' {
     [key: string]: any;
   }
 
+  interface MilkdownPluginWithOptions {
+    options: { key: any };
+    plugin?: any;
+    key?: any;
+    [key: string]: any;
+  }
+
   export const gfm: any;
+  export const remarkGFMPlugin: MilkdownPluginWithOptions;
   export const tableSchema: any;
   export const tableRowSchema: any;
   export const tableHeaderSchema: any;
@@ -877,7 +886,6 @@ declare module '@milkdown/kit/prose/model' {
   export type MarkType = MilkdownMarkType;
   export type NodeType = MilkdownNodeType;
   export type ResolvedPos = MilkdownResolvedPos;
-  export type Schema = MilkdownSchema;
 
   export class Mark implements MilkdownMark {
     type: MarkType;
@@ -1002,7 +1010,6 @@ declare module '@milkdown/kit/prose/schema-list' {
 }
 
 declare module '@milkdown/kit/prose/state' {
-  export type EditorState = MilkdownEditorStateLike;
   export type Transaction = MilkdownTransactionLike;
   export type Command = MilkdownCommand;
 
@@ -1168,6 +1175,15 @@ declare module '@milkdown/preset-gfm' {
     [key: string]: any;
   }
 
+  interface MilkdownPluginWithOptions {
+    options: { key: any };
+    plugin?: any;
+    key?: any;
+    [key: string]: any;
+  }
+
+  export const gfm: any;
+  export const remarkGFMPlugin: MilkdownPluginWithOptions;
   export const tableSchema: any;
   export const addColAfterCommand: CommandKeyLike;
   export const addColBeforeCommand: CommandKeyLike;
@@ -1185,7 +1201,6 @@ declare module '@milkdown/prose/model' {
   export type MarkType = MilkdownMarkType;
   export type NodeType = MilkdownNodeType;
   export type ResolvedPos = MilkdownResolvedPos;
-  export type Schema = MilkdownSchema;
 
   export class Mark implements MilkdownMark {
     type: MarkType;
@@ -1314,7 +1329,6 @@ declare module '@milkdown/prose/model' {
 }
 
 declare module '@milkdown/prose/state' {
-  export type EditorState = MilkdownEditorStateLike;
   export type Transaction = MilkdownTransactionLike;
   export type Command = MilkdownCommand;
 

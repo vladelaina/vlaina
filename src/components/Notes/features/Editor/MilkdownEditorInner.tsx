@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { editorViewCtx } from '@milkdown/kit/core';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { Milkdown, MilkdownProvider } from '@milkdown/react';
 import { useI18n } from '@/lib/i18n';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -220,7 +221,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     try {
       const editor = get?.() as ActiveMilkdownEditor | undefined;
       if (!editor || editor.status !== 'Created') return;
-      const view = editor.ctx.get(editorViewCtx);
+      const view = editor.ctx.get(editorViewCtx) as EditorView;
       view.dispatch(
         view.state.tr
           .setMeta(HEADING_PLACEHOLDER_I18N_REFRESH_META, language)

@@ -24,7 +24,7 @@ describe('emptyUntitledDraftTitleFocus', () => {
       useNotesStore.setState({
         currentNote: { path: 'draft:test', content: '#' },
         draftNotes: { 'draft:test': { parentPath: null, name: '' } },
-        noteMetadata: { notes: {} },
+        noteMetadata: { version: 2, notes: {} },
       });
 
       expect(shouldFocusCurrentEmptyUntitledDraftTitle()).toBe(true);
@@ -44,7 +44,7 @@ describe('emptyUntitledDraftTitleFocus', () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:test', content: 'Body' },
       draftNotes: { 'draft:test': { parentPath: null, name: '' } },
-      noteMetadata: { notes: {} },
+      noteMetadata: { version: 2, notes: {} },
     });
 
     expect(shouldFocusCurrentEmptyUntitledDraftTitle()).toBe(false);

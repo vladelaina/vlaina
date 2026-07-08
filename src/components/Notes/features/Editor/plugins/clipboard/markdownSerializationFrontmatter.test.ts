@@ -73,7 +73,7 @@ describe('markdown serialization frontmatter', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe([
       ' ---',
       'url: http://example.test',
-      '---',
+      ' ---',
       '',
       '1. 正文',
       '2. 继续',

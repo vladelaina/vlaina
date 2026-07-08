@@ -671,7 +671,7 @@ describe('blankAreaDragBoxPlugin document routing', () => {
       useNotesStore.setState({
         currentNote: { path: 'draft:test', content: '#' },
         draftNotes: { 'draft:test': { parentPath: null, name: '' } },
-        noteMetadata: { notes: {} },
+        noteMetadata: { version: 2, notes: {} },
       });
 
       const mouseDown = createMouseEvent('mousedown', {

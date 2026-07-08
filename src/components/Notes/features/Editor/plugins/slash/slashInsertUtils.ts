@@ -41,6 +41,8 @@ function getCurrentBlankTextBlockReplaceRange(selection: TextSelection) {
   const next = findTopLevelBlockAfter(selection.$from.doc, to);
 
   if (
+    previous &&
+    next &&
     isMarkdownBlankLinePlaceholderNode(previous?.node) &&
     isMarkdownBlankLinePlaceholderNode(next?.node)
   ) {
