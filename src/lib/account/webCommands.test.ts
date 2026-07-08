@@ -149,6 +149,30 @@ describe('webAccountCommands', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('retries transient OAuth start body read failures before surfacing an error', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(new ReadableStream({
+        start(controller) {
+          controller.error(new TypeError('network request failed'));
+        },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        authUrl: 'https://accounts.example.com/oauth',
+        state: 'state-1',
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = webAccountCommands.startAuth('google');
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(request).resolves.toEqual({
+      authUrl: 'https://accounts.example.com/oauth',
+      state: 'state-1',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('retries transient email-code network failures before surfacing an error', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn()
