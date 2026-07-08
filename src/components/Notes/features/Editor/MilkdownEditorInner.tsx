@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { editorViewCtx } from '@milkdown/kit/core';
 import { Milkdown, MilkdownProvider } from '@milkdown/react';
+import { useI18n } from '@/lib/i18n';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
@@ -16,6 +18,7 @@ import { useMilkdownExternalContentSync } from './useMilkdownExternalContentSync
 import { useMilkdownThemeRuntime } from './useMilkdownThemeRuntime';
 import { getMilkdownEditorClassName } from './milkdownEditorClassName';
 import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
+import { HEADING_PLACEHOLDER_I18N_REFRESH_META } from './plugins/heading/headingPlugin';
 
 export { createLargePlainMarkdownDocJSON, shouldUseLazyBlockVisibility } from './milkdownLargePlainMarkdown';
 export {
@@ -63,6 +66,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   onEditorViewReady,
 }: MilkdownEditorInnerProps) {
   const updateContent = useNotesStore(s => s.updateContent);
+  const { language } = useI18n();
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -210,6 +214,21 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     lastAppliedNoteRef,
     reportEditorReady,
   });
+
+  useEffect(() => {
+    try {
+      const editor = get?.() as ActiveMilkdownEditor | undefined;
+      if (!editor || editor.status !== 'Created') return;
+      const view = editor.ctx.get(editorViewCtx);
+      view.dispatch(
+        view.state.tr
+          .setMeta(HEADING_PLACEHOLDER_I18N_REFRESH_META, language)
+          .setMeta('addToHistory', false)
+      );
+    } catch {
+      return;
+    }
+  }, [activatedRevision, get, language]);
 
   useEffect(() => {
     return () => {

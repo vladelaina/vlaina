@@ -5,7 +5,7 @@ import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Inp
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
 import { desktopWindow } from '@/lib/desktop/window';
 import { isMacOS, shouldRenderMacOSTrafficLightPreview } from '@/lib/desktop/platform';
-import { translate } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
@@ -23,6 +23,7 @@ interface UnifiedTitleBarProps {
 }
 
 function MacOSTrafficLightPreviewControls() {
+  const { t } = useI18n();
   const buttonClass =
     'h-3 w-3 rounded-full border border-black/15 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.35)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-accent-focus-ring)]';
 
@@ -33,19 +34,19 @@ function MacOSTrafficLightPreviewControls() {
     >
       <button
         type="button"
-        aria-label={translate('common.closeWindow')}
+        aria-label={t('common.closeWindow')}
         onClick={() => void desktopWindow.close()}
         className={`${buttonClass} bg-[#ff5f57]`}
       />
       <button
         type="button"
-        aria-label={translate('common.minimizeWindow')}
+        aria-label={t('common.minimizeWindow')}
         onClick={() => void desktopWindow.minimize()}
         className={`${buttonClass} bg-[#febc2e]`}
       />
       <button
         type="button"
-        aria-label={translate('common.maximizeWindow')}
+        aria-label={t('common.maximizeWindow')}
         onClick={() => void desktopWindow.toggleMaximize()}
         className={`${buttonClass} bg-[#28c840]`}
       />
@@ -64,6 +65,7 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
   centerOverflowVisible = false,
   showWindowControls = true
 }, ref) {
+  const { t } = useI18n();
   const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
   const shouldReserveMacTrafficLightSpace = isMacOS(devPlatformPreview);
   const shouldShowTrafficLightPreview = shouldRenderMacOSTrafficLightPreview(devPlatformPreview);
@@ -101,7 +103,7 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
         >
           <button
             type="button"
-            aria-label={translate('shortcut.action.toggleSidebar')}
+            aria-label={t('shortcut.action.toggleSidebar')}
             onClick={onToggleSidebar}
             className={cn(
               "app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",

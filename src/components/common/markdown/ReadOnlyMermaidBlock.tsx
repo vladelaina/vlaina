@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { translate } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
 import {
   generateMermaidId,
   MAX_MERMAID_CODE_CHARS,
@@ -14,19 +14,23 @@ export const MAX_PENDING_READONLY_MERMAID_RENDERS = 80;
 const readOnlyMermaidMarkupCache = new Map<string, string>();
 const readOnlyMermaidRenderPromiseCache = new Map<string, Promise<string>>();
 
-function readCachedReadOnlyMermaidMarkup(code: string) {
-  const cached = readOnlyMermaidMarkupCache.get(code);
+function getReadOnlyMermaidCacheKey(code: string, language: string) {
+  return `${language}\0${code}`;
+}
+
+function readCachedReadOnlyMermaidMarkup(cacheKey: string) {
+  const cached = readOnlyMermaidMarkupCache.get(cacheKey);
   if (cached == null) {
     return null;
   }
 
-  readOnlyMermaidMarkupCache.delete(code);
-  readOnlyMermaidMarkupCache.set(code, cached);
+  readOnlyMermaidMarkupCache.delete(cacheKey);
+  readOnlyMermaidMarkupCache.set(cacheKey, cached);
   return cached;
 }
 
-function cacheReadOnlyMermaidMarkup(code: string, markup: string) {
-  readOnlyMermaidMarkupCache.set(code, markup);
+function cacheReadOnlyMermaidMarkup(cacheKey: string, markup: string) {
+  readOnlyMermaidMarkupCache.set(cacheKey, markup);
   while (readOnlyMermaidMarkupCache.size > READONLY_MERMAID_RENDER_CACHE_LIMIT) {
     const oldestKey = readOnlyMermaidMarkupCache.keys().next().value;
     if (typeof oldestKey !== 'string') {
@@ -46,17 +50,18 @@ export function getPendingReadOnlyMermaidRenderCount() {
   return readOnlyMermaidRenderPromiseCache.size;
 }
 
-export async function resolveReadOnlyMermaidMarkup(code: string) {
+export async function resolveReadOnlyMermaidMarkup(code: string, language = '') {
   if (code.length > MAX_MERMAID_CODE_CHARS) {
     return sanitizeMermaidMarkup(mermaidRenderErrorMarkup());
   }
 
-  const cached = readCachedReadOnlyMermaidMarkup(code);
+  const cacheKey = getReadOnlyMermaidCacheKey(code, language);
+  const cached = readCachedReadOnlyMermaidMarkup(cacheKey);
   if (cached != null) {
     return cached;
   }
 
-  const existingPromise = readOnlyMermaidRenderPromiseCache.get(code);
+  const existingPromise = readOnlyMermaidRenderPromiseCache.get(cacheKey);
   if (existingPromise) {
     return existingPromise;
   }
@@ -65,11 +70,11 @@ export async function resolveReadOnlyMermaidMarkup(code: string) {
   }
 
   const promise = renderReadOnlyMermaid(code)
-    .then((markup) => cacheReadOnlyMermaidMarkup(code, markup))
+    .then((markup) => cacheReadOnlyMermaidMarkup(cacheKey, markup))
     .finally(() => {
-      readOnlyMermaidRenderPromiseCache.delete(code);
+      readOnlyMermaidRenderPromiseCache.delete(cacheKey);
     });
-  readOnlyMermaidRenderPromiseCache.set(code, promise);
+  readOnlyMermaidRenderPromiseCache.set(cacheKey, promise);
   return promise;
 }
 
@@ -87,6 +92,7 @@ interface ReadOnlyMermaidBlockProps {
 }
 
 export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
+  const { language, t } = useI18n();
   const normalizedCode = useMemo(() => code.trim(), [code]);
   const diagramType = useMemo(() => getMermaidDiagramType(normalizedCode), [normalizedCode]);
   const [markup, setMarkup] = useState<string | null>(null);
@@ -100,7 +106,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
       return;
     }
 
-    void resolveReadOnlyMermaidMarkup(normalizedCode).then((nextMarkup) => {
+    void resolveReadOnlyMermaidMarkup(normalizedCode, language).then((nextMarkup) => {
       if (cancelled) return;
       if (!nextMarkup) {
         setFailed(true);
@@ -116,7 +122,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
     return () => {
       cancelled = true;
     };
-  }, [normalizedCode]);
+  }, [language, normalizedCode]);
 
   if (!normalizedCode) {
     return (
@@ -139,7 +145,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
         data-type="mermaid"
         data-chat-selection-excluded="true"
       >
-        {translate('editor.mermaidRenderError')}
+        {t('editor.mermaidRenderError')}
       </div>
     );
   }
@@ -152,7 +158,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
         data-type="mermaid"
         data-chat-selection-excluded="true"
       >
-        <div className="mermaid-placeholder">{translate('editor.mermaidPlaceholder')}</div>
+        <div className="mermaid-placeholder">{t('editor.mermaidPlaceholder')}</div>
       </div>
     );
   }

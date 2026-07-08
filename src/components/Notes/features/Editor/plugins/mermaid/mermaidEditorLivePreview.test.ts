@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
+import { useUIStore } from '@/stores/uiSlice';
 
 vi.mock('./mermaidRenderer', () => ({
   generateMermaidId: () => 'mermaid-test',
@@ -13,14 +14,23 @@ vi.mock('./mermaidRenderer', () => ({
 }));
 
 import {
+  clearMermaidRenderCaches,
   createMermaidElement,
   disposeMermaidElement,
   getMermaidElementCode,
   renderMermaidEditorLivePreview,
+  resolveMermaidMarkup,
 } from './mermaidDom';
 import { renderMermaid } from './mermaidRenderer';
 
 describe('mermaidEditorLivePreview', () => {
+  beforeEach(() => {
+    clearMermaidRenderCaches();
+    useUIStore.setState({ languagePreference: 'en' });
+    vi.mocked(renderMermaid).mockReset();
+    vi.mocked(renderMermaid).mockResolvedValue('<svg data-rendered="initial"></svg>');
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -60,10 +70,9 @@ describe('mermaidEditorLivePreview', () => {
   it('allows the initial render to complete before the node is attached', async () => {
     const element = createMermaidElement('sequenceDiagram\nAlice->Bob: Hello');
 
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(element.querySelector('svg, .mermaid-error')).not.toBeNull();
+    await waitFor(() => {
+      expect(element.querySelector('svg, .mermaid-error')).not.toBeNull();
+    });
     expect(getMermaidElementCode(element)).toBe('sequenceDiagram\nAlice->Bob: Hello');
   });
 
@@ -117,6 +126,31 @@ describe('mermaidEditorLivePreview', () => {
       );
     });
     expect(element.outerHTML).not.toContain('secret source');
+  });
+
+  it('does not reuse cached Mermaid error markup across languages', async () => {
+    useUIStore.setState({ languagePreference: 'en' });
+    vi.mocked(renderMermaid).mockRejectedValue(new Error('render failed'));
+    const code = 'sequenceDiagram\nAlice->Bob: cached language error';
+
+    const firstMarkup = await resolveMermaidMarkup(code);
+    expect(firstMarkup).toContain('Mermaid Error: Unable to render diagram.');
+
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    const secondMarkup = await resolveMermaidMarkup(code);
+
+    expect(renderMermaid).toHaveBeenCalledTimes(2);
+    expect(secondMarkup).toContain('Mermaid 错误：无法渲染图表');
+  });
+
+  it('reuses cached Mermaid markup within the same language', async () => {
+    const code = 'sequenceDiagram\nAlice->Bob: cached same language';
+
+    const firstMarkup = await resolveMermaidMarkup(code);
+    const secondMarkup = await resolveMermaidMarkup(code);
+
+    expect(renderMermaid).toHaveBeenCalledTimes(1);
+    expect(firstMarkup).toBe(secondMarkup);
   });
 
   it('does not write an async initial render into a disposed Mermaid element', async () => {

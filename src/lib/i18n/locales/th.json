@@ -520,6 +520,8 @@
   "editor.insertBlock": "แทรกบล็อก",
   "editor.invalidCropState": "สถานะการครอบตัดไม่ถูกต้อง โปรดลองอีกครั้ง",
   "editor.linkPlaceholder": "URL...",
+  "editor.frontmatterPlaceholder": "ป้อน front matter YAML",
+  "editor.linkUrlHint": "กด Enter เพื่อใช้ลิงก์",
   "editor.mermaidNotAvailable": "Mermaid ไม่พร้อมใช้งาน ติดตั้งด้วย: pnpm add mermaid",
   "editor.mermaidRenderError": "ข้อผิดพลาด Mermaid: ไม่สามารถเรนเดอร์ไดอะแกรมได้ ตรวจสอบไวยากรณ์ของไดอะแกรม",
   "editor.preview.saveAsImage": "บันทึกเป็นรูปภาพ",

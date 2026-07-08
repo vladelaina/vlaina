@@ -5,7 +5,7 @@ import { Icon } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { translate } from "@/lib/i18n"
+import { useI18n } from "@/lib/i18n"
 import {
   Sheet,
   SheetContent,
@@ -32,6 +32,7 @@ export function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { t } = useI18n()
 
   if (collapsible === "none") {
     return (
@@ -64,8 +65,8 @@ export function Sidebar({
           side={side}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>{translate('sidebar.mobileTitle')}</SheetTitle>
-            <SheetDescription>{translate('sidebar.mobileDescription')}</SheetDescription>
+            <SheetTitle>{t('sidebar.mobileTitle')}</SheetTitle>
+            <SheetDescription>{t('sidebar.mobileDescription')}</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -125,6 +126,7 @@ export function SidebarTrigger({
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { toggleSidebar } = useSidebar()
+  const { t } = useI18n()
 
   return (
     <Button
@@ -140,22 +142,24 @@ export function SidebarTrigger({
       {...props}
     >
       <Icon name="sidebar.panel" />
-      <span className="sr-only">{translate('shortcut.action.toggleSidebar')}</span>
+      <span className="sr-only">{t('shortcut.action.toggleSidebar')}</span>
     </Button>
   )
 }
 
 export function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
   const { toggleSidebar } = useSidebar()
+  const { t } = useI18n()
+  const label = t('shortcut.action.toggleSidebar')
 
   return (
     <button
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label={translate('shortcut.action.toggleSidebar')}
+      aria-label={label}
       tabIndex={-1}
       onClick={toggleSidebar}
-      title={translate('shortcut.action.toggleSidebar')}
+      title={label}
       className={cn(
         "hover:after:bg-[var(--sidebar-border)] absolute inset-y-0 z-[var(--vlaina-z-20)] hidden w-[var(--vlaina-size-18px)] -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[var(--vlaina-size-2px)] sm:flex",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",

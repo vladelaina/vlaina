@@ -2,8 +2,8 @@ import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface UrlRailEditorOptions {
   value?: string;
-  placeholder?: string;
-  hint?: string;
+  placeholder: string;
+  hint: string;
   autoFocus?: boolean;
   validate?: (value: string) => boolean;
   onSubmit: (value: string) => void;
@@ -17,8 +17,8 @@ export function renderUrlRailEditor(
 ): HTMLInputElement {
   const {
     value = '',
-    placeholder = 'URL...',
-    hint = 'Press Enter to apply',
+    placeholder,
+    hint,
     autoFocus = false,
     validate,
     onSubmit,

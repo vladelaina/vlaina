@@ -520,6 +520,8 @@
   "editor.insertBlock": "Blok ekle",
   "editor.invalidCropState": "Geçersiz kırpma durumu. Lütfen tekrar deneyin.",
   "editor.linkPlaceholder": "URL...",
+  "editor.frontmatterPlaceholder": "YAML front matter girin.",
+  "editor.linkUrlHint": "Bağlantıyı uygulamak için Enter'a basın",
   "editor.mermaidNotAvailable": "Mermaid mevcut değil. Yüklemek için: pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaid Hatası: Diyagram oluşturulamadı. Diyagram sözdizimini kontrol edin.",
   "editor.preview.saveAsImage": "Resim olarak kaydet",

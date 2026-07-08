@@ -1,13 +1,18 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReadOnlyVideoBlock } from './ReadOnlyVideoBlock';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
+import { useUIStore } from '@/stores/uiSlice';
 
 vi.mock('@/lib/navigation/externalLinks', () => ({
   openExternalHref: vi.fn(),
 }));
 
 describe('ReadOnlyVideoBlock', () => {
+  beforeEach(() => {
+    useUIStore.setState({ languagePreference: 'en' });
+  });
+
   it('does not expose supported video source or title in DOM data attributes', () => {
     const src = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&token=secret';
     const { container } = render(<ReadOnlyVideoBlock src={src} title="private title" />);
@@ -28,6 +33,20 @@ describe('ReadOnlyVideoBlock', () => {
     expect(container.innerHTML).not.toContain('allow-same-origin');
     expect(container.innerHTML).not.toContain('camera');
     expect(container.innerHTML).not.toContain('microphone');
+  });
+
+  it('refreshes read-only remote video copy when language changes', () => {
+    render(<ReadOnlyVideoBlock src="https://www.youtube.com/watch?v=dQw4w9WgXcQ" />);
+
+    expect(screen.getByText('Remote video blocked')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument();
+
+    act(() => {
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+    });
+
+    expect(screen.getByText('远程视频已被拦截')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '打开' })).toBeInTheDocument();
   });
 
   it('renders public direct video URLs with native controls', () => {

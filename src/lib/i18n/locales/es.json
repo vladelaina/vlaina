@@ -520,6 +520,8 @@
   "editor.insertBlock": "Insertar bloque",
   "editor.invalidCropState": "Estado de recorte no válido. Por favor, inténtalo de nuevo.",
   "editor.linkPlaceholder": "URL...",
+  "editor.frontmatterPlaceholder": "Introduce el front matter YAML.",
+  "editor.linkUrlHint": "Pulsa Enter para aplicar el enlace",
   "editor.mermaidNotAvailable": "Mermaid no disponible. Instala con: pnpm add mermaid",
   "editor.mermaidRenderError": "Error de Mermaid: No se puede renderizar el diagrama. Comprueba la sintaxis del diagrama.",
   "editor.preview.saveAsImage": "Guardar como imagen",

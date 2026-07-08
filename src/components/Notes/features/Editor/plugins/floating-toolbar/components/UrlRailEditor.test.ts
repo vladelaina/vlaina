@@ -8,6 +8,8 @@ describe('renderUrlRailEditor', () => {
     const onCancel = vi.fn();
     const input = renderUrlRailEditor(container, {
       value: 'https://example.test',
+      placeholder: 'URL...',
+      hint: 'Press Enter to apply link',
       onSubmit,
       onCancel,
     });
@@ -32,6 +34,8 @@ describe('renderUrlRailEditor', () => {
     const onSubmit = vi.fn();
     const input = renderUrlRailEditor(container, {
       value: 'https://example.test',
+      placeholder: 'URL...',
+      hint: 'Press Enter to apply link',
       onSubmit,
       onCancel: vi.fn(),
     });
@@ -61,6 +65,8 @@ describe('renderUrlRailEditor', () => {
     const onCancel = vi.fn();
     const input = renderUrlRailEditor(container, {
       value: 'https://example.test',
+      placeholder: 'URL...',
+      hint: 'Press Enter to apply link',
       onSubmit,
       onCancel,
     });

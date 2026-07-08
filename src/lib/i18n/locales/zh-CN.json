@@ -520,6 +520,8 @@
   "editor.insertBlock": "插入块",
   "editor.invalidCropState": "裁剪状态无效，请重试。",
   "editor.linkPlaceholder": "链接...",
+  "editor.frontmatterPlaceholder": "输入 YAML Front Matter。",
+  "editor.linkUrlHint": "按回车应用链接",
   "editor.mermaidNotAvailable": "Mermaid 不可用。请使用 pnpm add mermaid 安装",
   "editor.mermaidRenderError": "Mermaid 错误：无法渲染图表，请检查图表语法。",
   "editor.preview.saveAsImage": "保存为图片",

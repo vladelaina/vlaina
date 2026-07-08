@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { translate } from '@/lib/i18n';
 import type { FloatingToolbarState } from '../types';
 import { setLink } from '../commands';
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
@@ -16,7 +17,8 @@ export function renderLinkEditor(
 
   renderUrlRailEditor(container, {
     value: currentUrl,
-    hint: 'Press Enter to bridge the link',
+    placeholder: translate('editor.linkPlaceholder'),
+    hint: translate('editor.linkUrlHint'),
     autoFocus: shouldAutofocus,
     validate: isValidUrl,
     onEmpty() {
