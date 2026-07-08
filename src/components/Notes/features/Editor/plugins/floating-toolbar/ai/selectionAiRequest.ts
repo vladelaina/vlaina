@@ -8,6 +8,7 @@ import { sendMessageWithEndpointFallback } from '@/hooks/chatService/sendMessage
 import { getUserFacingAIError } from '@/lib/ai/errors';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota';
+import { isDesktopCustomProviderConnectionFailureMessage } from '@/lib/ai/userFacingErrorMessages';
 import { applyManagedQuotaExhaustedSnapshot, useManagedAIStore } from '@/stores/useManagedAIStore';
 import { parseStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 import {
@@ -155,7 +156,9 @@ export async function requestAiEdit(
       error instanceof Error && error.message.trim().length > 0
         ? error.message
         : translate('editor.ai.editFailed');
-    const normalized = isManaged ? getUserFacingAIError(error) : null;
+    const normalized = isManaged || isDesktopCustomProviderConnectionFailureMessage(fallbackMessage)
+      ? getUserFacingAIError(error)
+      : null;
     if (normalized?.type === AIErrorType.QUOTA_EXHAUSTED) {
       applyManagedQuotaExhaustedSnapshot();
     }

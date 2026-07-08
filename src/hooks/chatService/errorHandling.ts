@@ -2,6 +2,7 @@ import { ACCOUNT_AUTH_INVALIDATED_EVENT, ACCOUNT_LOGIN_REQUESTED_EVENT } from '@
 import { buildErrorTag } from '@/lib/ai/errorTag';
 import { getUserFacingAIError } from '@/lib/ai/errors';
 import { AIErrorType } from '@/lib/ai/types';
+import { isDesktopCustomProviderConnectionFailureMessage } from '@/lib/ai/userFacingErrorMessages';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { applyManagedQuotaExhaustedSnapshot } from '@/stores/useManagedAIStore';
 
@@ -57,6 +58,14 @@ export function requestManagedAccountSignIn(sessionId?: string | null) {
 export function buildChatErrorPayload(error: unknown, managed = true) {
   if (!managed) {
     const message = extractRawErrorMessage(error);
+    if (isDesktopCustomProviderConnectionFailureMessage(message)) {
+      const normalized = getUserFacingAIError(error);
+      return {
+        message: normalized.message,
+        xml: buildErrorTag(normalized.type, normalized.code, normalized.message),
+      };
+    }
+
     return {
       message,
       xml: buildErrorTag('custom_provider', '', message),
