@@ -2,6 +2,8 @@ import { primitiveToString } from './managedIpcCommon.mjs';
 
 const MAX_MANAGED_BINARY_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_MANAGED_BINARY_BODY_BASE64_CHARS = Math.ceil(MAX_MANAGED_BINARY_BODY_BYTES / 3) * 4;
+const MAX_MANAGED_BINARY_HEADER_VALUE_CHARS = 16 * 1024;
+const ALLOWED_MANAGED_BINARY_HEADERS = new Set(['content-type']);
 
 export function normalizeManagedBinaryPayload(payload) {
   if (typeof payload?.bodyBase64 !== 'string') {
@@ -23,15 +25,23 @@ export function normalizeManagedBinaryPayload(payload) {
   const rawHeaders = payload?.headers;
   if (rawHeaders && typeof rawHeaders === 'object') {
     for (const [key, value] of Object.entries(rawHeaders)) {
-      const normalizedKey = String(key).trim();
+      const normalizedKey = key.trim();
+      const lowerKey = normalizedKey.toLowerCase();
+      if (!ALLOWED_MANAGED_BINARY_HEADERS.has(lowerKey)) {
+        throw new Error('Invalid managed binary request header.');
+      }
       const normalizedValue = primitiveToString(value);
       if (normalizedValue === null) {
         throw new Error('Invalid managed binary request header.');
       }
-      if (!/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(normalizedKey) || /[\u0000\r\n]/.test(normalizedValue)) {
+      if (
+        !/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(normalizedKey) ||
+        normalizedValue.length > MAX_MANAGED_BINARY_HEADER_VALUE_CHARS ||
+        /[\u0000\r\n]/.test(normalizedValue)
+      ) {
         throw new Error('Invalid managed binary request header.');
       }
-      headers[normalizedKey] = normalizedValue;
+      headers['Content-Type'] = normalizedValue;
     }
   }
 

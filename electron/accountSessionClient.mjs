@@ -49,8 +49,8 @@ export function createDesktopAccountSessionClient({
       headers: {
         Accept: 'application/json',
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...buildDesktopSessionHeaders(credentials.appSessionToken),
         ...(init.headers ?? {}),
+        ...buildDesktopSessionHeaders(credentials.appSessionToken),
       },
     }), init.signal);
     throwIfAborted(init.signal);

@@ -1,6 +1,7 @@
 import electron from 'electron';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { ensurePrivateDirectory, writePrivateFile } from './privateFilePermissions.mjs';
 import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
 
 const { app, safeStorage } = electron;
@@ -28,7 +29,7 @@ export async function readSecretsStore() {
   const secretsDir = path.join(app.getPath('userData'), '.vlaina', 'app', 'secrets');
   const secretsPath = path.join(secretsDir, 'ai-providers.json');
 
-  await mkdir(secretsDir, { recursive: true });
+  await ensurePrivateDirectory(secretsDir);
 
   try {
     const fileInfo = await stat(secretsPath);
@@ -43,7 +44,7 @@ export async function readSecretsStore() {
     const { record, needsMigration } = decodeSecretRecord(parsed, safeStorage);
     const data = sanitizeSecretsData(record);
     if (needsMigration || Object.keys(data).length !== Object.keys(record).length) {
-      await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(data, safeStorage), null, 2));
+      await writePrivateFile(secretsPath, JSON.stringify(encodeSecretRecord(data, safeStorage), null, 2));
     }
     return { secretsDir, secretsPath, data };
   } catch {
@@ -53,7 +54,7 @@ export async function readSecretsStore() {
 
 export async function writeSecretsStore(data) {
   const { secretsPath } = await readSecretsStore();
-  await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(sanitizeSecretsData(data), safeStorage), null, 2));
+  await writePrivateFile(secretsPath, JSON.stringify(encodeSecretRecord(sanitizeSecretsData(data), safeStorage), null, 2));
 }
 
 export async function updateSecretsStore(mutator) {

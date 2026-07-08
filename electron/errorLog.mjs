@@ -6,6 +6,14 @@ const MAX_FIELD_CHARS = 32 * 1024;
 const MAX_RENDERER_DETAILS_CHARS = 128 * 1024;
 const ERROR_LOG_SCHEMA_VERSION = 2;
 const UNSAFE_LOG_FIELD_CHARS_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+const PRIVATE_LOG_DIR_MODE = 0o700;
+const PRIVATE_LOG_FILE_MODE = 0o600;
+const SENSITIVE_LOG_QUERY_PARAM_PATTERN =
+  /([?&](?:api[_-]?key|auth|code|key|password|secret|session|state|token)=)[^&#\s"']+/gi;
+const SENSITIVE_LOG_HEADER_PATTERN =
+  /\b(authorization|x-api-key|api-key|api_key|apikey|x-app-session-token|cookie|set-cookie)\b(\s*[:=]\s*)([^\s"',;\\]+)/gi;
+const SENSITIVE_LOG_TOKEN_PATTERN =
+  /\b(?:Bearer\s+)?(?:nts|rat|sk|sk-ant|secret)_[A-Za-z0-9._~+/=-]{8,}\b|\bsk-[A-Za-z0-9._~+/=-]{12,}\b/g;
 
 function getLogsDir(app) {
   return path.join(app.getPath('userData'), '.vlaina', 'app', 'logs');
@@ -24,12 +32,28 @@ function normalizeLogText(value, maxChars = MAX_FIELD_CHARS) {
   const text = typeof value === 'string'
     ? value
     : util.inspect(value, { depth: 6, breakLength: 120 });
-  const cleaned = text.replace(UNSAFE_LOG_FIELD_CHARS_PATTERN, '');
+  const cleaned = redactSensitiveLogText(text.replace(UNSAFE_LOG_FIELD_CHARS_PATTERN, ''));
   if (cleaned.length <= maxChars) {
     return cleaned;
   }
 
   return `${cleaned.slice(0, maxChars)}\n...[truncated ${cleaned.length - maxChars} chars]`;
+}
+
+function redactSensitiveLogText(value) {
+  return value
+    .replace(SENSITIVE_LOG_QUERY_PARAM_PATTERN, '$1[redacted]')
+    .replace(SENSITIVE_LOG_HEADER_PATTERN, '$1$2[redacted]')
+    .replace(SENSITIVE_LOG_TOKEN_PATTERN, (match) => (
+      /^Bearer\s+/i.test(match) ? 'Bearer [redacted]' : '[redacted]'
+    ));
+}
+
+function chmodSyncIfSupported(filePath, mode) {
+  try {
+    fs.chmodSync(filePath, mode);
+  } catch {
+  }
 }
 
 function serializeError(error, depth = 0) {
@@ -235,8 +259,14 @@ export function createErrorLogService({ app }) {
   function appendEntry(entry) {
     try {
       const { currentLogFilePath } = getInfo();
-      fs.mkdirSync(path.dirname(currentLogFilePath), { recursive: true });
-      fs.appendFileSync(currentLogFilePath, `${JSON.stringify(entry, null, 2)}\n`, 'utf8');
+      const logsDir = path.dirname(currentLogFilePath);
+      fs.mkdirSync(logsDir, { recursive: true, mode: PRIVATE_LOG_DIR_MODE });
+      chmodSyncIfSupported(logsDir, PRIVATE_LOG_DIR_MODE);
+      fs.appendFileSync(currentLogFilePath, `${JSON.stringify(entry, null, 2)}\n`, {
+        encoding: 'utf8',
+        mode: PRIVATE_LOG_FILE_MODE,
+      });
+      chmodSyncIfSupported(currentLogFilePath, PRIVATE_LOG_FILE_MODE);
       return currentLogFilePath;
     } catch (writeError) {
       console.error('[vlaina] Failed to write error log:', writeError);

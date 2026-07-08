@@ -1,5 +1,7 @@
+import http from 'node:http';
+import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
-import { registerWebSearchIpc } from '../electron/webSearch/ipc.mjs';
+import { createWebSearchServices, registerWebSearchIpc } from '../electron/webSearch/ipc.mjs';
 
 function collectHandlers() {
   const handlers = new Map();
@@ -21,6 +23,45 @@ function collectHandlers() {
 }
 
 describe('web search IPC', () => {
+  it('keeps crawler reads on verified-address transport when the search fetch is customized', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('Search fetch should not be used for crawler reads.');
+    });
+    const services = createWebSearchServices({ fetchImpl });
+    const request = new EventEmitter();
+    let responseCallback;
+
+    request.setTimeout = vi.fn();
+    request.destroy = vi.fn();
+    request.end = vi.fn(() => {
+      const response = new EventEmitter();
+      response.statusCode = 200;
+      response.headers = { 'content-type': 'text/plain' };
+      responseCallback(response);
+      response.emit('data', Buffer.from([
+        'This public page has enough readable plain text content for the crawler.',
+        'It verifies that the crawler keeps using the address-verified native transport.',
+        'The customized search fetch must not handle crawler page reads.',
+      ].join(' ')));
+      response.emit('end');
+    });
+
+    const requestSpy = vi.spyOn(http, 'request').mockImplementation((_options, callback) => {
+      responseCallback = callback;
+      return request;
+    });
+
+    try {
+      const page = await services.crawler.readUrl('http://93.184.216.34/source.txt');
+
+      expect(page.content).toContain('address-verified native transport');
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      requestSpy.mockRestore();
+    }
+  });
+
   it('does not accept provider or engine configuration from the renderer', async () => {
     const { handlers, services } = collectHandlers();
     const searchHandler = handlers.get('desktop:web-search:search');

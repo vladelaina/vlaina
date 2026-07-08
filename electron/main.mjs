@@ -205,7 +205,7 @@ registerDesktopIpc({
 
 registerWebSearchIpc({
   handleIpc,
-  services: createWebSearchServices({ fetchImpl: fetchWithElectronSession }),
+  services: createWebSearchServices({ searchFetchImpl: fetchWithElectronSession }),
 });
 
 registerDesktopSecretsIpc({

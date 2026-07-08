@@ -1,5 +1,6 @@
-import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
+import { MAX_INLINE_IMAGE_BYTES, normalizeSafeRasterDataImageSrc } from '@/lib/markdown/dataImagePolicy';
 import { toBlobPart } from '@/lib/blobPart';
+import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 
 export const MAX_FETCHED_IMAGE_BYTES = MAX_INLINE_IMAGE_BYTES;
 
@@ -23,6 +24,36 @@ export function createSafeImageFetchInit(fetchInit?: RequestInit, signal?: Abort
   init.referrerPolicy = 'no-referrer';
   init.redirect = 'error';
   return init;
+}
+
+function normalizeFetchableImageSrc(src: string): string {
+  const trimmed = typeof src === 'string' ? src.trim() : '';
+  if (!trimmed) {
+    throw new Error('Image fetch URL is not allowed.');
+  }
+
+  if (/^data:/i.test(trimmed)) {
+    const safeDataSrc = normalizeSafeRasterDataImageSrc(trimmed);
+    if (!safeDataSrc) {
+      throw new Error('Image fetch URL is not allowed.');
+    }
+    return safeDataSrc;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'blob:') {
+      return trimmed;
+    }
+  } catch {
+  }
+
+  const safeRemoteUrl = normalizePublicRemoteMediaUrl(trimmed);
+  if (safeRemoteUrl) {
+    return safeRemoteUrl;
+  }
+
+  throw new Error('Image fetch URL is not allowed.');
 }
 
 function getMaxBytes(options: FetchBoundedImageBlobOptions | undefined): number {
@@ -181,7 +212,10 @@ export async function fetchBoundedImageBlobResult(
   src: string,
   options?: FetchBoundedImageBlobOptions,
 ): Promise<BoundedImageBlobFetchResult> {
-  const response = await fetch(src, createSafeImageFetchInit(options?.fetchInit, options?.signal));
+  const response = await fetch(
+    normalizeFetchableImageSrc(src),
+    createSafeImageFetchInit(options?.fetchInit, options?.signal),
+  );
   return readBoundedImageBlobResponse(response, options);
 }
 

@@ -1,7 +1,8 @@
 import electron from 'electron';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { readFile, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
+import { ensurePrivateDirectory, writePrivateFile } from './privateFilePermissions.mjs';
 import {
   normalizeDesktopAccountAvatarUrl,
   normalizeDesktopAccountEmail,
@@ -81,13 +82,13 @@ async function readJsonFile(filePath, fallbackValue) {
 
 async function getAccountDir() {
   const accountDir = path.join(app.getPath('userData'), '.vlaina', 'app', 'account');
-  await mkdir(accountDir, { recursive: true });
+  await ensurePrivateDirectory(accountDir);
   return accountDir;
 }
 
 async function getSecretsDir() {
   const secretsDir = path.join(app.getPath('userData'), '.vlaina', 'app', 'secrets');
-  await mkdir(secretsDir, { recursive: true });
+  await ensurePrivateDirectory(secretsDir);
   return secretsDir;
 }
 
@@ -118,7 +119,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
       if (Object.keys(secrets).length === 0) {
         await rm(secretsPath, { force: true });
       } else {
-        await writeFile(
+        await writePrivateFile(
           secretsPath,
           JSON.stringify(encodeSecretRecord(secrets, safeStorage, { requireEncryption: true }), null, 2)
         );
@@ -175,7 +176,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
     }
 
     memoryStoredAccountCredentials = null;
-    await writeFile(
+    await writePrivateFile(
       metaPath,
       JSON.stringify(
         {
@@ -191,7 +192,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
         2
       )
     );
-    await writeFile(
+    await writePrivateFile(
       secretsPath,
       JSON.stringify(encodedSecrets, null, 2)
     );
