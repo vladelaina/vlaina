@@ -214,6 +214,10 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       if (shouldSkipShortcutForEditableSystemShortcut(e)) {
         return;
       }
+
+      if (isEditableShortcutTarget(e.target)) {
+        return;
+      }
       
       const pressedKeys = getKeysFromEvent(e);
       if (pressedKeys.length < 2) return;

@@ -261,7 +261,31 @@ describe('useShortcuts', () => {
     }
   });
 
-  it('dispatches note source mode toggle for Ctrl+/', () => {
+  it('dispatches note source mode toggle for Ctrl+/ outside editable controls', () => {
+    const sourceModeListener = vi.fn();
+    window.addEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const event = new KeyboardEvent('keydown', {
+        key: '/',
+        code: 'Slash',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      window.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(sourceModeListener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+    }
+  });
+
+  it('does not run global shortcuts from editable controls', async () => {
     const sourceModeListener = vi.fn();
     window.addEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
 
@@ -279,9 +303,10 @@ describe('useShortcuts', () => {
       });
 
       textarea.dispatchEvent(event);
+      await Promise.resolve();
 
-      expect(event.defaultPrevented).toBe(true);
-      expect(sourceModeListener).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(false);
+      expect(sourceModeListener).not.toHaveBeenCalled();
       textarea.remove();
     } finally {
       window.removeEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);

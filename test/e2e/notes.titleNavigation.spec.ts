@@ -198,6 +198,13 @@ async function focusTitleAtEnd(page: Page) {
   ).toBe(true);
 }
 
+async function clickTitleInputAtEnd(page: Page) {
+  const titleInput = page.locator('[data-note-title-input="true"]');
+  const box = await titleInput.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click(box!.x + box!.width - 4, box!.y + box!.height / 2);
+}
+
 test.describe('notes title keyboard navigation', () => {
   test.setTimeout(240_000);
 
@@ -261,6 +268,57 @@ test.describe('notes title keyboard navigation', () => {
       expect(state.selectionEnd).toBe(state.titleValue.length);
       expect(state.editorText).toContain('First body line arrow up sentinel');
       expect(state.editorText).toContain('Second body line arrow up sentinel');
+      expect(state.content).toBe(body);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps focus in the title when clicking it after selecting body text', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-title-click-after-body-selection');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const firstBodyLine = 'First body line selected before title click';
+      const body = [firstBodyLine, 'Second body line'].join('\n');
+      await openMarkdownFixture(page, {
+        filename: 'title-click-after-body-selection.md',
+        content: body,
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(firstBodyLine);
+      const selected = await page.evaluate(
+        (targetText) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, targetText),
+        firstBodyLine,
+      );
+      expect(selected.selected).toBe(true);
+
+      await clickTitleInputAtEnd(page);
+      await waitForEditorAnimationFrame(page);
+
+      const state = await page.evaluate(() => {
+        const titleInput = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          '[data-note-title-input="true"]',
+        );
+        const active = document.activeElement;
+        return {
+          activeIsTitle: active === titleInput,
+          activeTagName: active?.tagName ?? null,
+          activeClassName: active instanceof HTMLElement ? active.className : null,
+          titleValue: titleInput?.value ?? '',
+          selectionStart: titleInput?.selectionStart ?? null,
+          selectionEnd: titleInput?.selectionEnd ?? null,
+          editorSelection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          content: String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? ''),
+        };
+      });
+
+      expect(state.activeIsTitle, JSON.stringify(state, null, 2)).toBe(true);
+      expect(state.selectionStart).toBe(state.titleValue.length);
+      expect(state.selectionEnd).toBe(state.titleValue.length);
       expect(state.content).toBe(body);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);

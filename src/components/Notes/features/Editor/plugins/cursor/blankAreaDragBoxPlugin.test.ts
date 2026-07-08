@@ -690,6 +690,32 @@ describe('blankAreaDragBoxPlugin document routing', () => {
     }
   });
 
+  it('does not collapse a node selection when clicking the note title input', async () => {
+    const { editor, view } = await createBlockSelectionEditor('![Demo](./demo.png)\n\nBody');
+    const scrollRoot = attachNoteScrollRoot(view);
+    const titleInput = document.createElement('textarea');
+    titleInput.setAttribute(NOTE_TITLE_INPUT_DATA_ATTR, 'true');
+    scrollRoot.insertBefore(titleInput, view.dom);
+
+    try {
+      const imagePos = findNodePosition(view, 'image');
+      const startSelection = NodeSelection.create(view.state.doc, imagePos);
+      view.dispatch(
+        view.state.tr
+          .setSelection(startSelection)
+          .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
+      );
+
+      titleInput.dispatchEvent(createMouseEvent('mousedown'));
+
+      expect(view.state.selection).toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.from).toBe(startSelection.from);
+      expect(view.state.selection.to).toBe(startSelection.to);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('ignores right-clicks outside the editor so sidebar context menus do not change block selection', async () => {
     const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
     const sidebarRow = document.createElement('div');

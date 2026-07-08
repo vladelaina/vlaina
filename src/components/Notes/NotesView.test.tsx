@@ -2295,6 +2295,39 @@ describe('NotesView', () => {
     }
   });
 
+  it('does not run notes view shortcuts from editable note controls', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleNoteSourceMode' && event.key === '/' && event.ctrlKey
+    ));
+    const sourceModeListener = vi.fn();
+    window.addEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+
+    render(<NotesView />);
+    await waitForNotesRootInitializationEffects();
+
+    const titleInput = document.createElement('textarea');
+    titleInput.setAttribute('data-note-title-input', 'true');
+    document.body.appendChild(titleInput);
+
+    try {
+      const event = new KeyboardEvent('keydown', {
+        key: '/',
+        code: 'Slash',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      titleInput.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(sourceModeListener).not.toHaveBeenCalled();
+    } finally {
+      titleInput.remove();
+      window.removeEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+    }
+  });
+
   it('reopens the last closed tab on Ctrl+Alt+T', async () => {
     notesState.currentNote = { path: 'docs/current.md', content: '# current' };
     shortcutMatchesMock.mockImplementation((event, binding) => (
