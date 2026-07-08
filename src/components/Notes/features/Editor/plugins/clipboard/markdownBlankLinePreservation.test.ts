@@ -189,6 +189,11 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
     await expectEditorMarkdown(['1', '', '2', '', '', '3'].join('\n'));
   });
 
+  it('does not recreate a deleted blank line between a heading and top-level list', async () => {
+    await expectEditorMarkdown(['# 1', '1. 1'].join('\n'));
+    await expectEditorMarkdown(['# 1', '', '1. 1'].join('\n'));
+  });
+
   it('keeps a line-start standalone backslash from joining the following line on reopen', async () => {
     const persisted = ['\\\\', '下一行'].join('\n');
     await expectEditorMarkdown(['\\', '下一行'].join('\n'), persisted);

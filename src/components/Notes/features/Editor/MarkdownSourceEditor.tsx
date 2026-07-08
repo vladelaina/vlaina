@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
@@ -8,6 +8,9 @@ import {
   setPendingEditorMarkdownFlusher,
 } from '@/stores/notes/pendingEditorMarkdown';
 import { themeEditorLayoutTokens } from '@/styles/themeTokens';
+import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
+
+const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 
 export function MarkdownSourceEditor({
   currentNotePath,
@@ -182,6 +185,17 @@ export function MarkdownSourceEditor({
     void saveNote({ explicit: false }).catch(() => undefined);
   }, [clearPendingSave, flushSourceDraft, saveNote]);
 
+  const handleSourceMouseDownCapture = useCallback((event: ReactMouseEvent<HTMLTextAreaElement>) => {
+    if (event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+
+    if (focusCurrentEmptyUntitledDraftTitle(
+      event.currentTarget.closest(NOTE_SCROLL_ROOT_SELECTOR) ?? event.currentTarget.ownerDocument,
+    )) {
+      event.preventDefault();
+    }
+  }, []);
+
   return (
     <div
       className={cn(
@@ -234,6 +248,7 @@ export function MarkdownSourceEditor({
           scheduleSave();
         }}
         onBlur={flushSave}
+        onMouseDownCapture={handleSourceMouseDownCapture}
         spellCheck={false}
         aria-label={t('editor.markdownSourceEditor')}
         className="block min-h-[var(--vlaina-height-prosemirror-min)] w-full resize-none overflow-hidden bg-transparent px-0 py-2 pb-[var(--vlaina-height-prosemirror-bottom-padding)] font-mono text-sm leading-6 text-[var(--vlaina-text-primary)] outline-none"

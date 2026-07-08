@@ -1,4 +1,4 @@
-import { NodeSelection, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
+import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES } from '../shared/blockNodeTypes';
 import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelectionPluginState';
@@ -210,7 +210,23 @@ function handleEditableMarkdownBlankLineBesideStructuralBlockDelete(view: Editor
     ? findTopLevelBlockAfter(view.state.doc, blockTo)
     : findTopLevelBlockBefore(view.state.doc, blockFrom);
   if (cursorTarget?.node.type.name !== 'paragraph') {
-    return keepSelectionInEditableMarkdownBlankLine(view, blockFrom, $from.parentOffset);
+    if (!cursorTarget || !STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES.has(cursorTarget.node.type.name)) {
+      return keepSelectionInEditableMarkdownBlankLine(view, blockFrom, $from.parentOffset);
+    }
+
+    let tr = view.state.tr
+      .delete(blockFrom, blockTo)
+      .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+    const mappedBlockFrom = Math.max(0, Math.min(tr.mapping.map(blockFrom), tr.doc.content.size));
+    const resolvedPos = tr.doc.resolve(mappedBlockFrom);
+    const nextSelection = Selection.findFrom(resolvedPos, direction, true)
+      ?? Selection.findFrom(resolvedPos, direction < 0 ? 1 : -1, true)
+      ?? Selection.near(resolvedPos, direction);
+
+    tr = tr.setSelection(nextSelection);
+    view.dispatch(tr.scrollIntoView());
+    view.focus();
+    return true;
   }
 
   let tr = view.state.tr.delete(blockFrom, blockTo);
