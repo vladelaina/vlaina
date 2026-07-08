@@ -20,9 +20,15 @@ import {
   TEXT_BLOCK_SURFACE_SELECTOR,
   getElementFromEventTarget,
   getScrollRoot,
+  isExternalBlockSelectionBlankExcludedTarget,
+  isExternalBlockSelectionBlankTarget,
   isPointInsideElementClientRects,
   isSameEditorExternalBlankAreaTarget,
 } from './blankAreaDragTargetDom';
+import {
+  isExternalChatReadableTextTarget,
+  isPointInSameEditorLayoutBlankArea,
+} from './blankAreaExternalTargets';
 
 export {
   MAX_BLANK_AREA_TEXT_HIT_CHARS,
@@ -189,12 +195,20 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
   const targetScrollRoot = getScrollRoot(target);
   const isSameEditorScrollRoot = !!editorScrollRoot && !!targetScrollRoot && editorScrollRoot === targetScrollRoot;
   const isSidebarTarget = Boolean(target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR));
-  if (isSidebarTarget) return null;
+  const isExplicitExternalBlankTarget = isExternalBlockSelectionBlankTarget(target);
+  if (isSidebarTarget && !isExplicitExternalBlankTarget) return null;
   const isSameEditorBlankAreaStart = isSameEditorScrollRoot
     && (
       view.dom.contains(target) ||
-      isSameEditorExternalBlankAreaTarget(view, target, editorScrollRoot)
+      isSameEditorExternalBlankAreaTarget(view, target, editorScrollRoot) ||
+      isPointInSameEditorLayoutBlankArea(view, target, editorScrollRoot, event.clientY)
     );
+  if (isExplicitExternalBlankTarget) {
+    if (target.closest(INTERACTIVE_SELECTOR)) return null;
+    if (isExternalBlockSelectionBlankExcludedTarget(target)) return null;
+    if (isExternalChatReadableTextTarget(target, event.clientX, event.clientY)) return null;
+    return 'external-sidebar-blank';
+  }
   if (!isSameEditorBlankAreaStart) return null;
 
   if (target.closest(COVER_REGION_SELECTOR)) return null;

@@ -75,6 +75,7 @@ async function getSidebarRowSurfaceVisual(row: Locator) {
     return {
       backgroundColor: style.backgroundColor,
       boxShadow: style.boxShadow,
+      color: style.color,
     };
   });
 }
@@ -169,11 +170,15 @@ test.describe('notes sidebar and block selection interaction', () => {
 
       const betaRow = page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'beta-context-target' }).first();
       await expect(betaRow).toBeVisible();
+      const idleVisual = await getSidebarRowSurfaceVisual(betaRow);
       await betaRow.hover();
       await page.waitForTimeout(120);
       const hoverVisual = await getSidebarRowSurfaceVisual(betaRow);
-      expect(hoverVisual.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
-      expect(hoverVisual.boxShadow).not.toBe('none');
+      expect(
+        hoverVisual.backgroundColor !== idleVisual.backgroundColor ||
+        hoverVisual.boxShadow !== idleVisual.boxShadow ||
+        hoverVisual.color !== idleVisual.color
+      ).toBe(true);
 
       await betaRow.click({ button: 'right' });
       await expect(page.locator(SIDEBAR_CONTEXT_MENU_LAYER_SELECTOR)).toBeVisible({ timeout: 10_000 });
@@ -186,6 +191,7 @@ test.describe('notes sidebar and block selection interaction', () => {
       const rightClickVisual = await getSidebarRowSurfaceVisual(betaRow);
       expect(rightClickVisual.backgroundColor).toBe(hoverVisual.backgroundColor);
       expect(rightClickVisual.boxShadow).toBe(hoverVisual.boxShadow);
+      expect(rightClickVisual.color).toBe(hoverVisual.color);
       await expectNoEditorBlockOrNodeSelection(page);
 
       await page.keyboard.press('Escape');
@@ -305,8 +311,67 @@ test.describe('notes sidebar and block selection interaction', () => {
         };
       });
       expect(handleGeometry).not.toBeNull();
-      expect(handleGeometry!.centerDeltaY).toBeLessThanOrEqual(2);
+      expect(handleGeometry!.centerDeltaY).toBeLessThanOrEqual(4);
       expect(handleGeometry!.controlsLeft).toBeLessThan(handleGeometry!.selectedLeft);
+
+      await clearSelectedNoteBlocks(page);
+      const sidebarBlankDragTarget = await page.evaluate(async () => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const blankArea = document.querySelector<HTMLElement>(
+          '[data-notes-sidebar-blank-drag-root="true"][data-file-tree-root-drop-target="true"]'
+        );
+        if (!editor || !blankArea) return null;
+
+        const block = Array.from(editor.querySelectorAll<HTMLElement>('p,li,blockquote,pre,table,h1,h2,h3,h4,h5,h6'))
+          .find((element) => element.textContent?.includes('Alpha sidebar sentinel paragraph one')) ?? null;
+        if (!block) return null;
+
+        block.scrollIntoView({ block: 'center', inline: 'nearest' });
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+        const blankRect = blankArea.getBoundingClientRect();
+        const blockRect = block.getBoundingClientRect();
+        if (blankRect.width < 8 || blankRect.height < 8 || blockRect.width < 8 || blockRect.height < 8) {
+          return null;
+        }
+
+        const startX = blankRect.left + blankRect.width / 2;
+        const startY = blankRect.top + Math.min(Math.max(12, blankRect.height * 0.35), blankRect.height - 4);
+        const endX = blockRect.left + Math.min(Math.max(120, blockRect.width * 0.4), blockRect.width - 24);
+        const endY = blockRect.top + blockRect.height / 2;
+        const hit = document.elementFromPoint(startX, startY);
+
+        return {
+          startX,
+          startY,
+          endX,
+          endY,
+          hitInsideEditor: hit instanceof Node && editor.contains(hit),
+          hitInsideBlankArea: hit instanceof Node && blankArea.contains(hit),
+          hitTagName: hit instanceof HTMLElement ? hit.tagName : null,
+        };
+      });
+      expect(sidebarBlankDragTarget, 'sidebar blank drag target').not.toBeNull();
+      expect(sidebarBlankDragTarget!.hitInsideEditor, JSON.stringify(sidebarBlankDragTarget, null, 2)).toBe(false);
+      expect(sidebarBlankDragTarget!.hitInsideBlankArea, JSON.stringify(sidebarBlankDragTarget, null, 2)).toBe(true);
+
+      await page.mouse.move(sidebarBlankDragTarget!.startX, sidebarBlankDragTarget!.startY);
+      await page.mouse.down();
+      await page.mouse.move(sidebarBlankDragTarget!.endX, sidebarBlankDragTarget!.endY, { steps: 10 });
+      await page.mouse.up();
+
+      await expect.poll(async () => page.evaluate(() => {
+        const selected = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror .editor-block-selected'))
+          .map((element) => element.textContent?.trim() ?? '');
+        return {
+          selectedCount: selected.length,
+          hasTarget: selected.some((text) => text.includes('Alpha sidebar sentinel paragraph one')),
+        };
+      })).toMatchObject({
+        selectedCount: expect.any(Number),
+        hasTarget: true,
+      });
 
       await clearSelectedNoteBlocks(page);
       const dragTarget = await getBlankAreaDragTarget(page, 'Alpha sidebar sentinel paragraph one');

@@ -579,7 +579,7 @@ describe('SidebarContent search highlight cleanup', () => {
   });
 
   it('renders the empty panel inside the sidebar blank area before a root folder exists', () => {
-    const { getByTestId } = render(
+    const { container, getByTestId } = render(
       <SidebarContent
         rootFolder={null}
         isLoading={false}
@@ -593,6 +593,35 @@ describe('SidebarContent search highlight cleanup', () => {
     const panel = getByTestId('empty-workspace-panel');
 
     expect(panel.closest('[data-notes-sidebar-blank-drag-root="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-notes-sidebar-blank-drag-root="true"]'))
+      .not.toHaveAttribute('data-file-tree-root-drop-target');
+    expect(container.querySelector('[data-notes-sidebar-blank-drag-root="true"]'))
+      .not.toHaveAttribute('data-notes-external-block-selection-root');
+  });
+
+  it('uses the sidebar blank area as a root drop target after a root folder exists', () => {
+    const { container } = render(
+      <SidebarContent
+        rootFolder={{
+          id: 'root',
+          path: '',
+          name: 'NotesRoot',
+          isFolder: true,
+          expanded: true,
+          children: [{ id: 'a', path: 'a.md', name: 'a.md', isFolder: false }],
+        }}
+        isLoading={false}
+        currentNotePath="a.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(container.querySelector('[data-notes-sidebar-blank-drag-root="true"]'))
+      .toHaveAttribute('data-file-tree-root-drop-target', 'true');
+    expect(container.querySelector('[data-notes-sidebar-blank-drag-root="true"]'))
+      .toHaveAttribute('data-notes-external-block-selection-root', 'true');
   });
 
   it('hides the empty hint when the sidebar is collapsed', () => {

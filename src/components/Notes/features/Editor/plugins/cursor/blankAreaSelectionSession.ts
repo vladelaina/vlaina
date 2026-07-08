@@ -53,7 +53,7 @@ export function startBlankAreaSelectionSession(
   const doc = view.dom.ownerDocument;
   const scrollRoot = view.dom.closest(scrollRootSelector) as HTMLElement | null;
   const startedInsideEditor = event.target instanceof Node && view.dom.contains(event.target);
-  const shouldFilterExternalEdgeGrazes = startZone === 'outside-editor' && !startedInsideEditor;
+  const shouldFilterExternalEdgeGrazes = startZone !== 'below-last-block' && !startedInsideEditor;
   const startScrollLeft = scrollRoot?.scrollLeft ?? 0;
   const startScrollTop = scrollRoot?.scrollTop ?? 0;
   const rectResolver = createBlockRectResolver({

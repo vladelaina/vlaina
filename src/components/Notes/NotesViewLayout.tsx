@@ -114,7 +114,11 @@ export function NotesViewLayout({
             onDragStateChange={handleChatPanelDragStateChange}
             className="h-full border-l border-[var(--vlaina-color-border-shell)] bg-[var(--vlaina-bg-primary)]"
           >
-            <div data-notes-chat-panel="true" className="h-full min-h-0 relative">
+            <div
+              data-notes-chat-panel="true"
+              data-notes-external-block-selection-root="true"
+              className="h-full min-h-0 relative"
+            >
               <Suspense fallback={null}>
                 <EmbeddedChatView
                   mode="embedded"
@@ -131,6 +135,7 @@ export function NotesViewLayout({
             <div
               ref={floatingChatPanelRef}
               data-notes-chat-floating="true"
+              data-notes-external-block-selection-root="true"
               className={cn(
                 'absolute bottom-4 right-4 z-[var(--vlaina-z-40)] overflow-hidden !rounded-[var(--vlaina-radius-26px)]',
                 isFloatingChatResizing && 'will-change-[width,height]',
@@ -146,6 +151,7 @@ export function NotesViewLayout({
               <div
                 aria-hidden="true"
                 data-notes-chat-floating-resize-handle="left"
+                data-no-editor-drag-box="true"
                 className="absolute bottom-5 left-0 top-5 z-[var(--vlaina-z-50)] w-2 cursor-ew-resize touch-none bg-transparent"
                 onPointerDown={(event) => beginFloatingChatResize('left', event)}
                 onDoubleClick={(event) => {
@@ -157,6 +163,7 @@ export function NotesViewLayout({
               <div
                 aria-hidden="true"
                 data-notes-chat-floating-resize-handle="top"
+                data-no-editor-drag-box="true"
                 className="absolute left-5 right-5 top-0 z-[var(--vlaina-z-50)] h-2 cursor-ns-resize touch-none bg-transparent"
                 onPointerDown={(event) => beginFloatingChatResize('top', event)}
                 onDoubleClick={(event) => {
@@ -168,6 +175,7 @@ export function NotesViewLayout({
               <div
                 aria-hidden="true"
                 data-notes-chat-floating-resize-handle="top-left"
+                data-no-editor-drag-box="true"
                 className="absolute left-0 top-0 z-[var(--vlaina-z-50)] h-4 w-4 cursor-nwse-resize touch-none bg-transparent"
                 onPointerDown={(event) => beginFloatingChatResize('top-left', event)}
                 onDoubleClick={(event) => {
