@@ -15,6 +15,7 @@ import { useMilkdownEditorFactory } from './useMilkdownEditorFactory';
 import { useMilkdownExternalContentSync } from './useMilkdownExternalContentSync';
 import { useMilkdownThemeRuntime } from './useMilkdownThemeRuntime';
 import { getMilkdownEditorClassName } from './milkdownEditorClassName';
+import { focusCurrentEditorAtViewportPoint } from './utils/focusEditorAtPoint';
 import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
 
 export { createLargePlainMarkdownDocJSON, shouldUseLazyBlockVisibility } from './milkdownLargePlainMarkdown';
@@ -287,6 +288,22 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     )) {
       event.preventDefault();
       event.stopPropagation();
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element) || target.closest('.ProseMirror')) {
+      return;
+    }
+
+    const editor = editorShellRef.current?.querySelector<HTMLElement>('.ProseMirror');
+    const editorRect = editor?.getBoundingClientRect();
+    const clientX = editorRect && editorRect.width > 0
+      ? Math.min(Math.max(event.clientX, editorRect.left + 1), editorRect.right - 1)
+      : event.clientX;
+
+    if (focusCurrentEditorAtViewportPoint({ clientX, clientY: event.clientY })) {
+      event.preventDefault();
     }
   }, []);
 

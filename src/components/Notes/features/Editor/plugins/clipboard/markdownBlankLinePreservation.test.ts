@@ -9,8 +9,8 @@ import {
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { Selection as ProseSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { gfm } from '@milkdown/kit/preset/gfm';
-import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { gfm, remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
+import { notesRemarkGfmOptions, notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import {
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
@@ -71,6 +71,7 @@ async function serializeMarkdownThroughEditor(
         ...prev,
         ...notesRemarkStringifyOptions,
       }));
+      ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
     })
     .use(commonmark)
     .use(gfm)
@@ -107,6 +108,7 @@ async function expectEditorCreatedListItemHardBreak({
         ...prev,
         ...notesRemarkStringifyOptions,
       }));
+      ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
     })
     .use(commonmark)
     .use(gfm);
@@ -147,6 +149,7 @@ async function expectEditorCreatedEnterBlankLines({
         ...prev,
         ...notesRemarkStringifyOptions,
       }));
+      ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
     })
     .use(commonmark)
     .use(gfm);
@@ -194,6 +197,20 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
     await expectEditorMarkdown(['# 1', '', '1. 1'].join('\n'));
   });
 
+  it('does not add synthetic blank lines when inserting a paragraph before a heading', async () => {
+    await expectEditorMarkdown(
+      ['1', '2', '# '].join('\n'),
+      ['1', '2', '#'].join('\n')
+    );
+  });
+
+  it('preserves authored blank lines before tight paragraphs and headings', async () => {
+    await expectEditorMarkdown(
+      ['1', '', '2', '# '].join('\n'),
+      ['1', '', '2', '#'].join('\n')
+    );
+  });
+
   it('keeps a line-start standalone backslash from joining the following line on reopen', async () => {
     const persisted = ['\\\\', '下一行'].join('\n');
     await expectEditorMarkdown(['\\', '下一行'].join('\n'), persisted);
@@ -214,6 +231,7 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
           ...prev,
           ...notesRemarkStringifyOptions,
         }));
+        ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
       })
       .use(commonmark)
       .use(gfm);
@@ -288,6 +306,7 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
           ...prev,
           ...notesRemarkStringifyOptions,
         }));
+        ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
       })
       .use(commonmark)
       .use(gfm);
@@ -320,6 +339,7 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
           ...prev,
           ...notesRemarkStringifyOptions,
         }));
+        ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
       })
       .use(commonmark)
       .use(gfm);
@@ -514,9 +534,9 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
         '| A | B |',
       ].join('\n'),
       expected: [
-        '| Left | Right |',
-        '| ---- | ----- |',
-        '| A    | B     |',
+        '|Left|Right|',
+        '|-|-|',
+        '|A|B|',
       ].join('\n'),
     },
     {
@@ -581,7 +601,7 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
   it('round trips blank lines around tables through the editor parser and serializer', async () => {
     await expectEditorMarkdown(
       ['Intro', '', '| a | b |', '| --- | --- |', '| 1 | 2 |', '', 'Outro'].join('\n'),
-      ['Intro', '', '| a | b |', '| - | - |', '| 1 | 2 |', '', 'Outro'].join('\n'),
+      ['Intro', '', '|a|b|', '|-|-|', '|1|2|', '', 'Outro'].join('\n'),
     );
   });
 

@@ -22,6 +22,7 @@ import {
 
 const COVER_ASSET_PATH = 'assets/e2e-cover.svg';
 const NOTE_ICON_ASSET_PATH = 'assets/e2e-note-icon.svg';
+const NOTE_COVER_ADD_OVERLAY_SELECTOR = '[data-note-cover-add-overlay="true"]';
 const COVER_HEIGHT = 220;
 const COVER_INITIAL_Y = 35;
 const SWITCH_COVER_COUNT = 10;
@@ -320,6 +321,182 @@ async function clickCoverCenter(page: Page) {
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
 }
 
+async function clickVisibleEditorText(page: Page, text: string) {
+  const point = await page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return null;
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const value = node.textContent ?? '';
+      const index = value.indexOf(text);
+      if (index >= 0) {
+        const range = document.createRange();
+        const offset = index + Math.min(16, Math.max(1, text.length - 1));
+        range.setStart(node, offset);
+        range.setEnd(node, Math.min(value.length, offset + 1));
+        const rect = range.getBoundingClientRect();
+        range.detach();
+        if (rect.width > 0 && rect.height > 0) {
+          const x = rect.left + Math.min(4, rect.width / 2);
+          const y = rect.top + rect.height / 2;
+          const hit = document.elementFromPoint(x, y);
+          return {
+            x,
+            y,
+            hitTagName: hit instanceof HTMLElement ? hit.tagName : null,
+            hitText: hit instanceof HTMLElement ? hit.textContent?.trim().slice(0, 80) ?? '' : '',
+          };
+        }
+      }
+      node = walker.nextNode();
+    }
+
+    return null;
+  }, { editorSelector: EDITOR_SELECTOR, text });
+
+  expect(point, `Expected visible editor text point for ${text}`).not.toBeNull();
+  await page.mouse.click(point!.x, point!.y);
+  await waitForEditorAnimationFrame(page);
+  return point!;
+}
+
+async function clickEditorParagraphRightBlank(page: Page, text: string) {
+  const point = await page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return null;
+    const paragraph = Array.from(editor.querySelectorAll<HTMLElement>('p'))
+      .find((candidate) => candidate.textContent?.includes(text)) ?? null;
+    if (!paragraph) return null;
+    const rect = paragraph.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const x = rect.right - Math.min(36, Math.max(12, rect.width * 0.08));
+    const y = rect.top + Math.min(rect.height - 2, Math.max(2, rect.height / 2));
+    const hit = document.elementFromPoint(x, y);
+    return {
+      x,
+      y,
+      hitTagName: hit instanceof HTMLElement ? hit.tagName : null,
+      hitText: hit instanceof HTMLElement ? hit.textContent?.trim().slice(0, 80) ?? '' : '',
+    };
+  }, { editorSelector: EDITOR_SELECTOR, text });
+
+  expect(point, `Expected visible paragraph blank point for ${text}`).not.toBeNull();
+  await page.mouse.click(point!.x, point!.y);
+  await waitForEditorAnimationFrame(page);
+  return point!;
+}
+
+async function clickEditorSideBlank(page: Page, text: string) {
+  const point = await page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const scrollRoot = document.querySelector<HTMLElement>('[data-note-scroll-root="true"]');
+    if (!editor || !scrollRoot) return null;
+    const paragraph = Array.from(editor.querySelectorAll<HTMLElement>('p'))
+      .find((candidate) => candidate.textContent?.includes(text)) ?? null;
+    if (!paragraph) return null;
+
+    const paragraphRect = paragraph.getBoundingClientRect();
+    const editorRect = editor.getBoundingClientRect();
+    const scrollRootRect = scrollRoot.getBoundingClientRect();
+    const y = paragraphRect.top + Math.min(paragraphRect.height - 2, Math.max(2, paragraphRect.height / 2));
+    const leftBlankX = Math.max(scrollRootRect.left + 24, editorRect.left - 32);
+    const rightBlankX = Math.min(scrollRootRect.right - 24, editorRect.right + 32);
+    const x = Math.abs(leftBlankX - editorRect.left) > 8 ? leftBlankX : rightBlankX;
+    const hit = document.elementFromPoint(x, y);
+
+    return {
+      x,
+      y,
+      hitTagName: hit instanceof HTMLElement ? hit.tagName : null,
+      hitClassName: hit instanceof HTMLElement ? hit.className : null,
+      hitText: hit instanceof HTMLElement ? hit.textContent?.trim().slice(0, 80) ?? '' : '',
+      editorLeft: editorRect.left,
+      editorRight: editorRect.right,
+      scrollRootLeft: scrollRootRect.left,
+      scrollRootRight: scrollRootRect.right,
+    };
+  }, { editorSelector: EDITOR_SELECTOR, text });
+
+  expect(point, `Expected editor side blank point for ${text}`).not.toBeNull();
+  await page.mouse.click(point!.x, point!.y);
+  await waitForEditorAnimationFrame(page);
+  return point!;
+}
+
+async function getSelectionInTextBlockState(page: Page, text: string) {
+  return page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const paragraph = Array.from(editor?.querySelectorAll<HTMLElement>('p') ?? [])
+      .find((candidate) => candidate.textContent?.includes(text)) ?? null;
+    const block = (window as any).__vlainaE2E.getNoteSelectableBlocks()
+      .find((candidate: { text?: string }) => candidate.text?.includes(text));
+    const selection = (window as any).__vlainaE2E.getEditorSelectionSummary();
+    const domSelection = window.getSelection();
+    const domSelectionInsideParagraph = Boolean(
+      paragraph &&
+      domSelection &&
+      domSelection.rangeCount > 0 &&
+      domSelection.isCollapsed &&
+      domSelection.anchorNode &&
+      domSelection.focusNode &&
+      paragraph.contains(domSelection.anchorNode) &&
+      paragraph.contains(domSelection.focusNode)
+    );
+    const selectionInsideSelectableBlock = Boolean(
+      block &&
+      selection &&
+      selection.empty &&
+      selection.from >= block.from &&
+      selection.from <= block.to
+    );
+
+    return {
+      block,
+      paragraphFound: Boolean(paragraph),
+      selection,
+      selectionInsideBlock: selectionInsideSelectableBlock || domSelectionInsideParagraph,
+      selectionInsideSelectableBlock,
+      domSelectionInsideParagraph,
+      domSelectionText: domSelection?.toString() ?? '',
+      activeElementTagName: document.activeElement instanceof HTMLElement
+        ? document.activeElement.tagName
+        : null,
+      activeElementClassName: document.activeElement instanceof HTMLElement
+        ? document.activeElement.className
+        : null,
+      popoverOpen: Boolean(document.querySelector('[data-slot="popover-content"]')),
+    };
+  }, { editorSelector: EDITOR_SELECTOR, text });
+}
+
+async function setEditorSelectionOutsideTextBlock(page: Page, text: string) {
+  const result = await page.evaluate(async (text) => {
+    const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+      from: number;
+      text?: string;
+      to: number;
+    }>;
+    const block = blocks.find((candidate) => (
+      !candidate.text?.includes(text) &&
+      candidate.to > candidate.from + 1
+    )) ?? null;
+    if (!block) return null;
+
+    const position = Math.min(block.to - 1, block.from + 1);
+    await (window as any).__vlainaE2E.setEditorSelectionRange(position);
+    return {
+      block,
+      position,
+      selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+    };
+  }, text);
+
+  expect(result, `Expected a selectable block outside ${text}`).not.toBeNull();
+  return result!;
+}
+
 async function getCoverClickSelectionState(page: Page) {
   return page.evaluate(({ editorSelector, selectedBlockSelector }) => {
     const editor = document.querySelector<HTMLElement>(editorSelector);
@@ -473,6 +650,27 @@ async function waitForSidebarNoteIconReady(page: Page, filePath: string) {
     naturalWidth: (image as HTMLImageElement).naturalWidth,
     naturalHeight: (image as HTMLImageElement).naturalHeight,
   })), { timeout: 10_000 }).toMatchObject({
+    srcIsBlob: true,
+    complete: true,
+    naturalWidth: 96,
+    naturalHeight: 96,
+  });
+}
+
+async function waitForHeaderNoteIconReady(page: Page) {
+  const icon = page.locator('[data-note-toolbar-root="true"] [data-no-editor-drag-box="true"] img[alt]').first();
+  await expect(icon).toBeVisible({ timeout: 10_000 });
+  await expect.poll(async () => icon.evaluate((image) => {
+    const rect = (image as HTMLImageElement).getBoundingClientRect();
+    return {
+      srcIsBlob: (image as HTMLImageElement).src.startsWith('blob:'),
+      complete: (image as HTMLImageElement).complete,
+      naturalWidth: (image as HTMLImageElement).naturalWidth,
+      naturalHeight: (image as HTMLImageElement).naturalHeight,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    };
+  }), { timeout: 10_000 }).toMatchObject({
     srcIsBlob: true,
     complete: true,
     naturalWidth: 96,
@@ -671,8 +869,21 @@ test.describe('notes top cover e2e coverage', () => {
       const { notePath } = await openCoverFixture(page, {
         filename: 'cover-functional.md',
         title: 'Cover Functional E2E',
+        iconAssetPath: NOTE_ICON_ASSET_PATH,
+        assetFiles: [
+          {
+            filename: COVER_ASSET_PATH,
+            content: COVER_SVG,
+          },
+          {
+            filename: NOTE_ICON_ASSET_PATH,
+            content: NOTE_ICON_SVG,
+          },
+        ],
       });
       const coverMetrics = await waitForCoverReady(page);
+      await waitForHeaderNoteIconReady(page);
+      await waitForSidebarNoteIconReady(page, 'cover-functional.md');
 
       expect(coverMetrics.regionHeight).toBe(COVER_HEIGHT);
       expect(coverMetrics.cropperHeight).toBeGreaterThanOrEqual(COVER_HEIGHT - 2);
@@ -715,8 +926,79 @@ test.describe('notes top cover e2e coverage', () => {
       await removeButton.click();
       await expect(page.locator(NOTE_COVER_REGION_SELECTOR)).toHaveCount(0, { timeout: 10_000 });
       await expectCoverFrontmatter(page, notePath, (frontmatter) => frontmatter.assetPath === null);
+
+      const addCoverOverlay = page.locator(NOTE_COVER_ADD_OVERLAY_SELECTOR);
+      await expect(addCoverOverlay).toBeVisible();
+      await addCoverOverlay.click();
+      await expect(page.locator(NOTE_COVER_REGION_SELECTOR)).toBeVisible();
+      await expect(page.locator('[data-slot="popover-content"]')).toBeVisible();
+      await expectCoverFrontmatter(page, notePath, (frontmatter) => frontmatter.assetPath === null);
+
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final cover performance sentinel');
       expect(pageErrors).toEqual([]);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('places the caret in body text after opening the cover picker', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-cover-body-focus');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openCoverFixture(page, {
+        filename: 'cover-body-focus.md',
+        title: 'Cover Body Focus E2E',
+        paragraphCount: 12,
+      });
+      await waitForCoverReady(page);
+
+      const targetText = 'Cover e2e sentinel paragraph near the top.';
+      await clickCoverCenter(page);
+      await expect(page.locator('[data-slot="popover-content"]')).toBeVisible({ timeout: 10_000 });
+
+      const clickPoint = await clickVisibleEditorText(page, targetText);
+      const afterClick = await getSelectionInTextBlockState(page, targetText);
+      console.info('[notes-cover-body-focus]', {
+        clickPoint,
+        afterClick,
+      });
+
+      expect(afterClick.paragraphFound, JSON.stringify(afterClick, null, 2)).toBe(true);
+      expect(afterClick.selectionInsideBlock, JSON.stringify(afterClick, null, 2)).toBe(true);
+      await expect(page.locator('[data-slot="popover-content"]')).toBeHidden({ timeout: 2_000 });
+
+      await clickCoverCenter(page);
+      await expect(page.locator('[data-slot="popover-content"]')).toBeVisible({ timeout: 10_000 });
+      const blankClickPoint = await clickEditorParagraphRightBlank(page, targetText);
+      const afterBlankClick = await getSelectionInTextBlockState(page, targetText);
+      console.info('[notes-cover-body-focus-blank]', {
+        blankClickPoint,
+        afterBlankClick,
+      });
+
+      expect(afterBlankClick.selectionInsideBlock, JSON.stringify(afterBlankClick, null, 2)).toBe(true);
+      await expect(page.locator('[data-slot="popover-content"]')).toBeHidden({ timeout: 2_000 });
+
+      await setEditorSelectionOutsideTextBlock(page, targetText);
+      const beforeSideBlankClick = await getSelectionInTextBlockState(page, targetText);
+      expect(beforeSideBlankClick.selectionInsideBlock, JSON.stringify(beforeSideBlankClick, null, 2)).toBe(false);
+
+      await clickCoverCenter(page);
+      await expect(page.locator('[data-slot="popover-content"]')).toBeVisible({ timeout: 10_000 });
+      const sideBlankClickPoint = await clickEditorSideBlank(page, targetText);
+      const afterSideBlankClick = await getSelectionInTextBlockState(page, targetText);
+      console.info('[notes-cover-body-focus-side-blank]', {
+        beforeSideBlankClick,
+        sideBlankClickPoint,
+        afterSideBlankClick,
+      });
+
+      expect(afterSideBlankClick.selectionInsideBlock, JSON.stringify(afterSideBlankClick, null, 2)).toBe(true);
+      await expect(page.locator('[data-slot="popover-content"]')).toBeHidden({ timeout: 2_000 });
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

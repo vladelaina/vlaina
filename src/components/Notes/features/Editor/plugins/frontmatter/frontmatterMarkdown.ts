@@ -96,6 +96,11 @@ function removeSerializedFrontmatterPadding(body: string): string {
   return newlineIndex >= 0 ? body.slice(newlineIndex + 1) : '';
 }
 
+function hasLeadingBlankBodySeparator(body: string): boolean {
+  const newlineIndex = body.indexOf('\n');
+  return newlineIndex >= 0 && body.slice(0, newlineIndex).trim() === '';
+}
+
 function splitLeadingDelimitedBlock(
   markdown: string,
   isOpeningLine: (line: string) => boolean,
@@ -175,8 +180,11 @@ export function normalizeLeadingFrontmatterMarkdown(markdown: string): string {
   const normalizedVisibleFrontmatterLines = hasHiddenFrontmatterLines
     ? trimTrailingBlankLines(visibleFrontmatterLines)
     : visibleFrontmatterLines;
+  const body = hasHiddenFrontmatterLines && normalizedVisibleFrontmatterLines.length === 0
+    ? removeSerializedFrontmatterPadding(sections.body)
+    : sections.body;
 
-  return buildFrontmatterBlock(normalizedVisibleFrontmatterLines, sections.body, true, {
+  return buildFrontmatterBlock(normalizedVisibleFrontmatterLines, body, true, {
     preserveEmpty: !hasHiddenFrontmatterLines,
     preserveBodySeparator: sections.hasBodySeparator,
   });
@@ -188,11 +196,26 @@ export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceM
   const hiddenFrontmatterLines = referenceSections
     ? referenceSections.frontmatterLines.filter((line) => isPersistedManagedFrontmatterLine(line))
     : [];
+  const referenceVisibleFrontmatterLines = referenceSections
+    ? trimTrailingBlankLines(referenceSections.frontmatterLines.filter((line) => !isManagedFrontmatterLine(line)))
+    : [];
+  const shouldRestoreHiddenOnlyBodySeparator =
+    Boolean(
+      referenceSections &&
+      hiddenFrontmatterLines.length > 0 &&
+      referenceVisibleFrontmatterLines.length === 0 &&
+      hasLeadingBlankBodySeparator(referenceSections.body)
+    );
   const sections = splitLeadingInternalFrontmatter(markdown);
 
   if (!sections) {
     return hiddenFrontmatterLines.length > 0
-      ? buildFrontmatterBlock(hiddenFrontmatterLines, normalized, false, { preserveBodySeparator: true })
+      ? buildFrontmatterBlock(
+        hiddenFrontmatterLines,
+        shouldRestoreHiddenOnlyBodySeparator ? `\n${normalized}` : normalized,
+        false,
+        { preserveBodySeparator: true },
+      )
       : normalized;
   }
 

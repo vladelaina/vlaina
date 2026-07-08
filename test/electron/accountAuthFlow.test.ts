@@ -358,6 +358,22 @@ describe('desktop account auth flow', () => {
     });
   });
 
+  it('retries transient desktop email code request failures before surfacing an error', async () => {
+    vi.useFakeTimers();
+    const { handlers } = registerHarness();
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.readJsonResponse.mockResolvedValue({});
+
+    const request = handlers.get('desktop:account:request-email-code')?.({}, 'vla@example.com');
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(request).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects invalid desktop email code requests before network access', async () => {
     const { handlers } = registerHarness();
     const fetchMock = vi.fn();

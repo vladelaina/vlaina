@@ -7,9 +7,9 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { gfm } from '@milkdown/kit/preset/gfm';
+import { gfm, remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
 
-import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { notesRemarkGfmOptions, notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { configureTheme } from '../../theme';
 import {
   normalizeAlternativeMathBlockFences,
@@ -22,6 +22,14 @@ import {
   normalizeLeadingFrontmatterMarkdown,
   serializeLeadingFrontmatterMarkdown,
 } from '../frontmatter/frontmatterMarkdown';
+import { restoreMermaidFenceSourceFromReference } from '../mermaid/mermaidFenceSourceRestore';
+import { restoreAutolinkStyleFromReference } from '@/lib/notes/markdown/markdownAutolinkStyle';
+import { restoreBlockquoteMarkerSpacingFromReference } from '@/lib/notes/markdown/markdownBlockquoteMarkerSpacing';
+import { restoreFenceMarkerStyleFromReference } from '@/lib/notes/markdown/markdownFenceMarkerStyle';
+import { restoreSetextHeadingStyleFromReference } from '@/lib/notes/markdown/markdownHeadingMarkerStyle';
+import { restoreListMarkerStyleFromReference } from '@/lib/notes/markdown/markdownListMarkerStyle';
+import { restoreReferenceLinkStyleFromReference } from '@/lib/notes/markdown/markdownReferenceLinkStyle';
+import { restoreThematicBreakMarkerStyleFromReference } from '@/lib/notes/markdown/markdownThematicBreakMarkerStyle';
 import { expectPersistedMarkdownToBeClean } from './persistedMarkdownAssertions';
 import { mathPlugin } from '../math';
 import { calloutPlugin } from '../callout';
@@ -77,6 +85,7 @@ async function openMarkdownThroughSyntaxEditor(markdown: string): Promise<Editor
         ...prev,
         ...notesRemarkStringifyOptions,
       }));
+      ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
     })
     .use(commonmark)
     .use(gfm)
@@ -96,12 +105,36 @@ async function openMarkdownThroughSyntaxEditor(markdown: string): Promise<Editor
 
   return {
     docJson,
-    persisted: serializeLeadingFrontmatterMarkdown(
-      restoreMathBlockFenceStylesFromReference(
-        normalized,
+    persisted: restoreBlockquoteMarkerSpacingFromReference(
+      restoreThematicBreakMarkerStyleFromReference(
+        restoreListMarkerStyleFromReference(
+          restoreFenceMarkerStyleFromReference(
+            restoreMermaidFenceSourceFromReference(
+              restoreReferenceLinkStyleFromReference(
+                restoreAutolinkStyleFromReference(
+                  restoreSetextHeadingStyleFromReference(
+                    serializeLeadingFrontmatterMarkdown(
+                      restoreMathBlockFenceStylesFromReference(
+                        normalized,
+                        markdown
+                      ),
+                      markdown
+                    ),
+                    markdown
+                  ),
+                  markdown
+                ),
+                markdown
+              ),
+              markdown,
+            ),
+            markdown,
+          ),
+          markdown,
+        ),
         markdown
       ),
-      markdown
+      markdown,
     ),
   };
 }

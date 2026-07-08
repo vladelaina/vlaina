@@ -123,6 +123,40 @@ describe('CoverPicker', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('closes on editor body mouse down outside the picker and cover region', () => {
+    const onClose = vi.fn();
+    const onPreview = vi.fn();
+
+    const { container } = render(
+      <>
+        <div data-testid="editor-body">body</div>
+        <div data-note-cover-region="true" data-testid="cover-region">cover</div>
+        <CoverPicker
+          isOpen
+          onClose={onClose}
+          onSelect={vi.fn()}
+          onPreview={onPreview}
+          notesRootPath="/notesRoot"
+          currentNotePath="note.md"
+        />
+      </>,
+    );
+
+    const pickerShell = container.querySelector<HTMLElement>('[data-no-editor-drag-box="true"]');
+    expect(pickerShell).not.toBeNull();
+
+    fireEvent.mouseDown(pickerShell!);
+    fireEvent.mouseDown(screen.getByTestId('cover-region'));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onPreview).not.toHaveBeenCalled();
+
+    fireEvent.mouseDown(screen.getByTestId('editor-body'));
+
+    expect(onPreview).toHaveBeenCalledWith(null);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('debounces cover previews while moving across library items', async () => {
     hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [{ filename: 'a.png' }];

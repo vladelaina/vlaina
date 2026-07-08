@@ -14,14 +14,21 @@ describe('markdown blank line syntax matrix', () => {
       markdown: lines(['# Alpha', '', 'Body', '', '', '## Beta', '', 'Tail']),
     },
     {
+      name: 'closed atx headings keep closing marker',
+      markdown: lines(['# Alpha #', '', '### Gamma ###']),
+    },
+    {
       name: 'setext headings keep surrounding blank lines',
       markdown: lines(['Alpha', '=====', '', 'Body', '', '', 'Beta', '-----', '', 'Tail']),
-      expected: lines(['# Alpha', '', 'Body', '', '', '## Beta', '', 'Tail']),
     },
     {
       name: 'thematic breaks keep surrounding blank lines',
       markdown: lines(['Before', '', '---', '', '', 'After']),
       expected: lines(['Before', '', '---', '', '', 'After']),
+    },
+    {
+      name: 'thematic break marker variants keep authored marker',
+      markdown: lines(['Before', '', '***', '', '___', '', 'After']),
     },
     {
       name: 'bullet list gaps reopen and persist as markdown blank lines',
@@ -40,14 +47,24 @@ describe('markdown blank line syntax matrix', () => {
       markdown: lines(['8. eight', '', '9. nine', '', '', '10. ten']),
     },
     {
-      name: 'parenthesized ordered list gaps canonicalize and keep blank lines',
-      markdown: lines(['1) one', '', '2) two', '', '', '3) three']),
-      expected: lines(['1. one', '', '2. two', '', '', '3. three']),
+      name: 'ordered list markers keep padded numbers',
+      markdown: lines(['01. one', '02. two']),
     },
     {
-      name: 'malformed ordered list gaps keep blanks through partial normalization',
+      name: 'parenthesized ordered list gaps canonicalize and keep blank lines',
+      markdown: lines(['1) one', '', '2) two', '', '', '3) three']),
+    },
+    {
+      name: 'malformed ordered list gaps keep missing marker spaces',
       markdown: lines(['0.安装', '', '1.调用笔记', '', '2.完成']),
-      expected: lines(['0. 安装', '', '1. 调用笔记', '', '2. 完成']),
+    },
+    {
+      name: 'paragraph marker-like text keeps missing marker spaces',
+      markdown: lines(['#标题', '##子标题', '', '-苹果', '-香蕉', '', '-[x]done', '-[] todo']),
+    },
+    {
+      name: 'blockquote markers keep missing marker spaces',
+      markdown: lines(['>引用', '>>嵌套引用']),
     },
     {
       name: 'nested bullet list gaps keep nested structure',
@@ -72,7 +89,6 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'mixed bullet markers keep list gaps editable',
       markdown: lines(['* star', '', '+ plus', '', '- dash']),
-      expected: lines(['- star', '', '- plus', '', '* dash']),
     },
     {
       name: 'task and bullet boundaries preserve authored blank line',
@@ -213,14 +229,16 @@ describe('markdown blank line syntax matrix', () => {
       markdown: lines(['Before', '', '```ts', 'const a = 1;', '', 'const b = 2;', '```', '', 'After']),
     },
     {
+      name: 'long fenced code markers keep authored length',
+      markdown: lines(['Before', '', '````ts', 'const a = 1;', '````', '', 'After']),
+    },
+    {
       name: 'tilde fenced code keeps internal blank lines',
       markdown: lines(['Before', '', '~~~md', '- not a list', '', '- still code', '~~~', '', 'After']),
-      expected: lines(['Before', '', '```markdown', '- not a list', '', '- still code', '```', '', 'After']),
     },
     {
       name: 'language alias fenced code keeps surrounding blanks',
       markdown: lines(['Before', '', '```JS', 'const value = 1;', '```', '', '', 'After']),
-      expected: lines(['Before', '', '```ecmascript', 'const value = 1;', '```', '', '', 'After']),
     },
     {
       name: 'indented code keeps internal blank lines',
@@ -230,7 +248,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'table keeps surrounding blank lines',
       markdown: lines(['Before', '', '| A | B |', '| --- | --- |', '| 1 | 2 |', '', '', 'After']),
-      expected: lines(['Before', '', '| A | B |', '| - | - |', '| 1 | 2 |', '', '', 'After']),
+      expected: lines(['Before', '', '|A|B|', '|-|-|', '|1|2|', '', '', 'After']),
     },
     {
       name: 'table cells keep inline markdown without creating blank placeholders',
@@ -246,9 +264,9 @@ describe('markdown blank line syntax matrix', () => {
       expected: lines([
         'Before',
         '',
-        '| A        | B                                    |',
-        '| -------- | ------------------------------------ |',
-        '| **bold** | [link](https://example.com?a=1\\&b=2) |',
+        '|A|B|',
+        '|-|-|',
+        '|**bold**|[link](https://example.com?a=1\\&b=2)|',
         '',
         'After',
       ]),
@@ -256,12 +274,12 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'table alignment keeps surrounding blank lines',
       markdown: lines(['Before', '', '| Left | Right |', '| :--- | ---: |', '| a | b |', '', '', 'After']),
-      expected: lines(['Before', '', '| Left | Right |', '| :--- | ----: |', '| a    |     b |', '', '', 'After']),
+      expected: lines(['Before', '', '|Left|Right|', '|:-|-:|', '|a|b|', '', '', 'After']),
     },
     {
       name: 'table followed by list keeps only authored boundaries',
       markdown: lines(['| A | B |', '| --- | --- |', '| 1 | 2 |', '', '- one', '', '- two']),
-      expected: lines(['| A | B |', '| - | - |', '| 1 | 2 |', '', '- one', '', '- two']),
+      expected: lines(['|A|B|', '|-|-|', '|1|2|', '', '- one', '', '- two']),
     },
     {
       name: 'frontmatter keeps body blank lines',
@@ -348,9 +366,9 @@ describe('markdown blank line syntax matrix', () => {
       expected: lines([
         '> 💡 Title',
         '>',
-        '> | A | B |',
-        '> | - | - |',
-        '> | 1 | 2 |',
+        '> |A|B|',
+        '> |-|-|',
+        '> |1|2|',
         '>',
         '> Tail',
       ]),
@@ -380,14 +398,12 @@ describe('markdown blank line syntax matrix', () => {
       markdown: lines(['Before', '', '```mermaid', 'graph TD', '', '  A --> B', '```', '', 'After']),
     },
     {
-      name: 'mermaid alias canonicalizes without dropping blanks',
+      name: 'mermaid alias preserves source without dropping blanks',
       markdown: lines(['Before', '', '```flow', 'A --> B', '', 'B --> C', '```', '', 'After']),
-      expected: lines(['Before', '', '```mermaid', 'flowchart TD', 'A --> B', '', 'B --> C', '```', '', 'After']),
     },
     {
       name: 'mermaid frontmatter alias keeps internal blanks',
       markdown: lines(['Before', '', '```flow', '---', 'title: Flow', '---', '', 'A --> B', '```', '', 'After']),
-      expected: lines(['Before', '', '```mermaid', '---', 'title: Flow', '---', 'flowchart TD', '', 'A --> B', '```', '', 'After']),
     },
     {
       name: 'toc keeps surrounding blank lines',
@@ -456,12 +472,10 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'reference definition keeps surrounding blanks',
       markdown: lines(['Read [Docs][docs].', '', '[docs]: https://example.com "Docs"', '', '', 'After']),
-      expected: lines(['Read [Docs](https://example.com "Docs").', '', '', '', 'After']),
     },
     {
       name: 'autolinks keep blank paragraphs around them',
       markdown: lines(['Alpha', '', '<https://example.com?a=1&b=2>', '', '', '<user@example.com>', '', 'Tail']),
-      expected: lines(['Alpha', '', 'https://example.com?a=1&b=2', '', '', 'user@example.com', '', 'Tail']),
     },
     {
       name: 'markdown links keep blank paragraphs around them',
@@ -471,7 +485,6 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'reference link followed by list gap keeps both constructs',
       markdown: lines(['Read [Docs][docs].', '', '- one', '', '- two', '', '[docs]: https://example.com "Docs"']),
-      expected: lines(['Read [Docs](https://example.com "Docs").', '', '- one', '', '- two']),
     },
     {
       name: 'inline marks around blank paragraphs stay stable',

@@ -103,6 +103,29 @@ function textPosition(view: EditorView, text: string, offset = 0): number {
   return found;
 }
 
+function inlineTextPosition(view: EditorView, text: string): number {
+  let found: number | null = null;
+  view.state.doc.descendants((node, pos) => {
+    if (found !== null || !node.isText) {
+      return true;
+    }
+
+    const index = node.text?.indexOf(text) ?? -1;
+    if (index >= 0) {
+      found = pos + index;
+      return false;
+    }
+
+    return true;
+  });
+
+  if (found === null) {
+    throw new Error(`Expected inline text "${text}"`);
+  }
+
+  return found;
+}
+
 function pressKey(view: EditorView, key: string, options?: { shiftKey?: boolean }): KeyboardEvent {
   const event = new KeyboardEvent('keydown', {
     key,
@@ -2019,7 +2042,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
   });
 
   it.each(['Backspace', 'Delete'] as const)(
-    'deletes an empty paragraph below a heading on %s without moving the cursor into the heading',
+    'deletes an empty paragraph below a heading on %s and places the cursor at the heading end',
     async (key) => {
       const editor = createEditor();
       await editor.create();
@@ -2041,12 +2064,97 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
       expect(view.state.doc.child(0).type.name).toBe('heading');
       expect(view.state.doc.child(1).textContent).toBe('after');
       expect(view.state.selection).toBeInstanceOf(TextSelection);
-      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
-      expect(view.state.selection.$from.parentOffset).toBe(0);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+      expect(view.state.selection.$from.parentOffset).toBe('Heading'.length);
 
       await editor.destroy();
     }
   );
+
+  it.each(['Backspace', 'Delete'] as const)(
+    'deletes a terminal empty paragraph below a heading on %s and places the cursor at the heading end',
+    async (key) => {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      const heading = schema.nodes.heading.create({ level: 2 }, schema.text('Heading'));
+      replaceDocument(view, [
+        heading,
+        schema.nodes.paragraph.create(),
+      ]);
+
+      const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+      const event = pressKey(view, key);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.doc.childCount).toBe(1);
+      expect(view.state.doc.child(0).type.name).toBe('heading');
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+      expect(view.state.selection.$from.parentOffset).toBe('Heading'.length);
+
+      await editor.destroy();
+    }
+  );
+
+  it.each([
+    {
+      label: 'empty paragraph',
+      createBlankLine: (view: EditorView) => view.state.schema.nodes.paragraph.create(),
+    },
+    {
+      label: 'markdown blank-line placeholder',
+      createBlankLine: createMarkdownBlankLinePlaceholderNode,
+    },
+  ])('deletes a $label below a heading from the heading end on Delete', async ({ createBlankLine }) => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const heading = schema.nodes.heading.create({ level: 2 }, schema.text('Heading'));
+    replaceDocument(view, [
+      heading,
+      createBlankLine(view),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1 + 'Heading'.length)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('heading');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+    expect(view.state.selection.$from.parentOffset).toBe('Heading'.length);
+
+    await editor.destroy();
+  });
+
+  it('keeps the cursor at the heading end after deleting the next line text and pressing Delete', async () => {
+    const editor = createEditor(['# 1', '2', '3'].join('\n'));
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const twoPos = inlineTextPosition(view, '2');
+
+    view.dispatch(
+      view.state.tr
+        .setSelection(TextSelection.create(view.state.doc, twoPos, twoPos + 1))
+        .deleteSelection(),
+    );
+
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.type.name).toBe('heading');
+    expect(view.state.selection.$from.parentOffset).toBe('1'.length);
+
+    await editor.destroy();
+  });
 
   it.each(['Backspace', 'Delete'] as const)(
     'deletes an empty paragraph above a heading on %s without moving the cursor into the heading',

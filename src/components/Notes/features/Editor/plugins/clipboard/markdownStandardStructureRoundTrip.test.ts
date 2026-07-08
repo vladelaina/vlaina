@@ -7,8 +7,8 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { gfm } from '@milkdown/kit/preset/gfm';
-import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { gfm, remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
+import { notesRemarkGfmOptions, notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { configureTheme } from '../../theme';
 import {
   normalizeSerializedMarkdownDocument,
@@ -32,6 +32,7 @@ async function openMarkdownThroughEditor(markdown: string): Promise<EditorRoundT
         ...prev,
         ...notesRemarkStringifyOptions,
       }));
+      ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
     })
     .use(commonmark)
     .use(gfm)

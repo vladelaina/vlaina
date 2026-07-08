@@ -72,10 +72,18 @@ function createSafeSelectionAfterHeadingGapDelete(
     : findTopLevelBlockBefore(tr.doc, mappedHeadingFrom);
 
   if (adjacentAwayFromHeading?.node.type.name === 'paragraph') {
-    const cursorPos = range.searchDir < 0
-      ? adjacentAwayFromHeading.from + 1
-      : adjacentAwayFromHeading.from + 1 + adjacentAwayFromHeading.node.content.size;
-    return tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+    if (range.searchDir < 0) {
+      return tr.setSelection(TextSelection.create(tr.doc, headingTo - 1));
+    }
+
+    return tr.setSelection(TextSelection.create(
+      tr.doc,
+      adjacentAwayFromHeading.from + 1 + adjacentAwayFromHeading.node.content.size,
+    ));
+  }
+
+  if (range.searchDir < 0 && !adjacentAwayFromHeading) {
+    return tr.setSelection(TextSelection.create(tr.doc, headingTo - 1));
   }
 
   const insertPos = range.searchDir < 0 ? headingTo : mappedHeadingFrom;

@@ -81,10 +81,10 @@ describe('UploadTab', () => {
     mocks.lastDropzoneOptions = null;
   });
 
-  it('shows an empty-state message when there are no saved icons', () => {
-    render(<UploadTab onSelect={() => {}} onPreview={() => {}} onClose={() => {}} customIcons={[]} />);
+  it('does not show an empty-state message when there are no saved icons', () => {
+    const { container } = render(<UploadTab onSelect={() => {}} onPreview={() => {}} onClose={() => {}} customIcons={[]} />);
 
-    expect(screen.getByText('Upload an image to use it as the note icon')).toBeInTheDocument();
+    expect(container.querySelector('.app-scrollbar')?.textContent).toBe('');
   });
 
   it('sanitizes SVG uploads before passing them to the cropper preview', async () => {

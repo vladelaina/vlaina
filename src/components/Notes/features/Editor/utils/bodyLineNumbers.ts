@@ -98,11 +98,48 @@ function buildBodySourceLineNumbers(lines: readonly string[], bodyStartIndex: nu
   return sourceLineNumbers;
 }
 
+function parseTopLevelKey(line: string): string | null {
+  const match = /^([A-Za-z0-9_-]+)\s*:/.exec(line);
+  return match?.[1] ?? null;
+}
+
+function hasOnlyHiddenManagedFrontmatter(lines: readonly string[], frontmatterEnd: number): boolean {
+  let hasManagedLine = false;
+  for (let index = 1; index < frontmatterEnd; index += 1) {
+    const line = lines[index] ?? '';
+    if (line.trim() === '') {
+      continue;
+    }
+
+    const key = parseTopLevelKey(line);
+    if (!key?.startsWith('vlaina_')) {
+      return false;
+    }
+    hasManagedLine = true;
+  }
+  return hasManagedLine;
+}
+
+function getBodyStartIndex(lines: readonly string[], frontmatterEnd: number): number {
+  if (frontmatterEnd < 0) {
+    return 0;
+  }
+
+  let bodyStartIndex = frontmatterEnd + 1;
+  if (
+    hasOnlyHiddenManagedFrontmatter(lines, frontmatterEnd)
+    && isBodyLineBoundary(lines[bodyStartIndex] ?? '')
+  ) {
+    bodyStartIndex += 1;
+  }
+  return bodyStartIndex;
+}
+
 export function getMarkdownBodyLineNumbers(markdown: string): number[] {
   const lines = normalizeLineEndings(preserveMarkdownBlankLinesForEditor(markdown)).split('\n');
   const lineNumbers: number[] = [];
   const frontmatterEnd = findLeadingFrontmatterEnd(lines);
-  let index = frontmatterEnd >= 0 ? frontmatterEnd + 1 : 0;
+  let index = getBodyStartIndex(lines, frontmatterEnd);
   const sourceLineNumbers = buildBodySourceLineNumbers(lines, index);
   const pushLineNumber = (lineIndex: number) => {
     const sourceLineNumber = sourceLineNumbers[lineIndex];

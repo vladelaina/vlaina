@@ -1,4 +1,4 @@
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { editorViewCtx, parserCtx, serializerCtx } from '@milkdown/kit/core';
@@ -40,8 +40,9 @@ const mocks = vi.hoisted(() => {
       onLocalMarkdownCommitted?: (content: string) => void;
     },
   };
+  const focusCurrentEditorAtViewportPoint = vi.fn(() => true);
 
-  return { editorState, notesState, pendingMarkdownAutosaveState };
+  return { editorState, focusCurrentEditorAtViewportPoint, notesState, pendingMarkdownAutosaveState };
 });
 
 vi.mock('@milkdown/react', () => ({
@@ -92,6 +93,10 @@ vi.mock('@/stores/unified/useUnifiedStore', () => ({
 
 vi.mock('@/components/markdown-theme/useImportedMarkdownThemePlatform', () => ({
   useImportedMarkdownThemePlatform: () => null,
+}));
+
+vi.mock('./utils/focusEditorAtPoint', () => ({
+  focusCurrentEditorAtViewportPoint: mocks.focusCurrentEditorAtViewportPoint,
 }));
 
 vi.mock('./hooks/useEditorSave', () => ({
@@ -214,6 +219,7 @@ beforeEach(() => {
   mocks.notesState.notesPath = '/notesRoot';
   mocks.editorState.activeEditor = null;
   mocks.editorState.serializedMarkdown = '# Small';
+  mocks.focusCurrentEditorAtViewportPoint.mockClear();
   mocks.pendingMarkdownAutosaveState.options = null;
 });
 
@@ -698,6 +704,56 @@ describe('MilkdownEditorInner lazy block visibility', () => {
     rerender(<MilkdownEditorInner showBodyLineNumbers />);
 
     expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBe('true');
+  });
+});
+
+describe('MilkdownEditorInner shell focus', () => {
+  function renderEditorShellWithProseMirror() {
+    const { container } = render(<MilkdownEditorInner />);
+    const shell = container.querySelector<HTMLElement>('[data-note-content-root="true"]')!;
+    const proseMirror = document.createElement('div');
+    proseMirror.className = 'ProseMirror';
+    vi.spyOn(proseMirror, 'getBoundingClientRect').mockReturnValue({
+      x: 100,
+      y: 40,
+      left: 100,
+      top: 40,
+      right: 500,
+      bottom: 240,
+      width: 400,
+      height: 200,
+      toJSON: () => ({}),
+    } as DOMRect);
+    shell.appendChild(proseMirror);
+    return { proseMirror, shell };
+  }
+
+  it('focuses the editor at the nearest ProseMirror edge for shell blank-area clicks', () => {
+    const { shell } = renderEditorShellWithProseMirror();
+
+    const wasNotPrevented = fireEvent.mouseDown(shell, {
+      button: 0,
+      clientX: 80,
+      clientY: 120,
+    });
+
+    expect(wasNotPrevented).toBe(false);
+    expect(mocks.focusCurrentEditorAtViewportPoint).toHaveBeenCalledWith({
+      clientX: 101,
+      clientY: 120,
+    });
+  });
+
+  it('does not override native editor or editor chrome mouse handling', () => {
+    const { proseMirror, shell } = renderEditorShellWithProseMirror();
+    const chrome = document.createElement('button');
+    chrome.setAttribute('data-no-editor-drag-box', 'true');
+    shell.appendChild(chrome);
+
+    fireEvent.mouseDown(proseMirror, { button: 0, clientX: 120, clientY: 120 });
+    fireEvent.mouseDown(chrome, { button: 0, clientX: 80, clientY: 120 });
+
+    expect(mocks.focusCurrentEditorAtViewportPoint).not.toHaveBeenCalled();
   });
 });
 

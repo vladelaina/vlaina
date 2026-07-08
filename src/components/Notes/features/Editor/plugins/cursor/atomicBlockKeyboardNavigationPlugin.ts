@@ -1,6 +1,9 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
-import { handleMarkdownBlankLineDeletion } from './markdownBlankLineInteraction';
+import {
+  handleEditableMarkdownBlankLineAfterHeadingKeyboardDelete,
+  handleMarkdownBlankLineDeletion,
+} from './markdownBlankLineInteraction';
 import {
   handleBackspaceAtParagraphStartAfterStructuralGap,
   handleDocumentBoundaryAtomicBlockDelete,
@@ -8,6 +11,10 @@ import {
   handleEmptyParagraphNearStructuralBlockDelete,
   shouldPreserveParagraphAfterCodeBlockOnBackspace,
 } from './atomicBlockDeleteHandlers';
+import {
+  handleDeleteAtHeadingEndBeforeBlankLine,
+  handleDeleteAtLeadingHardBreakAfterHeading,
+} from './atomicBlockHeadingDeleteHandlers';
 import {
   ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS,
   EMPTY_TRANSIENT_GAP_STATE,
@@ -89,6 +96,14 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
           return true;
         }
 
+        if (handleDeleteAtHeadingEndBeforeBlankLine(view, event)) {
+          return true;
+        }
+
+        if (handleDeleteAtLeadingHardBreakAfterHeading(view, event)) {
+          return true;
+        }
+
         if (handleEmptyParagraphNearStructuralBlockDelete(view, event)) {
           return true;
         }
@@ -135,7 +150,17 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
         cleanupTimer = window.setTimeout(cleanupGapIfClickLeavesIt, 0);
       };
 
+      const handleEditorKeyDownCapture = (event: KeyboardEvent) => {
+        if (handleEditableMarkdownBlankLineAfterHeadingKeyboardDelete(view, event)) {
+          event.stopPropagation();
+          if (typeof event.stopImmediatePropagation === 'function') {
+            event.stopImmediatePropagation();
+          }
+        }
+      };
+
       doc.addEventListener('mousedown', handleDocumentMouseDown, true);
+      view.dom.addEventListener('keydown', handleEditorKeyDownCapture, true);
 
       return {
         update(updatedView) {
@@ -143,6 +168,7 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
         },
         destroy() {
           doc.removeEventListener('mousedown', handleDocumentMouseDown, true);
+          view.dom.removeEventListener('keydown', handleEditorKeyDownCapture, true);
           if (cleanupTimer !== null && typeof window !== 'undefined') {
             window.clearTimeout(cleanupTimer);
           }

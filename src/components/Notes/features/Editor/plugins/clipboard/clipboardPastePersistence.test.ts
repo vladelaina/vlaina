@@ -7,12 +7,12 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { gfm } from '@milkdown/kit/preset/gfm';
+import { gfm, remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
 import {
   normalizeSerializedMarkdownDocument,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { notesRemarkGfmOptions, notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { configureTheme } from '../../theme';
 import {
   serializeLeadingFrontmatterMarkdown,
@@ -59,6 +59,7 @@ async function createPasteEditor(options: { includeMarkdownLinkPlugin?: boolean 
         ...prev,
         ...notesRemarkStringifyOptions,
       }));
+      ctx.set(remarkGFMPlugin.options.key, notesRemarkGfmOptions);
     })
     .use(commonmark)
     .use(gfm)
@@ -142,13 +143,13 @@ describe('clipboard paste markdown persistence', () => {
 
   it('persists pasted TSV as a standard GFM table', async () => {
     await expect(pasteAndPersist(['A\tB', '1\t2'].join('\n'))).resolves.toBe(
-      ['| A | B |', '| - | - |', '| 1 | 2 |'].join('\n')
+      ['|A|B|', '|-|-|', '|1|2|'].join('\n')
     );
   });
 
   it('persists pasted fullwidth-pipe tables as standard GFM tables', async () => {
     await expect(pasteAndPersist(['｜ A ｜ B ｜', '｜ --- ｜ --- ｜', '｜ 1 ｜ 2 ｜'].join('\n'))).resolves.toBe(
-      ['| A | B |', '| - | - |', '| 1 | 2 |'].join('\n')
+      ['|A|B|', '|-|-|', '|1|2|'].join('\n')
     );
   });
 
