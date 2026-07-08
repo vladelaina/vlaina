@@ -18,6 +18,9 @@ import {
   readErrorMessage,
 } from './singleModelPayload';
 
+const BENCHMARK_TEXT_PROMPT = 'say 6';
+const BENCHMARK_TEXT_MAX_OUTPUT_TOKENS = 1;
+
 function buildBenchmarkUrl(provider: Provider, endpoint: BenchmarkEndpoint, endpointType?: Provider['endpointType']): string {
   if (endpointType === 'anthropic') {
     return `${buildAnthropicBaseUrl(provider.apiHost)}/messages`;
@@ -58,14 +61,14 @@ function buildBenchmarkBody(
   if (endpoint === 'chat') {
     const chatBody: Record<string, unknown> = {
       model: modelId,
-      messages: [{ role: 'user', content: 'hi' }],
+      messages: [{ role: 'user', content: BENCHMARK_TEXT_PROMPT }],
       stream: false,
     };
 
     if (endpointType === 'anthropic' || !/^o\d/i.test(modelId)) {
-      chatBody.max_tokens = 16;
+      chatBody.max_tokens = BENCHMARK_TEXT_MAX_OUTPUT_TOKENS;
     } else {
-      chatBody.max_completion_tokens = 16;
+      chatBody.max_completion_tokens = BENCHMARK_TEXT_MAX_OUTPUT_TOKENS;
     }
 
     return chatBody;
@@ -90,8 +93,8 @@ function buildBenchmarkBody(
   if (endpoint === 'responses') {
     return {
       model: modelId,
-      input: 'hi',
-      max_output_tokens: 16,
+      input: BENCHMARK_TEXT_PROMPT,
+      max_output_tokens: BENCHMARK_TEXT_MAX_OUTPUT_TOKENS,
     };
   }
 
