@@ -242,6 +242,19 @@ describe('ChatSidebar', () => {
     expect(screen.queryByTestId('empty-hint')).not.toBeInTheDocument();
   });
 
+  it('closes chat search when the sidebar becomes inactive', async () => {
+    hoisted.chatSidebarSearchOpen = true;
+
+    const { rerender } = render(<ChatSidebar active />);
+
+    hoisted.appViewMode = 'notes';
+    rerender(<ChatSidebar active={false} />);
+
+    await waitFor(() => {
+      expect(hoisted.setChatSidebarSearchOpen).toHaveBeenCalledWith(false);
+    });
+  });
+
   it('hides the app view switch in the embedded chat sidebar', () => {
     render(<ChatSidebar embedded />);
 
