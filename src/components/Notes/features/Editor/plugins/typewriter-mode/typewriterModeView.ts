@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { selectMarkdownTypewriterModeEnabled } from '@/stores/unified/settings/markdownSettings';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT } from '../cursor/textBlockCaretOverlayPlugin';
 import {
   isTypewriterInputEvent,
   isTypewriterKeyEvent,
@@ -150,5 +151,6 @@ export class TypewriterModeView {
     if (!shouldUpdateTypewriterScrollTop(scrollRoot.scrollTop, nextScrollTop)) return;
 
     scrollRoot.scrollTop = nextScrollTop;
+    this.view.dom.dispatchEvent(new Event(TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT));
   }
 }

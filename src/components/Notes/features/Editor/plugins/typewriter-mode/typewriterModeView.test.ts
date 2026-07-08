@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT } from '../cursor/textBlockCaretOverlayPlugin';
 import { TypewriterModeView } from './typewriterModeView';
 
 function readTypewriterModeViewSource(): string {
@@ -256,6 +257,23 @@ describe('TypewriterModeView', () => {
 
       expect(harness.scrollRoot.scrollTop).toBe(190);
       expect(harness.view.coordsAtPos).toHaveBeenCalledTimes(1);
+    } finally {
+      harness.cleanup();
+    }
+  });
+
+  it('requests a text block caret overlay refresh after centering scroll', () => {
+    const harness = createTypewriterHarness({ enabled: true });
+    const refreshListener = vi.fn();
+    harness.dom.addEventListener(TEXTBLOCK_CARET_OVERLAY_REFRESH_EVENT, refreshListener);
+
+    try {
+      harness.enter();
+      harness.pluginView.update(harness.view, harness.prevState);
+      animationFrame.flush();
+
+      expect(harness.scrollRoot.scrollTop).toBe(190);
+      expect(refreshListener).toHaveBeenCalledTimes(1);
     } finally {
       harness.cleanup();
     }
