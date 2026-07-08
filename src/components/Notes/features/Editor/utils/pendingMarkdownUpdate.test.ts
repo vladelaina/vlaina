@@ -151,6 +151,196 @@ describe('resolvePendingMarkdownUpdate', () => {
     expect(serializeEditorMarkdownSnapshot('1\n\n2\n', '1')).toBe('1\n2');
   });
 
+  it('preserves compact blockquote marker spacing from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['> 引用', '>', '> > 嵌套引用', ''].join('\n'),
+        ['>引用', '>>嵌套引用'].join('\n'),
+      )
+    ).toBe(['>引用', '>>嵌套引用'].join('\n'));
+  });
+
+  it('preserves thematic break marker style from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['Before', '', '---', '', '---', '', 'After', ''].join('\n'),
+        ['Before', '', '***', '', '___', '', 'After'].join('\n'),
+      )
+    ).toBe(['Before', '', '***', '', '___', '', 'After'].join('\n'));
+  });
+
+  it('preserves setext heading style from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['# Alpha', '', 'Body', '', '## Beta', ''].join('\n'),
+        ['Alpha', '=====', '', 'Body', '', 'Beta', '-----'].join('\n'),
+      )
+    ).toBe(['Alpha', '=====', '', 'Body', '', 'Beta', '-----'].join('\n'));
+  });
+
+  it('preserves closed atx heading style from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['# Alpha', '', '### Gamma', ''].join('\n'),
+        ['# Alpha #', '', '### Gamma ###'].join('\n'),
+      )
+    ).toBe(['# Alpha #', '', '### Gamma ###'].join('\n'));
+  });
+
+  it('preserves list marker style from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['- star', '- plus', '- dash', '1. one', '2. two', '3. padded', ''].join('\n'),
+        ['* star', '+ plus', '- dash', '1) one', '2) two', '03. padded'].join('\n'),
+      )
+    ).toBe(['* star', '+ plus', '- dash', '1) one', '2) two', '03. padded'].join('\n'));
+  });
+
+  it('does not restore list marker styles inside fenced code', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['- prose', '', '```', '- code', '```', ''].join('\n'),
+        ['- prose', '', '```', '* code', '```'].join('\n'),
+      )
+    ).toBe(['- prose', '', '```', '- code', '```'].join('\n'));
+  });
+
+  it('preserves fenced code marker style from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['```typescript', 'const value = 1;', '```', '', '```markdown', '- not a list', '```', ''].join('\n'),
+        ['````ts', 'const value = 1;', '````', '', '~~~md', '- not a list', '~~~'].join('\n'),
+      )
+    ).toBe(['````ts', 'const value = 1;', '````', '', '~~~md', '- not a list', '~~~'].join('\n'));
+  });
+
+  it('preserves mermaid fence alias source without persisting generated directives', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['```mermaid', 'flowchart TD', 'A --> B', '```', ''].join('\n'),
+        ['```flow', 'A --> B', '```'].join('\n'),
+      )
+    ).toBe(['```flow', 'A --> B', '```'].join('\n'));
+  });
+
+  it('preserves mermaid short directive source without persisting normalized directives', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['```mermaid', 'sequenceDiagram', 'Alice->Bob: Hello', '```', ''].join('\n'),
+        ['```mermaid', 'sequence', 'Alice->Bob: Hello', '```'].join('\n'),
+      )
+    ).toBe(['```mermaid', 'sequence', 'Alice->Bob: Hello', '```'].join('\n'));
+  });
+
+  it('preserves tilde mermaid fence alias source', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['```mermaid', 'sequenceDiagram', 'Alice->Bob: Hello', '```', ''].join('\n'),
+        ['~~~sequence', 'Alice->Bob: Hello', '~~~'].join('\n'),
+      )
+    ).toBe(['~~~sequence', 'Alice->Bob: Hello', '~~~'].join('\n'));
+  });
+
+  it('preserves mermaid alias source after frontmatter without injecting a directive', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['```mermaid', '---', 'title: Flow', '---', 'flowchart TD', 'A --> B', '```', ''].join('\n'),
+        ['```flow', '---', 'title: Flow', '---', 'A --> B', '```'].join('\n'),
+      )
+    ).toBe(['```flow', '---', 'title: Flow', '---', 'A --> B', '```'].join('\n'));
+  });
+
+  it('preserves autolink marker style from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['Visit https://example.com?a=1&b=2.', '', 'Tail', ''].join('\n'),
+        ['Visit <https://example.com?a=1&b=2>.', '', 'Tail'].join('\n'),
+      )
+    ).toBe(['Visit <https://example.com?a=1&b=2>.', 'Tail'].join('\n'));
+  });
+
+  it('preserves same-email mailto markdown link style from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['Email user@example.test for access.', ''].join('\n'),
+        ['Email [user@example.test](mailto:user@example.test) for access.'].join('\n'),
+      )
+    ).toBe('Email [user@example.test](mailto:user@example.test) for access.');
+  });
+
+  it('preserves reference link style and definitions from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['Read [Docs](https://example.com "Docs").', '', '', '', 'After', ''].join('\n'),
+        ['Read [Docs][docs].', '', '[docs]: https://example.com "Docs"', '', '', 'After'].join('\n'),
+      )
+    ).toBe(['Read [Docs][docs].', '', '[docs]: https://example.com "Docs"', '', 'After'].join('\n'));
+  });
+
+  it('preserves reference links with escaped serialized query separators', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['Read [Docs](https://example.com?a=1\\&b=2 "Docs").', ''].join('\n'),
+        ['Read [Docs][docs].', '', '[docs]: https://example.com?a=1&b=2 "Docs"'].join('\n'),
+      )
+    ).toBe(['Read [Docs][docs].', '', '[docs]: https://example.com?a=1&b=2 "Docs"'].join('\n'));
+  });
+
+  it('preserves collapsed and shortcut reference link styles from the reference note', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['Read [Guide](https://example.com/guide "Guide") and [API](https://example.com/api).', ''].join('\n'),
+        [
+          'Read [Guide][] and [API].',
+          '',
+          '[guide]: https://example.com/guide "Guide"',
+          '[api]: https://example.com/api',
+        ].join('\n'),
+      )
+    ).toBe([
+      'Read [Guide][] and [API].',
+      '',
+      '[guide]: https://example.com/guide "Guide"',
+      '[api]: https://example.com/api',
+    ].join('\n'));
+  });
+
+  it('preserves trailing reference definitions after list content', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['Read [Docs](https://example.com "Docs").', '', '- one', '', '- two', ''].join('\n'),
+        ['Read [Docs][docs].', '', '- one', '', '- two', '', '[docs]: https://example.com "Docs"'].join('\n'),
+      )
+    ).toBe(['Read [Docs][docs].', '', '- one', '- two', '', '[docs]: https://example.com "Docs"'].join('\n'));
+  });
+
+  it('keeps bare autolinks bare when the reference note was bare', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['Visit https://example.com?a=1&b=2.', '', 'Email user@example.test.', ''].join('\n'),
+        ['Visit https://example.com?a=1&b=2.', '', 'Email user@example.test.'].join('\n'),
+      )
+    ).toBe(['Visit https://example.com?a=1&b=2.', 'Email user@example.test.'].join('\n'));
+  });
+
+  it('does not restore autolink styles inside fenced code', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['https://example.com', '', '```', 'https://example.com', '```', ''].join('\n'),
+        ['<https://example.com>', '', '```', '<https://example.com>', '```'].join('\n'),
+      )
+    ).toBe(['<https://example.com>', '', '```', 'https://example.com', '```'].join('\n'));
+  });
+
+  it('does not restore blockquote marker spacing inside fenced code', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        ['> prose', '', '```', '> code', '```', ''].join('\n'),
+        ['>prose', '', '```', '>code', '```'].join('\n'),
+      )
+    ).toBe(['>prose', '', '```', '> code', '```'].join('\n'));
+  });
+
   it('keeps one trailing newline for an editor-created terminal empty paragraph', () => {
     expect(serializeEditorMarkdownSnapshot('1\n\n2\n\n', '1')).toBe('1\n2\n');
   });
@@ -333,7 +523,7 @@ describe('resolvePendingMarkdownUpdate', () => {
       serializeEditorMarkdownSnapshot(
         [
           '1',
-          '# #',
+          '#',
           '2',
           '',
         ].join('\n'),
@@ -344,7 +534,7 @@ describe('resolvePendingMarkdownUpdate', () => {
       'vlaina_icon: value="hero"',
       '---',
       '1',
-      '# #',
+      '#',
       '2',
     ].join('\n'));
   });

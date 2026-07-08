@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeCanonicalMarkdownSpacingForPersistence } from './markdownCanonicalSpacing';
+import {
+  normalizeCanonicalMarkdownSpacingForPaste,
+  normalizeCanonicalMarkdownSpacingForPersistence,
+} from './markdownCanonicalSpacing';
 
 describe('markdown canonical spacing', () => {
-  it('spreads adjacent list items inside emoji callouts', () => {
+  it('keeps adjacent list items inside emoji callouts unchanged during persistence', () => {
+    const markdown = ['> 💡 Callout', '>', '> - First', '> - Second'].join('\n');
+
+    expect(normalizeCanonicalMarkdownSpacingForPersistence(markdown)).toBe(markdown);
+  });
+
+  it('spreads adjacent list items inside emoji callouts for paste normalization', () => {
     expect(
-      normalizeCanonicalMarkdownSpacingForPersistence(
+      normalizeCanonicalMarkdownSpacingForPaste(
         ['> 💡 Callout', '>', '> - First', '> - Second'].join('\n')
       )
     ).toBe(['> 💡 Callout', '>', '> - First', '>', '> - Second'].join('\n'));
@@ -12,23 +21,29 @@ describe('markdown canonical spacing', () => {
 
   it('does not treat text-presentation symbol blockquotes as callouts', () => {
     expect(
-      normalizeCanonicalMarkdownSpacingForPersistence(
+      normalizeCanonicalMarkdownSpacingForPaste(
         ['> © Copyright', '>', '> - First', '> - Second', '', '> ™ Trademark'].join('\n')
       )
     ).toBe(['> © Copyright', '>', '> - First', '> - Second', '', '> ™ Trademark'].join('\n'));
   });
 
-  it('does not canonicalize leading thematic breaks into frontmatter openers', () => {
+  it('does not canonicalize thematic breaks during persistence', () => {
+    const markdown = [' ***', 'url: http\\://example.test', ' ***', '', 'Body'].join('\n');
+
+    expect(normalizeCanonicalMarkdownSpacingForPersistence(markdown)).toBe(markdown);
+  });
+
+  it('does not canonicalize leading thematic breaks into frontmatter openers during paste normalization', () => {
     expect(
-      normalizeCanonicalMarkdownSpacingForPersistence(
+      normalizeCanonicalMarkdownSpacingForPaste(
         [' ***', 'url: http\\://example.test', ' ***', '', 'Body'].join('\n')
       )
     ).toBe([' ***', 'url: http\\://example.test', '---', '', 'Body'].join('\n'));
   });
 
-  it('canonicalizes thematic breaks after leading frontmatter', () => {
+  it('canonicalizes thematic breaks after leading frontmatter during paste normalization', () => {
     expect(
-      normalizeCanonicalMarkdownSpacingForPersistence(
+      normalizeCanonicalMarkdownSpacingForPaste(
         ['---', 'title: Demo', '---', '', '***', '', 'Body'].join('\n')
       )
     ).toBe(['---', 'title: Demo', '---', '', '---', '', 'Body'].join('\n'));

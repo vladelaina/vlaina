@@ -2,7 +2,15 @@ import {
   normalizeSerializedMarkdownDocument,
   restoreMathBlockFenceStylesFromReference,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { restoreAutolinkStyleFromReference } from '@/lib/notes/markdown/markdownAutolinkStyle';
+import { restoreBlockquoteMarkerSpacingFromReference } from '@/lib/notes/markdown/markdownBlockquoteMarkerSpacing';
+import { restoreFenceMarkerStyleFromReference } from '@/lib/notes/markdown/markdownFenceMarkerStyle';
+import { restoreSetextHeadingStyleFromReference } from '@/lib/notes/markdown/markdownHeadingMarkerStyle';
+import { restoreListMarkerStyleFromReference } from '@/lib/notes/markdown/markdownListMarkerStyle';
+import { restoreReferenceLinkStyleFromReference } from '@/lib/notes/markdown/markdownReferenceLinkStyle';
+import { restoreThematicBreakMarkerStyleFromReference } from '@/lib/notes/markdown/markdownThematicBreakMarkerStyle';
 import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
+import { restoreMermaidFenceSourceFromReference } from '../plugins/mermaid/mermaidFenceSourceRestore';
 
 const EDITOR_PARAGRAPH_SEPARATOR_SENTINEL = '\u0000VLAINA_EDITOR_PARAGRAPH_SEPARATOR\u0000';
 const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
@@ -69,7 +77,28 @@ export function serializeEditorMarkdownSnapshot(markdown: string, referenceMarkd
     normalizedMarkdown,
     referenceMarkdown,
   )));
-  return serializedMarkdown;
+  return restoreBlockquoteMarkerSpacingFromReference(
+    restoreThematicBreakMarkerStyleFromReference(
+      restoreListMarkerStyleFromReference(
+        restoreFenceMarkerStyleFromReference(
+          restoreMermaidFenceSourceFromReference(
+            restoreReferenceLinkStyleFromReference(
+              restoreAutolinkStyleFromReference(
+                restoreSetextHeadingStyleFromReference(serializedMarkdown, referenceMarkdown),
+                referenceMarkdown,
+              ),
+              referenceMarkdown,
+            ),
+            referenceMarkdown,
+          ),
+          referenceMarkdown,
+        ),
+        referenceMarkdown,
+      ),
+      referenceMarkdown,
+    ),
+    referenceMarkdown,
+  );
 }
 
 export function normalizeMarkdownParagraphSeparatorsForEditorComparison(markdown: string): string {

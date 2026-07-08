@@ -29,14 +29,18 @@ function isStandaloneSerializedHorizontalRule(line: string): boolean {
 }
 
 interface NormalizeCanonicalMarkdownSpacingOptions {
+  canonicalizeThematicBreaks?: boolean;
   compactListGaps?: boolean;
+  spreadCalloutLists?: boolean;
 }
 
 export function normalizeCanonicalMarkdownSpacing(
   text: string,
   options: NormalizeCanonicalMarkdownSpacingOptions = {},
 ): string {
+  const canonicalizeThematicBreaks = options.canonicalizeThematicBreaks ?? true;
   const compactListGaps = options.compactListGaps ?? true;
+  const spreadCalloutLists = options.spreadCalloutLists ?? true;
   const normalized = mapMarkdownOutsideProtectedSegments(text, (segment, startIndex) => {
     const lines = segment.split('\n');
     const output: string[] = [];
@@ -44,7 +48,7 @@ export function normalizeCanonicalMarkdownSpacing(
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index] ?? '';
 
-      if (isStandaloneSerializedHorizontalRule(line)) {
+      if (canonicalizeThematicBreaks && isStandaloneSerializedHorizontalRule(line)) {
         if (startIndex + index === 0 && !FRONTMATTER_SAFE_THEMATIC_BREAK_PATTERN.test(line)) {
           output.push(line);
           continue;
@@ -70,7 +74,11 @@ export function normalizeCanonicalMarkdownSpacing(
       output.push(line);
     }
 
-    return normalizeCalloutBlockquoteListSpacing(output).join('\n');
+    return (
+      spreadCalloutLists
+        ? normalizeCalloutBlockquoteListSpacing(output)
+        : output
+    ).join('\n');
   });
 
   return normalizeCustomInlineHtmlText(
@@ -83,7 +91,11 @@ export function normalizeCanonicalMarkdownSpacingForPaste(text: string): string 
 }
 
 export function normalizeCanonicalMarkdownSpacingForPersistence(text: string): string {
-  return normalizeCanonicalMarkdownSpacing(text, { compactListGaps: true });
+  return normalizeCanonicalMarkdownSpacing(text, {
+    canonicalizeThematicBreaks: false,
+    compactListGaps: true,
+    spreadCalloutLists: false,
+  });
 }
 
 export function normalizeInlineHtmlTextForPersistence(text: string): string {
