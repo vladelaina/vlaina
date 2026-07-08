@@ -197,7 +197,9 @@ vi.mock('./NotesSidebarRow', () => ({
 }));
 
 vi.mock('./NotesSidebarPrimitives', () => ({
-  NotesSidebarScrollArea: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  NotesSidebarScrollArea: ({ children, className }: { children?: ReactNode; className?: string }) => (
+    <div data-testid="notes-sidebar-scroll-area" className={className}>{children}</div>
+  ),
   NotesSidebarPillEmptyHint: ({ actions }: { actions?: Array<{ label: string; onAction: () => void }> }) => (
     <div data-testid="pill-empty-hint">
       {actions?.map((action) => (
@@ -628,6 +630,28 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(getByTestId('empty-workspace-panel')).toBeInTheDocument();
+  });
+
+  it('keeps the peeking files view aligned with the expanded top spacing', () => {
+    hoisted.uiState.sidebarCollapsed = true;
+
+    render(
+      <SidebarContent
+        rootFolder={{ id: 'root', path: '', name: 'NotesRoot', isFolder: true, expanded: true, children: [] }}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+        isPeeking
+      />,
+    );
+
+    const scrollArea = screen.getByTestId('notes-sidebar-scroll-area');
+    expect(scrollArea).toHaveClass('pt-0');
+    expect(scrollArea).toHaveClass('app-scrollbar-rounded');
+    expect(scrollArea).not.toHaveClass('pt-4');
+    expect(scrollArea).not.toHaveClass('pb-4');
   });
 
   it('does not show the open hint while a notesRoot root is still loading', () => {
