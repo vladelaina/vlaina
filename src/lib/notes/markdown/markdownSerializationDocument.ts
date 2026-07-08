@@ -25,7 +25,6 @@ import {
 import { normalizeGenericHtmlBlockClosingSpacing } from './markdownSerializationHtmlSpacing';
 import { normalizeInternalMarkdownBlankLineComments } from './markdownSerializationInternalBlankComments';
 import { normalizeInternalTightHeadingComments } from './markdownSerializationInternalTightComments';
-import { normalizeLenientMarkdownLineMarkers } from './markdownSerializationLenientMarkers';
 import { normalizeMailtoEmailMarkdownLinks } from './markdownSerializationLinks';
 import {
   normalizeInternalClipboardArtifacts,
@@ -217,8 +216,7 @@ export function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterSyntheticBlankLines =
     collapseSyntheticBlankLinesAroundEmptyPlaceholders(afterInternalMarkdownBlankLineComments);
   const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterSyntheticBlankLines);
-  const afterLenientLineMarkers = normalizeLenientMarkdownLineMarkers(afterEscapedAngleBracketText);
-  const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacingForPersistence(afterLenientLineMarkers);
+  const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacingForPersistence(afterEscapedAngleBracketText);
   const afterGenericHtmlBlockClosingSpacing = normalizeGenericHtmlBlockClosingSpacing(afterCanonicalSpacing);
   const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterGenericHtmlBlockClosingSpacing);
   const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
@@ -243,7 +241,6 @@ export function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterInternalMarkdownBlankLineComments,
     afterSyntheticBlankLines,
     afterEscapedAngleBracketText,
-    afterLenientLineMarkers,
     afterCanonicalSpacing,
     afterGenericHtmlBlockClosingSpacing,
     afterStripPlaceholders,

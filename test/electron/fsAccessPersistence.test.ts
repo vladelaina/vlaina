@@ -90,11 +90,14 @@ describe('desktop filesystem authorization persistence', () => {
   it('persists authorization files with private permissions', async () => {
     const {
       authorizeFsPath,
+      normalizeFsPathForAccess,
       resetAuthorizedFsPathsForTests,
     } = await import('../../electron/fsAccess.mjs');
     resetAuthorizedFsPathsForTests();
 
-    await expect(authorizeFsPath('/tmp/project-one', 'root')).resolves.toBe('/tmp/project-one');
+    await expect(authorizeFsPath('/tmp/project-one', 'root')).resolves.toBe(
+      normalizeFsPathForAccess('/tmp/project-one')
+    );
 
     const permissionsDir = '/tmp/vlaina-user-data/.vlaina/app/permissions';
     const permissionsPath = `${permissionsDir}/filesystem.json`;

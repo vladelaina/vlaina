@@ -25,8 +25,8 @@ describe('markdown serialization frontmatter', () => {
       'table: ｜ A ｜ B ｜',
       '---',
       '',
-      '1. 正文',
-      '2. 继续',
+      '1.正文',
+      '2.继续',
     ].join('\n'));
   });
 
@@ -51,8 +51,8 @@ describe('markdown serialization frontmatter', () => {
       '  -苹果',
       '---',
       '',
-      '1. 正文',
-      '2. 继续',
+      '1.正文',
+      '2.继续',
     ].join('\n'));
   });
 
@@ -75,8 +75,8 @@ describe('markdown serialization frontmatter', () => {
       'url: http://example.test',
       ' ---',
       '',
-      '1. 正文',
-      '2. 继续',
+      '1.正文',
+      '2.继续',
     ].join('\n'));
   });
 });
