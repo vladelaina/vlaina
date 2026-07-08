@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import path from 'node:path';
 
 const mocks = vi.hoisted(() => ({
   chmod: vi.fn(),
@@ -99,8 +100,8 @@ describe('desktop filesystem authorization persistence', () => {
       normalizeFsPathForAccess('/tmp/project-one')
     );
 
-    const permissionsDir = '/tmp/vlaina-user-data/.vlaina/app/permissions';
-    const permissionsPath = `${permissionsDir}/filesystem.json`;
+    const permissionsDir = path.join('/tmp/vlaina-user-data', '.vlaina', 'app', 'permissions');
+    const permissionsPath = path.join(permissionsDir, 'filesystem.json');
     expect(mocks.mkdir).toHaveBeenCalledWith(permissionsDir, { recursive: true, mode: 0o700 });
     expect(mocks.writeFile).toHaveBeenCalledWith(
       permissionsPath,
