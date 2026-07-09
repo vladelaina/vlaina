@@ -22,8 +22,8 @@ env:
 jobs:
   release-context:
     name: Resolve release version
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     permissions:
       contents: read
@@ -91,8 +91,8 @@ jobs:
 
   test-shards:
     name: Checks / Resolve test shards
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     outputs:
       matrix: ${{ steps.shards.outputs.matrix }}
@@ -146,8 +146,8 @@ jobs:
 
   checks:
     name: Checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     needs:
       - typecheck
       - test
@@ -169,7 +169,7 @@ jobs:
   build:
     if: github.event_name == 'pull_request'
     name: Build renderer
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: release-context
 
@@ -563,7 +563,7 @@ jobs:
 
   publish:
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs:
       - checks
@@ -584,13 +584,42 @@ jobs:
           merge-multiple: true
 
       - name: Publish GitHub release assets
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ needs.release-context.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          name: vlaina ${{ needs.release-context.outputs.tag }}
-          draft: false
-          prerelease: ${{ contains(needs.release-context.outputs.tag, '-') }}
-          generate_release_notes: true
-          overwrite_files: true
-          files: release-artifacts/*
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release-context.outputs.tag }}
+        shell: bash
+        run: |
+          shopt -s nullglob
+          artifacts=(release-artifacts/*)
+
+          if (( ${#artifacts[@]} == 0 )); then
+            echo "No release artifacts found." >&2
+            exit 1
+          fi
+
+          prerelease_args=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          for attempt in 1 2 3; do
+            if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+              if gh release upload "$RELEASE_TAG" "${artifacts[@]}" --clobber; then
+                exit 0
+              fi
+            elif gh release create "$RELEASE_TAG" "${artifacts[@]}" \
+              --target "$GITHUB_SHA" \
+              --title "vlaina $RELEASE_TAG" \
+              --generate-notes \
+              "${prerelease_args[@]}"; then
+              exit 0
+            fi
+
+            if [[ "$attempt" == "3" ]]; then
+              exit 1
+            fi
+
+            echo "Release publish failed on attempt $attempt; retrying."
+            sleep $(( attempt * 20 ))
+          done
