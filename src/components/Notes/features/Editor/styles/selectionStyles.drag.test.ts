@@ -236,8 +236,10 @@ describe("editor block drag interaction styles", () => {
     const markdownCss = readStyleFile('markdown.css');
     const themeCss = readThemeStyle();
 
-    expect(themeCss).toContain('--vlaina-editor-collapse-pos-heading: calc(0px - var(--vlaina-editor-collapse-gutter-base));');
-    expect(themeCss).toContain('--vlaina-editor-collapse-pos-list: calc(0px - var(--vlaina-editor-collapse-gutter-base) - var(--vlaina-editor-collapse-marker-gap));');
+    expect(themeCss).toContain('--vlaina-collapse-heading-text-gap: max(var(--vlaina-space-4px), 0.25em);');
+    expect(themeCss).toContain('--vlaina-editor-collapse-pos-heading: calc(0px - var(--vlaina-size-18px) - var(--vlaina-collapse-heading-text-gap));');
+    expect(themeCss).toContain('--vlaina-collapse-list-marker-reserve: max(var(--vlaina-space-28px), 0.75em);');
+    expect(themeCss).toContain('--vlaina-editor-collapse-pos-list: calc(0px - var(--vlaina-size-18px) - var(--vlaina-collapse-list-marker-reserve));');
     expect(themeCss).toContain('--vlaina-list-marker-extra: 0px;');
     expect(themeCss).not.toContain('--vlaina-editor-collapse-pos-list: calc(-1 *');
     expect(markdownCss).toContain('left: var(--vlaina-editor-collapse-pos-heading, -22px);');

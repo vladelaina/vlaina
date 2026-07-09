@@ -2262,6 +2262,36 @@ test.describe("notes block selection", () => {
       expect(draggingSurface.afterRight!).toBeCloseTo(-draggingSurface.bleedEnd, 0);
 
       await page.mouse.up();
+
+      await page.evaluate(() => (window as any).__vlainaE2E.setUIPreferences({ fontSize: 120 }));
+      await expect.poll(async () =>
+        page.evaluate(() => {
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          return editor ? Number.parseFloat(window.getComputedStyle(editor).fontSize || '0') : 0;
+        })
+      ).toBeGreaterThan(100);
+
+      const largeHeading = page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'Collapsible Heading Clearance' });
+      await largeHeading.scrollIntoViewIfNeeded();
+      await selectNoteBlocksByMatchers(page, [{ exact: 'Collapsible Heading Clearance' }]);
+      await moveMouseToBlockHandleGutter(page, largeHeading, { assertCentered: false });
+      const largeHeadingClearance = await measureCollapseToggleClearance(page, {
+        targetSelector: '.milkdown .ProseMirror h1',
+        targetText: 'Collapsible Heading Clearance',
+        toggleSelector: ':scope > .heading-toggle-btn',
+      });
+      expect(largeHeadingClearance.handleGapX).toBeGreaterThanOrEqual(10);
+
+      const largeListItem = page.locator(`${EDITOR_SELECTOR} > ul > li`, { hasText: 'Parent collapse row' });
+      await largeListItem.scrollIntoViewIfNeeded();
+      await selectNoteBlocksByMatchers(page, [{ include: 'Parent collapse row' }]);
+      await moveMouseToBlockHandleGutter(page, largeListItem, { assertCentered: false });
+      const largeListClearance = await measureCollapseToggleClearance(page, {
+        targetSelector: '.milkdown .ProseMirror > ul > li',
+        targetText: 'Parent collapse row',
+        toggleSelector: ':scope > .editor-collapse-btn',
+      });
+      expect(largeListClearance.handleGapX).toBeGreaterThanOrEqual(10);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
