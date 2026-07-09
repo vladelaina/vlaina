@@ -15,7 +15,7 @@ import {
   type WhiteboardTool,
   type WhiteboardViewport,
 } from '../model/whiteboardModel';
-import { getElementBounds, getStrokeBounds, rectsOverlap, type WhiteboardResizeHandle, type WhiteboardSelectionRect } from '../model/whiteboardSelection';
+import { getElementBounds, getStrokeBounds, rectsOverlap, type WhiteboardLassoPath, type WhiteboardResizeHandle, type WhiteboardSelectionRect } from '../model/whiteboardSelection';
 import { getVisibleBoardRect } from '../model/whiteboardViewport';
 import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
 import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
@@ -39,6 +39,7 @@ interface WhiteboardCanvasLayerProps {
   rulerRotateLabel: string;
   selectedElementIds: string[];
   selectedStrokeIds: string[];
+  selectionPath: WhiteboardLassoPath | null;
   selectionRect: WhiteboardSelectionRect | null;
   strokes: WhiteboardStroke[];
   tool: WhiteboardTool;
@@ -71,6 +72,7 @@ export function WhiteboardCanvasLayer({
   rulerRotateLabel,
   selectedElementIds,
   selectedStrokeIds,
+  selectionPath,
   selectionRect,
   strokes,
   tool,
@@ -105,6 +107,7 @@ export function WhiteboardCanvasLayer({
         rulerRotateLabel={rulerRotateLabel}
         selectedElementIds={selectedElementIds}
         selectedStrokeIds={selectedStrokeIds}
+        selectionPath={selectionPath}
         selectionRect={selectionRect}
         strokes={strokes}
         tool={tool}
@@ -142,6 +145,7 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
   rulerRotateLabel,
   selectedElementIds,
   selectedStrokeIds,
+  selectionPath,
   selectionRect,
   strokes,
   tool,
@@ -202,6 +206,7 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
         movePreview={movePreview}
         selectedElementIds={selectedElementIds}
         selectedStrokeIds={selectedStrokeIds}
+        selectionPath={selectionPath}
         selectionRect={selectionRect}
         strokes={strokes}
         onSelectionResizePointerDown={onSelectionResizePointerDown}

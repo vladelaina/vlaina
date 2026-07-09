@@ -10,7 +10,7 @@ import { useWhiteboardExport } from './useWhiteboardExport';
 import { useWhiteboardHistory } from './useWhiteboardHistory';
 import { useWhiteboardImageImport } from './useWhiteboardImageImport';
 import { useWhiteboardKeyboardShortcuts } from './useWhiteboardKeyboardShortcuts';
-import { useWhiteboardMoveDragScheduler } from './useWhiteboardMoveDragScheduler';
+import { useWhiteboardLassoDragScheduler, useWhiteboardMoveDragScheduler } from './useWhiteboardMoveDragScheduler';
 import { loadWhiteboardSnapshot, useWhiteboardPersistence } from './useWhiteboardPersistence';
 import { useWhiteboardReady } from './useWhiteboardReady';
 import { useWhiteboardRuler } from './useWhiteboardRuler';
@@ -28,12 +28,13 @@ import {
   type WhiteboardBrushTool, type WhiteboardConnector, type WhiteboardElement, type WhiteboardPoint,
   type WhiteboardStroke, type WhiteboardTool,
 } from '../model/whiteboardModel';
-import { getElementsInRect, getRectFromPoints, getStrokesInRect, translateStrokesFromOriginals } from '../model/whiteboardSelection';
+import { getElementsInLasso, getRectFromPoints, getStrokesInLasso, translateStrokesFromOriginals } from '../model/whiteboardSelection';
 import { eraseStrokeAtPoint } from '../model/whiteboardStrokeGeometry';
 
 interface WhiteboardControllerOptions {
   active: boolean; onPrimaryContentReady?: () => void; onStartupReady?: () => void;
 }
+
 export function useWhiteboardController({
   active,
   onPrimaryContentReady,
@@ -57,6 +58,7 @@ export function useWhiteboardController({
   const setSelectedElementId = useCallback<Dispatch<SetStateAction<string | null>>>((value) => setSelectedElementIds((current) => { const id = typeof value === 'function' ? value(current[0] ?? null) : value; return id ? [id] : []; }), []);
   const [selectedStrokeIds, setSelectedStrokeIds] = useState<string[]>([]); const [connectorSourceId, setConnectorSourceId] = useState<string | null>(null);
   const [dragState, setDragState] = useState<WhiteboardDragState | null>(null); const scheduleMoveDragPoint = useWhiteboardMoveDragScheduler(setDragState);
+  const scheduleLassoPoint = useWhiteboardLassoDragScheduler(setDragState);
   const { brushCursorPoint, setBrushCursorPoint } = useWhiteboardBrushCursor();
   const { canRedo, canUndo, pushHistory, redo, undo } = useWhiteboardHistory({ active, connectors, elements, setConnectors, setElements, setStrokes, strokes });
   const { beginRulerStroke, finishRulerDrag, finishRulerStroke, hideRuler, ruler, showRulerAt, snapStrokePointsToRuler, startRulerDrag, updateRulerDrag } = useWhiteboardRuler({ ...initialSnapshotRef.current.ruler, visible: false });
@@ -235,6 +237,10 @@ export function useWhiteboardController({
       setDragState({ ...dragState, currentPoint: point });
       return;
     }
+    if (dragState.kind === 'lasso') {
+      scheduleLassoPoint(point, viewport.zoom);
+      return;
+    }
     if (dragState.kind === 'resize-selection') { resizeSelection(dragState, point); return; }
     if (isWhiteboardMoveDragState(dragState)) {
       scheduleMoveDragPoint(point);
@@ -243,7 +249,7 @@ export function useWhiteboardController({
     setElements((current) => current.map((element) => moveOrResizeElement(element, dragState, point)));
   }, [
     appendDraftPoints, collectStrokePoints, dragState, eraseAtEvent, getBoardPoint,
-    getPinchMetrics, moveOrResizeElement, resizeSelection, scheduleMoveDragPoint, setPointer, tool, updateRulerDrag,
+    getPinchMetrics, moveOrResizeElement, resizeSelection, scheduleLassoPoint, scheduleMoveDragPoint, setPointer, tool, updateRulerDrag, viewport.zoom,
   ]);
 
   const finishPointerAction = useCallback((event?: PointerEvent<HTMLDivElement>) => {
@@ -256,10 +262,9 @@ export function useWhiteboardController({
       setStrokes((current) => [...current, { ...currentDraft, id: `wb-stroke-${strokeIdRef.current}` }]);
       strokeIdRef.current += 1;
     }
-    if (dragState?.kind === 'marquee') {
-      const rect = getRectFromPoints(dragState.startPoint, dragState.currentPoint);
-      setSelectedElementIds(rect.width < 3 && rect.height < 3 ? [] : getElementsInRect(elements, rect));
-      setSelectedStrokeIds(rect.width < 3 && rect.height < 3 ? [] : getStrokesInRect(strokes, rect));
+    if (dragState?.kind === 'lasso') {
+      setSelectedElementIds(getElementsInLasso(elements, dragState.points));
+      setSelectedStrokeIds(getStrokesInLasso(strokes, dragState.points));
     }
     if (isWhiteboardMoveDragState(dragState)) {
       const point = event ? getBoardPoint(event.clientX, event.clientY) : dragState.currentPoint;
@@ -292,6 +297,7 @@ export function useWhiteboardController({
     ruler,
     selectedElementIds, selectedStrokeIds,
     selectionRect: dragState?.kind === 'marquee' ? getRectFromPoints(dragState.startPoint, dragState.currentPoint) : null,
+    selectionPath: dragState?.kind === 'lasso' ? dragState.points : null,
     resizeBrush, setBrushColor, setBrushCursorPoint, setElementText,
     setSelectedElementId: selectElement,
     setTool: handleToolChange, spacePressed, strokes, tool,

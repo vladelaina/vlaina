@@ -18,6 +18,8 @@ export interface WhiteboardSelectionRect {
   y: number;
 }
 
+export type WhiteboardLassoPath = WhiteboardPoint[];
+
 export function getRectFromPoints(start: WhiteboardPoint, end: WhiteboardPoint): WhiteboardSelectionRect {
   return {
     height: Math.abs(end.y - start.y),
@@ -168,6 +170,33 @@ export function getElementsInRect(elements: WhiteboardElement[], rect: Whiteboar
   return elements.flatMap((element) => (rectsOverlap(getElementBounds(element), rect) ? [element.id] : []));
 }
 
+export function getLassoBounds(path: WhiteboardLassoPath): WhiteboardSelectionRect | null {
+  if (path.length === 0) return null;
+  const minX = Math.min(...path.map((point) => point.x));
+  const minY = Math.min(...path.map((point) => point.y));
+  const maxX = Math.max(...path.map((point) => point.x));
+  const maxY = Math.max(...path.map((point) => point.y));
+  return { height: maxY - minY, width: maxX - minX, x: minX, y: minY };
+}
+
+export function getElementsInLasso(elements: WhiteboardElement[], path: WhiteboardLassoPath): string[] {
+  if (!isUsableLasso(path)) return [];
+  const lassoBounds = getLassoBounds(path);
+  if (!lassoBounds) return [];
+  return elements.flatMap((element) => (
+    elementIntersectsLasso(element, path, lassoBounds) ? [element.id] : []
+  ));
+}
+
+export function getStrokesInLasso(strokes: WhiteboardStroke[], path: WhiteboardLassoPath): string[] {
+  if (!isUsableLasso(path)) return [];
+  const lassoBounds = getLassoBounds(path);
+  if (!lassoBounds) return [];
+  return strokes.flatMap((stroke) => (
+    strokeIntersectsLasso(stroke, path, lassoBounds) ? [stroke.id] : []
+  ));
+}
+
 export function translateStroke(stroke: WhiteboardStroke, dx: number, dy: number): WhiteboardStroke {
   return {
     ...stroke,
@@ -210,6 +239,43 @@ function strokeIntersectsRect(stroke: WhiteboardStroke, rect: WhiteboardSelectio
   return stroke.points.some((point) => pointInRect(point, rect));
 }
 
+function isUsableLasso(path: WhiteboardLassoPath): boolean {
+  const bounds = getLassoBounds(path);
+  return path.length >= 3 && Boolean(bounds && (bounds.width >= 3 || bounds.height >= 3));
+}
+
+function elementIntersectsLasso(
+  element: WhiteboardElement,
+  path: WhiteboardLassoPath,
+  lassoBounds: WhiteboardSelectionRect,
+): boolean {
+  const bounds = getElementBounds(element);
+  if (!rectsOverlap(bounds, lassoBounds)) return false;
+  const points = [
+    { x: bounds.x, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+    { x: bounds.x, y: bounds.y + bounds.height },
+    { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 },
+  ];
+  return points.some((point) => pointInPolygon(point, path)) || lassoSegments(path).some(([start, end]) => segmentIntersectsRect(start, end, bounds));
+}
+
+function strokeIntersectsLasso(
+  stroke: WhiteboardStroke,
+  path: WhiteboardLassoPath,
+  lassoBounds: WhiteboardSelectionRect,
+): boolean {
+  const bounds = getStrokeBounds(stroke);
+  if (!bounds || !rectsOverlap(bounds, lassoBounds)) return false;
+  if (stroke.points.some((point) => pointInPolygon(point, path))) return true;
+  const lasso = lassoSegments(path);
+  return getStrokePointSegments(stroke.points).some((segment) => segment.some((current, index) => {
+    const previous = segment[index - 1];
+    return previous ? lasso.some(([start, end]) => segmentsIntersect(previous, current, start, end)) : false;
+  }));
+}
+
 function getStrokeMaxWidth(stroke: WhiteboardStroke): number {
   return stroke.points.reduce(
     (maxWidth, point) => Math.max(maxWidth, getStrokeWidth(stroke.tool, point.pressure, stroke.size)),
@@ -219,6 +285,59 @@ function getStrokeMaxWidth(stroke: WhiteboardStroke): number {
 
 function pointInRect(point: WhiteboardPoint, rect: WhiteboardSelectionRect): boolean {
   return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
+}
+
+function pointInPolygon(point: WhiteboardPoint, polygon: WhiteboardLassoPath): boolean {
+  let inside = false;
+  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
+    const current = polygon[index];
+    const previous = polygon[previousIndex];
+    const crossesY = current.y > point.y !== previous.y > point.y;
+    const xAtY = ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y) + current.x;
+    if (crossesY && point.x < xAtY) inside = !inside;
+  }
+  return inside;
+}
+
+function lassoSegments(path: WhiteboardLassoPath): Array<[WhiteboardPoint, WhiteboardPoint]> {
+  return path.map((point, index) => [point, path[(index + 1) % path.length]]);
+}
+
+function segmentIntersectsRect(start: WhiteboardPoint, end: WhiteboardPoint, rect: WhiteboardSelectionRect): boolean {
+  if (pointInRect(start, rect) || pointInRect(end, rect)) return true;
+  const topLeft = { x: rect.x, y: rect.y };
+  const topRight = { x: rect.x + rect.width, y: rect.y };
+  const bottomRight = { x: rect.x + rect.width, y: rect.y + rect.height };
+  const bottomLeft = { x: rect.x, y: rect.y + rect.height };
+  return [
+    [topLeft, topRight],
+    [topRight, bottomRight],
+    [bottomRight, bottomLeft],
+    [bottomLeft, topLeft],
+  ].some(([edgeStart, edgeEnd]) => segmentsIntersect(start, end, edgeStart, edgeEnd));
+}
+
+function segmentsIntersect(a: WhiteboardPoint, b: WhiteboardPoint, c: WhiteboardPoint, d: WhiteboardPoint): boolean {
+  const abC = orientation(a, b, c);
+  const abD = orientation(a, b, d);
+  const cdA = orientation(c, d, a);
+  const cdB = orientation(c, d, b);
+  if (abC === 0 && pointOnSegment(c, a, b)) return true;
+  if (abD === 0 && pointOnSegment(d, a, b)) return true;
+  if (cdA === 0 && pointOnSegment(a, c, d)) return true;
+  if (cdB === 0 && pointOnSegment(b, c, d)) return true;
+  return abC !== abD && cdA !== cdB;
+}
+
+function orientation(a: WhiteboardPoint, b: WhiteboardPoint, c: WhiteboardPoint): number {
+  const value = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+  if (Math.abs(value) < 0.000001) return 0;
+  return value > 0 ? 1 : 2;
+}
+
+function pointOnSegment(point: WhiteboardPoint, start: WhiteboardPoint, end: WhiteboardPoint): boolean {
+  return point.x <= Math.max(start.x, end.x) && point.x >= Math.min(start.x, end.x)
+    && point.y <= Math.max(start.y, end.y) && point.y >= Math.min(start.y, end.y);
 }
 
 function preserveBoundsAspectRatio(

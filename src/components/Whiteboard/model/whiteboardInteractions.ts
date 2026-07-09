@@ -56,6 +56,10 @@ export type WhiteboardDragState =
     strokeIds: string[];
   }
   | {
+    kind: 'lasso';
+    points: WhiteboardPoint[];
+  }
+  | {
     kind: 'marquee';
     currentPoint: WhiteboardPoint;
     startPoint: WhiteboardPoint;

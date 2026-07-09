@@ -11,7 +11,7 @@ import {
   type WhiteboardTool,
   type WhiteboardViewport,
 } from '../model/whiteboardModel';
-import type { WhiteboardSelectionRect } from '../model/whiteboardSelection';
+import type { WhiteboardLassoPath, WhiteboardSelectionRect } from '../model/whiteboardSelection';
 import type { WhiteboardResizeHandle } from '../model/whiteboardSelection';
 import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
 import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
@@ -34,6 +34,7 @@ interface WhiteboardSurfaceProps {
   rulerRotateLabel: string;
   selectedElementIds: string[];
   selectedStrokeIds: string[];
+  selectionPath: WhiteboardLassoPath | null;
   selectionRect: WhiteboardSelectionRect | null;
   spacePressed: boolean;
   strokes: WhiteboardStroke[];
@@ -76,6 +77,7 @@ export function WhiteboardSurface({
   rulerRotateLabel,
   selectedElementIds,
   selectedStrokeIds,
+  selectionPath,
   selectionRect,
   spacePressed,
   strokes,
@@ -105,9 +107,10 @@ export function WhiteboardSurface({
     'relative h-full overflow-hidden touch-none',
     isPanning && 'cursor-grabbing',
     !isPanning && (tool === 'hand' || spacePressed) && 'cursor-grab',
+    !isPanning && tool === 'select' && 'cursor-crosshair',
     !isPanning && isDrawingTool(tool) && 'cursor-crosshair',
     !isPanning && tool === 'eraser' && 'cursor-cell',
-    !isPanning && tool !== 'hand' && !spacePressed && !isDrawingTool(tool) && tool !== 'eraser' && 'cursor-default',
+    !isPanning && tool !== 'select' && tool !== 'hand' && !spacePressed && !isDrawingTool(tool) && tool !== 'eraser' && 'cursor-default',
   );
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     if (!hasImageFile(event.dataTransfer)) return;
@@ -171,6 +174,7 @@ export function WhiteboardSurface({
         rulerRotateLabel={rulerRotateLabel}
         selectedElementIds={selectedElementIds}
         selectedStrokeIds={selectedStrokeIds}
+        selectionPath={selectionPath}
         selectionRect={selectionRect}
         strokes={strokes}
         tool={tool}
