@@ -331,6 +331,54 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
+  it('copies adjacent inline ranges from the same paragraph without hard break artifacts', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '我[xs](ds)i我');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const segments: Array<{ from: number; linked: boolean; text: string; to: number }> = [];
+
+    view.state.doc.descendants((node, pos) => {
+      if (!node.isText) return true;
+      segments.push({
+        from: pos,
+        linked: node.marks.some((mark) => mark.type.name === 'link'),
+        text: node.text ?? '',
+        to: pos + node.nodeSize,
+      });
+      return true;
+    });
+
+    const firstPlain = segments.find((segment) => !segment.linked && segment.text === '我');
+    const link = segments.find((segment) => segment.linked && segment.text === 'xs');
+    const tail = segments.find((segment) => !segment.linked && segment.from >= (link?.to ?? -1));
+
+    expect(firstPlain).toBeDefined();
+    expect(link).toBeDefined();
+    expect(tail?.text).toBe('i我');
+
+    const copied = serializeSelectedBlocksToText(view.state, [
+      { from: firstPlain!.from, to: link!.to },
+      { from: tail!.from, to: tail!.from + 1 },
+      { from: tail!.from + 1, to: tail!.to },
+    ], { markdownSerializer: serializer });
+
+    expect(copied).toBe('我[xs](ds)i我');
+
+    await editor.destroy();
+  });
+
   it('copies a single plain list item as visible text without markdown escape artifacts', async () => {
     const editor = Editor.make()
       .config((ctx) => {

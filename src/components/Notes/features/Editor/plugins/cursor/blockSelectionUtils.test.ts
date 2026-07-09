@@ -627,6 +627,50 @@ describe('blockSelectionUtils', () => {
     await editor.destroy();
   });
 
+  it('does not connect preserved blank-line blocks to the next paragraph inline line', () => {
+    const blankLine = '<!--vlaina-markdown-blank-line-->';
+    const doc = richSelectionDocWith([
+      richSelectionHtmlBlock(blankLine),
+      richSelectionParagraph('next'),
+    ]);
+    const rows: Array<{ from: number; label: string; to: number }> = [];
+    doc.forEach((node: ProseNode, offset: number) => {
+      if (node.type.name === 'paragraph') {
+        rows.push({
+          from: offset + 1,
+          label: node.textContent,
+          to: offset + node.nodeSize - 1,
+        });
+        return;
+      }
+
+      rows.push({
+        from: offset,
+        label: typeof node.attrs?.value === 'string' ? node.attrs.value : node.textContent,
+        to: offset + node.nodeSize,
+      });
+    });
+
+    const decorations = createBlockSelectionDecorations(
+      doc,
+      rows.map(({ from, to }) => ({ from, to })),
+    );
+    const classByLabel = new Map(rows.map((row) => {
+      const decoration = decorations.find(row.from, row.to).find((candidate: Decoration) =>
+        candidate.from === row.from && candidate.to === row.to
+      );
+      return [
+        row.label,
+        String((decoration?.type as any)?.attrs?.class ?? ''),
+      ];
+    }));
+
+    expect(classByLabel.get(blankLine), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .not.toContain('editor-block-selected-has-next');
+    expect(classByLabel.get('next'), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .not.toContain('editor-block-selected-has-previous');
+  });
+
   it('keeps large selections on the lightweight decoration path', async () => {
     const markdown = Array.from(
       { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD },

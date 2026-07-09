@@ -44,11 +44,6 @@ function resolveParagraphContentBoundsForRange(
   return null;
 }
 
-function isRangeAtParagraphContentStart(doc: EditorState['doc'], range: BlockRange): boolean {
-  const bounds = resolveParagraphContentBoundsForRange(doc, range);
-  return bounds !== null && range.from === bounds.from;
-}
-
 function isRangeAtParagraphContentEnd(doc: EditorState['doc'], range: BlockRange): boolean {
   const bounds = resolveParagraphContentBoundsForRange(doc, range);
   return bounds !== null && range.to === bounds.to;
@@ -62,8 +57,5 @@ export function areBlockSelectionDisplayRangesVisuallyAdjacent(
   if (current.to === next.from) return true;
   if (current.to + 1 !== next.from) return false;
 
-  return (
-    isRangeAtParagraphContentEnd(doc, current) ||
-    isRangeAtParagraphContentStart(doc, next)
-  );
+  return isRangeAtParagraphContentEnd(doc, current);
 }
