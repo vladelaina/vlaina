@@ -35,7 +35,7 @@ export function CoverImageShell({
   }
 
   if (!url) {
-    const shouldHoldCoverSpace = showPicker || phase === 'previewing' || phase === 'committing' || Boolean(previewSrc);
+    const shouldHoldCoverSpace = phase === 'previewing' || phase === 'committing' || Boolean(previewSrc);
     const shouldShowEmptyPlaceholder = shouldHoldCoverSpace && !previewSrc;
 
     return (
@@ -62,6 +62,7 @@ export function CoverImageShell({
           onPreview={onPreview}
           notesRootPath={notesRootPath}
           currentNotePath={currentNotePath}
+          anchorPlacement={shouldHoldCoverSpace ? 'cover' : 'empty-cover-option'}
         />
       </div>
     );

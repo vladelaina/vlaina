@@ -24,6 +24,18 @@ vi.mock('@/components/ui/icons', () => ({
   ),
 }));
 
+const supportedImageFilenames = [
+  'photo.jpg',
+  'photo.jpeg',
+  'screenshot.png',
+  'animation.gif',
+  'cover.webp',
+  'diagram.svg',
+  'scan.bmp',
+  'favicon.ico',
+  'photo.avif',
+];
+
 describe('UploadZone', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,6 +86,33 @@ describe('UploadZone', () => {
 
     expect(await screen.findByText('File exceeds maximum size of 50MB')).toBeInTheDocument();
     expect(mocks.uploadAsset).not.toHaveBeenCalled();
+  });
+
+  it.each(supportedImageFilenames)('accepts %s when the browser does not provide a MIME type', async (filename) => {
+    mocks.uploadAsset.mockResolvedValue({
+      success: true,
+      path: `./assets/${filename}`,
+      isDuplicate: false,
+    });
+    const onUploadComplete = vi.fn();
+    render(
+      <UploadZone
+        onUploadComplete={onUploadComplete}
+        currentNotePath="note.md"
+        compact
+      />,
+    );
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+
+    const file = new File(['cover'], filename);
+    fireEvent.change(input!, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(mocks.uploadAsset).toHaveBeenCalledWith(file, 'note.md');
+    });
+    expect(onUploadComplete).toHaveBeenCalledWith(`./assets/${filename}`);
   });
 
   it('keeps compact idle upload zones icon-only with themed border styling', () => {

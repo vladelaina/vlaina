@@ -89,7 +89,7 @@ describe('CoverImageShell', () => {
     expect(hoisted.coverPickerSpy).not.toHaveBeenCalled();
   });
 
-  it('renders picker even in idle phase when picker is open', () => {
+  it('renders picker in idle phase without reserving cover height', () => {
     const { container } = render(
       <CoverImageShell
         {...buildShellProps({
@@ -99,8 +99,8 @@ describe('CoverImageShell', () => {
     );
     expect(screen.getByTestId('cover-picker')).toBeInTheDocument();
     expect(hoisted.coverPickerSpy).toHaveBeenCalled();
-    expect(container.firstElementChild).toHaveStyle({ height: '320px' });
-    expect(container.querySelector('[aria-hidden="true"]')).toHaveClass('absolute');
+    expect(container.firstElementChild).not.toHaveStyle({ height: '320px' });
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
   });
 
   it('renders cover renderer when url exists', () => {

@@ -104,6 +104,12 @@ export function isImageFilename(filename: string): boolean {
   return imageExtensions.includes(ext);
 }
 
+export function isImageFileLike(file: { name?: string; type?: string }): boolean {
+  const mimeType = file.type?.split(';')[0]?.trim().toLowerCase() ?? '';
+  return mimeType.startsWith('image/') ||
+    ((!mimeType || mimeType === 'application/octet-stream') && isImageFilename(file.name ?? ''));
+}
+
 export function generateFilename(
   originalName: string,
   format: 'original' | 'timestamp' | 'sequence',

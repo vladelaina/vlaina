@@ -1,4 +1,4 @@
-import { isImageFilename } from '@/lib/assets/core/naming';
+import { getMimeType, isImageFilename } from '@/lib/assets/core/naming';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from './imageSourcePath';
 import { createSafeImageFetchInit, readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
@@ -9,6 +9,15 @@ export const MAX_RESTORED_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function normalizeBlobMimeType(value: string): string {
     return value.split(';')[0]?.trim().toLowerCase() ?? '';
+}
+
+function getRestoredImageMimeType(blobType: string, fullPath: string): string {
+    const mimeType = normalizeBlobMimeType(blobType);
+    if (mimeType.startsWith('image/')) return mimeType;
+    if (mimeType && mimeType !== 'application/octet-stream') return '';
+
+    const inferredMimeType = getMimeType(fullPath);
+    return inferredMimeType.startsWith('image/') ? inferredMimeType : '';
 }
 
 function prepareRestoredImageBytes(bytes: Uint8Array, mimeType: string): Uint8Array {
@@ -56,8 +65,8 @@ export async function ensureImageFileExists(
         if (result.status === 'too-large') return;
 
         const blob = result.blob;
-        const mimeType = normalizeBlobMimeType(blob.type);
-        if (!mimeType.startsWith('image/')) return;
+        const mimeType = getRestoredImageMimeType(blob.type, fullPath);
+        if (!mimeType) return;
         if (!isBlobByteLengthWithinLimit(blob.size, MAX_RESTORED_IMAGE_BYTES)) return;
 
         const arrayBuffer = await blob.arrayBuffer();

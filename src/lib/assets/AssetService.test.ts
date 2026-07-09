@@ -104,6 +104,18 @@ describe('AssetService', () => {
     } as unknown as File;
   }
 
+  const inferredUploadCases = [
+    { filename: 'photo.jpg', expectedMimeType: 'image/jpeg' },
+    { filename: 'photo.jpeg', expectedMimeType: 'image/jpeg' },
+    { filename: 'screenshot.png', expectedMimeType: 'image/png' },
+    { filename: 'animation.gif', expectedMimeType: 'image/gif' },
+    { filename: 'cover.webp', expectedMimeType: 'image/webp' },
+    { filename: 'diagram.svg', expectedMimeType: 'image/svg+xml' },
+    { filename: 'scan.bmp', expectedMimeType: 'image/bmp' },
+    { filename: 'favicon.ico', expectedMimeType: 'image/x-icon' },
+    { filename: 'photo.avif', expectedMimeType: 'image/avif' },
+  ];
+
   it('keeps notesRoot subfolder uploads inside the notesRoot when the configured folder traverses upward', async () => {
     const file = createImageFile('alpha.png');
 
@@ -319,6 +331,44 @@ describe('AssetService', () => {
     expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/spoofed.png', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/spoofed.png');
     expect(result.entry?.mimeType).toBe('image/png');
+  });
+
+  it.each([
+    ...inferredUploadCases.map((entry) => ({ ...entry, uploadMimeType: '' })),
+    ...inferredUploadCases.map((entry) => ({ ...entry, uploadMimeType: 'application/octet-stream' })),
+  ])('infers $expectedMimeType from $filename when upload MIME metadata is $uploadMimeType', async ({
+    filename,
+    expectedMimeType,
+    uploadMimeType,
+  }) => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="1" cy="1" r="1"></circle></svg>';
+    const file = filename.endsWith('.svg')
+      ? ({
+          name: filename,
+          type: uploadMimeType,
+          size: svg.length,
+          lastModified: 1,
+          arrayBuffer: vi.fn(async () => new TextEncoder().encode(svg).buffer),
+        } as unknown as File)
+      : createTypedImageFile(filename, uploadMimeType);
+
+    const result = await AssetService.upload(
+      file,
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    const [writtenPath, writtenBytes] = mocks.writeAssetAtomic.mock.calls[0] ?? [];
+    expect(writtenPath).toBe(`/notesRoot/docs/assets/${filename}`);
+    expect(ArrayBuffer.isView(writtenBytes)).toBe(true);
+    expect(result.path).toBe(`./assets/${filename}`);
+    expect(result.entry?.mimeType).toBe(expectedMimeType);
   });
 
   it('sanitizes uploaded SVG images before writing them as note assets', async () => {

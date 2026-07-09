@@ -10,6 +10,17 @@ const adapter = {
     writeBinaryFile: vi.fn<(path: string, data: Uint8Array, options?: { recursive?: boolean }) => Promise<void>>(),
 };
 
+const restoredRasterImageFilenames = [
+    'photo.jpg',
+    'photo.jpeg',
+    'screenshot.png',
+    'animation.gif',
+    'cover.webp',
+    'scan.bmp',
+    'favicon.ico',
+    'photo.avif',
+];
+
 vi.mock('@/lib/storage/adapter', () => ({
     getStorageAdapter: () => adapter,
     getParentPath(path: string) {
@@ -169,6 +180,27 @@ describe('image block file utils', () => {
         );
     });
 
+    it.each(restoredRasterImageFilenames)('restores %s blobs when local blob MIME is missing', async (filename) => {
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '2',
+            }),
+            blob: async () => ({
+                type: '',
+                size: 2,
+                arrayBuffer: async () => new Uint8Array([3, 4]).buffer,
+            }),
+        })));
+
+        await ensureImageFileExists(`assets/${filename}`, 'blob:http://localhost/demo', '/notesRoot', 'note.md');
+
+        expect(adapter.writeBinaryFile).toHaveBeenCalledWith(
+            `/notesRoot/assets/${filename}`,
+            new Uint8Array([3, 4]),
+            { recursive: true },
+        );
+    });
+
     it('sanitizes restored SVG image blobs before writing them', async () => {
         const svg = [
             '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">',
@@ -203,5 +235,26 @@ describe('image block file utils', () => {
         expect(output).not.toContain('javascript:');
         expect(output).not.toContain('example.test');
         expect(output).not.toContain('onload');
+    });
+
+    it('sanitizes restored SVG blobs when local blob MIME is missing', async () => {
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="1" cy="1" r="1"></circle></svg>';
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': String(svg.length),
+            }),
+            blob: async () => ({
+                type: '',
+                size: svg.length,
+                arrayBuffer: async () => new TextEncoder().encode(svg).buffer,
+            }),
+        })));
+
+        await ensureImageFileExists('assets/demo.svg', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
+
+        const bytes = adapter.writeBinaryFile.mock.calls[0]?.[1] as Uint8Array;
+        const output = new TextDecoder().decode(bytes);
+        expect(output).toContain('<circle');
+        expect(output).not.toContain('<script');
     });
 });

@@ -6,6 +6,7 @@ export interface CoverPickerProps {
   onPreview?: (assetPath: string | null) => void;
   notesRootPath: string;
   currentNotePath?: string;
+  anchorPlacement?: 'cover' | 'empty-cover-option';
 }
 
 export interface AssetGridProps {

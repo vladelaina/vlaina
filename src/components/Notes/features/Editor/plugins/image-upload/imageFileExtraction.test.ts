@@ -6,6 +6,18 @@ import {
     extractImageFilesFromFileList,
 } from './imageFileExtraction';
 
+const supportedImageFilenames = [
+    'photo.jpg',
+    'photo.jpeg',
+    'screenshot.png',
+    'animation.gif',
+    'cover.webp',
+    'diagram.svg',
+    'scan.bmp',
+    'favicon.ico',
+    'photo.avif',
+];
+
 describe('imageFileExtraction', () => {
     it('extracts image files from clipboard items only', () => {
         const imageFile = new File(['demo'], 'demo.png', { type: 'image/png' });
@@ -19,11 +31,31 @@ describe('imageFileExtraction', () => {
         expect(extractImageFilesFromClipboardItems(items)).toEqual([imageFile]);
     });
 
+    it('extracts clipboard image files when MIME is missing but filename is known', () => {
+        const imageFiles = supportedImageFilenames.map((filename) => new File(['demo'], filename, { type: '' }));
+        const explicitTextFile = new File(['demo'], 'looks-like-image.png', { type: 'text/plain' });
+        const items = [
+            ...imageFiles.map((file) => ({ kind: 'file', type: '', getAsFile: () => file })),
+            { kind: 'file', type: 'text/plain', getAsFile: () => explicitTextFile },
+        ];
+
+        expect(extractImageFilesFromClipboardItems(items)).toEqual(imageFiles);
+    });
+
     it('extracts image files from a dropped file list only', () => {
         const imageFile = new File(['demo'], 'demo.png', { type: 'image/png' });
         const textFile = new File(['demo'], 'demo.txt', { type: 'text/plain' });
 
         expect(extractImageFilesFromFileList([imageFile, textFile])).toEqual([imageFile]);
+    });
+
+    it('extracts dropped image files when MIME is octet-stream but filename is known', () => {
+        const imageFiles = supportedImageFilenames.map((filename) =>
+            new File(['demo'], filename, { type: 'application/octet-stream' })
+        );
+        const explicitTextFile = new File(['demo'], 'looks-like-image.png', { type: 'text/plain' });
+
+        expect(extractImageFilesFromFileList([...imageFiles, explicitTextFile])).toEqual(imageFiles);
     });
 
     it('caps clipboard item scanning and collected image files', () => {

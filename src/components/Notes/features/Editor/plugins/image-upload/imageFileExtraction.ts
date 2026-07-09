@@ -1,7 +1,10 @@
+import { isImageFileLike } from '@/lib/assets/core/naming';
+
 export const MAX_IMAGE_UPLOAD_INPUT_FILES = 64;
 export const MAX_IMAGE_UPLOAD_TRANSFER_ITEM_SCAN = 1024;
 
 interface ImageClipboardItem {
+    kind?: string;
     type: string;
     getAsFile: () => File | null;
 }
@@ -11,6 +14,24 @@ function getArrayLikeLength(value: { length?: unknown } | null | undefined): num
         return null;
     }
     return Math.floor(value.length);
+}
+
+function getImageFileFromClipboardItem(item: ImageClipboardItem | undefined): File | null {
+    if (!item || (item.kind && item.kind !== 'file')) return null;
+
+    const itemMimeType = item.type.split(';')[0]?.trim().toLowerCase() ?? '';
+    if (itemMimeType.startsWith('image/')) {
+        return item.getAsFile();
+    }
+
+    if (itemMimeType && itemMimeType !== 'application/octet-stream') {
+        return null;
+    }
+
+    const file = item.getAsFile();
+    if (!file) return null;
+
+    return isImageFileLike(file) ? file : null;
 }
 
 export function extractImageFilesFromClipboardItems(
@@ -24,8 +45,7 @@ export function extractImageFilesFromClipboardItems(
         const length = Math.min(arrayLikeLength, MAX_IMAGE_UPLOAD_TRANSFER_ITEM_SCAN);
         for (let index = 0; index < length; index += 1) {
             const item = (items as ArrayLike<ImageClipboardItem>)[index];
-            if (!item?.type.startsWith('image/')) continue;
-            const file = item.getAsFile();
+            const file = getImageFileFromClipboardItem(item);
             if (file) {
                 imageFiles.push(file);
                 if (imageFiles.length >= MAX_IMAGE_UPLOAD_INPUT_FILES) {
@@ -40,8 +60,7 @@ export function extractImageFilesFromClipboardItems(
     for (const item of items as Iterable<ImageClipboardItem>) {
         if (scanned >= MAX_IMAGE_UPLOAD_TRANSFER_ITEM_SCAN) break;
         scanned += 1;
-        if (!item.type.startsWith('image/')) continue;
-        const file = item.getAsFile();
+        const file = getImageFileFromClipboardItem(item);
         if (file) {
             imageFiles.push(file);
             if (imageFiles.length >= MAX_IMAGE_UPLOAD_INPUT_FILES) {
@@ -64,7 +83,7 @@ export function extractImageFilesFromFileList(
         const length = Math.min(arrayLikeLength, MAX_IMAGE_UPLOAD_TRANSFER_ITEM_SCAN);
         for (let index = 0; index < length; index += 1) {
             const file = (files as ArrayLike<File>)[index];
-            if (file?.type.startsWith('image/')) {
+            if (file && isImageFileLike(file)) {
                 imageFiles.push(file);
                 if (imageFiles.length >= MAX_IMAGE_UPLOAD_INPUT_FILES) {
                     break;
@@ -78,7 +97,7 @@ export function extractImageFilesFromFileList(
     for (const file of files as Iterable<File>) {
         if (scanned >= MAX_IMAGE_UPLOAD_TRANSFER_ITEM_SCAN) break;
         scanned += 1;
-        if (file.type.startsWith('image/')) {
+        if (isImageFileLike(file)) {
             imageFiles.push(file);
             if (imageFiles.length >= MAX_IMAGE_UPLOAD_INPUT_FILES) {
                 break;

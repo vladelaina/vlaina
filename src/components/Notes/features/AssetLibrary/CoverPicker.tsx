@@ -10,6 +10,25 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 import { useI18n } from '@/lib/i18n';
 import { themeLazyLoadTokens } from '@/styles/themeTokens';
 import { AssetLibraryLoadingState } from './AssetLibraryLoadingState';
+import { isImageFileLike } from '@/lib/assets/core/naming';
+
+function getPastedImageFile(item: DataTransferItem): File | null {
+  if (item.kind && item.kind !== 'file') return null;
+
+  const itemMimeType = item.type.split(';')[0]?.trim().toLowerCase() ?? '';
+  if (itemMimeType.startsWith('image/')) {
+    return item.getAsFile();
+  }
+
+  if (itemMimeType && itemMimeType !== 'application/octet-stream') {
+    return null;
+  }
+
+  const file = item.getAsFile();
+  if (!file) return null;
+
+  return isImageFileLike(file) ? file : null;
+}
 
 export function CoverPicker({
   isOpen,
@@ -19,6 +38,7 @@ export function CoverPicker({
   onPreview,
   notesRootPath,
   currentNotePath,
+  anchorPlacement = 'cover',
 }: CoverPickerProps) {
   const { t } = useI18n();
   const assetList = useNotesStore((state) => state.assetList);
@@ -41,6 +61,12 @@ export function CoverPicker({
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestPreviewAssetRef = useRef<string | null>(null);
   const showHeaderControls = hasAssets || Boolean(onRemove);
+  const anchorClassName = cn(
+    'absolute w-1 h-1 pointer-events-none',
+    anchorPlacement === 'empty-cover-option'
+      ? 'top-[var(--vlaina-size-80px)] right-[max(var(--vlaina-size-16px),calc((100%_-_var(--vlaina-width-editor-content-max))_/_2))]'
+      : 'bottom-4 right-4'
+  );
   const isUnrefreshedAssetScope =
     isOpen && Boolean(notesRootPath) && requestedAssetScopeRef.current !== assetRefreshScope;
   const shouldShowLibraryLoading = activeTab === 'library' && (
@@ -121,7 +147,6 @@ export function CoverPicker({
     }
 
     if (!assetPath) {
-      onPreview?.(null);
       return;
     }
 
@@ -180,24 +205,22 @@ export function CoverPicker({
       if (!items) return;
 
       for (const item of items) {
-        if (item.type.startsWith('image/')) {
+        const file = getPastedImageFile(item);
+        if (file) {
           e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            uploadingRef.current = true;
-            setIsUploading(true);
+          uploadingRef.current = true;
+          setIsUploading(true);
 
-            try {
-              const result = await uploadAsset(file, currentNotePath);
+          try {
+            const result = await uploadAsset(file, currentNotePath);
 
-              if (mountedRef.current && isOpenRef.current && result.success && result.path) {
-                onSelect(result.path);
-              }
-            } finally {
-              uploadingRef.current = false;
-              if (mountedRef.current && isOpenRef.current) {
-                setIsUploading(false);
-              }
+            if (mountedRef.current && isOpenRef.current && result.success && result.path) {
+              onSelect(result.path);
+            }
+          } finally {
+            uploadingRef.current = false;
+            if (mountedRef.current && isOpenRef.current) {
+              setIsUploading(false);
             }
           }
           break;
@@ -217,7 +240,7 @@ export function CoverPicker({
 
   return (
     <Popover open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <PopoverAnchor className="absolute bottom-4 right-4 w-1 h-1 pointer-events-none" />
+      <PopoverAnchor className={anchorClassName} />
 
       <PopoverContent
         data-no-editor-drag-box="true"

@@ -14,6 +14,7 @@ import {
   truncateFilename,
   resolveFilenameConflict,
   processFilename,
+  isImageFileLike,
 } from './naming';
 
 const UNSAFE_FILENAME_CHARS_PATTERN = /[<>:"/\\|?*\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
@@ -224,6 +225,28 @@ describe('filenameService', () => {
 
       expect(generateFilename('photo\u202Egnp.exe', 'timestamp', new Set())).toMatch(/\.exe$/);
       expect(generateFilename('image\u0000.png', 'sequence', new Set())).toBe('1.png');
+    });
+
+    it('recognizes local image files when the platform omits MIME type', () => {
+      const supportedImageFilenames = [
+        'photo.jpg',
+        'photo.jpeg',
+        'screenshot.png',
+        'animation.gif',
+        'cover.webp',
+        'diagram.svg',
+        'scan.bmp',
+        'favicon.ico',
+        'photo.avif',
+      ];
+
+      for (const name of supportedImageFilenames) {
+        expect(isImageFileLike({ name, type: '' })).toBe(true);
+        expect(isImageFileLike({ name, type: 'application/octet-stream' })).toBe(true);
+      }
+
+      expect(isImageFileLike({ name: 'notes.txt', type: '' })).toBe(false);
+      expect(isImageFileLike({ name: 'screenshot.png', type: 'text/plain' })).toBe(false);
     });
   });
 });
