@@ -3,9 +3,8 @@ import { themeWhiteboardTokens } from '@/styles/themeTokens';
 import {
   getBoundsUnion,
   getElementBounds,
-  getElementsInRect,
   getStrokeBounds,
-  getStrokesInRect,
+  type WhiteboardLassoPath,
   type WhiteboardResizeHandle,
   type WhiteboardSelectionRect,
 } from '../model/whiteboardSelection';
@@ -19,6 +18,7 @@ interface WhiteboardSelectionOverlayProps {
   movePreview: WhiteboardMovePreview | null;
   selectedElementIds: string[];
   selectedStrokeIds: string[];
+  selectionPath: WhiteboardLassoPath | null;
   selectionRect: WhiteboardSelectionRect | null;
   strokes: WhiteboardStroke[];
   onSelectionResizePointerDown: (event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => void;
@@ -29,6 +29,7 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
   movePreview,
   selectedElementIds,
   selectedStrokeIds,
+  selectionPath,
   selectionRect,
   strokes,
   onSelectionResizePointerDown,
@@ -58,8 +59,8 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
   const singleBounds = baseSelectedBounds.length === 1
     ? offsetMovingRect(baseSelectedBounds[0], baseSelectedBounds[0].id, movingIdSet, movePreview)
     : null;
-  const resizeBounds = !selectionRect && baseSelectedBounds.length > 0 ? groupBounds ?? singleBounds : null;
-  const preview = useMemo(() => getMarqueePreview(elements, strokes, selectionRect), [elements, selectionRect, strokes]);
+  const selectionActive = Boolean(selectionRect || selectionPath);
+  const resizeBounds = !selectionActive && baseSelectedBounds.length > 0 ? groupBounds ?? singleBounds : null;
 
   return (
     <svg aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-visible">
@@ -74,6 +75,50 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
           strokeWidth={themeWhiteboardTokens.brushCursorStrokeWidthPx}
           vectorEffect="non-scaling-stroke"
         />
+      ) : null}
+      {selectionPath ? (
+        <g>
+          <path
+            d={getLassoPathData(selectionPath)}
+            fill="transparent"
+            stroke="var(--vlaina-color-floating-surface)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx * 3}
+            vectorEffect="non-scaling-stroke"
+          />
+          {selectionPath.length >= 3 ? (
+            <path
+              d={getLassoClosePathData(selectionPath)}
+              fill="transparent"
+              stroke="var(--vlaina-color-floating-surface)"
+              strokeLinecap="round"
+              strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx * 3}
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
+          <path
+            d={getLassoPathData(selectionPath)}
+            fill="transparent"
+            stroke="var(--vlaina-color-whiteboard-selected)"
+            strokeDasharray="7 5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx}
+            vectorEffect="non-scaling-stroke"
+          />
+          {selectionPath.length >= 3 ? (
+            <path
+              d={getLassoClosePathData(selectionPath)}
+              fill="transparent"
+              stroke="var(--vlaina-color-whiteboard-selected)"
+              strokeDasharray="3 6"
+              strokeLinecap="round"
+              strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx}
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
+        </g>
       ) : null}
       {strokeBounds.map((bounds) => (
         <rect
@@ -96,35 +141,6 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
           y={groupBounds.y}
           width={groupBounds.width}
           height={groupBounds.height}
-          fill="transparent"
-          rx={themeWhiteboardTokens.exportElementRadiusPx}
-          stroke="var(--vlaina-color-whiteboard-selected)"
-          strokeDasharray="6 5"
-          strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx}
-          vectorEffect="non-scaling-stroke"
-        />
-      ) : null}
-      {preview.itemBounds.map((bounds) => (
-        <rect
-          key={bounds.id}
-          x={bounds.x}
-          y={bounds.y}
-          width={bounds.width}
-          height={bounds.height}
-          fill="transparent"
-          rx="6"
-          stroke="var(--vlaina-color-whiteboard-selected)"
-          strokeDasharray="6 5"
-          strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx}
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
-      {preview.groupBounds ? (
-        <rect
-          x={preview.groupBounds.x}
-          y={preview.groupBounds.y}
-          width={preview.groupBounds.width}
-          height={preview.groupBounds.height}
           fill="transparent"
           rx={themeWhiteboardTokens.exportElementRadiusPx}
           stroke="var(--vlaina-color-whiteboard-selected)"
@@ -213,24 +229,13 @@ function offsetRect<T extends WhiteboardSelectionRect>(rect: T, movePreview: Whi
   return movePreview ? { ...rect, x: rect.x + movePreview.dx, y: rect.y + movePreview.dy } : rect;
 }
 
-function getMarqueePreview(
-  elements: WhiteboardElement[],
-  strokes: WhiteboardStroke[],
-  rect: WhiteboardSelectionRect | null,
-): { groupBounds: WhiteboardSelectionRect | null; itemBounds: Array<WhiteboardSelectionRect & { id: string }> } {
-  if (!rect || (rect.width < 3 && rect.height < 3)) return { groupBounds: null, itemBounds: [] };
-  const elementIds = new Set(getElementsInRect(elements, rect));
-  const strokeIds = new Set(getStrokesInRect(strokes, rect));
-  const elementBounds = elements.flatMap((element) => (
-    elementIds.has(element.id) ? [{ ...getElementBounds(element), id: element.id }] : []
-  ));
-  const strokeBounds = strokes.flatMap((stroke) => {
-    if (!strokeIds.has(stroke.id)) return [];
-    const bounds = getStrokeBounds(stroke);
-    return bounds ? [{ ...bounds, id: stroke.id }] : [];
-  });
-  const bounds = [...elementBounds, ...strokeBounds];
-  return bounds.length > 1
-    ? { groupBounds: getBoundsUnion(bounds), itemBounds: [] }
-    : { groupBounds: null, itemBounds: bounds };
+function getLassoPathData(path: WhiteboardLassoPath): string {
+  if (path.length === 0) return '';
+  return `M ${path.map((point) => `${point.x} ${point.y}`).join(' L ')}`;
+}
+
+function getLassoClosePathData(path: WhiteboardLassoPath): string {
+  const first = path[0];
+  const last = path[path.length - 1];
+  return `M ${last.x} ${last.y} L ${first.x} ${first.y}`;
 }

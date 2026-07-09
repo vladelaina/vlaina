@@ -42,6 +42,7 @@ export function WhiteboardView({
         rulerRotateLabel={t('whiteboard.rotateRuler')}
         selectedElementIds={board.selectedElementIds}
         selectedStrokeIds={board.selectedStrokeIds}
+        selectionPath={board.selectionPath}
         selectionRect={board.selectionRect}
         spacePressed={board.spacePressed}
         strokes={board.strokes}

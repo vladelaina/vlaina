@@ -55,14 +55,13 @@ export function WhiteboardSidebar() {
                   type="button"
                   aria-current={selected ? 'page' : undefined}
                   className={[
-                    'flex h-[var(--vlaina-size-36px)] w-full cursor-pointer items-center gap-2 rounded-xl px-3 text-left text-[var(--vlaina-font-base)] font-medium leading-none',
+                    'flex h-[var(--vlaina-size-36px)] w-full cursor-pointer items-center rounded-xl px-3 text-left text-[var(--vlaina-font-base)] font-medium leading-none',
                     selected ? getSidebarSelectedRowSurfaceClass('notes') : getSidebarIdleRowSurfaceClass('notes'),
                   ].join(' ')}
                   onClick={() => {
                     void selectBoard(board.id).catch(() => undefined);
                   }}
                 >
-                  <Icon name="editor.diagram" size={themeIconTokens.sizeCompact} className="shrink-0" />
                   <span className="min-w-0 flex-1 truncate">{board.title}</span>
                 </button>
               );

@@ -27,7 +27,7 @@ export function useWhiteboardStrokeSelection({
     setSelectedElementId(null);
     if (!hitStroke) {
       setSelectedStrokeIds([]);
-      setDragState({ kind: 'marquee', currentPoint: point, startPoint: point });
+      setDragState({ kind: 'lasso', points: [point] });
       return;
     }
     const hitSelected = selectedStrokeIds.includes(hitStroke.id);
