@@ -171,7 +171,11 @@ async function expectShortPromptPositionBeforeAssistant(
     .toBeGreaterThan(geometry!.rootClientHeight * 0.55);
 }
 
-async function expectLastUserMessageTopVisibleBeforeAssistant(page: Page, text: string): Promise<void> {
+async function expectLastUserMessagePositionBeforeAssistant(
+  page: Page,
+  text: string,
+  placement: ShortPromptPlacement,
+): Promise<void> {
   await expect(page.locator(`${CHAT_MESSAGE_SELECTOR}[data-role="user"]`, { hasText: text })).toBeVisible({
     timeout: 10_000,
   });
@@ -183,8 +187,14 @@ async function expectLastUserMessageTopVisibleBeforeAssistant(page: Page, text: 
   expect(geometry).not.toBeNull();
   expect(geometry!.userText).toContain(text);
   expect(geometry!.userTopOffset, JSON.stringify(geometry, null, 2)).toBeGreaterThanOrEqual(-1);
-  expect(geometry!.userTopOffset, JSON.stringify(geometry, null, 2))
-    .toBeLessThan(geometry!.rootClientHeight * 0.25);
+  expect(geometry!.userBottom).toBeLessThanOrEqual(geometry!.rootBottom + 1);
+  if (placement === 'near-top') {
+    expect(geometry!.userTopOffset, JSON.stringify(geometry, null, 2))
+      .toBeLessThan(geometry!.rootClientHeight * 0.25);
+    return;
+  }
+  expect(geometry!.userBottomOffset, JSON.stringify(geometry, null, 2))
+    .toBeGreaterThan(geometry!.rootClientHeight * 0.55);
 }
 
 test.describe('chat send scroll anchoring', () => {
@@ -215,7 +225,7 @@ test.describe('chat send scroll anchoring', () => {
     }
   });
 
-  test('keeps a short user message near the top when sent from the top of a long chat', async () => {
+  test('keeps a short user message near the composer when sent from the top of a long chat', async () => {
     const provider = await createDelayedStreamingProvider();
     const { app, userDataRoot } = await launchIsolatedElectron('chat-send-scroll-history');
 
@@ -245,14 +255,14 @@ test.describe('chat send scroll anchoring', () => {
       await textarea.fill('hi');
       await textarea.press('Enter');
 
-      await expectShortPromptPositionBeforeAssistant(page, 'near-top');
+      await expectShortPromptPositionBeforeAssistant(page, 'near-composer');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();
     }
   });
 
-  test('keeps the top of a long user message visible when sent from the top of a long chat', async () => {
+  test('keeps a long user message visible near the composer when sent from the top of a long chat', async () => {
     const provider = await createDelayedStreamingProvider();
     const { app, userDataRoot } = await launchIsolatedElectron('chat-send-scroll-long-user-history');
 
@@ -284,7 +294,7 @@ test.describe('chat send scroll anchoring', () => {
       await textarea.fill(prompt);
       await textarea.press('Enter');
 
-      await expectLastUserMessageTopVisibleBeforeAssistant(page, promptPrefix);
+      await expectLastUserMessagePositionBeforeAssistant(page, promptPrefix, 'near-composer');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();

@@ -161,6 +161,7 @@ test.describe('chat interaction coverage', () => {
       await page.locator('[data-chat-input-action="disable-web-search"]').click();
       await expect(page.locator('[data-chat-input-action="disable-web-search"]')).toHaveCount(0);
 
+      await textarea.fill('');
       await page.locator('[data-chat-input-action="open-actions"]').click();
       await page.locator('[data-chat-input-action="mention"]').click();
       await expect(textarea).toHaveValue('@');

@@ -263,7 +263,7 @@ describe('ModelSelector', () => {
       expect(Number.parseFloat(dropdown!.style.top)).toBe(156);
     });
 
-    expect(mocks.refreshManagedProviderInBackground).not.toHaveBeenCalled();
+    expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledWith({ force: true });
   });
 
   it('refreshes managed models when opening on the managed channel', async () => {
