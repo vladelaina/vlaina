@@ -3,7 +3,7 @@ import type { Ctx } from '@milkdown/ctx'
 import { commandsCtx } from '@milkdown/core'
 import { expectDomTypeError } from '@milkdown/exception'
 import { joinBackward } from '@milkdown/prose/commands'
-import { Fragment, type Node as ProseNode, Slice } from '@milkdown/prose/model'
+import { Fragment, type Node as ProseNode, type ResolvedPos, Slice } from '@milkdown/prose/model'
 import { canSplit } from '@milkdown/prose/transform'
 import {
   liftListItem,
@@ -189,6 +189,33 @@ function liftFirstListItem(ctx: Ctx): Command {
     // selection should be in list item
     if (parentItem.type !== listItemSchema.type(ctx)) return false
 
+    const listDepth = $from.depth - 2
+    if (
+      $from.parent.content.size === 0 &&
+      parentItem.childCount === 1 &&
+      listDepth >= 0 &&
+      $from.node(listDepth).childCount > 1
+    ) {
+      if (dispatch) {
+        const listItemDepth = $from.depth - 1
+        const itemIndex = $from.index(listDepth)
+        const deleteFrom = $from.before(listItemDepth)
+        const deleteTo = $from.after(listItemDepth)
+        let tr = state.tr.delete(deleteFrom, deleteTo)
+
+        if (itemIndex === 0) {
+          tr = tr.setSelection(TextSelection.create(tr.doc, deleteFrom + 2))
+        } else {
+          const selectionPos = Math.max(0, Math.min(deleteFrom, tr.doc.content.size))
+          tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionPos), -1))
+        }
+
+        dispatch(tr.scrollIntoView())
+      }
+
+      return true
+    }
+
     return joinBackward(state, dispatch, view)
   }
 }
@@ -202,6 +229,16 @@ function getNextListItemAttrs(attrs: Record<string, unknown>) {
     ...attrs,
     checked: attrs.checked == null ? null : false,
   }
+}
+
+function isAtNonEmptyListItemHead($from: ResolvedPos) {
+  const listItemDepth = $from.depth - 1
+  return (
+    $from.parent.isTextblock &&
+    $from.parentOffset === 0 &&
+    $from.parent.content.size > 0 &&
+    $from.index(listItemDepth) === 0
+  )
 }
 
 export function findNextEmptyTextblockSelectionPos(
@@ -253,6 +290,22 @@ function splitListItemPreservingAttrs(ctx: Ctx): Command {
     if (grandParent.type !== itemType) return false
 
     const nextItemAttrs = getNextListItemAttrs(grandParent.attrs as Record<string, unknown>)
+
+    if (state.selection.empty && isAtNonEmptyListItemHead($from)) {
+      if (dispatch) {
+        const listItemDepth = $from.depth - 1
+        const insertPos = $from.before(listItemDepth)
+        const emptyItem = itemType.create(
+          nextItemAttrs as never,
+          [$from.parent.type.create()]
+        )
+        let tr = state.tr.insert(insertPos, emptyItem)
+        tr = tr.setSelection(TextSelection.create(tr.doc, insertPos + 2))
+        dispatch(tr.scrollIntoView())
+      }
+
+      return true
+    }
 
     if (
       $from.parent.content.size === 0 &&

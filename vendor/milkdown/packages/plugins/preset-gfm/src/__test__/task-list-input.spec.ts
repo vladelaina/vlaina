@@ -6,6 +6,7 @@ import {
   remarkStringifyOptionsCtx,
 } from '@milkdown/core'
 import { DOMParser as ProseDOMParser } from '@milkdown/prose/model'
+import { TextSelection } from '@milkdown/prose/state'
 import type { EditorView } from '@milkdown/prose/view'
 import { commonmark } from '@milkdown/preset-commonmark'
 import { getMarkdown } from '@milkdown/utils'
@@ -55,6 +56,43 @@ function typeText(view: EditorView, input: string) {
   }
 }
 
+function moveCursorBeforeText(view: EditorView, text: string) {
+  let pos: number | null = null
+  view.state.doc.descendants((node, nodePos) => {
+    if (pos !== null || !node.isText || typeof node.text !== 'string') return
+    const index = node.text.indexOf(text)
+    if (index < 0) return
+    pos = nodePos + index
+  })
+  if (pos === null) throw new Error(`Expected text: ${text}`)
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)))
+}
+
+function pressEnter(view: EditorView) {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+  })
+  let handled = false
+
+  view.someProp('handleKeyDown', (handleKeyDown) => {
+    handled = handleKeyDown(view, event) || handled
+    return handled
+  })
+
+  expect(handled).toBe(true)
+}
+
+function collectTaskItemCheckedAttrs(view: EditorView): Array<boolean | null> {
+  const checkedAttrs: Array<boolean | null> = []
+  view.state.doc.descendants((node) => {
+    if (node.type.name === 'list_item') checkedAttrs.push(node.attrs.checked as boolean | null)
+    return true
+  })
+  return checkedAttrs
+}
+
 it.each([
   ['- [ ] todo', '- [ ] todo\n'],
   ['- 【 】 todo', '- [ ] todo\n'],
@@ -88,6 +126,49 @@ it.each([
 
   const markdown = editor.action(getMarkdown())
   expect(markdown).toBe(expected)
+})
+
+it('should create an unchecked empty task item when pressing enter at task text start', async () => {
+  const editor = createEditorWithContent('- [ ] 2\n- [x] 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+
+  pressEnter(view)
+
+  expect(collectTaskItemCheckedAttrs(view)).toEqual([false, false, true])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  typeText(view, '1')
+
+  const markdown = editor.action(getMarkdown())
+  expect(markdown).toContain('- [ ] 1')
+  expect(markdown).toContain('- [ ] 2')
+  expect(markdown).toContain('- [x] 3')
+
+  await editor.destroy()
+})
+
+it('should not inherit checked state when pressing enter at checked task text start', async () => {
+  const editor = createEditorWithContent('- [x] 2\n- [ ] 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+
+  pressEnter(view)
+
+  expect(collectTaskItemCheckedAttrs(view)).toEqual([false, true, false])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  await editor.destroy()
 })
 
 it('should bound task list DOM attrs when parsing pasted HTML', async () => {

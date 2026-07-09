@@ -218,6 +218,7 @@ function pressEnter(view: EditorView) {
   let handled = false;
   view.someProp('handleKeyDown', (handleKeyDown: any) => {
     handled = handleKeyDown(view, event) || handled;
+    return handled;
   });
 
   return { event, handled };
@@ -390,6 +391,13 @@ function collectTaskItemCheckedAttrs(view: EditorView): boolean[] {
     return true;
   });
   return checkedAttrs;
+}
+
+function expectSelectionInEmptyListItem(view: EditorView) {
+  expect(selectionAncestorNames(view)).toContain('list_item');
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+  expect(view.state.selection.$from.parent.textContent).toBe('');
+  expect(view.state.selection.$from.parentOffset).toBe(0);
 }
 
 function getMarkdown(editor: any): string {
@@ -1140,6 +1148,91 @@ describe('listTabIndentPlugin', () => {
     expect(list.child(0).textContent).toBe('one');
     expect(list.child(1).textContent).toBe('');
     expect(list.child(2).textContent).toBe('two');
+  });
+
+  it('keeps the cursor in the new empty ordered item when pressing Enter at item text start', async () => {
+    const editor = createEditorWithContent(['1. 2', '2. 3'].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorBeforeText(view, '2');
+
+    const { event, handled } = pressEnter(view);
+
+    expect(handled).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+    expect(collectListItemPrimaryTexts(view)).toEqual(['', '2', '3']);
+    expect(collectOrderedListLabels(view)).toEqual([['1.', '2.', '3.']]);
+    expectSelectionInEmptyListItem(view);
+
+    typeText(view, '1');
+
+    expect(collectListItemPrimaryTexts(view)).toEqual(['1', '2', '3']);
+
+    await editor.destroy();
+  });
+
+  it('keeps the cursor in the new empty bullet item when pressing Enter at item text start', async () => {
+    const editor = createEditorWithContent(['- 2', '- 3'].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorBeforeText(view, '2');
+
+    const { event, handled } = pressEnter(view);
+
+    expect(handled).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+    expect(collectListItemPrimaryTexts(view)).toEqual(['', '2', '3']);
+    expectSelectionInEmptyListItem(view);
+
+    typeText(view, '1');
+
+    expect(collectListItemPrimaryTexts(view)).toEqual(['1', '2', '3']);
+
+    await editor.destroy();
+  });
+
+  it('keeps the cursor in the new empty task item when pressing Enter at item text start', async () => {
+    const editor = createEditorWithContent(['- [ ] 2', '- [x] 3'].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorBeforeText(view, '2');
+
+    const { event, handled } = pressEnter(view);
+
+    expect(handled).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+    expect(collectListItemPrimaryTexts(view)).toEqual(['', '2', '3']);
+    expect(collectTaskItemCheckedAttrs(view)).toEqual([false, false, true]);
+    expectSelectionInEmptyListItem(view);
+
+    typeText(view, '1');
+
+    expect(collectListItemPrimaryTexts(view)).toEqual(['1', '2', '3']);
+
+    await editor.destroy();
+  });
+
+  it('keeps the cursor in the list when backspacing an empty item created at item text start', async () => {
+    const editor = createEditorWithContent(['1. 2', '2. 3'].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorBeforeText(view, '2');
+
+    pressEnter(view);
+    const { handled } = pressBackspace(view);
+
+    expect(handled).toBe(true);
+    expect(collectListItemPrimaryTexts(view)).toEqual(['2', '3']);
+    expect(collectOrderedListLabels(view)).toEqual([['1.', '2.']]);
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+    expect(view.state.selection.$from.parent.textContent).toBe('2');
+    expect(view.state.selection.$from.parentOffset).toBe(0);
+
+    await editor.destroy();
   });
 
   it('keeps parent and nested ordered list labels stable after indenting with Tab', async () => {

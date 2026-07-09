@@ -3,6 +3,7 @@ import type { EditorView } from '@milkdown/prose/view'
 
 import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/core'
 import { DOMParser as ProseDOMParser } from '@milkdown/prose/model'
+import { TextSelection } from '@milkdown/prose/state'
 import { getMarkdown } from '@milkdown/utils'
 import { expect, it, vi } from 'vitest'
 
@@ -37,6 +38,95 @@ function typeText(view: EditorView, input: string) {
   }
 }
 
+function moveCursorBeforeText(view: EditorView, text: string) {
+  let pos: number | null = null
+  view.state.doc.descendants((node, nodePos) => {
+    if (pos !== null || !node.isText || typeof node.text !== 'string') return
+    const index = node.text.indexOf(text)
+    if (index < 0) return
+    pos = nodePos + index
+  })
+  if (pos === null) throw new Error(`Expected text: ${text}`)
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)))
+}
+
+function moveCursorAfterText(view: EditorView, text: string) {
+  let pos: number | null = null
+  view.state.doc.descendants((node, nodePos) => {
+    if (pos !== null || !node.isText || typeof node.text !== 'string') return
+    const index = node.text.indexOf(text)
+    if (index < 0) return
+    pos = nodePos + index + text.length
+  })
+  if (pos === null) throw new Error(`Expected text: ${text}`)
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)))
+}
+
+function pressEnter(view: EditorView) {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+  })
+  let handled = false
+
+  view.someProp('handleKeyDown', (handleKeyDown) => {
+    handled = handleKeyDown(view, event) || handled
+    return handled
+  })
+
+  expect(handled).toBe(true)
+}
+
+function pressKey(view: EditorView, key: string) {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+  })
+  let handled = false
+
+  view.someProp('handleKeyDown', (handleKeyDown) => {
+    handled = handleKeyDown(view, event) || handled
+    return handled
+  })
+
+  expect(handled).toBe(true)
+}
+
+function pressBackspace(view: EditorView) {
+  pressKey(view, 'Backspace')
+}
+
+function pressDelete(view: EditorView) {
+  pressKey(view, 'Delete')
+}
+
+function collectListItemPrimaryTexts(view: EditorView): string[] {
+  const texts: string[] = []
+  view.state.doc.descendants((node) => {
+    if (node.type.name !== 'list_item') return true
+    const firstChild = node.firstChild
+    texts.push(firstChild?.type.name === 'paragraph' ? firstChild.textContent : '')
+    return true
+  })
+  return texts
+}
+
+function collectOrderedListLabels(view: EditorView): string[][] {
+  const labels: string[][] = []
+  view.state.doc.descendants((node) => {
+    if (node.type.name !== 'ordered_list') return true
+    const listLabels: string[] = []
+    node.forEach((child) => {
+      listLabels.push(String(child.attrs.label ?? ''))
+    })
+    labels.push(listLabels)
+    return true
+  })
+  return labels
+}
+
 it.each(['2. hello', '２. hello', '2． hello', '２． hello'])(
   'should preserve ordered list start when created from input rule: %s',
   async (input) => {
@@ -54,6 +144,185 @@ it.each(['2. hello', '２. hello', '2． hello', '２． hello'])(
     expect(markdown).toBe('2. hello\n')
   }
 )
+
+it.each([
+  ['ordered', '1. 2\n2. 3'],
+  ['bullet', '- 2\n- 3'],
+])('should keep cursor in a new empty %s item when pressing enter at item text start', async (_name, input) => {
+  const editor = createEditor(input)
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+
+  pressEnter(view)
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['', '2', '3'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  typeText(view, '1')
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['1', '2', '3'])
+
+  await editor.destroy()
+})
+
+it('should keep cursor in a new empty middle list item when pressing enter at item text start', async () => {
+  const editor = createEditor('1. 1\n2. 2\n3. 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+
+  pressEnter(view)
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['1', '', '2', '3'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  typeText(view, 'new')
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['1', 'new', '2', '3'])
+
+  await editor.destroy()
+})
+
+it('should preserve ordered list start when pressing enter at first item text start', async () => {
+  const editor = createEditor('5. 2\n6. 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+
+  pressEnter(view)
+
+  expect(view.state.doc.firstChild?.attrs.order).toBe(5)
+  expect(collectOrderedListLabels(view)).toEqual([['5.', '6.', '7.']])
+  expect(collectListItemPrimaryTexts(view)).toEqual(['', '2', '3'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  await editor.destroy()
+})
+
+it('should remove the empty item when backspacing after enter at item text start', async () => {
+  const editor = createEditor('1. 2\n2. 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+  pressEnter(view)
+  pressBackspace(view)
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['2', '3'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('2')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  await editor.destroy()
+})
+
+it('should remove the empty item when deleting after enter at item text start', async () => {
+  const editor = createEditor('1. 2\n2. 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+  pressEnter(view)
+  pressDelete(view)
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['2', '3'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('2')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  await editor.destroy()
+})
+
+it('should return to the previous item when backspacing an empty item created at item end', async () => {
+  const editor = createEditor('1. 1\n2. 2')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorAfterText(view, '1')
+  pressEnter(view)
+  pressBackspace(view)
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['1', '2'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('1')
+  expect(view.state.selection.$from.parentOffset).toBe(1)
+
+  await editor.destroy()
+})
+
+it('should return to the previous item when backspacing a middle empty list item', async () => {
+  const editor = createEditor('1. 1\n2. 2\n3. 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+  pressEnter(view)
+  pressBackspace(view)
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['1', '2', '3'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('1')
+  expect(view.state.selection.$from.parentOffset).toBe(1)
+
+  await editor.destroy()
+})
+
+it('should keep cursor in a nested list when backspacing a nested empty item', async () => {
+  const editor = createEditor('- parent\n  - 2\n  - 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+  pressEnter(view)
+  pressBackspace(view)
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['parent', '2', '3'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('2')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  await editor.destroy()
+})
+
+it('should keep cursor in a new empty nested list item when pressing enter at nested item text start', async () => {
+  const editor = createEditor('- parent\n  - 2\n  - 3')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  moveCursorBeforeText(view, '2')
+
+  pressEnter(view)
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['parent', '', '2', '3'])
+  expect(view.state.selection.$from.parent.type.name).toBe('paragraph')
+  expect(view.state.selection.$from.parent.textContent).toBe('')
+  expect(view.state.selection.$from.parentOffset).toBe(0)
+
+  typeText(view, '1')
+
+  expect(collectListItemPrimaryTexts(view)).toEqual(['parent', '1', '2', '3'])
+
+  await editor.destroy()
+})
 
 it('should preserve ordered list start when loading markdown', async () => {
   const editor = createEditor('2. hello\n')
