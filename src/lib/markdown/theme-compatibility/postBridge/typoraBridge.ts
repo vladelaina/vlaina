@@ -44,6 +44,9 @@ function buildTyporaBlockSelectionBridge(write: string): string[] {
   const editor = `:is(${write}.ProseMirror, ${write} .ProseMirror)`;
   const selectingEditor = `${editor}:is(.editor-block-selection-active, .editor-block-selection-pending)`;
   const pendingEditor = `${editor}.editor-block-selection-pending`;
+  const selectedInlineColorExclusions = ':not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *)';
+  const selectedLinkContainers = ':is(.editor-block-selected, .editor-block-selected-textlike, .editor-block-drag-source-textlike, .editor-native-selected-textlike, .editor-block-selected-large-textlike)';
+  const linkColor = 'var(--typora-link-color, var(--primary-color, var(--text-accent, var(--vlaina-accent))))';
 
   return [
     ...cssRule(
@@ -57,14 +60,24 @@ function buildTyporaBlockSelectionBridge(write: string): string[] {
     ),
     ...cssRule(
       [
-        `${selectingEditor} .editor-block-selected:not(.code-block-container):not(.mermaid-block)`,
-        `${selectingEditor} .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *)`,
-        `${selectingEditor} .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block)`,
-        `${selectingEditor} .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *)`,
+        `${selectingEditor} .editor-block-selected:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token)`,
+        `${selectingEditor} .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *)${selectedInlineColorExclusions}`,
+        `${selectingEditor} .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token)`,
+        `${selectingEditor} .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *)${selectedInlineColorExclusions}`,
       ],
       [
         important('color', 'var(--vlaina-editor-block-selection-fg)'),
         important('-webkit-text-fill-color', 'var(--vlaina-editor-block-selection-fg)'),
+      ],
+    ),
+    ...cssRule(
+      [
+        `${editor} ${selectedLinkContainers} :is(a, .external-link, .internal-link)`,
+        `${editor} ${selectedLinkContainers}:is(a, .external-link, .internal-link)`,
+      ],
+      [
+        important('color', linkColor),
+        important('-webkit-text-fill-color', linkColor),
       ],
     ),
     ...cssRule(

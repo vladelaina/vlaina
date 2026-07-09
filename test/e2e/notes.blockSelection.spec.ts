@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   BLOCK_CONTROLS_SELECTOR,
   EDITOR_SELECTOR,
@@ -17,6 +19,65 @@ import {
   moveMouseToBlockHandleGutter,
   measureCollapseToggleClearance,
 } from "./notesBlockSelectionShared";
+
+async function installSyntheticTyporaLinkTheme(page: Page) {
+  const themeDirectoryPath = await page.evaluate(() =>
+    (window as any).__vlainaE2E.getImportedMarkdownThemesDirectoryPath()
+  );
+  const cssFilename = 'block-selection-link-color-typora.css';
+  const css = [
+    ':root { --a-c: #1167ff; --text-color: #242424; --bg-color: #ffffff; }',
+    '#write { color: var(--text-color); background: var(--bg-color); }',
+    '#write a {',
+    '  color: var(--a-c) !important;',
+    '  -webkit-text-fill-color: var(--a-c) !important;',
+    '}',
+  ].join('\n');
+
+  await fs.mkdir(themeDirectoryPath, { recursive: true });
+  await fs.writeFile(path.join(themeDirectoryPath, cssFilename), css, 'utf8');
+
+  const syncResult = await page.evaluate(() =>
+    (window as any).__vlainaE2E.syncImportedMarkdownThemesFromDirectory()
+  );
+  const theme = syncResult.themes.find((candidate: { sourcePath?: string | null; name: string }) =>
+    candidate.sourcePath?.replace(/\\/g, '/').endsWith(`/${cssFilename}`) ||
+    candidate.name === cssFilename.replace(/\.css$/i, '')
+  );
+
+  if (!theme) {
+    throw new Error([
+      `Could not sync synthetic Typora link theme ${cssFilename}`,
+      `themeDirectoryPath=${themeDirectoryPath}`,
+      `syncResult=${JSON.stringify(syncResult)}`,
+    ].join('\n'));
+  }
+
+  await page.evaluate((themeId) =>
+    (window as any).__vlainaE2E.setMarkdownImportedThemeId(themeId), theme.id);
+  await expect.poll(() => page.evaluate((themeId) => {
+    const root = document.querySelector<HTMLElement>('[data-markdown-theme-root="true"]');
+    return {
+      compatLayer: root?.dataset.markdownCompatLayer ?? null,
+      importedTheme: root?.dataset.markdownImportedTheme ?? null,
+      platform: root?.dataset.markdownThemePlatform ?? null,
+      rootTheme: document.documentElement.getAttribute('data-vlaina-imported-app-theme'),
+      markdownStyle: Boolean(document.head.querySelector(
+        `style[data-vlaina-imported-markdown-theme="true"]#vlaina-imported-markdown-theme-${CSS.escape(themeId)}`
+      )),
+      postBridgeStyle: Boolean(document.head.querySelector(
+        `style[data-vlaina-imported-markdown-theme-post-bridge="true"]#vlaina-imported-markdown-theme-post-bridge-${CSS.escape(themeId)}`
+      )),
+    };
+  }, theme.id), { timeout: 30_000 }).toMatchObject({
+    compatLayer: 'external',
+    importedTheme: theme.id,
+    markdownStyle: true,
+    platform: 'typora',
+    postBridgeStyle: true,
+    rootTheme: theme.id,
+  });
+}
 
 test.describe("notes block selection", () => {
   test.setTimeout(90_000);
@@ -305,6 +366,84 @@ test.describe("notes block selection", () => {
       expect(largeSelection!.largeActive, JSON.stringify(largeSelection, null, 2)).toBe(true);
       expect(largeSelection!.color, JSON.stringify({ baseline, largeSelection }, null, 2)).toBe(largeSelection!.selectionColor);
       expect(largeSelection!.textFillColor, JSON.stringify({ baseline, largeSelection }, null, 2)).toBe(largeSelection!.selectionTextFillColor);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps selected links at their original link color', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-link-color');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-link-color.md',
+        content: [
+          'Before selected link color',
+          '',
+          '[Selected link target](https://example.com/selected-link-color) trailing text.',
+          '',
+          'After selected link color',
+        ].join('\n'),
+      });
+      await installSyntheticTyporaLinkTheme(page);
+
+      const readLinkColors = () => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const link = document.querySelector<HTMLElement>('a[href="https://example.com/selected-link-color"]');
+        const paragraph = link?.closest('p') as HTMLElement | null;
+        if (!editor || !link || !paragraph) return null;
+
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--vlaina-editor-block-selection-fg)';
+        probe.style.setProperty('-webkit-text-fill-color', 'var(--vlaina-editor-block-selection-fg)');
+        document.body.append(probe);
+        const selectionProbeStyle = getComputedStyle(probe);
+        const linkStyle = getComputedStyle(link);
+        const paragraphStyle = getComputedStyle(paragraph);
+        const result = {
+          editorClassName: editor.className,
+          linkClassName: link.className,
+          linkColor: linkStyle.color,
+          linkTextFillColor: linkStyle.getPropertyValue('-webkit-text-fill-color'),
+          paragraphClassName: paragraph.className,
+          paragraphColor: paragraphStyle.color,
+          paragraphTextFillColor: paragraphStyle.getPropertyValue('-webkit-text-fill-color'),
+          selectionColor: selectionProbeStyle.color,
+          selectionTextFillColor: selectionProbeStyle.getPropertyValue('-webkit-text-fill-color'),
+          selected: paragraph.classList.contains('editor-block-selected'),
+        };
+        probe.remove();
+        return result;
+      });
+
+      const baseline = await readLinkColors();
+      expect(baseline).not.toBeNull();
+      expect(baseline!.linkColor, JSON.stringify(baseline, null, 2)).not.toBe(baseline!.selectionColor);
+      expect(baseline!.linkTextFillColor, JSON.stringify(baseline, null, 2)).toBe(baseline!.linkColor);
+
+      const linkBlockIndex = await page.evaluate(() => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
+        return blocks.findIndex((block) => block.text.includes('Selected link target'));
+      });
+      expect(linkBlockIndex).toBeGreaterThanOrEqual(0);
+
+      const selectedCount = await page.evaluate(async (index) => {
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([index]);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      }, linkBlockIndex);
+      expect(selectedCount).toBe(1);
+
+      const selected = await readLinkColors();
+      expect(selected).not.toBeNull();
+      expect(selected!.selected, JSON.stringify(selected, null, 2)).toBe(true);
+      expect(selected!.paragraphColor, JSON.stringify({ baseline, selected }, null, 2)).toBe(selected!.selectionColor);
+      expect(selected!.paragraphTextFillColor, JSON.stringify({ baseline, selected }, null, 2)).toBe(selected!.selectionTextFillColor);
+      expect(selected!.linkColor, JSON.stringify({ baseline, selected }, null, 2)).toBe(baseline!.linkColor);
+      expect(selected!.linkTextFillColor, JSON.stringify({ baseline, selected }, null, 2)).toBe(baseline!.linkTextFillColor);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
