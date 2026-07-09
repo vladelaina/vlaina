@@ -90,6 +90,14 @@ function createMarkdownBlankLineNode(view: EditorView): ProseNode {
   return view.state.schema.nodes.paragraph.create();
 }
 
+function createRenderedHtmlBoundaryBlankLineNode(view: EditorView): ProseNode {
+  const htmlBlockType = view.state.schema.nodes.html_block;
+  if (htmlBlockType) {
+    return htmlBlockType.create({ value: '<!--vlaina-rendered-html-boundary-blank-line-->' });
+  }
+  return view.state.schema.nodes.paragraph.create();
+}
+
 function findTopLevelBlockByText(view: EditorView, text: string): BlockRange {
   let result: BlockRange | null = null;
   view.state.doc.forEach((node, offset) => {
@@ -360,7 +368,7 @@ describe('applyBlockMove content integrity', () => {
     await editor.destroy();
   });
 
-  it('removes target markdown blank-line blocks when moved frontmatter becomes body text', async () => {
+  it('removes target editor blank-line blocks when moved frontmatter becomes body text', async () => {
     const referenceMarkdown = [
       '---',
       'hi',
@@ -379,7 +387,7 @@ describe('applyBlockMove content integrity', () => {
     replaceDocument(view, [
       view.state.schema.nodes.frontmatter.create(null, view.state.schema.text('hi')),
       createParagraphNode(view, '1'),
-      createMarkdownBlankLineNode(view),
+      createRenderedHtmlBoundaryBlankLineNode(view),
       createParagraphNode(view, '2'),
     ]);
 

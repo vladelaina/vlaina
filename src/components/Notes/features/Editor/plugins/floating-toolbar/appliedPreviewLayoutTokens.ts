@@ -31,6 +31,7 @@ export const MEDIA_ADJACENT_LAYOUT_STYLE_PROPS = [
 export type MediaAdjacentLayoutStyleProp = typeof MEDIA_ADJACENT_LAYOUT_STYLE_PROPS[number];
 
 export const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
+export const RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE = '<!--vlaina-rendered-html-boundary-blank-line-->';
 
 export const MARKDOWN_BLANK_LINE_CLASS_NAMES = [
   'editor-editable-markdown-blank-line',

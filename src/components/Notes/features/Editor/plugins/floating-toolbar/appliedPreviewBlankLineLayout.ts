@@ -2,14 +2,20 @@ import {
   MARKDOWN_BLANK_LINE_CLASS_NAMES,
   MARKDOWN_BLANK_LINE_STYLE_PROPS,
   MARKDOWN_BLANK_LINE_VALUE,
+  RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE,
   copyAllowedClasses,
   mirrorLayoutStyles,
 } from './appliedPreviewLayoutTokens';
 
+const BLANK_LINE_HTML_BLOCK_VALUES = new Set([
+  MARKDOWN_BLANK_LINE_VALUE,
+  RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE,
+]);
+
 function isMarkdownBlankLineElement(element: HTMLElement): boolean {
   if (
     element.dataset.type === 'html-block' &&
-    element.dataset.value === MARKDOWN_BLANK_LINE_VALUE
+    BLANK_LINE_HTML_BLOCK_VALUES.has(element.dataset.value ?? '')
   ) {
     return true;
   }
@@ -59,7 +65,7 @@ export function stabilizePreviewBlankLineLayout(previewDom: HTMLElement, sourceD
 
     copyAllowedClasses(sourceElement, previewElement, MARKDOWN_BLANK_LINE_CLASS_NAMES);
     if (sourceElement.dataset.type === 'html-block') {
-      previewElement.dataset.value = MARKDOWN_BLANK_LINE_VALUE;
+      previewElement.dataset.value = sourceElement.dataset.value ?? MARKDOWN_BLANK_LINE_VALUE;
     }
     mirrorLayoutStyles(sourceElement, previewElement, MARKDOWN_BLANK_LINE_STYLE_PROPS);
   });
