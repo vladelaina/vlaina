@@ -60,9 +60,20 @@ function getImageExtensionFromMimeType(mimeType: string): string {
   }
 }
 
-function normalizeUploadImageMimeType(value: string): string | null {
+function normalizeUploadImageMimeType(value: string, fileName: string): string | null {
   const mimeType = value.split(';')[0]?.trim().toLowerCase() ?? '';
-  return Object.prototype.hasOwnProperty.call(IMAGE_UPLOAD_EXTENSIONS_BY_MIME, mimeType) ? mimeType : null;
+  if (Object.prototype.hasOwnProperty.call(IMAGE_UPLOAD_EXTENSIONS_BY_MIME, mimeType)) {
+    return mimeType;
+  }
+
+  if (mimeType && mimeType !== 'application/octet-stream') {
+    return null;
+  }
+
+  const inferredMimeType = getMimeType(fileName);
+  return Object.prototype.hasOwnProperty.call(IMAGE_UPLOAD_EXTENSIONS_BY_MIME, inferredMimeType)
+    ? inferredMimeType
+    : null;
 }
 
 function getFileExtension(fileName: string): string {
@@ -119,7 +130,7 @@ export async function uploadAssetFile(
     return { success: false, path: null, isDuplicate: false, error: createAssetSizeError(file.size) };
   }
 
-  const uploadMimeType = normalizeUploadImageMimeType(file.type);
+  const uploadMimeType = normalizeUploadImageMimeType(file.type, file.name);
   if (!uploadMimeType) {
     return { success: false, path: null, isDuplicate: false, error: `Invalid file type: ${file.type}. Only images are allowed.` };
   }

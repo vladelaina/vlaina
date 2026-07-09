@@ -24,6 +24,7 @@ type LayoutSample = {
   currentPath: string | null;
   editorText: string;
   coverCount: number;
+  coverRegionHeight: number | null;
   placeholderCount: number;
   contentTop: number | null;
   editorTop: number | null;
@@ -59,6 +60,7 @@ async function startNoCoverLayoutProbe(page: Page) {
       if (stopped) return;
       const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
       const contentRoot = document.querySelector<HTMLElement>('[data-note-content-root="true"]');
+      const coverRegion = document.querySelector<HTMLElement>('[data-note-cover-region="true"]');
       const heading = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror h1'))
         .find((element) => element.textContent?.includes('Plain No Cover')) ?? null;
       const paragraph = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror p'))
@@ -71,6 +73,7 @@ async function startNoCoverLayoutProbe(page: Page) {
         currentPath: state?.currentNote?.path ?? null,
         editorText: (editor?.textContent ?? '').slice(0, 160),
         coverCount: document.querySelectorAll('[data-note-cover-region="true"]').length,
+        coverRegionHeight: coverRegion ? Math.round(coverRegion.getBoundingClientRect().height) : null,
         placeholderCount: document.querySelectorAll('[data-note-cover-placeholder="true"]').length,
         contentTop: readRectTop(contentRoot),
         editorTop: readRectTop(editor),
@@ -190,9 +193,90 @@ test.describe('notes no-cover open layout stability', () => {
 
       const addCoverOverlay = page.locator(NOTE_COVER_ADD_OVERLAY_SELECTOR);
       await expect(addCoverOverlay).toBeVisible();
+      await startNoCoverLayoutProbe(page);
       await addCoverOverlay.click();
-      await expect(page.locator(NOTE_COVER_REGION_SELECTOR)).toBeVisible();
       await expect(page.locator('[data-slot="popover-content"]')).toBeVisible();
+      const pickerPlacement = await page.evaluate(() => {
+        const overlay = document.querySelector<HTMLElement>('[data-note-cover-add-overlay="true"]');
+        const popover = document.querySelector<HTMLElement>('[data-slot="popover-content"]');
+        const overlayRect = overlay?.getBoundingClientRect();
+        const popoverRect = popover?.getBoundingClientRect();
+
+        return overlayRect && popoverRect
+          ? {
+            overlayBottom: Math.round(overlayRect.bottom),
+            overlayRight: Math.round(overlayRect.right),
+            popoverTop: Math.round(popoverRect.top),
+            popoverRight: Math.round(popoverRect.right),
+          }
+          : null;
+      });
+      expect(pickerPlacement, JSON.stringify(pickerPlacement, null, 2)).not.toBeNull();
+      expect(pickerPlacement!.popoverTop, JSON.stringify(pickerPlacement, null, 2))
+        .toBeGreaterThanOrEqual(pickerPlacement!.overlayBottom);
+      expect(Math.abs(pickerPlacement!.popoverRight - pickerPlacement!.overlayRight), JSON.stringify(pickerPlacement, null, 2))
+        .toBeLessThanOrEqual(24);
+      await page.waitForTimeout(500);
+
+      const addCoverSamples = await stopNoCoverLayoutProbe(page);
+      const addCoverVisibleSamples = addCoverSamples.filter((sample) => sample.headingTop !== null);
+      const addCoverHeadingTops = addCoverVisibleSamples.map((sample) => sample.headingTop!);
+      const addCoverParagraphTops = addCoverVisibleSamples
+        .map((sample) => sample.paragraphTop)
+        .filter((top): top is number => top !== null);
+      const addCoverRegionHeights = addCoverSamples
+        .map((sample) => sample.coverRegionHeight)
+        .filter((height): height is number => height !== null);
+      const addCoverMaxRegionHeight = Math.max(0, ...addCoverRegionHeights);
+      const addCoverHeadingDelta = Math.max(...addCoverHeadingTops) - Math.min(...addCoverHeadingTops);
+      const addCoverParagraphDelta = Math.max(...addCoverParagraphTops) - Math.min(...addCoverParagraphTops);
+
+      console.info('[notes-no-cover-add-layout]', {
+        sampleCount: addCoverSamples.length,
+        visiblePlainSampleCount: addCoverVisibleSamples.length,
+        headingDelta: addCoverHeadingDelta,
+        paragraphDelta: addCoverParagraphDelta,
+        maxCoverRegionHeight: addCoverMaxRegionHeight,
+      });
+
+      expect(addCoverVisibleSamples.length).toBeGreaterThan(2);
+      expect(addCoverHeadingDelta).toBeLessThanOrEqual(2);
+      expect(addCoverParagraphDelta).toBeLessThanOrEqual(2);
+      expect(addCoverMaxRegionHeight).toBeLessThanOrEqual(1);
+
+      const coverAssetItem = page.locator('[data-filename="./assets/cover.svg"]').first();
+      await expect(coverAssetItem).toBeVisible({ timeout: 10_000 });
+      const coverAssetBox = await coverAssetItem.boundingBox();
+      expect(coverAssetBox).not.toBeNull();
+      await page.mouse.move(
+        coverAssetBox!.x + coverAssetBox!.width / 2,
+        coverAssetBox!.y + coverAssetBox!.height / 2,
+      );
+      await expect(page.locator(`${NOTE_COVER_REGION_SELECTOR} > img`).first()).toBeVisible({ timeout: 10_000 });
+      const previewHeight = await page.locator(NOTE_COVER_REGION_SELECTOR).evaluate((element) =>
+        Math.round(element.getBoundingClientRect().height)
+      );
+      expect(previewHeight).toBeGreaterThan(100);
+
+      await startNoCoverLayoutProbe(page);
+      const popoverBox = await page.locator('[data-slot="popover-content"]').boundingBox();
+      expect(popoverBox).not.toBeNull();
+      await page.mouse.move(popoverBox!.x + 12, popoverBox!.y + 12);
+      await page.waitForTimeout(350);
+      const previewLeaveSamples = await stopNoCoverLayoutProbe(page);
+      const previewHeights = previewLeaveSamples
+        .map((sample) => sample.coverRegionHeight)
+        .filter((height): height is number => height !== null);
+      const minPreviewHeight = previewHeights.length ? Math.min(...previewHeights) : 0;
+
+      console.info('[notes-no-cover-preview-leave-layout]', {
+        sampleCount: previewLeaveSamples.length,
+        previewHeight,
+        minPreviewHeight,
+      });
+
+      expect(previewHeights.length).toBeGreaterThan(2);
+      expect(minPreviewHeight).toBeGreaterThanOrEqual(previewHeight - 1);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

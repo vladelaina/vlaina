@@ -930,7 +930,6 @@ test.describe('notes top cover e2e coverage', () => {
       const addCoverOverlay = page.locator(NOTE_COVER_ADD_OVERLAY_SELECTOR);
       await expect(addCoverOverlay).toBeVisible();
       await addCoverOverlay.click();
-      await expect(page.locator(NOTE_COVER_REGION_SELECTOR)).toBeVisible();
       await expect(page.locator('[data-slot="popover-content"]')).toBeVisible();
       await expectCoverFrontmatter(page, notePath, (frontmatter) => frontmatter.assetPath === null);
 

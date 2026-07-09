@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
+import { isImageFileLike } from '@/lib/assets/core/naming';
 import { isEditableTarget } from '../model/whiteboardInteractions';
 import type { WhiteboardConnector, WhiteboardElement, WhiteboardStroke, WhiteboardTool } from '../model/whiteboardModel';
 import { cloneConnectorsForElements, cloneElements, cloneStrokes } from '../model/whiteboardTransform';
@@ -106,7 +107,7 @@ export function useWhiteboardClipboard({
     if (!active) return undefined;
     const handlePaste = (event: ClipboardEvent) => {
       if (isEditableTarget(event.target)) return;
-      const imageFile = Array.from(event.clipboardData?.files ?? []).find((file) => file.type.startsWith('image/'));
+      const imageFile = Array.from(event.clipboardData?.files ?? []).find(isImageFileLike);
       if (!imageFile) return;
       event.preventDefault();
       importImage(imageFile);

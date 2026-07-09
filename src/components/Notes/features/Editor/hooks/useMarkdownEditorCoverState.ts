@@ -80,7 +80,7 @@ export function useMarkdownEditorCoverState({
 
   return {
     coverController,
-    coverLayoutActive: Boolean(coverUrl) || Boolean(renderedCoverController?.cover.url) || coverController.isPickerOpen,
+    coverLayoutActive: Boolean(coverUrl) || Boolean(renderedCoverController?.cover.url),
     coverUrl,
     renderedCoverController,
     reservedCoverHeight: coverController.cover.height ?? DEFAULT_COVER_HEIGHT,

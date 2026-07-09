@@ -11,6 +11,18 @@ const hoisted = vi.hoisted(() => ({
   isLoadingAssets: false,
 }));
 
+const supportedImageFilenames = [
+  'photo.jpg',
+  'photo.jpeg',
+  'screenshot.png',
+  'animation.gif',
+  'cover.webp',
+  'diagram.svg',
+  'scan.bmp',
+  'favicon.ico',
+  'photo.avif',
+];
+
 vi.mock('@/stores/notes/useNotesStore', () => ({
   useNotesStore: (selector: (state: any) => unknown) => selector({
     assetList: hoisted.assetList,
@@ -45,7 +57,7 @@ vi.mock('@/components/ui/popover', () => ({
 
 vi.mock('./AssetGrid', () => ({
   AssetGrid: ({ onHover }: { onHover?: (assetPath: string | null) => void }) => (
-    <div data-testid="asset-grid">
+    <div data-testid="asset-grid" onMouseLeave={() => onHover?.(null)}>
       <button type="button" onMouseEnter={() => onHover?.('a.png')}>
         hover a
       </button>
@@ -88,6 +100,23 @@ describe('CoverPicker', () => {
     expect(pickerShell?.className).toContain(chatComposerPillSurfaceClass);
     expect(pickerShell?.className).toContain('!rounded-[var(--vlaina-radius-26px)]');
     expect(pickerShell?.getAttribute('data-no-editor-drag-box')).toBe('true');
+  });
+
+  it('can anchor the picker at the empty cover option bottom edge', () => {
+    const { container } = render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        notesRootPath="/notesRoot"
+        currentNotePath="note.md"
+        anchorPlacement="empty-cover-option"
+      />,
+    );
+
+    const anchor = Array.from(container.querySelectorAll('div'))
+      .find((element) => element.className.includes('top-[var(--vlaina-size-80px)]'));
+    expect(anchor?.className).toContain('right-[max(var(--vlaina-size-16px)');
   });
 
   it('removes the current cover without bubbling pointer events to cover interactions', () => {
@@ -188,6 +217,83 @@ describe('CoverPicker', () => {
     expect(onPreview).toHaveBeenCalledTimes(1);
     expect(onPreview).toHaveBeenCalledWith('b.png');
     vi.useRealTimers();
+  });
+
+  it('keeps the visible preview when leaving the asset grid inside the picker', async () => {
+    hoisted.loadAssets.mockResolvedValue(undefined);
+    hoisted.assetList = [{ filename: 'a.png' }];
+    const onPreview = vi.fn();
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onPreview={onPreview}
+        notesRootPath="/notesRoot"
+        currentNotePath="note.md"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('asset-grid')).toBeInTheDocument());
+
+    vi.useFakeTimers();
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'hover a' }));
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+    expect(onPreview).toHaveBeenCalledWith('a.png');
+
+    fireEvent.mouseLeave(screen.getByTestId('asset-grid'));
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+
+    expect(onPreview).not.toHaveBeenCalledWith(null);
+    vi.useRealTimers();
+  });
+
+  it.each(supportedImageFilenames)('uploads a pasted %s when clipboard MIME is missing', async (filename) => {
+    hoisted.uploadAsset.mockResolvedValue({
+      success: true,
+      path: `./assets/${filename}`,
+      isDuplicate: false,
+    });
+    const onSelect = vi.fn();
+    const file = new File(['image'], filename, { type: '' });
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={onSelect}
+        notesRootPath="/notesRoot"
+        currentNotePath="note.md"
+      />,
+    );
+
+    const pasteEvent = new Event('paste', { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(pasteEvent, 'clipboardData', {
+      value: {
+        items: [
+          {
+            kind: 'file',
+            type: '',
+            getAsFile: () => file,
+          },
+        ],
+      },
+    });
+    await act(async () => {
+      document.dispatchEvent(pasteEvent);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(hoisted.uploadAsset).toHaveBeenCalledWith(file, 'note.md');
+    });
+    expect(onSelect).toHaveBeenCalledWith(`./assets/${filename}`);
+    expect(pasteEvent.defaultPrevented).toBe(true);
   });
 
   it('starts asset reload when the picker opens and uses the latest note scope', async () => {

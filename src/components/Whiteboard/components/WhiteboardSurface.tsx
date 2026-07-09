@@ -1,4 +1,5 @@
 import { useLayoutEffect, useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject, type WheelEvent } from 'react';
+import { isImageFileLike } from '@/lib/assets/core/naming';
 import { cn } from '@/lib/utils';
 import { WhiteboardCanvasLayer } from './WhiteboardCanvasLayer';
 import {
@@ -197,9 +198,16 @@ export function WhiteboardSurface({
 }
 
 function hasImageFile(dataTransfer: DataTransfer): boolean {
-  return Array.from(dataTransfer.items).some((item) => item.kind === 'file' && item.type.startsWith('image/'));
+  return Array.from(dataTransfer.items).some((item) => {
+    if (item.kind !== 'file') return false;
+    const itemMimeType = item.type.split(';')[0]?.trim().toLowerCase() ?? '';
+    if (itemMimeType.startsWith('image/')) return true;
+    if (itemMimeType && itemMimeType !== 'application/octet-stream') return false;
+    const file = item.getAsFile();
+    return file ? isImageFileLike(file) : false;
+  });
 }
 
 function getFirstImageFile(dataTransfer: DataTransfer): File | null {
-  return Array.from(dataTransfer.files).find((file) => file.type.startsWith('image/')) ?? null;
+  return Array.from(dataTransfer.files).find(isImageFileLike) ?? null;
 }

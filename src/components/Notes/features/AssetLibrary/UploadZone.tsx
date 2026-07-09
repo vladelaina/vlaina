@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
+import { isImageFileLike } from '@/lib/assets/core/naming';
 import { UploadZoneProps } from './types';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
@@ -45,7 +46,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
   }, []);
 
   const handleFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (!isImageFileLike(file)) {
       setStatus('error');
       setMessage(t('asset.onlyImageFilesSupported'));
       scheduleReset(3000);
