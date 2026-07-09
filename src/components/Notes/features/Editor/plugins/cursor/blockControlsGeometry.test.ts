@@ -87,4 +87,59 @@ describe('setControlsPosition', () => {
     const listToggleLeft = listTarget.rect.left - LIST_COLLAPSE_LEFT_OFFSET_PX;
     expect(listToggleLeft - listControlsRight).toBeGreaterThanOrEqual(BLOCK_CONTROLS_COLLAPSE_GAP_PX);
   });
+
+  it('uses rendered collapse toggle geometry when large fonts move toggles farther left', () => {
+    const controls = document.createElement('div');
+    Object.defineProperty(controls, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        height: 24,
+        width: BLOCK_CONTROL_BUTTON_SIZE_PX,
+      }),
+    });
+
+    const heading = document.createElement('h1');
+    const headingToggle = document.createElement('button');
+    headingToggle.className = 'heading-toggle-btn';
+    headingToggle.dataset.hasContent = 'true';
+    Object.defineProperty(headingToggle, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        height: 18,
+        left: 112,
+        width: 18,
+      }),
+    });
+    heading.appendChild(headingToggle);
+
+    setControlsPosition(controls, {
+      ...createTarget(160, 40, 20, false),
+      element: heading,
+    }, BLOCK_CONTROLS_LEFT_OFFSET_PX);
+
+    let controlsRight = Number.parseInt(controls.style.left, 10) + BLOCK_CONTROL_BUTTON_SIZE_PX;
+    expect(112 - controlsRight).toBeGreaterThanOrEqual(BLOCK_CONTROLS_COLLAPSE_GAP_PX);
+
+    const listItem = document.createElement('li');
+    const listToggle = document.createElement('button');
+    listToggle.className = 'editor-collapse-btn';
+    listToggle.dataset.hasContent = 'true';
+    Object.defineProperty(listToggle, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        height: 18,
+        left: 52,
+        width: 18,
+      }),
+    });
+    listItem.appendChild(listToggle);
+
+    setControlsPosition(controls, {
+      ...createTarget(160, 80, 20, true),
+      element: listItem,
+    }, BLOCK_CONTROLS_LEFT_OFFSET_PX);
+
+    controlsRight = Number.parseInt(controls.style.left, 10) + BLOCK_CONTROL_BUTTON_SIZE_PX;
+    expect(52 - controlsRight).toBeGreaterThanOrEqual(BLOCK_CONTROLS_COLLAPSE_GAP_PX);
+  });
 });

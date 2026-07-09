@@ -447,7 +447,8 @@
   --vlaina-mermaid-text: #27272A;
   --vlaina-markdown-font-size: var(--vlaina-size-17px);
   --vlaina-collapse-gutter-base: var(--vlaina-size-22px);
-  --vlaina-collapse-marker-gap: var(--vlaina-size-24px);
+  --vlaina-collapse-heading-text-gap: max(var(--vlaina-space-4px), 0.25em);
+  --vlaina-collapse-list-marker-reserve: max(var(--vlaina-space-28px), 0.75em);
   --vlaina-block-selection-color-default: var(--vlaina-editor-block-selection-bg);
   --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
   --vlaina-block-selection-spacing-y-unit: var(--vlaina-space-1px);
@@ -512,9 +513,8 @@
   --vlaina-markdown-heading-line-extra-large: var(--vlaina-size-10px);
   --vlaina-markdown-heading-line-extra: var(--vlaina-markdown-heading-line-extra-default);
   --vlaina-editor-collapse-gutter-base: var(--vlaina-collapse-gutter-base);
-  --vlaina-editor-collapse-marker-gap: var(--vlaina-collapse-marker-gap);
-  --vlaina-editor-collapse-pos-heading: calc(0px - var(--vlaina-editor-collapse-gutter-base));
-  --vlaina-editor-collapse-pos-list: calc(0px - var(--vlaina-editor-collapse-gutter-base) - var(--vlaina-editor-collapse-marker-gap));
+  --vlaina-editor-collapse-pos-heading: calc(0px - var(--vlaina-size-18px) - var(--vlaina-collapse-heading-text-gap));
+  --vlaina-editor-collapse-pos-list: calc(0px - var(--vlaina-size-18px) - var(--vlaina-collapse-list-marker-reserve));
   --vlaina-math-hover-color: var(--vlaina-hover-filled);
   --vlaina-math-hover-bleed-y-default: var(--vlaina-space-4px);
   --vlaina-math-hover-bleed-y: var(--vlaina-math-hover-bleed-y-default);
