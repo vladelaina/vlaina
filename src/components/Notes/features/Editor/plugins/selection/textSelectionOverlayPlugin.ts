@@ -5,8 +5,13 @@ import { createTextSelectionDecorationState } from './textSelectionOverlayDecora
 import { createTextSelectionOverlayPluginView } from './textSelectionOverlayPluginView';
 import {
   POINTER_NATIVE_SELECTION_META,
+  isTextSelectionOverlayEligible,
   textSelectionOverlayPluginKey,
 } from './textSelectionOverlayState';
+import {
+  blankAreaDragBoxPluginKey,
+  type BlockSelectionAction,
+} from '../cursor/blockSelectionPluginState';
 import { getEmptyTextSelectionOverlayDecorationState } from './textSelectionOverlayViewSync';
 
 export {
@@ -35,13 +40,29 @@ export const textSelectionOverlayPlugin = $prose(() => {
       },
       apply(tr, previous, _oldState, newState) {
         const pointerNativeMeta = tr.getMeta(POINTER_NATIVE_SELECTION_META) as boolean | undefined;
-        const usePointerNativeSelection = pointerNativeMeta ?? (
+        const blockSelectionAction = tr.getMeta(blankAreaDragBoxPluginKey) as BlockSelectionAction | undefined;
+        const isSettingBlockSelection =
+          blockSelectionAction?.type === 'set-blocks' &&
+          blockSelectionAction.blocks.length > 0;
+        const overlayEligible = !isSettingBlockSelection && isTextSelectionOverlayEligible(newState);
+        let usePointerNativeSelection = pointerNativeMeta ?? (
           newState.selection instanceof TextSelection
             ? tr.docChanged && newState.selection.empty ? false : previous.usePointerNativeSelection
             : false
         );
-        if (!tr.docChanged && !tr.selectionSet && pointerNativeMeta === undefined) return previous;
-        const decorationState = usePointerNativeSelection
+        if (isSettingBlockSelection) {
+          usePointerNativeSelection = false;
+        }
+        if (!tr.docChanged && !tr.selectionSet && pointerNativeMeta === undefined) {
+          if (isSettingBlockSelection && (previous.decorationCount > 0 || previous.usePointerNativeSelection)) {
+            return {
+              ...getEmptyTextSelectionOverlayDecorationState(),
+              usePointerNativeSelection,
+            };
+          }
+          return previous;
+        }
+        const decorationState = usePointerNativeSelection || !overlayEligible
           ? getEmptyTextSelectionOverlayDecorationState()
           : createTextSelectionDecorationState(newState);
         return {

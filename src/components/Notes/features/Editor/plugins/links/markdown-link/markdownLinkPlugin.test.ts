@@ -14,6 +14,7 @@ import {
   MAX_MARKDOWN_LINK_DOC_SCAN_NODES,
   MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS,
   MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS,
+  RAW_MARKDOWN_LINK_TEXT_CLASS,
   collectRawMarkdownLinkMatches,
   docHasRawMarkdownLink,
   getMarkdownLinkInputTextBeforeCursor,
@@ -486,6 +487,31 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     expect(view.state.doc.childCount).toBe(2);
     expect(view.state.doc.child(0).textContent).toBe('1');
     expect(getFirstLinkHref(view)).toBe('1');
+
+    await editor.destroy();
+  });
+
+  it('decorates safe raw markdown link text while editing', async () => {
+    const editor = await createFullStackEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '[xs](ds)');
+
+    const rawLinkText = view.dom.querySelector<HTMLElement>(`.${RAW_MARKDOWN_LINK_TEXT_CLASS}`);
+    expect(rawLinkText?.textContent).toBe('xs');
+    expect(rawLinkText?.getAttribute('data-href')).toBe('ds');
+    expect(view.dom.querySelector('a[href]')).toBeNull();
+
+    await editor.destroy();
+  });
+
+  it('does not decorate unsafe raw markdown link text as a link while editing', async () => {
+    const editor = await createFullStackEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '[Bad](javascript:alert)');
+
+    expect(view.dom.querySelector(`.${RAW_MARKDOWN_LINK_TEXT_CLASS}`)).toBeNull();
 
     await editor.destroy();
   });

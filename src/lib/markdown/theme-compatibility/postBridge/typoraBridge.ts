@@ -44,8 +44,10 @@ function buildTyporaBlockSelectionBridge(write: string): string[] {
   const editor = `:is(${write}.ProseMirror, ${write} .ProseMirror)`;
   const selectingEditor = `${editor}:is(.editor-block-selection-active, .editor-block-selection-pending)`;
   const pendingEditor = `${editor}.editor-block-selection-pending`;
-  const selectedInlineColorExclusions = ':not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *)';
+  const selectedInlineTargetExclusions = ':not(.editor-tag-token):not(.editor-raw-markdown-link-text)';
+  const selectedInlineColorExclusions = ':not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *)';
   const selectedLinkContainers = ':is(.editor-block-selected, .editor-block-selected-textlike, .editor-block-drag-source-textlike, .editor-native-selected-textlike, .editor-block-selected-large-textlike)';
+  const selectedLinkTargets = ':is(a, .external-link, .internal-link, .editor-raw-markdown-link-text)';
   const linkColor = 'var(--typora-link-color, var(--primary-color, var(--text-accent, var(--vlaina-accent))))';
 
   return [
@@ -60,9 +62,9 @@ function buildTyporaBlockSelectionBridge(write: string): string[] {
     ),
     ...cssRule(
       [
-        `${selectingEditor} .editor-block-selected:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token)`,
+        `${selectingEditor} .editor-block-selected:not(.code-block-container):not(.mermaid-block)${selectedInlineTargetExclusions}`,
         `${selectingEditor} .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *)${selectedInlineColorExclusions}`,
-        `${selectingEditor} .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token)`,
+        `${selectingEditor} .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block)${selectedInlineTargetExclusions}`,
         `${selectingEditor} .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *)${selectedInlineColorExclusions}`,
       ],
       [
@@ -72,8 +74,8 @@ function buildTyporaBlockSelectionBridge(write: string): string[] {
     ),
     ...cssRule(
       [
-        `${editor} ${selectedLinkContainers} :is(a, .external-link, .internal-link)`,
-        `${editor} ${selectedLinkContainers}:is(a, .external-link, .internal-link)`,
+        `${editor} ${selectedLinkContainers} ${selectedLinkTargets}`,
+        `${editor} ${selectedLinkContainers}${selectedLinkTargets}`,
       ],
       [
         important('color', linkColor),

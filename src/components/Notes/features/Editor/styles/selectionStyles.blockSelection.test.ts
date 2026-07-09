@@ -82,18 +82,23 @@ describe("editor block selection styles", () => {
       css,
       '.milkdown .ProseMirror :is(\n  .editor-block-selected,'
     );
-    const linkExclusion = ':not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *)';
+    const linkExclusion = ':not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *)';
 
     expect(linkRule).toContain('.editor-block-selected-textlike,');
     expect(linkRule).toContain('.editor-block-drag-source-textlike,');
     expect(linkRule).toContain('.editor-native-selected-textlike,');
     expect(linkRule).toContain('.editor-block-selected-large-textlike');
     expect(linkRule).toContain(') :is(a, .external-link, .internal-link),');
-    expect(linkRule).toContain('):is(a, .external-link, .internal-link) {');
+    expect(linkRule).toContain(') :is(.editor-raw-markdown-link-text),');
+    expect(linkRule).toContain('):is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) {');
     expect(linkRule).toContain(`color: ${linkColor} !important;`);
     expect(linkRule).toContain(`-webkit-text-fill-color: ${linkColor} !important;`);
     expect(css).toContain(linkExclusion);
     expect(themeCompatibilityCss).toContain(linkExclusion);
+    expect(themeCompatibilityCss).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(");
+    expect(themeCompatibilityCss).toContain("):is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) {");
+    expect(themeCompatibilityCss).toContain(`color: ${linkColor} !important;`);
+    expect(themeCompatibilityCss).toContain(`-webkit-text-fill-color: ${linkColor} !important;`);
   });
 
   it('hides editable list gap placeholder text while keeping the caret visible', () => {
