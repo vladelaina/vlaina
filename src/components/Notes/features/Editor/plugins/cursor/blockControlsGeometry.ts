@@ -18,7 +18,6 @@ import {
 const LIST_CHILD_INDENT_PX = 24;
 const LIST_MARKER_OFFSET_PX = 24;
 const MIN_DROP_LINE_WIDTH = 24;
-const DROP_LINE_BLEED_X = 10;
 const DEFAULT_CONTROLS_HEIGHT_PX = 24;
 const BLOCK_CONTROL_BUTTON_SIZE_PX = 24;
 const COLLAPSE_GUTTER_BASE_PX = 22;
@@ -156,8 +155,8 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
 
   const rect = target.rect;
   const insertBefore = clientY < rect.top + rect.height / 2;
-  const lineLeft = Math.max(editorRect.left, rect.left - DROP_LINE_BLEED_X);
-  const lineRight = Math.min(editorRect.right, rect.right + DROP_LINE_BLEED_X);
+  const lineLeft = editorRect.left;
+  const lineRight = editorRect.right;
 
   if (!insertBefore && target.element.tagName === 'LI') {
     const contentLeft = resolveListContentLeft(target.element, rect.left);

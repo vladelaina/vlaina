@@ -144,6 +144,7 @@ export const dragPlugin = $prose(() => {
 
         const targetPos = $pos.before(depth);
         const coords = editorView.coordsAtPos(targetPos);
+        const editorRect = editorView.dom.getBoundingClientRect();
 
         if (!dropIndicator) {
           dropIndicator = document.createElement('div');
@@ -151,9 +152,9 @@ export const dragPlugin = $prose(() => {
           document.body.appendChild(dropIndicator);
         }
 
-        dropIndicator.style.left = `${coords.left}px`;
+        dropIndicator.style.left = `${editorRect.left}px`;
         dropIndicator.style.top = `${coords.top - 2}px`;
-        dropIndicator.style.width = `${editorView.dom.clientWidth}px`;
+        dropIndicator.style.width = `${editorRect.width}px`;
       };
 
       const handleDrop = (e: DragEvent) => {
