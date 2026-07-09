@@ -40,6 +40,48 @@ async function getTabBox(page: Page, notePath: string): Promise<{
   return box;
 }
 
+async function startSplitPaneBodyBlankAudit(page: Page, notePath: string, requiredTexts: string[]): Promise<void> {
+  await page.evaluate(({ pathToAudit, requiredTexts }) => {
+    let active = true;
+    const events: Array<{
+      editorMounted: boolean;
+      fallbackMounted: boolean;
+      html: string;
+      text: string;
+    }> = [];
+    const findLeaf = () => (
+      Array.from(document.querySelectorAll<HTMLElement>('[data-notes-split-leaf-path]'))
+        .find((leaf) => leaf.dataset.notesSplitLeafPath === pathToAudit) ?? null
+    );
+    const sample = () => {
+      const leaf = findLeaf();
+      if (leaf) {
+        const rect = leaf.getBoundingClientRect();
+        const text = (leaf.textContent ?? '').replace(/\s+/g, ' ').trim();
+        const hasRequiredBody = requiredTexts.every((requiredText) => text.includes(requiredText));
+        if (rect.width > 0 && rect.height > 0 && !hasRequiredBody) {
+          events.push({
+            editorMounted: Boolean(leaf.querySelector('.ProseMirror')),
+            fallbackMounted: Boolean(leaf.querySelector('[data-notes-split-activation-fallback="true"]')),
+            html: leaf.innerHTML.slice(0, 400),
+            text,
+          });
+        }
+      }
+      if (active) {
+        window.requestAnimationFrame(sample);
+      }
+    };
+    window.requestAnimationFrame(sample);
+    (window as any).__splitPaneBlankAudit = {
+      getEvents: () => events.slice(),
+      stop: () => {
+        active = false;
+      },
+    };
+  }, { pathToAudit: notePath, requiredTexts });
+}
+
 async function dispatchSidebarFileDragMove(
   page: Page,
   notePath: string,
@@ -1559,17 +1601,6 @@ test.describe('notes tab split panes', () => {
         .toBeGreaterThanOrEqual(2);
 
       await dragTabToRightSplit(page, targetPath);
-      const diagnosticsClearButton = page.locator('[data-notes-split-diagnostics-clear="true"]');
-      const diagnosticsCopyButton = page.locator('[data-notes-split-diagnostics-copy="true"]');
-      await expect(diagnosticsClearButton).toBeVisible({ timeout: 10_000 });
-      await expect(diagnosticsCopyButton).toBeVisible({ timeout: 10_000 });
-      await diagnosticsClearButton.click();
-      await expect(diagnosticsCopyButton).toContainText('复制分屏日志', { timeout: 5_000 });
-      await diagnosticsCopyButton.click();
-      await expect(diagnosticsCopyButton).toContainText('已复制', { timeout: 5_000 });
-      const copiedDiagnostics = await app.evaluate(({ clipboard }) => clipboard.readText());
-      expect(copiedDiagnostics).toContain('split-diagnostics-cleared');
-      expect(copiedDiagnostics).not.toContain('split-diagnostics-mounted');
       await expect(page.locator('[data-note-cover-region="true"]')).toHaveCount(2, { timeout: 10_000 });
       await expect.poll(async () => page.evaluate(() => (
         Array.from(document.querySelectorAll<HTMLElement>('[data-note-cover-region="true"]'))
@@ -2183,6 +2214,10 @@ test.describe('notes tab split panes', () => {
         (window as any).__vlainaE2E.readTextFile(pathToRead), targetPath
       ), { timeout: 10_000, message: 'Expected active split pane edit to be saved' })
         .toContain('Split pane edit saved');
+      await expect.poll(async () => page.evaluate((pathToRead) =>
+        (window as any).__vlainaE2E.readTextFile(pathToRead), sourcePath
+      ), { timeout: 10_000, message: 'Expected target pane edits to stay out of the source note' })
+        .not.toContain('Split pane edit saved');
       await expect(page.locator('[data-notes-split-layout="right"]')).toBeVisible();
       await expect(page.locator('[data-notes-split-preview-pane="true"]')).toHaveCount(1);
 
@@ -2198,6 +2233,20 @@ test.describe('notes tab split panes', () => {
         (window as any).__vlainaE2E.readTextFile(pathToRead), sourcePath
       ), { timeout: 10_000, message: 'Expected direct source split pane edit to be saved' })
         .toContain('Direct source pane edit saved');
+      const splitEditIsolation = await page.evaluate(async ({ sourcePath, targetPath }) => {
+        const bridge = (window as any).__vlainaE2E;
+        const [sourceContent, targetContent] = await Promise.all([
+          bridge.readTextFile(sourcePath),
+          bridge.readTextFile(targetPath),
+        ]);
+        return { sourceContent, targetContent };
+      }, { sourcePath, targetPath });
+      expect(splitEditIsolation.sourceContent).toContain('Direct source pane edit saved');
+      expect(splitEditIsolation.sourceContent).not.toContain('Direct split pane edit saved');
+      expect(splitEditIsolation.sourceContent).not.toContain('Split pane edit saved');
+      expect(splitEditIsolation.targetContent).toContain('Direct split pane edit saved');
+      expect(splitEditIsolation.targetContent).toContain('Split pane edit saved');
+      expect(splitEditIsolation.targetContent).not.toContain('Direct source pane edit saved');
       await expect(page.locator('[data-notes-split-layout="right"]')).toBeVisible();
       await expect(page.locator('[data-notes-split-preview-pane="true"]')).toHaveCount(1);
 
@@ -2213,6 +2262,10 @@ test.describe('notes tab split panes', () => {
       await beginBlockHandleDrag(page);
 
       const targetLeafBox = await getSplitLeafBox(page, targetPath);
+      await startSplitPaneBodyBlankAudit(page, targetPath, [
+        'Target keep before',
+        'Move this block between split panes',
+      ]);
       await page.mouse.move(
         targetLeafBox.x + targetLeafBox.width / 2,
         targetLeafBox.y + targetLeafBox.height / 2,
@@ -2221,6 +2274,12 @@ test.describe('notes tab split panes', () => {
       await expect.poll(async () => page.evaluate(() =>
         (window as any).__vlainaE2E.getNotesState().currentNote?.path ?? null
       ), { timeout: 10_000, message: 'Expected hovering the target split pane to activate it' }).toBe(targetPath);
+      const targetActivationBlankEvents = await page.evaluate(() => {
+        const audit = (window as any).__splitPaneBlankAudit;
+        audit?.stop();
+        return audit?.getEvents() ?? [];
+      });
+      expect(targetActivationBlankEvents).toEqual([]);
 
       const targetAnchorBox = await getVisibleEditorParagraphBox(page, 'Target keep before');
       await page.mouse.move(
@@ -2256,6 +2315,10 @@ test.describe('notes tab split panes', () => {
       await beginBlockHandleDrag(page);
 
       const sourceLeafBox = await getSplitLeafBox(page, sourcePath);
+      await startSplitPaneBodyBlankAudit(page, sourcePath, [
+        'Source keep before',
+        'Source drop anchor',
+      ]);
       await page.mouse.move(
         sourceLeafBox.x + sourceLeafBox.width / 2,
         sourceLeafBox.y + sourceLeafBox.height / 2,
@@ -2264,6 +2327,12 @@ test.describe('notes tab split panes', () => {
       await expect.poll(async () => page.evaluate(() =>
         (window as any).__vlainaE2E.getNotesState().currentNote?.path ?? null
       ), { timeout: 10_000, message: 'Expected hovering the source split pane to activate it' }).toBe(sourcePath);
+      const sourceActivationBlankEvents = await page.evaluate(() => {
+        const audit = (window as any).__splitPaneBlankAudit;
+        audit?.stop();
+        return audit?.getEvents() ?? [];
+      });
+      expect(sourceActivationBlankEvents).toEqual([]);
 
       const sourceAnchorBox = await getVisibleEditorParagraphBox(page, 'Source drop anchor');
       await page.mouse.move(

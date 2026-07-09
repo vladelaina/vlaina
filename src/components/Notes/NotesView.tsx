@@ -149,6 +149,7 @@ export function NotesView({
   const {
     canLoadMarkdownEditor,
     firstPaintPreviewBlocks,
+    isPrimaryContentReady,
     reportNotesPrimaryContentReady,
   } = useNotesPrimaryContentState({
     active,
@@ -276,6 +277,7 @@ export function NotesView({
         firstPaintPreviewBlocks={firstPaintPreviewBlocks}
         getDisplayName={getDisplayName}
         hasSplitPanes={hasSplitPanes}
+        isPrimaryContentReady={isPrimaryContentReady}
         noteContentsCache={noteContentsCache}
         notesPath={notesPath}
         onPrimaryContentReady={reportNotesPrimaryContentReady}

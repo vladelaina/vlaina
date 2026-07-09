@@ -23,7 +23,7 @@ export function NotesSplitDropOverlay({ direction }: { direction: NotesSplitDire
     >
       <div
         className={cn(
-          'absolute rounded-[var(--vlaina-radius-8px)] bg-[var(--vlaina-color-accent-panel-bg)] shadow-[inset_0_0_0_1px_var(--vlaina-color-sidebar-focus-ring)]',
+          'absolute rounded-[var(--vlaina-radius-8px)] bg-[var(--vlaina-color-editor-block-selection-drag-box)]',
           isVerticalNotesSplit(direction) ? 'min-w-[var(--vlaina-size-120px)]' : 'min-h-[var(--vlaina-size-120px)]',
           getDropOverlayClass(direction)
         )}
