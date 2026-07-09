@@ -470,7 +470,7 @@ describe('appliedPreviewState', () => {
       schema,
       doc: schema.node('doc', null, [
         schema.node('paragraph', null, [schema.text('Before')]),
-        schema.node('html_block', { value: '<!--vlaina-markdown-blank-line-->' }),
+        schema.node('html_block', { value: '<!--vlaina-rendered-html-boundary-blank-line-->' }),
         schema.node('paragraph'),
         schema.node('paragraph', null, [schema.text('After')]),
       ]),
@@ -481,7 +481,7 @@ describe('appliedPreviewState', () => {
     sourceBefore.textContent = 'Before';
     const sourceHtmlBlankLine = document.createElement('div');
     sourceHtmlBlankLine.dataset.type = 'html-block';
-    sourceHtmlBlankLine.dataset.value = '<!--vlaina-markdown-blank-line-->';
+    sourceHtmlBlankLine.dataset.value = '<!--vlaina-rendered-html-boundary-blank-line-->';
     sourceHtmlBlankLine.style.minHeight = '24px';
     sourceHtmlBlankLine.style.marginTop = '0px';
     sourceHtmlBlankLine.style.marginBottom = '0px';
@@ -501,7 +501,7 @@ describe('appliedPreviewState', () => {
     const previewHtmlBlankLine = previewDom.children.item(1) as HTMLElement | null;
     const previewEditableBlankLine = previewDom.children.item(2) as HTMLElement | null;
 
-    expect(previewHtmlBlankLine?.dataset.value).toBe('<!--vlaina-markdown-blank-line-->');
+    expect(previewHtmlBlankLine?.dataset.value).toBe('<!--vlaina-rendered-html-boundary-blank-line-->');
     expect(previewHtmlBlankLine?.style.minHeight).toBe('24px');
     expect(previewHtmlBlankLine?.style.marginTop).toBe('0px');
     expect(previewHtmlBlankLine?.style.marginBottom).toBe('0px');

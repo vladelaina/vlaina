@@ -23,7 +23,7 @@ export function handleMarkdownBlankLineTextInput(
   const { selection, schema } = view.state;
   if (selection instanceof NodeSelection) {
     if (selection.from !== from || selection.to !== to) return false;
-    if (selection.node.type.name !== 'html_block' || selection.node.attrs.value !== MARKDOWN_BLANK_LINE_VALUE) {
+    if (!isMarkdownBlankLinePlaceholderNode(selection.node)) {
       return false;
     }
 

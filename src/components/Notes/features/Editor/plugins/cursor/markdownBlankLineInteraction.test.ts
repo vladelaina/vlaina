@@ -20,6 +20,7 @@ import {
 } from './markdownBlankLineInteraction';
 
 const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
+const RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE = '<!--vlaina-rendered-html-boundary-blank-line-->';
 const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 
 async function createEditor(markdown: string) {
@@ -541,6 +542,61 @@ describe('markdownBlankLineInteraction', () => {
 
     expect(resolveMarkdownBlankLineNodePos(view as any, blankLine)).toBe(2);
     expect(accessedChildren).toEqual([0, 1]);
+  });
+
+  it('resolves rendered HTML boundary blank line placeholder node positions', () => {
+    const blankLine = document.createElement('div');
+    const node = {
+      attrs: { value: RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE },
+      nodeSize: 1,
+      type: { name: 'html_block' },
+    };
+    const view = {
+      nodeDOM: vi.fn(() => blankLine),
+      posAtDOM: vi.fn(() => 2),
+      state: {
+        doc: {
+          nodeAt: vi.fn(() => node),
+        },
+      },
+    };
+
+    expect(resolveMarkdownBlankLineNodePos(view as any, blankLine)).toBe(2);
+  });
+
+  it('resolves rendered HTML boundary blank line placeholder positions during fallback scans', () => {
+    const blankLine = document.createElement('div');
+    const otherBlankLine = document.createElement('div');
+    const nodes = [
+      {
+        attrs: {},
+        nodeSize: 2,
+        type: { name: 'paragraph' },
+      },
+      {
+        attrs: { value: RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE },
+        nodeSize: 1,
+        type: { name: 'html_block' },
+      },
+    ];
+    const doc = {
+      child(index: number) {
+        return nodes[index];
+      },
+      childCount: nodes.length,
+      nodeAt: vi.fn(),
+    };
+    const view = {
+      nodeDOM(pos: number) {
+        return pos === 2 ? blankLine : otherBlankLine;
+      },
+      posAtDOM: vi.fn(() => {
+        throw new Error('Force fallback scan');
+      }),
+      state: { doc },
+    };
+
+    expect(resolveMarkdownBlankLineNodePos(view as any, blankLine)).toBe(2);
   });
 
   it('caps fallback blank line node position scans by node count', () => {

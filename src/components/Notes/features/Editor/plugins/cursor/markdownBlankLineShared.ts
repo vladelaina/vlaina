@@ -5,7 +5,10 @@ import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelection
 
 export const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
 export const RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE = '<!--vlaina-rendered-html-boundary-blank-line-->';
-export const MARKDOWN_BLANK_LINE_SELECTOR = `[data-type="html-block"][data-value="${MARKDOWN_BLANK_LINE_VALUE}"]`;
+export const MARKDOWN_BLANK_LINE_SELECTOR = [
+  `[data-type="html-block"][data-value="${MARKDOWN_BLANK_LINE_VALUE}"]`,
+  `[data-type="html-block"][data-value="${RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE}"]`,
+].join(', ');
 export const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 export const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'editor-editable-markdown-blank-line';
 export const MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY = 'editor-debug-markdown-blank-line';
@@ -28,7 +31,10 @@ export function isEditableMarkdownBlankLineNode(node: { content?: { size?: numbe
 }
 
 export function isMarkdownBlankLinePlaceholderNode(node: { attrs?: { value?: unknown }; type?: { name?: string } } | null | undefined): boolean {
-  return node?.type?.name === 'html_block' && node.attrs?.value === MARKDOWN_BLANK_LINE_VALUE;
+  return node?.type?.name === 'html_block' && (
+    node.attrs?.value === MARKDOWN_BLANK_LINE_VALUE ||
+    node.attrs?.value === RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE
+  );
 }
 
 export function isRenderedHtmlBoundaryBlankLinePlaceholderNode(node: { attrs?: { value?: unknown }; type?: { name?: string } } | null | undefined): boolean {
@@ -36,7 +42,7 @@ export function isRenderedHtmlBoundaryBlankLinePlaceholderNode(node: { attrs?: {
 }
 
 export function isEditableBlankLinePlaceholderNode(node: { attrs?: { value?: unknown }; type?: { name?: string } } | null | undefined): boolean {
-  return isMarkdownBlankLinePlaceholderNode(node) || isRenderedHtmlBoundaryBlankLinePlaceholderNode(node);
+  return isMarkdownBlankLinePlaceholderNode(node);
 }
 
 export function findTopLevelBlockBefore(doc: EditorState['doc'], pos: number): TopLevelBlock | null {

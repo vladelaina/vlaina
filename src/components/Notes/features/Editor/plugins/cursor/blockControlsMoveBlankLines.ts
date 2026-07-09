@@ -3,11 +3,18 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { pruneContainedBlockRanges, type BlockRange } from './blockSelectionUtils';
 
 const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
+const RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE = '<!--vlaina-rendered-html-boundary-blank-line-->';
 const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 
 function isRemovableMarkdownBlankLineNode(node: ProseNode | null | undefined): boolean {
   if (!node) return false;
-  if (node.type.name === 'html_block' && node.attrs?.value === MARKDOWN_BLANK_LINE_VALUE) {
+  if (
+    node.type.name === 'html_block' &&
+    (
+      node.attrs?.value === MARKDOWN_BLANK_LINE_VALUE ||
+      node.attrs?.value === RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE
+    )
+  ) {
     return true;
   }
   if (node.type.name !== 'paragraph') {
