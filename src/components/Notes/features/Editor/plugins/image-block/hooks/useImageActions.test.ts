@@ -132,6 +132,7 @@ describe('useImageActions', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.unstubAllGlobals();
+        mocks.ensureImageFileExists.mockResolvedValue(undefined);
         mocks.rasterizeSvgBlobToPngBlob.mockImplementation(async (blob: Blob) => blob);
         mocks.storage.stat.mockResolvedValue(null);
         mocks.storage.readBinaryFile.mockImplementation(async () => {
@@ -141,6 +142,44 @@ describe('useImageActions', () => {
             configurable: true,
             value: undefined,
         });
+    });
+
+    it('does not save crop attributes when the editor document changes during image restore', async () => {
+        let resolveRestore: () => void = () => undefined;
+        mocks.ensureImageFileExists.mockReturnValue(new Promise<undefined>((resolve) => {
+            resolveRestore = () => resolve(undefined);
+        }));
+        const updateNodeAttrs = vi.fn();
+        const setCropParams = vi.fn();
+        const originalDoc = { eq: vi.fn((other: unknown) => other === originalDoc) };
+        const changedDoc = { eq: vi.fn((other: unknown) => other === changedDoc) };
+        const view = {
+            state: { doc: originalDoc },
+            dom: { isConnected: true },
+        };
+        const { result } = renderImageActions({
+            view: view as never,
+            updateNodeAttrs,
+            setCropParams,
+        });
+
+        let savePromise: Promise<void> = Promise.resolve();
+        await act(async () => {
+            savePromise = result.current.handleSave(
+                { x: 10, y: 10, width: 80, height: 80 },
+                1,
+            );
+            await Promise.resolve();
+        });
+        view.state.doc = changedDoc;
+        resolveRestore();
+
+        await act(async () => {
+            await savePromise;
+        });
+
+        expect(setCropParams).not.toHaveBeenCalled();
+        expect(updateNodeAttrs).not.toHaveBeenCalled();
     });
 
     it('falls back to copying source text when resolved content is not an image', async () => {

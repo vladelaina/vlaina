@@ -591,6 +591,54 @@ describe('createCodeBlockEditorKeymap', () => {
     expect(editorDispatch).not.toHaveBeenCalled();
   });
 
+  it('does not cut CodeMirror content when the selection changes before clipboard write succeeds', async () => {
+    let resolveClipboard: (didCopy: boolean) => void = () => undefined;
+    blockSelectionMocks.writeTextToClipboard.mockReturnValueOnce(new Promise<boolean>((resolve) => {
+      resolveClipboard = resolve;
+    }));
+    const cmDispatch = vi.fn();
+    const cm = {
+      dispatch: cmDispatch,
+      state: {
+        sliceDoc: (from: number, to: number) => '0123456789'.slice(from, to),
+        changeByRange: vi.fn(),
+        selection: {
+          main: { from: 2, to: 5, head: 5, empty: false },
+          ranges: [{ from: 2, to: 5, empty: false }],
+        },
+      },
+    };
+    const editorDispatch = vi.fn();
+
+    const keymaps = createCodeBlockEditorKeymap({
+      getCodeMirror: () => cm as never,
+      view: {
+        editable: true,
+        state: { doc: {}, tr: { setSelection: vi.fn() } },
+        dispatch: editorDispatch,
+        focus: vi.fn(),
+      } as never,
+      getNode: () => ({ textContent: '0123456789' }) as never,
+      getPos: () => 10,
+    });
+
+    const cut = keymaps.find((binding) => binding.key === 'Mod-x');
+
+    expect(cut?.run?.({} as never)).toBe(true);
+    expect(blockSelectionMocks.writeTextToClipboard).toHaveBeenCalledWith('234');
+
+    cm.state.selection = {
+      main: { from: 6, to: 9, head: 9, empty: false },
+      ranges: [{ from: 6, to: 9, empty: false }],
+    };
+    resolveClipboard(true);
+    await Promise.resolve();
+
+    expect(cm.state.changeByRange).not.toHaveBeenCalled();
+    expect(cmDispatch).not.toHaveBeenCalled();
+    expect(editorDispatch).not.toHaveBeenCalled();
+  });
+
   it('does not cut CodeMirror content while the editor is readonly', () => {
     const cm = {
       dispatch: vi.fn(),
