@@ -19,6 +19,12 @@ export interface WhiteboardSelectionRect {
 }
 
 export type WhiteboardLassoPath = WhiteboardPoint[];
+type WhiteboardLassoSegment = [WhiteboardPoint, WhiteboardPoint];
+
+export interface WhiteboardLassoSelection {
+  elementIds: string[];
+  strokeIds: string[];
+}
 
 export function getRectFromPoints(start: WhiteboardPoint, end: WhiteboardPoint): WhiteboardSelectionRect {
   return {
@@ -157,6 +163,8 @@ export function findStrokeAtPoint(
   const tolerance = themeWhiteboardTokens.strokeHitTolerancePx / zoom;
   for (let index = strokes.length - 1; index >= 0; index -= 1) {
     const stroke = strokes[index];
+    const bounds = getStrokeBounds(stroke);
+    if (!bounds || !pointInRect(point, bounds, tolerance)) continue;
     if (isPointNearStroke(stroke, point, tolerance)) return stroke;
   }
   return null;
@@ -180,21 +188,30 @@ export function getLassoBounds(path: WhiteboardLassoPath): WhiteboardSelectionRe
 }
 
 export function getElementsInLasso(elements: WhiteboardElement[], path: WhiteboardLassoPath): string[] {
-  if (!isUsableLasso(path)) return [];
-  const lassoBounds = getLassoBounds(path);
-  if (!lassoBounds) return [];
-  return elements.flatMap((element) => (
-    elementIntersectsLasso(element, path, lassoBounds) ? [element.id] : []
-  ));
+  return getItemsInLasso(elements, [], path).elementIds;
 }
 
 export function getStrokesInLasso(strokes: WhiteboardStroke[], path: WhiteboardLassoPath): string[] {
-  if (!isUsableLasso(path)) return [];
+  return getItemsInLasso([], strokes, path).strokeIds;
+}
+
+export function getItemsInLasso(
+  elements: WhiteboardElement[],
+  strokes: WhiteboardStroke[],
+  path: WhiteboardLassoPath,
+): WhiteboardLassoSelection {
+  if (!isUsableLasso(path)) return { elementIds: [], strokeIds: [] };
   const lassoBounds = getLassoBounds(path);
-  if (!lassoBounds) return [];
-  return strokes.flatMap((stroke) => (
-    strokeIntersectsLasso(stroke, path, lassoBounds) ? [stroke.id] : []
-  ));
+  if (!lassoBounds) return { elementIds: [], strokeIds: [] };
+  const segments = getLassoSegments(path);
+  return {
+    elementIds: elements.flatMap((element) => (
+      elementIntersectsLasso(element, path, lassoBounds, segments) ? [element.id] : []
+    )),
+    strokeIds: strokes.flatMap((stroke) => (
+      strokeIntersectsLasso(stroke, path, lassoBounds, segments) ? [stroke.id] : []
+    )),
+  };
 }
 
 export function translateStroke(stroke: WhiteboardStroke, dx: number, dy: number): WhiteboardStroke {
@@ -248,6 +265,7 @@ function elementIntersectsLasso(
   element: WhiteboardElement,
   path: WhiteboardLassoPath,
   lassoBounds: WhiteboardSelectionRect,
+  segments: WhiteboardLassoSegment[],
 ): boolean {
   const bounds = getElementBounds(element);
   if (!rectsOverlap(bounds, lassoBounds)) return false;
@@ -258,21 +276,21 @@ function elementIntersectsLasso(
     { x: bounds.x, y: bounds.y + bounds.height },
     { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 },
   ];
-  return points.some((point) => pointInPolygon(point, path)) || lassoSegments(path).some(([start, end]) => segmentIntersectsRect(start, end, bounds));
+  return points.some((point) => pointInPolygon(point, path)) || segments.some(([start, end]) => segmentIntersectsRect(start, end, bounds));
 }
 
 function strokeIntersectsLasso(
   stroke: WhiteboardStroke,
   path: WhiteboardLassoPath,
   lassoBounds: WhiteboardSelectionRect,
+  lassoSegments: WhiteboardLassoSegment[],
 ): boolean {
   const bounds = getStrokeBounds(stroke);
   if (!bounds || !rectsOverlap(bounds, lassoBounds)) return false;
   if (stroke.points.some((point) => pointInPolygon(point, path))) return true;
-  const lasso = lassoSegments(path);
   return getStrokePointSegments(stroke.points).some((segment) => segment.some((current, index) => {
     const previous = segment[index - 1];
-    return previous ? lasso.some(([start, end]) => segmentsIntersect(previous, current, start, end)) : false;
+    return previous ? lassoSegments.some(([start, end]) => segmentsIntersect(previous, current, start, end)) : false;
   }));
 }
 
@@ -283,8 +301,9 @@ function getStrokeMaxWidth(stroke: WhiteboardStroke): number {
   );
 }
 
-function pointInRect(point: WhiteboardPoint, rect: WhiteboardSelectionRect): boolean {
-  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
+function pointInRect(point: WhiteboardPoint, rect: WhiteboardSelectionRect, padding = 0): boolean {
+  return point.x >= rect.x - padding && point.x <= rect.x + rect.width + padding
+    && point.y >= rect.y - padding && point.y <= rect.y + rect.height + padding;
 }
 
 function pointInPolygon(point: WhiteboardPoint, polygon: WhiteboardLassoPath): boolean {
@@ -299,7 +318,7 @@ function pointInPolygon(point: WhiteboardPoint, polygon: WhiteboardLassoPath): b
   return inside;
 }
 
-function lassoSegments(path: WhiteboardLassoPath): Array<[WhiteboardPoint, WhiteboardPoint]> {
+function getLassoSegments(path: WhiteboardLassoPath): WhiteboardLassoSegment[] {
   return path.map((point, index) => [point, path[(index + 1) % path.length]]);
 }
 
