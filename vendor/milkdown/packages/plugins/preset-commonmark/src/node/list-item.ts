@@ -367,12 +367,6 @@ function splitListItemPreservingAttrs(ctx: Ctx): Command {
   }
 }
 
-/// The command to remove list item **only if**:
-///
-/// - Selection is at the start of the list item.
-/// - List item is the only child of the list.
-///
-/// Most of the time, you shouldn't use this command directly.
 export const liftFirstListItemCommand = $command(
   'LiftFirstListItem',
   (ctx) => () => liftFirstListItem(ctx)
