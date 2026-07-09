@@ -1,6 +1,7 @@
 import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MarkdownEditor } from './MarkdownEditor';
+import { MarkdownSourceEditor } from './MarkdownSourceEditor';
 
 type MockNotesState = {
   currentNote: { path: string; content: string } | null;
@@ -21,7 +22,7 @@ type MockNotesState = {
   }>;
   isStarred: (path: string) => boolean;
   toggleStarred: ReturnType<typeof vi.fn>;
-  saveNote: ReturnType<typeof vi.fn>;
+  saveNote: ReturnType<typeof vi.fn<(options?: { explicit?: boolean }) => Promise<void>>>;
   getDisplayName: (path: string) => string;
   updateContent: (content: string) => void;
   isDirty: boolean;
@@ -48,7 +49,7 @@ const mocks = vi.hoisted(() => {
     starredEntries: [],
     isStarred: () => false,
     toggleStarred: vi.fn(),
-    saveNote: vi.fn().mockResolvedValue(undefined),
+    saveNote: vi.fn<(options?: { explicit?: boolean }) => Promise<void>>().mockResolvedValue(undefined),
     getDisplayName: (path: string) => path,
     updateContent: (content: string) => {
       if (notesState.currentNote) {
@@ -278,7 +279,7 @@ describe('MarkdownEditor source fallback', () => {
 
     await act(async () => {});
     expect(screen.getByTestId('milkdown-never-ready')).toBeInstanceOf(HTMLElement);
-    await act(async () => {
+    act(() => {
       vi.advanceTimersByTime(30_000);
     });
 
@@ -413,5 +414,77 @@ describe('MarkdownEditor source fallback', () => {
 
     expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\n你好');
     expect(mocks.notesState.isDirty).toBe(true);
+  });
+
+  it('does not apply a stale source-mode frame commit after an external reload changes the note', () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        rafCallbacks.push(callback);
+        return rafCallbacks.length;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined);
+    const { unmount } = render(
+      <MarkdownSourceEditor
+        currentNotePath="alpha.md"
+        showBodyLineNumbers={false}
+        saveNote={mocks.notesState.saveNote}
+        mode="source"
+      />,
+    );
+
+    const sourceEditor = screen.getByLabelText('Markdown source editor');
+    fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nLocal source edit' } });
+    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nInitial body');
+
+    mocks.notesState.currentNote = { path: 'alpha.md', content: '# External\n\nDisk reload' };
+    mocks.notesState.isDirty = false;
+
+    act(() => {
+      const pendingCallbacks = [...rafCallbacks];
+      rafCallbacks.length = 0;
+      for (const callback of pendingCallbacks) {
+        callback(16);
+      }
+    });
+
+    expect(mocks.notesState.currentNote).toEqual({
+      path: 'alpha.md',
+      content: '# External\n\nDisk reload',
+    });
+    expect(mocks.notesState.isDirty).toBe(false);
+
+    unmount();
+    requestAnimationFrameSpy.mockRestore();
+    cancelAnimationFrameSpy.mockRestore();
+  });
+
+  it('does not flush a stale source-mode draft while unmounting after an external reload', () => {
+    const { unmount } = render(
+      <MarkdownSourceEditor
+        currentNotePath="alpha.md"
+        showBodyLineNumbers={false}
+        saveNote={mocks.notesState.saveNote}
+        mode="source"
+      />,
+    );
+
+    const sourceEditor = screen.getByLabelText('Markdown source editor');
+    fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nLocal source edit' } });
+    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nInitial body');
+
+    mocks.notesState.currentNote = { path: 'alpha.md', content: '# External\n\nDisk reload' };
+    mocks.notesState.isDirty = false;
+
+    unmount();
+
+    expect(mocks.notesState.currentNote).toEqual({
+      path: 'alpha.md',
+      content: '# External\n\nDisk reload',
+    });
+    expect(mocks.notesState.isDirty).toBe(false);
   });
 });

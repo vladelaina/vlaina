@@ -10,6 +10,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import {
   collapseCommittedCompositionSelection,
   replaceRecentCompositionText,
@@ -1027,6 +1028,91 @@ describe('usePendingMarkdownAutosave', () => {
     expect(debouncedSave).not.toHaveBeenCalled();
   });
 
+  it('does not apply delayed editor markdown after an external disk reload changes the note', () => {
+    (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = 120;
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.createUserInputMarker(editorView as never, null)(new KeyboardEvent('keydown'));
+      result.current.configureMarkdownListener(ctx, '# alpha')('# alpha local');
+      vi.advanceTimersByTime(16);
+    });
+
+    useNotesStore.setState({
+      currentNote: { path: 'docs/alpha.md', content: '# external edit' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# external edit', modifiedAt: 2 }]]),
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# external edit',
+    });
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
+  });
+
+  it('does not flush stale pending markdown while unmounting after an external disk reload', () => {
+    (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = 120;
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.createUserInputMarker(editorView as never, null)(new KeyboardEvent('keydown'));
+      result.current.configureMarkdownListener(ctx, '# alpha')('# alpha local');
+      vi.advanceTimersByTime(16);
+    });
+
+    useNotesStore.setState({
+      currentNote: { path: 'docs/alpha.md', content: '# external edit' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# external edit', modifiedAt: 2 }]]),
+    });
+
+    unmount();
+
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# external edit',
+    });
+    expect(useNotesStore.getState().isDirty).toBe(false);
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
+  });
+
   it('does not restore stale editor content while unmounting after an external disk reload', () => {
     const updateContent = vi.fn();
     const debouncedSave = vi.fn();
@@ -1077,6 +1163,56 @@ describe('usePendingMarkdownAutosave', () => {
       { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
     ]);
     expect(serializer).not.toHaveBeenCalled();
+  });
+
+  it('does not fallback serialize stale editor content after an external disk reload', () => {
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = {
+      dom: document.createElement('div'),
+      state: { doc: {} },
+    };
+    const serializer = vi.fn(() => '# stale editor content');
+    const editor = {
+      ctx: {
+        get: vi.fn((token) => {
+          if (token === editorViewCtx) return editorView;
+          if (token === serializerCtx) return serializer;
+          return null;
+        }),
+      },
+    };
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.setEditorGetter(() => editor as never);
+      result.current.createUserInputMarker(editorView as never, serializer)(new KeyboardEvent('keydown'));
+    });
+
+    useNotesStore.setState({
+      currentNote: { path: 'docs/alpha.md', content: '# external edit' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# external edit', modifiedAt: 2 }]]),
+    });
+
+    expect(flushCurrentPendingEditorMarkdown()).toBe(false);
+
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# external edit',
+    });
+    expect(useNotesStore.getState().isDirty).toBe(false);
+    expect(serializer).not.toHaveBeenCalled();
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
   });
 
   it('does not save IME composition text when the editor is unmounted mid-composition', () => {

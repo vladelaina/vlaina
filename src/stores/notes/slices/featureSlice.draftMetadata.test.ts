@@ -3,6 +3,7 @@ import { createStore } from 'zustand/vanilla';
 import { createFeatureSlice } from './featureSlice';
 import type { NotesStore } from '../types';
 import { createCachedNoteContentEntry } from '../document/noteContentCache';
+import { setPendingEditorMarkdownFlusher } from '../pendingEditorMarkdownFlusher';
 
 const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
 const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
@@ -83,6 +84,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
 describe('featureSlice draft metadata', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setPendingEditorMarkdownFlusher(null);
     mocks.readFile.mockResolvedValue('');
     mocks.safeWriteTextFile.mockResolvedValue(undefined);
     mocks.stat.mockResolvedValue({ modifiedAt: 1, size: 16 });
@@ -231,6 +233,45 @@ describe('featureSlice draft metadata', () => {
     const writtenContent = mocks.safeWriteTextFile.mock.calls[0]?.[1] as string;
     expect(writtenContent).toContain('vlaina_icon: "💡" size=84');
     expect(store.getState().noteMetadata?.notes[notePath]?.iconSize).toBe(84);
+  });
+
+  it('flushes pending editor content before writing note metadata', async () => {
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      currentNote: { path: notePath, content: '# Alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
+    });
+    setPendingEditorMarkdownFlusher(() => {
+      store.setState((state) => ({
+        currentNote: { path: notePath, content: '# Alpha\n\nd' },
+        currentNoteRevision: state.currentNoteRevision + 1,
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === notePath ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set(notePath, {
+          content: '# Alpha\n\nd',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    store.getState().setNoteIcon(notePath, '💡');
+
+    await vi.waitFor(() => {
+      expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('💡');
+    });
+
+    const content = store.getState().currentNote?.content ?? '';
+    expect(content).toContain('vlaina_icon');
+    expect(content).toContain('# Alpha\n\nd');
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: notePath, name: 'alpha', isDirty: true },
+    ]);
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
   });
 
   it('writes metadata for a Windows absolute note opened without a notesRoot', async () => {

@@ -137,6 +137,58 @@ describe('fileSystemSlice create state races', () => {
     expect(harness.getState().recentNotes).toEqual(['Untitled.md', 'beta.md', 'old.md']);
   });
 
+  it('does not replace a tab edited while note creation is in flight', async () => {
+    let resolveCreate: (value: Record<string, unknown>) => void;
+    hoisted.createNoteImpl.mockImplementation(() => new Promise((resolve) => {
+      resolveCreate = resolve;
+    }));
+    const harness = createSliceHarness({
+      currentNote: { path: 'alpha.md', content: '# Alpha' },
+      currentNoteRevision: 1,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: '# Alpha', modifiedAt: 1 }]]),
+    });
+
+    const creation = harness.getState().createNote();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    harness.getState().currentNote = { path: 'alpha.md', content: '# Alpha\n\nLocal edit' };
+    harness.getState().currentNoteRevision = 2;
+    harness.getState().isDirty = true;
+    harness.getState().openTabs = [{ path: 'alpha.md', name: 'alpha', isDirty: true }];
+    harness.getState().noteContentsCache = new Map([
+      ['alpha.md', { content: '# Alpha\n\nLocal edit', modifiedAt: 1 }],
+    ]);
+
+    resolveCreate!({
+      relativePath: 'Untitled.md',
+      fileName: 'Untitled.md',
+      content: '',
+      modifiedAt: 3,
+      size: 0,
+      updatedMetadata: {
+        version: 2,
+        notes: {
+          'Untitled.md': { createdAt: 3, updatedAt: 3 },
+        },
+      },
+      newChildren: [],
+    });
+    await creation;
+
+    const state = harness.getState();
+    expect(state.currentNote).toEqual({ path: 'Untitled.md', content: '' });
+    expect(state.isDirty).toBe(false);
+    expect(state.openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'Untitled.md', name: 'Untitled', isDirty: false },
+    ]);
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: '# Alpha\n\nLocal edit',
+      modifiedAt: 1,
+    });
+  });
+
   it('adds created notes to the normalized result parent path', async () => {
     hoisted.createNoteImpl.mockResolvedValue({
       relativePath: 'archive/Untitled.md',

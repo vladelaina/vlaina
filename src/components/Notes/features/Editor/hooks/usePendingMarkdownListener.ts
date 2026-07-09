@@ -14,7 +14,7 @@ import {
   getEditorViewFromContext,
   isEditorComposing,
 } from './pendingMarkdownAutosaveEvents';
-import type { MilkdownContext } from './pendingMarkdownAutosaveTypes';
+import type { MilkdownContext, PendingMarkdownSnapshot } from './pendingMarkdownAutosaveTypes';
 import { collapseSelectionAtPosition } from './pendingMarkdownCompositionRepair';
 import { getLiveMarkdownPreviewContent } from './pendingMarkdownLivePreview';
 
@@ -26,8 +26,8 @@ interface PendingMarkdownListenerOptions {
   handledUserInputVersionRef: MutableRefObject<number>;
   pendingUserInputVersionRef: MutableRefObject<number>;
   pendingMarkdownUpdateFrameRef: MutableRefObject<number | null>;
-  pendingRawMarkdownRef: MutableRefObject<string | null>;
-  pendingMarkdownRef: MutableRefObject<string | null>;
+  pendingRawMarkdownRef: MutableRefObject<PendingMarkdownSnapshot | null>;
+  pendingMarkdownRef: MutableRefObject<PendingMarkdownSnapshot | null>;
   isCompositionActiveRef: MutableRefObject<boolean>;
   compositionSettleTimeoutRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
   deferredCompositionMarkdownRef: MutableRefObject<string | null>;
@@ -101,7 +101,10 @@ export function usePendingMarkdownListener({
       }
 
       scheduleLiveMarkdownPreview(currentNotePath, previewMarkdown);
-      pendingRawMarkdownRef.current = markdown;
+      pendingRawMarkdownRef.current = {
+        baseContent: currentContent,
+        markdown,
+      };
       pendingUserInputVersionRef.current = userInputVersion;
       if (pendingMarkdownUpdateFrameRef.current !== null) {
         return;
@@ -109,11 +112,11 @@ export function usePendingMarkdownListener({
 
       pendingMarkdownUpdateFrameRef.current = requestAnimationFrame(() => {
         pendingMarkdownUpdateFrameRef.current = null;
-        const rawMarkdown = pendingRawMarkdownRef.current;
+        const rawSnapshot = pendingRawMarkdownRef.current;
         const rawUserInputVersion = pendingUserInputVersionRef.current;
         pendingRawMarkdownRef.current = null;
         pendingUserInputVersionRef.current = 0;
-        if (rawMarkdown === null) {
+        if (rawSnapshot === null) {
           return;
         }
         handledUserInputVersionRef.current = Math.max(handledUserInputVersionRef.current, rawUserInputVersion);
@@ -123,13 +126,19 @@ export function usePendingMarkdownListener({
         if (!latestNote || latestNote.path !== currentNotePath) {
           return;
         }
+        if (latestNote.content !== rawSnapshot.baseContent) {
+          return;
+        }
 
-        const nextMarkdown = serializeEditorMarkdownSnapshot(rawMarkdown, latestNote.content);
+        const nextMarkdown = serializeEditorMarkdownSnapshot(rawSnapshot.markdown, latestNote.content);
         if (latestNote.content === nextMarkdown) {
           return;
         }
 
-        pendingMarkdownRef.current = nextMarkdown;
+        pendingMarkdownRef.current = {
+          baseContent: latestNote.content,
+          markdown: nextMarkdown,
+        };
         schedulePendingMarkdownApply();
       });
     };

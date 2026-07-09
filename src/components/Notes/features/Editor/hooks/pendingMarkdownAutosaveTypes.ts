@@ -12,6 +12,11 @@ export interface MilkdownEditorLike {
 
 export type EditorGetter = () => MilkdownEditorLike | null | undefined;
 
+export interface PendingMarkdownSnapshot {
+  baseContent: string;
+  markdown: string;
+}
+
 export type CompositionStartSelection = {
   from: number;
   to: number;

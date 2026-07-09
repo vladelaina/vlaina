@@ -6,6 +6,7 @@ import { usePendingMarkdownFlusher } from './usePendingMarkdownFlusher';
 import type {
   CompositionStartSelection,
   EditorGetter,
+  PendingMarkdownSnapshot,
   PendingMarkdownAutosaveOptions,
 } from './pendingMarkdownAutosaveTypes';
 import { getContentCommitThrottleMs } from './pendingMarkdownAutosaveEvents';
@@ -38,8 +39,9 @@ export function usePendingMarkdownAutosave({
   const pendingMarkdownApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingLivePreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingLivePreviewRef = useRef<{ path: string | undefined; content: string } | null>(null);
-  const pendingRawMarkdownRef = useRef<string | null>(null);
-  const pendingMarkdownRef = useRef<string | null>(null);
+  const pendingRawMarkdownRef = useRef<PendingMarkdownSnapshot | null>(null);
+  const pendingMarkdownRef = useRef<PendingMarkdownSnapshot | null>(null);
+  const editorUserInputBaseContentRef = useRef<string | null>(null);
   const isCompositionActiveRef = useRef(false);
   const compositionSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deferredCompositionMarkdownRef = useRef<string | null>(null);
@@ -71,6 +73,7 @@ export function usePendingMarkdownAutosave({
     pendingUserInputVersionRef.current = 0;
     pendingRawMarkdownRef.current = null;
     pendingMarkdownRef.current = null;
+    editorUserInputBaseContentRef.current = null;
     isCompositionActiveRef.current = false;
     deferredCompositionMarkdownRef.current = null;
     deferredCompositionUserInputVersionRef.current = 0;
@@ -127,6 +130,7 @@ export function usePendingMarkdownAutosave({
     hasCompositionEndedRef,
     allowDeferredCompositionMarkdownWithoutCommitRef,
     pendingRawMarkdownRef,
+    editorUserInputBaseContentRef,
     hasEditorUserInputRef: hasEditorUserInput,
     currentNoteContentRef,
     getEditorRef,
@@ -138,9 +142,9 @@ export function usePendingMarkdownAutosave({
 
   const applyPendingMarkdown = useCallback(() => {
     pendingMarkdownApplyTimeoutRef.current = null;
-    const pendingMarkdown = pendingMarkdownRef.current;
+    const pendingSnapshot = pendingMarkdownRef.current;
     pendingMarkdownRef.current = null;
-    if (pendingMarkdown === null) {
+    if (pendingSnapshot === null) {
       return;
     }
 
@@ -149,8 +153,15 @@ export function usePendingMarkdownAutosave({
       return;
     }
 
-    const markdownToApply = pendingMarkdown;
+    const markdownToApply = pendingSnapshot.markdown;
     if (latestNote.content === markdownToApply) {
+      hasEditorUserInput.current = false;
+      editorUserInputBaseContentRef.current = null;
+      return;
+    }
+    if (latestNote.content !== pendingSnapshot.baseContent) {
+      hasEditorUserInput.current = false;
+      editorUserInputBaseContentRef.current = null;
       return;
     }
 
@@ -158,6 +169,8 @@ export function usePendingMarkdownAutosave({
     const latestIsDraftNote = isDraftNotePath(latestNote.path);
     onLocalMarkdownCommitted?.(markdownToApply);
     updateContent(markdownToApply);
+    hasEditorUserInput.current = false;
+    editorUserInputBaseContentRef.current = null;
     if (!latestIsDraftNote || latestNotesPath) {
       debouncedSave();
     }
@@ -244,8 +257,10 @@ export function usePendingMarkdownAutosave({
     pendingRawMarkdownRef,
     pendingMarkdownRef,
     pendingMarkdownApplyTimeoutRef,
+    editorUserInputBaseContentRef,
     hasEditorUserInput,
     userInputVersionRef,
+    currentNotePath,
     clearCompositionAppendGuard,
   });
 

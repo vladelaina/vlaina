@@ -33,6 +33,7 @@ export function MarkdownSourceEditor({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftRef = useRef(currentNoteContent);
   const committedDraftRef = useRef(currentNoteContent);
+  const draftBaseContentRef = useRef(currentNoteContent);
   const lastFlushedSourceDraftRef = useRef<{ path: string; markdown: string }>({
     path: currentNotePath,
     markdown: currentNoteContent,
@@ -43,11 +44,63 @@ export function MarkdownSourceEditor({
   const contentCommitFrameRef = useRef<number | null>(null);
 
   const updateContentIfCurrentNoteIsActive = useCallback((markdown: string) => {
-    if (useNotesStore.getState().currentNote?.path !== currentNotePath) {
-      return;
+    const currentNote = useNotesStore.getState().currentNote;
+    if (currentNote?.path !== currentNotePath) {
+      return false;
+    }
+    if (currentNote.content !== draftBaseContentRef.current && currentNote.content !== markdown) {
+      return false;
+    }
+    if (currentNote.content === markdown) {
+      draftBaseContentRef.current = markdown;
+      return true;
     }
     updateContent(markdown);
+    draftBaseContentRef.current = markdown;
+    return true;
   }, [currentNotePath, updateContent]);
+
+  const updateSourceDraft = useCallback((markdown: string) => {
+    const currentNote = useNotesStore.getState().currentNote;
+    if (
+      currentNote?.path === currentNotePath &&
+      draftRef.current === currentNote.content
+    ) {
+      draftBaseContentRef.current = currentNote.content;
+    }
+    draftRef.current = markdown;
+  }, [currentNotePath]);
+
+  const updateCommittedSourceDraft = useCallback((markdown: string) => {
+    const currentNote = useNotesStore.getState().currentNote;
+    if (
+      currentNote?.path === currentNotePath &&
+      committedDraftRef.current === currentNote.content
+    ) {
+      draftBaseContentRef.current = currentNote.content;
+    }
+    committedDraftRef.current = markdown;
+  }, [currentNotePath]);
+
+  const flushSourceMarkdownIfCurrent = useCallback((markdown: string) => {
+    const currentNote = useNotesStore.getState().currentNote;
+    if (currentNote?.path !== currentNotePath) {
+      return false;
+    }
+    if (currentNote.content !== draftBaseContentRef.current && currentNote.content !== markdown) {
+      return false;
+    }
+    if (currentNote.content === markdown) {
+      draftBaseContentRef.current = markdown;
+      return true;
+    }
+    const didFlush = flushPendingEditorMarkdown(currentNotePath, markdown);
+    if (didFlush) {
+      draftBaseContentRef.current = markdown;
+      return true;
+    }
+    return false;
+  }, [currentNotePath]);
 
   const clearPendingSave = useCallback(() => {
     if (saveTimerRef.current !== null) {
@@ -101,6 +154,7 @@ export function MarkdownSourceEditor({
     }
     draftRef.current = currentNoteContent;
     committedDraftRef.current = currentNoteContent;
+    draftBaseContentRef.current = currentNoteContent;
     lastFlushedSourceDraftRef.current = {
       path: currentNotePath,
       markdown: currentNoteContent,
@@ -141,8 +195,7 @@ export function MarkdownSourceEditor({
       return true;
     }
 
-    const didFlush = flushPendingEditorMarkdown(currentNotePath, markdown);
-    if (didFlush || useNotesStore.getState().currentNote?.path === currentNotePath) {
+    if (flushSourceMarkdownIfCurrent(markdown)) {
       lastFlushedSourceDraftRef.current = {
         path: currentNotePath,
         markdown,
@@ -151,7 +204,7 @@ export function MarkdownSourceEditor({
     }
 
     return false;
-  }, [currentNotePath, flushScheduledContentCommit]);
+  }, [currentNotePath, flushScheduledContentCommit, flushSourceMarkdownIfCurrent]);
 
   useEffect(() => {
     const unregisterPendingMarkdownFlusher = setPendingEditorMarkdownFlusher(flushSourceDraft);
@@ -222,8 +275,8 @@ export function MarkdownSourceEditor({
         onCompositionEnd={(event) => {
           isComposingRef.current = false;
           const nextValue = event.currentTarget.value;
-          draftRef.current = nextValue;
-          committedDraftRef.current = nextValue;
+          updateSourceDraft(nextValue);
+          updateCommittedSourceDraft(nextValue);
           if (mode === 'fallback') {
             updateContent(nextValue);
           } else {
@@ -234,12 +287,12 @@ export function MarkdownSourceEditor({
         }}
         onChange={(event) => {
           const nextValue = event.currentTarget.value;
-          draftRef.current = nextValue;
+          updateSourceDraft(nextValue);
           scheduleTextareaResize();
           if (isComposingRef.current || Boolean((event.nativeEvent as InputEvent).isComposing)) {
             return;
           }
-          committedDraftRef.current = nextValue;
+          updateCommittedSourceDraft(nextValue);
           if (mode === 'fallback') {
             updateContent(nextValue);
           } else {
