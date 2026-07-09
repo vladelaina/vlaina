@@ -42,8 +42,8 @@ export function useImageBlockState({ node, view, getPos, shouldLoadImage = true 
     const updateNodeAttrs = useCallback((attrs: ImageNodeAttrs) => {
         const pos = getPos();
         if (pos === undefined) return;
-        applyImageNodeAttrsAtPos(view, pos, attrs);
-    }, [view, getPos]);
+        applyImageNodeAttrsAtPos(view, pos, attrs, { src: nodeState.nodeSrc });
+    }, [view, getPos, nodeState.nodeSrc]);
 
     const markImageUserInput = useCallback(() => {
         view.dom.dispatchEvent(new CustomEvent('editor:image-user-input', { bubbles: true }));

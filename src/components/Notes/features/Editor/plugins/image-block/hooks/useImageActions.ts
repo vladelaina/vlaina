@@ -33,6 +33,22 @@ function isValidCropArea(value: CropArea): boolean {
         && value.height > 0;
 }
 
+function isImageEditTargetStillCurrent(
+    view: EditorView,
+    originalDoc: EditorView['state']['doc'] | undefined,
+): boolean {
+    if (view.dom?.isConnected === false) {
+        return false;
+    }
+
+    const currentDoc = view.state?.doc as { eq?: (other: unknown) => boolean } | undefined;
+    if (typeof currentDoc?.eq === 'function' && originalDoc && !currentDoc.eq(originalDoc)) {
+        return false;
+    }
+
+    return true;
+}
+
 interface UseImageActionsProps {
     node: Node;
     view: EditorView;
@@ -75,7 +91,11 @@ export function useImageActions({
 
             setIsSaving(true);
             markImageUserInput();
+            const originalDoc = view.state?.doc;
             await restoreIfNeeded();
+            if (!isImageEditTargetStillCurrent(view, originalDoc)) {
+                return;
+            }
             const cropParams = {
                 x: percentageCrop.x, 
                 y: percentageCrop.y, 

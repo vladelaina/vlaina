@@ -66,6 +66,33 @@ describe('imageNodeCommands', () => {
         expect(view.dispatch).toHaveBeenCalledWith(tr);
     });
 
+    it('does not update image attrs when the node no longer matches the expected source', () => {
+        const imageNode = createImageNode({ src: './assets/other.png', alt: 'other' });
+        const doc = createDoc({ 12: imageNode });
+        const tr: any = {
+            setNodeMarkup: vi.fn(() => tr),
+        };
+        const view: any = {
+            dom: new EventTarget(),
+            state: { doc, tr },
+            dispatch: vi.fn(),
+        };
+        const listener = vi.fn();
+        view.dom.addEventListener('editor:image-user-input', listener);
+
+        const updated = applyImageNodeAttrsAtPos(
+            view,
+            12,
+            { width: '70%' },
+            { src: './assets/demo.png' },
+        );
+
+        expect(updated).toBe(false);
+        expect(listener).not.toHaveBeenCalled();
+        expect(tr.setNodeMarkup).not.toHaveBeenCalled();
+        expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
     it('applies left alignment to the inserted image node when moving upward', () => {
         const imageAttrs = {
             src: './assets/demo.png',
