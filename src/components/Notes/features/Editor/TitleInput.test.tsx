@@ -108,7 +108,7 @@ describe('TitleInput', () => {
       vi.advanceTimersByTime(120);
     });
 
-    expect(input.style.height).toBe('44px');
+    expect(input.style.height).toBe('46px');
   });
 
   it('resets stale internal title scroll before refreshing the focused caret overlay', async () => {

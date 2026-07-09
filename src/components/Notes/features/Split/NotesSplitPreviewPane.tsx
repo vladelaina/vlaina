@@ -240,7 +240,6 @@ export function NotesSplitPreviewPane({
           imageLoader={loadImage}
           readOnly
           title={title}
-          titleClassName="text-xl"
         />
 
         <div

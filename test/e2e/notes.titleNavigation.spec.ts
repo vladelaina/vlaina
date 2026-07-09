@@ -274,6 +274,97 @@ test.describe('notes title keyboard navigation', () => {
     }
   });
 
+  test('moves to the note title after Backspace deletes the top body blank line', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-title-backspace-top-blank-line');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const firstBodyLine = 'First body line after top blank';
+      const body = ['', firstBodyLine].join('\n');
+      await openMarkdownFixture(page, {
+        filename: 'title-backspace-top-blank-line.md',
+        content: body,
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(firstBodyLine);
+      const selected = await page.evaluate(
+        (targetText) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, targetText),
+        firstBodyLine,
+      );
+      expect(selected.selected).toBe(true);
+
+      await page.keyboard.press('ArrowLeft');
+      await waitForEditorAnimationFrame(page);
+      await page.keyboard.press('Backspace');
+      await waitForEditorAnimationFrame(page);
+
+      const state = await page.evaluate(() => {
+        const titleInput = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          '[data-note-title-input="true"]',
+        );
+        const active = document.activeElement;
+        return {
+          activeIsTitle: active === titleInput,
+          titleValue: titleInput?.value ?? '',
+          selectionStart: titleInput?.selectionStart ?? null,
+          selectionEnd: titleInput?.selectionEnd ?? null,
+        };
+      });
+
+      expect(state.activeIsTitle, JSON.stringify(state, null, 2)).toBe(true);
+      expect(state.selectionStart).toBe(state.titleValue.length);
+      expect(state.selectionEnd).toBe(state.titleValue.length);
+      await expect.poll(
+        async () => page.evaluate(() => String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')),
+        { timeout: 5_000 },
+      ).toBe(firstBodyLine);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('moves to the note title after Backspace removes a top empty ordered list item', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-title-backspace-top-empty-list');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'title-backspace-top-empty-list.md',
+        content: '1.',
+      });
+
+      await page.evaluate(() => (window as any).__vlainaE2E.setEditorSelectionRange(3));
+      await waitForEditorAnimationFrame(page);
+      await page.keyboard.press('Backspace');
+      await waitForEditorAnimationFrame(page);
+
+      const state = await page.evaluate(() => {
+        const titleInput = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          '[data-note-title-input="true"]',
+        );
+        const active = document.activeElement;
+        return {
+          activeIsTitle: active === titleInput,
+          titleValue: titleInput?.value ?? '',
+          selectionStart: titleInput?.selectionStart ?? null,
+          selectionEnd: titleInput?.selectionEnd ?? null,
+        };
+      });
+
+      expect(state.activeIsTitle, JSON.stringify(state, null, 2)).toBe(true);
+      expect(state.selectionStart).toBe(state.titleValue.length);
+      expect(state.selectionEnd).toBe(state.titleValue.length);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps focus in the title when clicking it after selecting body text', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-title-click-after-body-selection');
 
