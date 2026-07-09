@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   readStyleFile,
   readBlockSelectionStyle,
+  readThemeCompatibilityStyle,
   readThemeStyle,
   extractCssRule,
   extractSelectorListsContaining,
@@ -71,6 +72,28 @@ describe("editor block selection styles", () => {
     expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-large-textlike.editor-tag-token {');
     expect(tagRule).toContain('color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
     expect(tagRule).toContain('-webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
+  });
+
+  it('keeps links at their link color inside block selections', () => {
+    const css = readBlockSelectionStyle();
+    const themeCompatibilityCss = readThemeCompatibilityStyle();
+    const linkColor = 'var(--typora-link-color, var(--primary-color, var(--text-accent, var(--vlaina-accent))))';
+    const linkRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror :is(\n  .editor-block-selected,'
+    );
+    const linkExclusion = ':not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *)';
+
+    expect(linkRule).toContain('.editor-block-selected-textlike,');
+    expect(linkRule).toContain('.editor-block-drag-source-textlike,');
+    expect(linkRule).toContain('.editor-native-selected-textlike,');
+    expect(linkRule).toContain('.editor-block-selected-large-textlike');
+    expect(linkRule).toContain(') :is(a, .external-link, .internal-link),');
+    expect(linkRule).toContain('):is(a, .external-link, .internal-link) {');
+    expect(linkRule).toContain(`color: ${linkColor} !important;`);
+    expect(linkRule).toContain(`-webkit-text-fill-color: ${linkColor} !important;`);
+    expect(css).toContain(linkExclusion);
+    expect(themeCompatibilityCss).toContain(linkExclusion);
   });
 
   it('hides editable list gap placeholder text while keeping the caret visible', () => {
