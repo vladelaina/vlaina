@@ -46,6 +46,7 @@ describe('nativeSelectedNodeClasses', () => {
       '<div class="toc-block"></div>',
       '<div class="callout"></div>',
       '<div data-type="html-block" data-value="<!--vlaina-markdown-blank-line-->"></div>',
+      '<div data-type="html-block" data-value="<!--vlaina-rendered-html-boundary-blank-line-->"></div>',
     ];
 
     for (const sample of samples) {

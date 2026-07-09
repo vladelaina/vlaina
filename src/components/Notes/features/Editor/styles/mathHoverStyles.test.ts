@@ -77,7 +77,7 @@ describe('math hover styles', () => {
 
     expect(selectedRule).toContain(".milkdown [data-type='math-inline'].ProseMirror-selectednode,");
     expect(selectedRule).toContain(".milkdown [data-type='math-block'].ProseMirror-selectednode,");
-    expect(selectedRule).toContain(".milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).ProseMirror-selectednode,");
+    expect(selectedRule).toContain(".milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).ProseMirror-selectednode,");
     expect(selectedRule).toContain('.milkdown .mermaid-block.ProseMirror-selectednode {');
     expect(selectedRule).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
     expect(selectedRule).toContain('background: var(--vlaina-block-selection-color);');
@@ -111,7 +111,7 @@ describe('math hover styles', () => {
 
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending :is(');
     expect(css).toMatch(
-      /\[data-type='math-inline'\],\s*\[data-type='math-block'\],\s*\[data-type='html-block'\]:not\(\[data-value='<!--vlaina-markdown-blank-line-->'\]\):not\(\[data-value='<!--vlaina-markdown-tight-heading-->'\]\),\s*\.mermaid-block\s*\):not\(\.editor-block-selected\):is\(:hover, :focus-visible\)/
+      /\[data-type='math-inline'\],\s*\[data-type='math-block'\],\s*\[data-type='html-block'\]:not\(\[data-value='<!--vlaina-markdown-blank-line-->'\]\):not\(\[data-value='<!--vlaina-rendered-html-boundary-blank-line-->'\]\):not\(\[data-value='<!--vlaina-markdown-tight-heading-->'\]\),\s*\.mermaid-block\s*\):not\(\.editor-block-selected\):is\(:hover, :focus-visible\)/
     );
     expect(css).toContain('cursor: crosshair !important;');
     expect(css).toContain('background: transparent !important;');

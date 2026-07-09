@@ -162,7 +162,7 @@ describe("editor block drag interaction styles", () => {
   it('keeps markdown blank-line html blocks from intercepting floating toolbar clicks', () => {
     const css = readStyleFile('markdown.css');
 
-    expect(css).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'] {");
+    expect(css).toContain(".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],\n  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']\n) {");
     expect(css).toContain('pointer-events: none;');
   });
 

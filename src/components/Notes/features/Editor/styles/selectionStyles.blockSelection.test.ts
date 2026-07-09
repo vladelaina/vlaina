@@ -337,7 +337,7 @@ describe("editor block selection styles", () => {
     const blockSelectionCss = readBlockSelectionStyle();
     const editorBlankLineRule = extractCssRule(
       markdownCss,
-      ".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']"
+      ".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],"
     );
     const editableBlankLineRule = extractCssRule(
       markdownCss,
@@ -359,7 +359,8 @@ describe("editor block selection styles", () => {
     expect(trailingBreakBlankLineRule).toContain('padding: var(--vlaina-space-0);');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-native-selected-textlike {');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
-    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {");
+    expect(editorBlankLineRule).toContain("[data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']");
+    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],\n  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']\n).editor-block-selected {");
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike::after,');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);');
     expect(blockSelectionCss).toContain('top: var(--vlaina-block-selection-fill-top);');
@@ -523,7 +524,7 @@ describe("editor block selection styles", () => {
     expect(blockSelectionCss).not.toContain('.footnote-def,');
     expect(blockSelectionCss).toContain('.toc-block,');
     expect(blockSelectionCss).not.toContain('.callout,');
-    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected");
+    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],\n  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']\n).editor-block-selected");
     expect(markdownCss).not.toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode::before');
   });
 });

@@ -20,7 +20,10 @@ export const IGNORED_BLANK_AREA_DRAG_BOX_SELECTOR = [
   COVER_REGION_SELECTOR,
   NO_EDITOR_DRAG_BOX_SELECTOR,
 ].join(', ');
-export const MARKDOWN_BLANK_LINE_SELECTOR = "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']";
+export const MARKDOWN_BLANK_LINE_SELECTOR = [
+  "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']",
+  "[data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']",
+].join(', ');
 export const TEXT_BLOCK_SURFACE_SELECTOR = [
   'p',
   'li',
@@ -36,7 +39,7 @@ export const TEXT_BLOCK_SURFACE_SELECTOR = [
 export const STRUCTURED_BLOCK_SELECTOR = [
   'table',
   'pre',
-  `[data-type]:not(${MARKDOWN_BLANK_LINE_SELECTOR})`,
+  `[data-type]:not(:is(${MARKDOWN_BLANK_LINE_SELECTOR}))`,
   '[data-node-view-root]',
 ].join(', ');
 

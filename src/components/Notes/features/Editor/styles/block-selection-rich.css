@@ -86,6 +86,7 @@
 
 .milkdown .ProseMirror > :is(
   [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],
+  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->'],
   p.editor-editable-markdown-blank-line,
   p.editor-empty-paragraph:not(.is-editor-empty)
 ).editor-block-selected.editor-block-selected-has-next + :is(
@@ -95,10 +96,11 @@
   .video-block,
   .toc-block,
   [data-type='math-block'],
-  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
+  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ).editor-block-selected.editor-block-selected-has-previous,
 .milkdown .ProseMirror > :is(
   [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],
+  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->'],
   p.editor-editable-markdown-blank-line,
   p.editor-empty-paragraph:not(.is-editor-empty)
 ).editor-block-drag-source.editor-block-drag-source-has-next + :is(
@@ -108,18 +110,19 @@
   .video-block,
   .toc-block,
   [data-type='math-block'],
-  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
+  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ).editor-block-drag-source.editor-block-drag-source-has-previous {
   box-shadow: none !important;
 }
 
 .milkdown .ProseMirror > :is(
   [data-type='math-block'].math-block-wrapper,
-  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .toc-block,
   .mermaid-block
 ).editor-block-selected.editor-block-selected-has-next + :is(
   [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],
+  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->'],
   p.editor-editable-markdown-blank-line,
   p.editor-empty-paragraph:not(.is-editor-empty)
 ).editor-block-selected.editor-block-selected-textlike.editor-block-selected-has-previous::before {

@@ -9,7 +9,7 @@ import {
 } from './notesE2E';
 
 const SELECTED_NODE_SELECTOR = `${EDITOR_SELECTOR} .ProseMirror-selectednode`;
-const REAL_HTML_BLOCK_SELECTOR = `${EDITOR_SELECTOR} [data-type="html-block"]:not([data-value="<!--vlaina-markdown-blank-line-->"]):not([data-value="<!--vlaina-markdown-tight-heading-->"])`;
+const REAL_HTML_BLOCK_SELECTOR = `${EDITOR_SELECTOR} [data-type="html-block"]:not([data-value="<!--vlaina-markdown-blank-line-->"]):not([data-value="<!--vlaina-rendered-html-boundary-blank-line-->"]):not([data-value="<!--vlaina-markdown-tight-heading-->"])`;
 
 async function clickParagraphText(page: import('@playwright/test').Page, text: string) {
   const paragraph = page.locator(`${EDITOR_SELECTOR} p`, { hasText: text }).first();

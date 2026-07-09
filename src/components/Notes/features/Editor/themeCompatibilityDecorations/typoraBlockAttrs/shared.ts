@@ -1,5 +1,10 @@
 import { getTextContent } from '../typoraTextSemantics';
 
+const INTERNAL_BLANK_LINE_HTML_BLOCK_VALUES = new Set([
+  '<!--vlaina-markdown-blank-line-->',
+  '<!--vlaina-rendered-html-boundary-blank-line-->',
+]);
+
 export function isEmptyParagraphNode(node: any): boolean {
   return node?.type?.name === 'paragraph' && getTextContent(node).trim() === '';
 }
@@ -7,7 +12,7 @@ export function isEmptyParagraphNode(node: any): boolean {
 export function isInternalBlankLineHtmlBlock(node: any): boolean {
   return node?.type?.name === 'html_block' &&
     typeof node.attrs?.value === 'string' &&
-    node.attrs.value.trim() === '<!--vlaina-markdown-blank-line-->';
+    INTERNAL_BLANK_LINE_HTML_BLOCK_VALUES.has(node.attrs.value.trim());
 }
 
 export function isIgnorableVlookLayoutSibling(node: any): boolean {

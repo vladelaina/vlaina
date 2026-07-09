@@ -105,7 +105,10 @@
   -webkit-text-fill-color: var(--typora-link-color, var(--primary-color, var(--text-accent, var(--vlaina-accent)))) !important;
 }
 
-.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {
+.milkdown .ProseMirror > :is(
+  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],
+  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']
+).editor-block-selected {
   --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
   --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
   border-radius: var(--vlaina-radius-8px);

@@ -698,17 +698,22 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('routes markdown blank line placeholder blocks through blank-area click handling', () => {
-    const { view, cleanup } = createView();
-    const blankLine = document.createElement('div');
-    blankLine.setAttribute('data-type', 'html-block');
-    blankLine.setAttribute('data-value', '<!--vlaina-markdown-blank-line-->');
-    view.dom.append(blankLine);
+  it('routes editor blank line placeholder blocks through blank-area click handling', () => {
+    for (const value of [
+      '<!--vlaina-markdown-blank-line-->',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+    ]) {
+      const { view, cleanup } = createView();
+      const blankLine = document.createElement('div');
+      blankLine.setAttribute('data-type', 'html-block');
+      blankLine.setAttribute('data-value', value);
+      view.dom.append(blankLine);
 
-    try {
-      expect(resolveBlankAreaDragStartZone(view, createMouseDown(blankLine))).toBe('outside-editor');
-    } finally {
-      cleanup();
+      try {
+        expect(resolveBlankAreaDragStartZone(view, createMouseDown(blankLine))).toBe('outside-editor');
+      } finally {
+        cleanup();
+      }
     }
   });
 

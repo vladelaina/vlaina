@@ -33,7 +33,7 @@ describe("editor style theme compatibility", () => {
       css,
       `${scope} #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock):not(`
     );
-    expect(typoraHtmlBlockOverflowRule).toContain(":not([data-value='<!--vlaina-markdown-blank-line-->'])");
+    expect(typoraHtmlBlockOverflowRule).toContain(":not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->'])");
     expect(typoraHtmlBlockOverflowRule).toContain(":not([data-value='<!--vlaina-markdown-tight-heading-->'])");
     expect(typoraHtmlBlockOverflowRule).toContain('overflow-x: auto;');
     expect(css).not.toContain(`${scope} #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock) {\n`);
@@ -154,14 +154,14 @@ describe("editor style theme compatibility", () => {
     expect(selectedCodeForegroundRule).toContain("-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;");
     expect(selectedRichNodeSurfaceRule).toContain("[data-type='math-inline'],");
     expect(selectedRichNodeSurfaceRule).toContain("[data-type='math-block'],");
-    expect(selectedRichNodeSurfaceRule).toContain("[data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
+    expect(selectedRichNodeSurfaceRule).toContain("[data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
     expect(selectedRichNodeSurfaceRule).toContain(".mermaid-block");
     expect(selectedRichNodeSurfaceRule).toContain(".ProseMirror-selectednode {");
     expect(selectedRichNodeSurfaceRule).toContain("--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);");
     expect(selectedRichNodeSurfaceRule).toContain("background: var(--vlaina-block-selection-color) !important;");
     expect(selectedRichNodeSurfaceRule).toContain("background-color: var(--vlaina-block-selection-color) !important;");
     expect(selectedRichNodeSurfaceRule).toContain("box-shadow: var(--vlaina-block-selection-shadow) !important;");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(\n  [data-type='math-inline'],\n  [data-type='math-block'],\n  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])\n).ProseMirror-selectednode * {");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(\n  [data-type='math-inline'],\n  [data-type='math-block'],\n  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])\n).ProseMirror-selectednode * {");
     expect(css).toContain("color: var(--vlaina-editor-block-selection-fg) !important;");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .mermaid-block.ProseMirror-selectednode :is(text, tspan, .nodeLabel, .nodeLabel *, .label, .label *, .edgeLabel, .edgeLabel *) {");
     expect(css).toContain("color: var(--vlaina-mermaid-text) !important;");
