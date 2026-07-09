@@ -502,6 +502,10 @@ describe('AppContent view switching chrome readiness', () => {
     render(<AppContent />);
 
     fireEvent.click(await screen.findByRole('button', {
+      name: 'Expand development tools',
+    }));
+
+    fireEvent.click(await screen.findByRole('button', {
       name: 'Switch Markdown theme (default)',
     }));
 

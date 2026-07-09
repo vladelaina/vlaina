@@ -292,7 +292,12 @@ describe('useChatService session context isolation', () => {
     const pendingProviderResponse = new Promise<string>((resolve) => {
       resolveProvider = resolve;
     });
-    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async ({ options }: { options?: ChatSendOptions }) => {
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async ({
+      options,
+    }: {
+      onChunk: (chunk: string) => void;
+      options?: ChatSendOptions;
+    }) => {
       options?.onRetryStatus?.('Service unavailable\n30秒后重试 - 第4次重试');
       return await pendingProviderResponse;
     });
@@ -321,7 +326,12 @@ describe('useChatService session context isolation', () => {
     const pendingProviderResponse = new Promise<string>((resolve) => {
       resolveProvider = resolve;
     });
-    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async ({ options }: { options?: ChatSendOptions }) => {
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async ({
+      options,
+    }: {
+      onChunk: (chunk: string) => void;
+      options?: ChatSendOptions;
+    }) => {
       options?.onRetryStatus?.('Service unavailable\n30秒后重试 - 第4次重试');
       return await pendingProviderResponse;
     });

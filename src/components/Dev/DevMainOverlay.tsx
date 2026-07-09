@@ -166,6 +166,7 @@ export function DevMainOverlay({
     : copyLogState === 'failed'
       ? 'Copy logs failed'
       : 'Copy logs';
+  const clearLogLabel = 'Clear logs';
 
   if (shouldPreviewErrorScreen) {
     return <DevErrorScreenPreviewCrash />;
@@ -199,7 +200,7 @@ export function DevMainOverlay({
             </button>
             <button
               type="button"
-              aria-label="Clear logs"
+              aria-label={clearLogLabel}
               data-diagnostics-action="clear"
               onClick={handleClearLogs}
               className="inline-flex size-8 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-bg-tertiary)] hover:text-[var(--vlaina-sidebar-notes-text)]"
