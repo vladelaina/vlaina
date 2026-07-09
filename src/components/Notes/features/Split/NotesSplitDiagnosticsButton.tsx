@@ -1,15 +1,5 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Check, ClipboardList, Trash2 } from 'lucide-react';
-import { writeTextToClipboard } from '@/lib/clipboard';
-import { themeUiFeedbackTokens } from '@/styles/themeTokens';
-import {
-  clearNotesSplitDiagnostics,
-  getNotesSplitDiagnosticEntries,
-  getNotesSplitDiagnosticsText,
-  getNotesSplitDiagnosticsVersion,
-  logNotesSplitDiagnostic,
-  subscribeNotesSplitDiagnostics,
-} from '@/lib/diagnostics/notesSplitDiagnostics';
+import { useEffect } from 'react';
+import { logNotesSplitDiagnostic } from '@/lib/diagnostics/notesSplitDiagnostics';
 
 function getLeafDetails(element: Element | null): {
   leafId: string;
@@ -61,14 +51,6 @@ function includesCoverRegion(node: Node): boolean {
 }
 
 export function NotesSplitDiagnosticsButton() {
-  const diagnosticsVersion = useSyncExternalStore(
-    subscribeNotesSplitDiagnostics,
-    getNotesSplitDiagnosticsVersion,
-    getNotesSplitDiagnosticsVersion,
-  );
-  const [copied, setCopied] = useState(false);
-  const entryCount = useMemo(() => getNotesSplitDiagnosticEntries().length, [diagnosticsVersion]);
-
   useEffect(() => {
     if (typeof MutationObserver === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
       logNotesSplitDiagnostic('split-diagnostics-observer-unavailable');
@@ -163,52 +145,5 @@ export function NotesSplitDiagnosticsButton() {
     };
   }, []);
 
-  const handleCopy = async () => {
-    logNotesSplitDiagnostic('split-diagnostics-copy-click', {
-      snapshot: collectCoverSnapshot(),
-    });
-    const didCopy = await writeTextToClipboard(getNotesSplitDiagnosticsText());
-    if (!didCopy) {
-      logNotesSplitDiagnostic('split-diagnostics-copy-failed');
-      return;
-    }
-
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), themeUiFeedbackTokens.copyFeedbackDurationMs);
-  };
-
-  const handleClear = () => {
-    clearNotesSplitDiagnostics();
-    logNotesSplitDiagnostic('split-diagnostics-cleared', {
-      snapshot: collectCoverSnapshot(),
-    });
-    setCopied(false);
-  };
-
-  return (
-    <div className="fixed bottom-[var(--vlaina-space-16px)] right-[var(--vlaina-space-16px)] z-[var(--vlaina-z-60)] flex items-center gap-[var(--vlaina-space-6px)]">
-      <button
-        type="button"
-        aria-label="清空分屏日志"
-        data-notes-split-diagnostics-clear="true"
-        onClick={handleClear}
-        className="flex items-center gap-[var(--vlaina-space-6px)] rounded-[var(--vlaina-radius-10px)] border border-[var(--vlaina-color-border-shell)] bg-[var(--vlaina-bg-primary)] px-[var(--vlaina-space-10px)] py-[var(--vlaina-space-6px)] text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-text-primary)] shadow-[var(--vlaina-shadow-md)] transition-colors hover:bg-[var(--vlaina-bg-hover)]"
-      >
-        <Trash2 className="size-[var(--vlaina-size-16px)]" />
-        <span>清空</span>
-      </button>
-      <button
-        type="button"
-        aria-label="复制分屏日志"
-        data-notes-split-diagnostics-copy="true"
-        onClick={() => {
-          void handleCopy();
-        }}
-        className="flex items-center gap-[var(--vlaina-space-6px)] rounded-[var(--vlaina-radius-10px)] border border-[var(--vlaina-color-border-shell)] bg-[var(--vlaina-bg-primary)] px-[var(--vlaina-space-10px)] py-[var(--vlaina-space-6px)] text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-text-primary)] shadow-[var(--vlaina-shadow-md)] transition-colors hover:bg-[var(--vlaina-bg-hover)]"
-      >
-        {copied ? <Check className="size-[var(--vlaina-size-16px)]" /> : <ClipboardList className="size-[var(--vlaina-size-16px)]" />}
-        <span>{copied ? '已复制' : `复制分屏日志 ${entryCount}`}</span>
-      </button>
-    </div>
-  );
+  return null;
 }

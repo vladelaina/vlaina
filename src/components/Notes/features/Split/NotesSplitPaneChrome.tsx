@@ -1,8 +1,10 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { noteToolbarIconButtonClassName } from '@/components/Notes/features/Editor/NoteToolbarActions';
+import { NoteIcon } from '../IconPicker/NoteIcon';
 
 export function NotesSplitPaneChrome({
   actions,
@@ -20,6 +22,7 @@ export function NotesSplitPaneChrome({
   onClose?: () => void;
 }) {
   const { t } = useI18n();
+  const icon = useDisplayIcon(path);
 
   return (
     <div
@@ -41,11 +44,28 @@ export function NotesSplitPaneChrome({
         onDragPointerDown?.(event, sourceLeafId);
       }}
     >
-      <div
-        className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--vlaina-text-primary)]"
-        data-notes-split-pane-name="true"
-      >
-        {title}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {path ? (
+          <span
+            className="pointer-events-none flex shrink-0 items-center"
+            data-notes-split-pane-icon="true"
+          >
+            {icon ? (
+              <NoteIcon icon={icon} notePath={path} size="md" />
+            ) : (
+              <Icon
+                name="file.text"
+                className="h-[var(--vlaina-size-18px)] w-[var(--vlaina-size-18px)] text-[var(--vlaina-sidebar-notes-file-icon)]"
+              />
+            )}
+          </span>
+        ) : null}
+        <div
+          className="min-w-0 truncate text-sm font-medium text-[var(--vlaina-text-primary)]"
+          data-notes-split-pane-name="true"
+        >
+          {title}
+        </div>
       </div>
       {actions ? (
         <div className="flex shrink-0 items-center gap-1">

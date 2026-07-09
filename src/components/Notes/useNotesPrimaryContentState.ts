@@ -128,6 +128,7 @@ export function useNotesPrimaryContentState(args: {
   return {
     canLoadMarkdownEditor,
     firstPaintPreviewBlocks,
+    isPrimaryContentReady: Boolean(currentNotePath && primaryContentReadyPath === currentNotePath),
     reportNotesPrimaryContentReady,
   };
 }

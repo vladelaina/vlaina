@@ -127,4 +127,85 @@ test.describe('multi-window note document sync', () => {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
   });
+
+  test('keeps many windows stable while merging sequential non-overlapping stale saves', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-multi-window-stale-merge-many');
+
+    try {
+      await app.firstWindow();
+      const [main] = await getOpenBridgePages(app, 1);
+      const initialContent = [
+        '# Many Windows',
+        '',
+        'A: initial',
+        '',
+        'B: initial',
+        '',
+        'C: initial',
+        '',
+        'D: initial',
+        '',
+      ].join('\n');
+      const { notePath } = await main.evaluate((content) =>
+        (window as any).__vlainaE2E.createNotesFixture({
+          filename: 'many-windows.md',
+          content,
+        }), initialContent
+      );
+
+      for (let windowIndex = 1; windowIndex < 4; windowIndex += 1) {
+        await main.evaluate(() => (window as any).__vlainaE2E.createWindow({ viewMode: 'notes' }));
+      }
+      const pages = await getOpenBridgePages(app, 4);
+      await Promise.all(pages.map((page) =>
+        page.evaluate((path) => (window as any).__vlainaE2E.openAbsoluteNote(path), notePath)
+      ));
+
+      const edits = [
+        ['A: initial', 'A: changed in window one'],
+        ['B: initial', 'B: changed in window two'],
+        ['C: initial', 'C: changed in window three'],
+        ['D: initial', 'D: changed in window four'],
+      ] as const;
+
+      for (let index = 0; index < pages.length; index += 1) {
+        const page = pages[index]!;
+        const [from, to] = edits[index]!;
+        await page.evaluate(({ from, to }) => {
+          const state = (window as any).__vlainaE2E.getNotesState();
+          const content = String(state.currentNote?.content ?? '');
+          (window as any).__vlainaE2E.updateCurrentNoteContent(content.replace(from, to));
+        }, { from, to });
+        await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+
+        const savedState = await getNotesState(page);
+        expect(savedState.isDirty).toBe(false);
+        expect(savedState.error).toBeNull();
+        const diskContent = await page.evaluate((path) => (window as any).__vlainaE2E.readTextFile(path), notePath);
+        for (let savedIndex = 0; savedIndex <= index; savedIndex += 1) {
+          expect(diskContent).toContain(edits[savedIndex]![1]);
+        }
+      }
+
+      await Promise.all(pages.map((page) =>
+        page.evaluate(() => (window as any).__vlainaE2E.syncCurrentNoteFromDisk({ force: true }))
+      ));
+      const finalStates = await Promise.all(pages.map(getNotesState));
+      const diskContent = await main.evaluate((path) => (window as any).__vlainaE2E.readTextFile(path), notePath);
+
+      for (const [, expectedText] of edits) {
+        expect(diskContent).toContain(expectedText);
+      }
+      for (const state of finalStates) {
+        expect(state.currentNote?.path).toBe(notePath);
+        expect(state.isDirty).toBe(false);
+        expect(state.error).toBeNull();
+        for (const [, expectedText] of edits) {
+          expect(state.currentNote?.content).toContain(expectedText);
+        }
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 });

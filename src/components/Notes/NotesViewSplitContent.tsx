@@ -1,4 +1,4 @@
-import { Suspense, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import type { NoteMetadataEntry } from '@/stores/notes/types';
@@ -39,6 +39,7 @@ export function NotesViewSplitContent({
   firstPaintPreviewBlocks,
   getDisplayName,
   hasSplitPanes,
+  isPrimaryContentReady,
   noteContentsCache,
   notesPath,
   onPrimaryContentReady,
@@ -64,6 +65,7 @@ export function NotesViewSplitContent({
   firstPaintPreviewBlocks: FirstPaintPreviewBlock[];
   getDisplayName: ReturnType<typeof useNotesStore.getState>['getDisplayName'];
   hasSplitPanes: boolean;
+  isPrimaryContentReady: boolean;
   noteContentsCache: ReturnType<typeof useNotesStore.getState>['noteContentsCache'];
   notesPath: string;
   onPrimaryContentReady: () => void;
@@ -96,7 +98,7 @@ export function NotesViewSplitContent({
       ) : null}
     </div>
   );
-  const renderPrimaryEditorPane = (sourceLeafId?: string) => (
+  const renderPrimaryEditorPane = (sourceLeafId?: string, activationFallback?: ReactNode) => (
     hasSplitPanes ? (
       <section
         className="relative flex h-full min-h-0 min-w-0 flex-col bg-[var(--vlaina-bg-primary)]"
@@ -122,7 +124,8 @@ export function NotesViewSplitContent({
           )}
           onClose={closeActiveSplitPane}
         />
-        <div className="min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1">
+          {activationFallback}
           {primaryEditorContent}
         </div>
       </section>
@@ -140,6 +143,30 @@ export function NotesViewSplitContent({
     currentNotePath === path
       ? currentNoteContent
       : noteContentsCache.get(path)?.content ?? ''
+  );
+
+  const getSplitPaneActivationFallbackContent = (path: string) => (
+    noteContentsCache.get(path)?.content ?? (currentNotePath === path ? currentNoteContent : '')
+  );
+
+  const renderSplitActivationFallback = (path: string, title: string) => (
+    !isPrimaryContentReady ? (
+      <div
+        className="pointer-events-none absolute inset-0 z-[var(--vlaina-z-1)]"
+        data-notes-split-activation-fallback="true"
+      >
+        <NotesSplitPreviewPane
+          content={getSplitPaneActivationFallbackContent(path)}
+          path={path}
+          title={title}
+          interactive={false}
+          showChrome={false}
+          onActivate={() => undefined}
+          onPaneDragPointerDown={beginSplitPaneDrag}
+          onClose={() => undefined}
+        />
+      </div>
+    ) : null
   );
 
   const renderLeafDropOverlay = (leafId: string) => (
@@ -171,7 +198,10 @@ export function NotesViewSplitContent({
               onPaneDragPointerDown={beginSplitPaneDrag}
               onClose={closePrimaryPreviewPane}
             />
-          ) : renderPrimaryEditorPane(node.id)}
+          ) : renderPrimaryEditorPane(
+            node.id,
+            currentNotePath ? renderSplitActivationFallback(currentNotePath, currentSplitPaneTitle) : null,
+          )}
           {renderLeafDropOverlay(node.id)}
         </div>
       );
@@ -190,7 +220,10 @@ export function NotesViewSplitContent({
           data-notes-split-pane={isActivePreviewLeaf ? 'primary' : 'preview'}
         >
           {isActivePreviewLeaf ? (
-            renderPrimaryEditorPane(node.id)
+            renderPrimaryEditorPane(
+              node.id,
+              renderSplitActivationFallback(node.path, getDisplayName(node.path)),
+            )
           ) : (
             <NotesSplitPreviewPane
               content={content}

@@ -142,6 +142,14 @@ const mocks = vi.hoisted(() => {
     setLayoutPanelDragging: vi.fn(),
     setAppViewMode: vi.fn(),
     setNotesSidebarView: vi.fn(),
+    universalPreviewTarget: null as string | null,
+    universalPreviewIcon: null as string | null,
+    universalPreviewColor: null as string | null,
+    universalPreviewTone: null as number | null,
+    notesPreviewTitle: null as { path: string; title: string } | null,
+    setNotesPreviewTitle: vi.fn((path: string | null, title: string | null) => {
+      uiState.notesPreviewTitle = path && title ? { path, title } : null;
+    }),
     languagePreference: 'en',
   };
 
@@ -181,6 +189,20 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
       setState: (partial: Partial<MockNotesState>) => {
         Object.assign(mocks.notesState, partial);
       },
+      subscribe: () => () => undefined,
+    },
+  ),
+}));
+
+vi.mock('@/stores/useNotesStore', () => ({
+  useNotesStore: Object.assign(
+    (selector: (state: MockNotesState) => unknown) => selector(mocks.notesState),
+    {
+      getState: () => mocks.notesState,
+      setState: (partial: Partial<MockNotesState>) => {
+        Object.assign(mocks.notesState, partial);
+      },
+      subscribe: () => () => undefined,
     },
   ),
 }));
@@ -213,6 +235,7 @@ vi.mock('@/stores/uiSlice', () => ({
     (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
     {
       getState: () => mocks.uiState,
+      subscribe: () => () => undefined,
     },
   ),
 }));
@@ -586,6 +609,12 @@ describe('NotesView', () => {
     uiState.setLayoutPanelDragging.mockClear();
     uiState.setAppViewMode.mockClear();
     uiState.setNotesSidebarView.mockClear();
+    uiState.universalPreviewTarget = null;
+    uiState.universalPreviewIcon = null;
+    uiState.universalPreviewColor = null;
+    uiState.universalPreviewTone = null;
+    uiState.notesPreviewTitle = null;
+    uiState.setNotesPreviewTitle.mockClear();
     uiState.languagePreference = 'en';
   });
 
@@ -638,6 +667,12 @@ describe('NotesView', () => {
     notesState.noteContentsCache = new Map([
       ['docs/beta.md', { content: '# Beta\n\nBeta body', modifiedAt: 1 }],
     ]);
+    notesState.noteMetadata = {
+      notes: {
+        'docs/alpha.md': { icon: '✨' },
+        'docs/beta.md': { icon: '🌲' },
+      },
+    };
     uiState.notesChatPanelCollapsed = false;
 
     render(<NotesView />);
@@ -660,7 +695,9 @@ describe('NotesView', () => {
       await Promise.resolve();
     });
 
-    expect(document.querySelector('[data-notes-split-drop-overlay="right"]')).toBeInTheDocument();
+    const dropOverlay = document.querySelector('[data-notes-split-drop-overlay="right"]');
+    expect(dropOverlay).toBeInTheDocument();
+    expect(dropOverlay?.firstElementChild?.className).toContain('bg-[var(--vlaina-color-editor-block-selection-drag-box)]');
 
     await act(async () => {
       dispatchNotesTabSplitDrag({
@@ -688,6 +725,8 @@ describe('NotesView', () => {
     expect(betaPane?.querySelector('button[aria-label="More note actions"]')).not.toBeNull();
     const primaryChrome = document.querySelector('[data-notes-split-pane="primary"] [data-notes-split-pane-chrome="true"]') as HTMLElement | null;
     const primaryPane = document.querySelector('[data-notes-split-pane="primary"]') as HTMLElement | null;
+    expect(betaPane?.querySelector('[data-notes-split-pane-chrome="true"] [data-notes-split-pane-icon="true"]')?.textContent).toBe('🌲');
+    expect(primaryChrome?.querySelector('[data-notes-split-pane-icon="true"]')?.textContent).toBe('✨');
     expect(primaryChrome?.querySelector('button[aria-label="Add to Starred"]')).not.toBeNull();
     expect(primaryChrome?.querySelector('button[aria-label="Right Chat"]')).not.toBeNull();
     expect(primaryChrome?.querySelector('button[aria-label="More note actions"]')).not.toBeNull();

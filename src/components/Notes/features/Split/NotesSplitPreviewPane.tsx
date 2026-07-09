@@ -44,10 +44,12 @@ export { NotesSplitPaneChrome } from './NotesSplitPaneChrome';
 interface NotesSplitPreviewPaneProps {
   content: string;
   direction?: NotesSplitDirection;
+  interactive?: boolean;
   path: string;
   title: string;
   onActivate: (point?: EditorViewportPoint) => void | Promise<void>;
   onClose: () => void;
+  showChrome?: boolean;
   onPaneDragPointerDown?: (event: ReactPointerEvent<HTMLDivElement>, sourceLeafId: string) => void;
   sourceLeafId?: string;
 }
@@ -86,10 +88,12 @@ function normalizeCover(cover: NoteCoverMetadata | undefined): {
 export function NotesSplitPreviewPane({
   content,
   direction,
+  interactive = true,
   path,
   title,
   onActivate,
   onClose,
+  showChrome = true,
   onPaneDragPointerDown,
   sourceLeafId,
 }: NotesSplitPreviewPaneProps) {
@@ -169,8 +173,8 @@ export function NotesSplitPreviewPane({
 
   return (
     <section
-      data-notes-split-preview-pane="true"
-      data-notes-block-drop-target="true"
+      data-notes-split-preview-pane={interactive ? 'true' : undefined}
+      data-notes-block-drop-target={interactive ? 'true' : undefined}
       data-notes-split-leaf-path={path}
       className={cn(
         'relative flex h-full w-full min-h-0 min-w-0 flex-col bg-[var(--vlaina-bg-primary)]',
@@ -178,6 +182,7 @@ export function NotesSplitPreviewPane({
         'border-[var(--vlaina-color-border-shell)]'
       )}
       onClick={(event) => {
+        if (!interactive) return;
         const target = event.target;
         if (target instanceof Element && target.closest('button')) return;
         if (target instanceof Element && target.closest('[data-notes-split-preview-content="true"]')) {
@@ -185,27 +190,29 @@ export function NotesSplitPreviewPane({
         }
       }}
     >
-      <NotesSplitPaneChrome
-        path={path}
-        sourceLeafId={sourceLeafId}
-        title={title}
-        onDragPointerDown={onPaneDragPointerDown}
-        actions={(
-          <NoteToolbarActions
-            currentNotePath={path}
-            currentNoteTitle={title}
-            getCurrentNoteContent={() => content}
-            notesPath={notesPath}
-            starred={starred}
-            toggleStarred={toggleStarred}
-            currentNoteMetadata={noteMetadata}
-            buttonClassName="h-7 w-7"
-            forceShowChat
-            onOpenChat={() => onActivate()}
-          />
-        )}
-        onClose={onClose}
-      />
+      {showChrome ? (
+        <NotesSplitPaneChrome
+          path={path}
+          sourceLeafId={sourceLeafId}
+          title={title}
+          onDragPointerDown={onPaneDragPointerDown}
+          actions={(
+            <NoteToolbarActions
+              currentNotePath={path}
+              currentNoteTitle={title}
+              getCurrentNoteContent={() => content}
+              notesPath={notesPath}
+              starred={starred}
+              toggleStarred={toggleStarred}
+              currentNoteMetadata={noteMetadata}
+              buttonClassName="h-7 w-7"
+              forceShowChat
+              onOpenChat={() => onActivate()}
+            />
+          )}
+          onClose={onClose}
+        />
+      ) : null}
 
       <OverlayScrollArea className="min-h-0 flex-1" viewportClassName="flex flex-col items-center relative" scrollbarVariant="compact">
         {cover.url ? (
