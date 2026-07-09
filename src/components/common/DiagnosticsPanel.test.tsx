@@ -32,6 +32,8 @@ describe('DiagnosticsPanel', () => {
 
     expect(screen.getByLabelText('0 diagnostics entries')).toBeInTheDocument();
     expect(container.querySelector('[data-diagnostics-panel="true"]')).toHaveClass('pointer-events-none');
+    expect(container.querySelector('[data-diagnostics-panel="true"]')).toHaveClass('top-[var(--vlaina-size-56px)]');
+    expect(container.querySelector('[data-diagnostics-panel="true"]')).not.toHaveClass('bottom-4');
     expect(screen.getByRole('button', { name: 'Copy diagnostics' })).toHaveClass('pointer-events-auto');
     expect(screen.getByRole('button', { name: 'Clear diagnostics' })).toHaveClass('pointer-events-auto');
 

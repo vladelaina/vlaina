@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { actions as aiActions } from '@/stores/useAIStore'
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore'
-import { isManagedModelId, isManagedProviderId } from '@/lib/ai/managedService'
 import type { AIModel, Provider } from '@/lib/ai/types'
 import { useI18n } from '@/lib/i18n'
 import { getModelCategoryId, getModelFamily, type ModelCategoryId } from './modelFamilyRegistry'
@@ -114,13 +113,7 @@ export function ModelSelector({
   }, [])
 
   const openSelector = useCallback(() => {
-      const shouldRefreshManagedModels = selectedModel
-          ? isManagedProviderId(selectedModel.providerId)
-          : isManagedModelId(selectedModelId)
-
-      if (shouldRefreshManagedModels) {
-          aiActions.refreshManagedProviderInBackground({ force: true })
-      }
+      aiActions.refreshManagedProviderInBackground({ force: true })
       const initialCategoryId = selectedModel
           ? getModelCategoryId(selectedModel)
           : modelCategories.find((category) => category.id !== 'favorites')?.id ?? modelCategories[0]?.id ?? null
