@@ -23,6 +23,7 @@ import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { useI18n } from '@/lib/i18n';
 import { areFileItemPropsEqual, type FileItemProps } from './FileItemProps';
+import { canDeleteDraftWithoutConfirmation } from './draftDeleteConfirmation';
 
 const TreeItemMenu = lazy(async () => {
   const mod = await import('./components/TreeItemMenu');
@@ -70,6 +71,7 @@ export const FileItem = memo(function FileItem({
   const notesPath = useNotesStore((state) => state.notesPath);
   const prefetchNote = useNotesStore((state) => state.prefetchNote);
   const cancelPrefetchNote = useNotesStore((state) => state.cancelPrefetchNote);
+  const canSkipDraftDeleteConfirmation = useNotesStore((state) => canDeleteDraftWithoutConfirmation(node.path, state));
   const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
     itemPath: node.path,
@@ -110,6 +112,10 @@ export const FileItem = memo(function FileItem({
           label: t('sidebar.delete'),
           onClick: () => {
             setShowMenu(false);
+            if (canSkipDraftDeleteConfirmation) {
+              void deleteNote(node.path);
+              return;
+            }
             setShowDeleteDialog(true);
           },
           danger: true,
