@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AIErrorType, type AIModel, type Provider } from '@/lib/ai/types';
+import { useUIStore } from '@/stores/uiSlice';
 import { sendMessageWithEndpointFallback } from './sendMessageWithEndpointFallback';
+import {
+  DEV_RETRY_SIMULATION_STORAGE_KEY,
+  DEV_VISIBLE_RETRY_DELAY_STORAGE_KEY,
+} from './preStreamRetry';
 
 function buildProvider(overrides: Partial<Provider> = {}): Provider {
   return {
@@ -394,7 +399,7 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateModel).not.toHaveBeenCalled();
   });
 
-  it('retries a verified endpoint once when a transient error happens before streaming output', async () => {
+  it('retries a verified endpoint when a transient error happens before streaming output', async () => {
     const updateProvider = vi.fn();
     const onChunk = vi.fn();
     const client = {
@@ -422,6 +427,232 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(result).toBe('retry ok');
     expect(client.sendMessage).toHaveBeenCalledTimes(2);
     expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('shows a visible countdown after three transient retries and then retries again', async () => {
+    vi.useFakeTimers();
+    try {
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+      const updateProvider = vi.fn();
+      const onRetryStatus = vi.fn();
+      const transientError = {
+        type: AIErrorType.SERVER_ERROR,
+        message: 'Service unavailable',
+        statusCode: 503,
+      };
+      const client = {
+        sendMessage: vi
+          .fn()
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockResolvedValueOnce('eventual ok'),
+      };
+
+      const request = sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildOpenAIModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        retryDelayMs: 0,
+        options: { onRetryStatus },
+      });
+      request.catch(() => undefined);
+
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n30秒后重试 - 第4次重试');
+      });
+      expect(client.sendMessage).toHaveBeenCalledTimes(4);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(onRetryStatus).toHaveBeenLastCalledWith('Service unavailable\n29秒后重试 - 第4次重试');
+
+      await vi.advanceTimersByTimeAsync(29_000);
+      await expect(request).resolves.toBe('eventual ok');
+      expect(client.sendMessage).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('backs off visible retry countdowns after the first visible retry', async () => {
+    vi.useFakeTimers();
+    try {
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+      const transientError = {
+        type: AIErrorType.SERVER_ERROR,
+        message: 'Service unavailable',
+        statusCode: 503,
+      };
+      const client = {
+        sendMessage: vi
+          .fn()
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockResolvedValueOnce('eventual ok'),
+      };
+      const onRetryStatus = vi.fn();
+
+      const request = sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildOpenAIModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        retryDelayMs: 0,
+        options: { onRetryStatus },
+      });
+      request.catch(() => undefined);
+
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n30秒后重试 - 第4次重试');
+      });
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n45秒后重试 - 第5次重试');
+      });
+
+      await vi.advanceTimersByTimeAsync(45_000);
+      await expect(request).resolves.toBe('eventual ok');
+      expect(client.sendMessage).toHaveBeenCalledTimes(6);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('uses the dev one-second visible retry delay when enabled', async () => {
+    vi.useFakeTimers();
+    try {
+      window.localStorage.setItem(DEV_VISIBLE_RETRY_DELAY_STORAGE_KEY, 'true');
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+      const transientError = {
+        type: AIErrorType.SERVER_ERROR,
+        message: 'Service unavailable',
+        statusCode: 503,
+      };
+      const client = {
+        sendMessage: vi
+          .fn()
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockRejectedValueOnce(transientError)
+          .mockResolvedValueOnce('fast retry ok'),
+      };
+      const onRetryStatus = vi.fn();
+
+      const request = sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildOpenAIModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        retryDelayMs: 0,
+        options: { onRetryStatus },
+      });
+      request.catch(() => undefined);
+
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n1秒后重试 - 第4次重试');
+      });
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(request).resolves.toBe('fast retry ok');
+      expect(client.sendMessage).toHaveBeenCalledTimes(5);
+    } finally {
+      window.localStorage.removeItem(DEV_VISIBLE_RETRY_DELAY_STORAGE_KEY);
+      vi.useRealTimers();
+    }
+  });
+
+  it('uses simulated upstream failures instead of the configured channel when retry simulation is enabled', async () => {
+    vi.useFakeTimers();
+    try {
+      window.localStorage.setItem(DEV_RETRY_SIMULATION_STORAGE_KEY, 'true');
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+      const controller = new AbortController();
+      const client = {
+        sendMessage: vi.fn().mockResolvedValue('real channel answer'),
+      };
+      const onRetryStatus = vi.fn();
+
+      const request = sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildOpenAIModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        signal: controller.signal,
+        retryDelayMs: 0,
+        options: { onRetryStatus },
+      });
+      request.catch(() => undefined);
+
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n1秒后重试 - 第4次重试');
+      });
+      expect(client.sendMessage).not.toHaveBeenCalled();
+
+      controller.abort();
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    } finally {
+      window.localStorage.removeItem(DEV_RETRY_SIMULATION_STORAGE_KEY);
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops waiting and does not continue retrying after the request is paused', async () => {
+    vi.useFakeTimers();
+    try {
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+      const controller = new AbortController();
+      const transientError = {
+        type: AIErrorType.SERVER_ERROR,
+        message: 'Service unavailable',
+        statusCode: 503,
+      };
+      const client = {
+        sendMessage: vi.fn().mockRejectedValue(transientError),
+      };
+      const onRetryStatus = vi.fn();
+
+      const request = sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildOpenAIModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        signal: controller.signal,
+        retryDelayMs: 0,
+        options: { onRetryStatus },
+      });
+      request.catch(() => undefined);
+
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n30秒后重试 - 第4次重试');
+      });
+      expect(client.sendMessage).toHaveBeenCalledTimes(4);
+
+      controller.abort();
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+      expect(client.sendMessage).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('retries transient string HTTP status codes before streaming output', async () => {
@@ -911,39 +1142,55 @@ describe('sendMessageWithEndpointFallback', () => {
     });
   });
 
-  it('falls back to Anthropic after repeated abort-shaped OpenAI pre-stream failures when still active', async () => {
-    const updateProvider = vi.fn();
-    const updateModel = vi.fn();
-    const client = {
-      sendMessage: vi
-        .fn()
-        .mockRejectedValueOnce(new DOMException('openai stream reset', 'AbortError'))
-        .mockRejectedValueOnce(new DOMException('openai stream reset', 'AbortError'))
-        .mockResolvedValueOnce('anthropic ok'),
-    };
+  it('keeps retrying abort-shaped OpenAI pre-stream failures when still active', async () => {
+    vi.useFakeTimers();
+    try {
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+      const updateProvider = vi.fn();
+      const updateModel = vi.fn();
+      const onRetryStatus = vi.fn();
+      const resetError = new DOMException('openai stream reset', 'AbortError');
+      const client = {
+        sendMessage: vi
+          .fn()
+          .mockRejectedValueOnce(resetError)
+          .mockRejectedValueOnce(resetError)
+          .mockRejectedValueOnce(resetError)
+          .mockRejectedValueOnce(resetError)
+          .mockResolvedValueOnce('openai ok'),
+      };
 
-    const result = await sendMessageWithEndpointFallback({
-      content: 'hi',
-      history: [],
-      model: buildModel(),
-      provider: buildProvider(),
-      onChunk: vi.fn(),
-      client,
-      updateProvider,
-      updateModel,
-      retryDelayMs: 0,
-    });
+      const request = sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider(),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        updateModel,
+        retryDelayMs: 0,
+        options: { onRetryStatus },
+      });
+      request.catch(() => undefined);
 
-    expect(result).toBe('anthropic ok');
-    expect(client.sendMessage).toHaveBeenCalledTimes(3);
-    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
-    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'openai' });
-    expect(client.sendMessage.mock.calls[2][3]).toMatchObject({ endpointType: 'anthropic' });
-    expect(updateProvider).not.toHaveBeenCalled();
-    expect(updateModel).toHaveBeenCalledWith('provider-1::claude-sonnet-4-5', {
-      endpointType: 'anthropic',
-      endpointTypeCheckedAt: expect.any(Number),
-    });
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('openai stream reset\n30秒后重试 - 第4次重试');
+      });
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      expect(await request).toBe('openai ok');
+      expect(client.sendMessage).toHaveBeenCalledTimes(5);
+      expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+      expect(client.sendMessage.mock.calls[4][3]).toMatchObject({ endpointType: 'openai' });
+      expect(updateProvider).toHaveBeenCalledWith('provider-1', {
+        endpointType: 'openai',
+        endpointTypeCheckedAt: expect.any(Number),
+      });
+      expect(updateModel).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not fall back to a non-tool endpoint when web search is enabled', async () => {
@@ -1117,21 +1364,27 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateProvider).not.toHaveBeenCalled();
   });
 
-  it('retries and surfaces the Anthropic boundary error when the fallback request cannot reach the endpoint', async () => {
-    const updateProvider = vi.fn();
-    const anthropicFetchError = new Error(
-      'Anthropic chat request to https://anthropic.qnaigc.com/v1/messages failed: Failed to fetch',
-    );
-    const client = {
-      sendMessage: vi
-        .fn()
-        .mockRejectedValueOnce(new Error('OpenAI-compatible chat failed'))
-        .mockRejectedValueOnce(anthropicFetchError)
-        .mockRejectedValueOnce(anthropicFetchError),
-    };
+  it('keeps retrying the Anthropic boundary error after the quick retries are exhausted', async () => {
+    vi.useFakeTimers();
+    try {
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+      const updateProvider = vi.fn();
+      const onRetryStatus = vi.fn();
+      const anthropicFetchError = new Error(
+        'Anthropic chat request to https://anthropic.qnaigc.com/v1/messages failed: Failed to fetch',
+      );
+      const client = {
+        sendMessage: vi
+          .fn()
+          .mockRejectedValueOnce(new Error('OpenAI-compatible chat failed'))
+          .mockRejectedValueOnce(anthropicFetchError)
+          .mockRejectedValueOnce(anthropicFetchError)
+          .mockRejectedValueOnce(anthropicFetchError)
+          .mockRejectedValueOnce(anthropicFetchError)
+          .mockResolvedValueOnce('anthropic ok'),
+      };
 
-    await expect(
-      sendMessageWithEndpointFallback({
+      const request = sendMessageWithEndpointFallback({
         content: 'hi',
         history: [],
         model: buildModel(),
@@ -1140,12 +1393,24 @@ describe('sendMessageWithEndpointFallback', () => {
         client,
         updateProvider,
         retryDelayMs: 0,
-      }),
-    ).rejects.toBe(anthropicFetchError);
+        options: { onRetryStatus },
+      });
+      request.catch(() => undefined);
 
-    expect(client.sendMessage).toHaveBeenCalledTimes(3);
-    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
-    expect(client.sendMessage.mock.calls[2][3]).toMatchObject({ endpointType: 'anthropic' });
-    expect(updateProvider).not.toHaveBeenCalled();
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith(
+          'Anthropic chat request to https://anthropic.qnaigc.com/v1/messages failed: Failed to fetch\n30秒后重试 - 第4次重试',
+        );
+      });
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      await expect(request).resolves.toBe('anthropic ok');
+      expect(client.sendMessage).toHaveBeenCalledTimes(6);
+      expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
+      expect(client.sendMessage.mock.calls[5][3]).toMatchObject({ endpointType: 'anthropic' });
+      expect(updateProvider).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

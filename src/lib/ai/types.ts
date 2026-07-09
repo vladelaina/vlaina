@@ -114,6 +114,7 @@ export interface ChatSendOptions {
   webSearchEnabled?: boolean
   onWebSearchStatus?: (status: WebSearchStatus) => void
   onApiTranscript?: (messages: ApiTranscriptMessage[]) => void
+  onRetryStatus?: (message: string) => void
 }
 
 export interface ChatCompletionResponse {

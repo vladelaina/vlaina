@@ -10,6 +10,7 @@ import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { stripWebSearchRequestMarkup } from '@/lib/ai/webSearch/requestMarkup'
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
+import { isRetryStatusMessage } from '@/lib/ai/retryStatusMessage'
 
 const MAX_MESSAGE_VERSIONS = 20
 const MAX_VERSION_BRANCH_MESSAGES = 100
@@ -79,7 +80,8 @@ export function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: s
 
 export function hasVisibleAssistantReply(content: string): boolean {
   const withoutWebSearchStatuses = extractWebSearchStatuses(content || '').content
-  return stripWebSearchRequestMarkup(stripThinkingContent(withoutWebSearchStatuses)).length > 0
+  const visibleContent = stripWebSearchRequestMarkup(stripThinkingContent(withoutWebSearchStatuses))
+  return visibleContent.length > 0 && !isRetryStatusMessage(visibleContent)
 }
 
 function selectMessageIdScanVersions(message: ChatMessage): MessageVersion[] {

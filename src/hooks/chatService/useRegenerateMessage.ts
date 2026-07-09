@@ -177,6 +177,12 @@ export function useRegenerateMessage({
                   }
                   aiActions.updateMessageApiTranscript(sessionId, messageId, apiTranscript);
                 },
+                onRetryStatus: (message) => {
+                  if (!isActiveRequest()) {
+                    return;
+                  }
+                  aiActions.updateMessage(sessionId, messageId, message);
+                },
               },
             });
           },

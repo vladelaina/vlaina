@@ -577,6 +577,8 @@
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Kepalaku perlu jeda sebentar. Coba lagi nanti atau coba model lain dulu~",
   "chat.error.network": "Koneksi jaringan bermasalah. Periksa koneksi lalu coba lagi.",
   "chat.error.customProviderConnectionFailed": "Channel kustom tetap tidak dapat dijangkau setelah percobaan ulang otomatis. Periksa jaringan atau layanan upstream lalu coba lagi.",
+  "chat.retryCountdown": "Mencoba lagi dalam {seconds} dtk - percobaan {attempt}",
+  "chat.retryTestButton": "Uji coba ulang",
   "chat.error.timeout": "Permintaan kehabisan waktu. Coba lagi nanti.",
   "chat.error.authExpired": "Sesi masuk Anda telah berakhir. Masuk lagi lalu coba ulang.",
   "chat.error.authFailed": "Autentikasi gagal. Periksa kunci API atau masuk lagi.",

@@ -577,6 +577,8 @@
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Mein Kopf braucht kurz eine Pause. Versuch es gleich noch einmal oder probiere erst ein anderes Modell~",
   "chat.error.network": "Netzwerkverbindungsfehler. Prüfe deine Verbindung und versuche es erneut.",
   "chat.error.customProviderConnectionFailed": "Der benutzerdefinierte Kanal konnte auch nach automatischen Wiederholungen nicht erreicht werden. Prüfe dein Netzwerk oder den Upstream-Dienst und versuche es erneut.",
+  "chat.retryCountdown": "Erneuter Versuch in {seconds} s - Versuch {attempt}",
+  "chat.retryTestButton": "Wiederholung testen",
   "chat.error.timeout": "Die Anfrage ist abgelaufen. Versuche es später erneut.",
   "chat.error.authExpired": "Deine Anmeldesitzung ist abgelaufen. Melde dich erneut an und versuche es noch einmal.",
   "chat.error.authFailed": "Authentifizierung fehlgeschlagen. Prüfe deinen API-Schlüssel oder melde dich erneut an.",

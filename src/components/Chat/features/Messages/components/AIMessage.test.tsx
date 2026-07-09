@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { ChatMessage } from "@/lib/ai/types";
 import { useAccountSessionStore } from "@/stores/accountSession";
 import { initialAccountSessionState } from "@/stores/accountSession/state";
+import { useUIStore } from "@/stores/uiSlice";
 
 vi.mock("@/components/Chat/features/Markdown/LazyMarkdownRenderer", () => ({
   LazyMarkdownRenderer: ({
@@ -83,6 +84,7 @@ function createMessage(content: string): ChatMessage {
 describe("AIMessage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    useUIStore.setState({ languagePreference: "en" });
     useAccountSessionStore.setState({
       ...initialAccountSessionState,
       isLoading: false,
@@ -157,6 +159,29 @@ describe("AIMessage", () => {
     );
 
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Hello world");
+  });
+
+  it("renders retry status in the error color with a stable countdown", () => {
+    useUIStore.setState({ languagePreference: "zh-CN" });
+
+    render(
+      <AIMessage
+        msg={createMessage("Service unavailable\n30秒后重试 - 第4次重试")}
+        imageGallery={[]}
+        isLoading
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    const countdown = screen.getByRole("status", { name: "Service unavailable\n30秒后重试 - 第4次重试" });
+    expect(countdown).toHaveAttribute("data-retry-countdown-message", "true");
+    expect(countdown).toHaveClass("text-[var(--vlaina-color-brand-pink)]");
+    expect(screen.getByText("Service unavailable")).toBeInTheDocument();
+    expect(screen.getByText("30秒后重试 - 第4次重试")).toHaveClass("tabular-nums");
+    expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+    expect(countdown.innerHTML).not.toContain("vlaina-retry-countdown-bump");
   });
 
   it("makes the full assistant content width part of the chat selection surface", () => {
