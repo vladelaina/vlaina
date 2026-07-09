@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
 import { themeWhiteboardTokens } from '@/styles/themeTokens';
 import type { WhiteboardPoint, WhiteboardStrokePoint } from '../model/whiteboardModel';
 
@@ -12,6 +12,7 @@ export interface WhiteboardRulerState {
 type RulerDragState =
   | { kind: 'move'; offsetX: number; offsetY: number }
   | { kind: 'rotate'; startAngle: number; startPointerAngle: number };
+type RulerUpdate = (current: WhiteboardRulerState) => WhiteboardRulerState;
 interface RulerBoardSize { height: number; width: number; zoom: number }
 type RulerSnapEdge = 'top' | 'bottom';
 interface RulerSnapResult { blocked: boolean; breakBefore?: boolean; edge: RulerSnapEdge | null; point: WhiteboardPoint }
@@ -30,18 +31,40 @@ export function useWhiteboardRuler(initialRuler?: Partial<WhiteboardRulerState>)
   const snapEdgeRef = useRef<RulerSnapEdge | null>(null);
   const hasStrokePointRef = useRef(false);
   const nextPointBreakRef = useRef(false);
+  const frameRef = useRef<number | null>(null);
+  const pendingRulerUpdateRef = useRef<RulerUpdate | null>(null);
 
-  const showRulerAt = useCallback((point: WhiteboardPoint) => {
-    setRuler((current) => ({ ...current, visible: true, x: point.x, y: point.y }));
+  const flushRulerUpdate = useCallback(() => {
+    frameRef.current = null;
+    const update = pendingRulerUpdateRef.current;
+    pendingRulerUpdateRef.current = null;
+    if (update) setRuler(update);
   }, []);
 
+  const scheduleRulerUpdate = useCallback((update: RulerUpdate) => {
+    pendingRulerUpdateRef.current = update;
+    if (frameRef.current === null) frameRef.current = window.requestAnimationFrame(flushRulerUpdate);
+  }, [flushRulerUpdate]);
+
+  const cancelPendingRulerUpdate = useCallback(() => {
+    if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+    pendingRulerUpdateRef.current = null;
+  }, []);
+
+  const showRulerAt = useCallback((point: WhiteboardPoint) => {
+    cancelPendingRulerUpdate();
+    setRuler((current) => ({ ...current, visible: true, x: point.x, y: point.y }));
+  }, [cancelPendingRulerUpdate]);
+
   const hideRuler = useCallback(() => {
+    cancelPendingRulerUpdate();
     dragRef.current = null;
     snapEdgeRef.current = null;
     hasStrokePointRef.current = false;
     nextPointBreakRef.current = false;
     setRuler((current) => ({ ...current, visible: false }));
-  }, []);
+  }, [cancelPendingRulerUpdate]);
 
   const beginRulerStroke = useCallback(() => {
     snapEdgeRef.current = null;
@@ -87,15 +110,15 @@ export function useWhiteboardRuler(initialRuler?: Partial<WhiteboardRulerState>)
     const drag = dragRef.current;
     if (!drag) return false;
     if (drag.kind === 'move') {
-      setRuler((current) => ({ ...current, x: point.x - drag.offsetX, y: point.y - drag.offsetY }));
+      scheduleRulerUpdate((current) => ({ ...current, x: point.x - drag.offsetX, y: point.y - drag.offsetY }));
       return true;
     }
-    setRuler((current) => ({
+    scheduleRulerUpdate((current) => ({
       ...current,
       angle: drag.startAngle + getAngleBetween(current, point) - drag.startPointerAngle,
     }));
     return true;
-  }, []);
+  }, [scheduleRulerUpdate]);
 
   const finishRulerDrag = useCallback(() => {
     dragRef.current = null;
@@ -106,6 +129,8 @@ export function useWhiteboardRuler(initialRuler?: Partial<WhiteboardRulerState>)
     hasStrokePointRef.current = false;
     nextPointBreakRef.current = false;
   }, []);
+
+  useEffect(() => cancelPendingRulerUpdate, [cancelPendingRulerUpdate]);
 
   return {
     beginRulerStroke, finishRulerDrag, finishRulerStroke, hideRuler, ruler, setRuler,

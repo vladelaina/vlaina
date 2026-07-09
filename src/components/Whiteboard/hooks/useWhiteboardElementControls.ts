@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type PointerEvent, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, type Dispatch, type PointerEvent, type SetStateAction } from 'react';
 import type { WhiteboardDragState } from '../model/whiteboardInteractions';
 import {
   resizeWhiteboardElement,
@@ -44,6 +44,11 @@ export function useWhiteboardElementControls({
   strokes,
   tool,
 }: WhiteboardElementControlsOptions) {
+  const elementResizeFrameRef = useRef<number | null>(null);
+  const selectionResizeFrameRef = useRef<number | null>(null);
+  const pendingElementResizeRef = useRef<{ point: WhiteboardPoint; state: WhiteboardDragState } | null>(null);
+  const pendingSelectionResizeRef = useRef<{ point: WhiteboardPoint; state: Extract<WhiteboardDragState, { kind: 'resize-selection' }> } | null>(null);
+
   const selectElement = useCallback((id: string) => {
     setSelectedElementIds([id]);
     setSelectedStrokeIds([]);
@@ -114,6 +119,23 @@ export function useWhiteboardElementControls({
     return resizeWhiteboardElement(element, useWidth ? width : height * dragState.aspectRatio, useWidth ? width / dragState.aspectRatio : height);
   }, []);
 
+  const applyPendingElementResize = useCallback(() => {
+    const pending = pendingElementResizeRef.current;
+    pendingElementResizeRef.current = null;
+    if (!pending) return;
+    setElements((current) => current.map((element) => moveOrResizeElement(element, pending.state, pending.point)));
+  }, [moveOrResizeElement, setElements]);
+
+  const publishElementResize = useCallback(() => {
+    elementResizeFrameRef.current = null;
+    applyPendingElementResize();
+  }, [applyPendingElementResize]);
+
+  const scheduleElementResize = useCallback((state: WhiteboardDragState, point: WhiteboardPoint) => {
+    pendingElementResizeRef.current = { point, state };
+    if (elementResizeFrameRef.current === null) elementResizeFrameRef.current = window.requestAnimationFrame(publishElementResize);
+  }, [publishElementResize]);
+
   const handleSelectionResizePointerDown = useCallback((event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => {
     event.stopPropagation();
     if (tool !== 'select' || event.button !== 0) return;
@@ -135,13 +157,51 @@ export function useWhiteboardElementControls({
     });
   }, [elements, getBoardPoint, pushHistory, selectedElementIds, selectedStrokeIds, setDragState, strokes, tool]);
 
-  const resizeSelection = useCallback((state: Extract<WhiteboardDragState, { kind: 'resize-selection' }>, point: WhiteboardPoint) => {
+  const applyPendingSelectionResize = useCallback(() => {
+    const pending = pendingSelectionResizeRef.current;
+    pendingSelectionResizeRef.current = null;
+    if (!pending) return;
+    const { point, state } = pending;
     const nextBounds = getResizedSelectionBounds(state.bounds, state.startPoint, point, state.handle, state.preserveAspectRatio);
     setElements((current) => resizeSelectionElements(current, state.originalElementsById, state.bounds, nextBounds));
     setStrokes((current) => resizeSelectionStrokes(current, state.originalStrokesById, state.bounds, nextBounds));
   }, [setElements, setStrokes]);
 
-  return { handleElementPointerDown, handleResizePointerDown, handleSelectionResizePointerDown, moveOrResizeElement, resizeSelection, selectElement, setElementText };
+  const publishSelectionResize = useCallback(() => {
+    selectionResizeFrameRef.current = null;
+    applyPendingSelectionResize();
+  }, [applyPendingSelectionResize]);
+
+  const scheduleSelectionResize = useCallback((state: Extract<WhiteboardDragState, { kind: 'resize-selection' }>, point: WhiteboardPoint) => {
+    pendingSelectionResizeRef.current = { point, state };
+    if (selectionResizeFrameRef.current === null) selectionResizeFrameRef.current = window.requestAnimationFrame(publishSelectionResize);
+  }, [publishSelectionResize]);
+
+  const flushResizeDrags = useCallback(() => {
+    if (elementResizeFrameRef.current !== null) window.cancelAnimationFrame(elementResizeFrameRef.current);
+    elementResizeFrameRef.current = null;
+    applyPendingElementResize();
+    if (selectionResizeFrameRef.current !== null) window.cancelAnimationFrame(selectionResizeFrameRef.current);
+    selectionResizeFrameRef.current = null;
+    applyPendingSelectionResize();
+  }, [applyPendingElementResize, applyPendingSelectionResize]);
+
+  useEffect(() => () => {
+    if (elementResizeFrameRef.current !== null) window.cancelAnimationFrame(elementResizeFrameRef.current);
+    if (selectionResizeFrameRef.current !== null) window.cancelAnimationFrame(selectionResizeFrameRef.current);
+  }, []);
+
+  return {
+    flushResizeDrags,
+    handleElementPointerDown,
+    handleResizePointerDown,
+    handleSelectionResizePointerDown,
+    moveOrResizeElement,
+    resizeSelection: scheduleSelectionResize,
+    scheduleElementResize,
+    selectElement,
+    setElementText,
+  };
 }
 
 function getNextElementSelection(selectedIds: string[], id: string, additive: boolean): string[] {

@@ -31,6 +31,7 @@ interface WhiteboardBoardActionsOptions {
   setSelectedElementId: Dispatch<SetStateAction<string | null>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
+  scheduleViewport: Dispatch<SetStateAction<WhiteboardViewport>>;
   setViewport: Dispatch<SetStateAction<WhiteboardViewport>>;
   spacePressedRef: RefObject<boolean>;
   strokes: WhiteboardStroke[];
@@ -54,14 +55,14 @@ export function useWhiteboardBoardActions(options: WhiteboardBoardActionsOptions
     event.preventDefault();
     const point = options.getViewportPoint(event.clientX, event.clientY);
     if (event.ctrlKey || event.metaKey) {
-      options.setViewport((current) => zoomViewportAtPoint(current, point, current.zoom * (1 - event.deltaY * themeWhiteboardTokens.wheelZoomIntensity)));
+      options.scheduleViewport((current) => zoomViewportAtPoint(current, point, current.zoom * (1 - event.deltaY * themeWhiteboardTokens.wheelZoomIntensity)));
       return;
     }
     if (isBrushTool(options.tool) && !options.spacePressedRef.current) {
       options.resizeBrush(options.tool, event.deltaY);
       return;
     }
-    options.setViewport((current) => ({ ...current, x: current.x - event.deltaX, y: current.y - event.deltaY }));
+    options.scheduleViewport((current) => ({ ...current, x: current.x - event.deltaX, y: current.y - event.deltaY }));
   }, [options]);
 
   const handleUndo = useCallback(() => {

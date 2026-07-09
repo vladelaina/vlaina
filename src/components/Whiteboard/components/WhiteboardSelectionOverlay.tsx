@@ -34,6 +34,100 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
   strokes,
   onSelectionResizePointerDown,
 }: WhiteboardSelectionOverlayProps) {
+  if (selectionRect || selectionPath) {
+    return <WhiteboardActiveSelectionOverlay selectionPath={selectionPath} selectionRect={selectionRect} />;
+  }
+
+  return (
+    <WhiteboardSelectedItemsOverlay
+      elements={elements}
+      movePreview={movePreview}
+      selectedElementIds={selectedElementIds}
+      selectedStrokeIds={selectedStrokeIds}
+      strokes={strokes}
+      onSelectionResizePointerDown={onSelectionResizePointerDown}
+    />
+  );
+});
+
+function WhiteboardActiveSelectionOverlay({
+  selectionPath,
+  selectionRect,
+}: Pick<WhiteboardSelectionOverlayProps, 'selectionPath' | 'selectionRect'>) {
+  const lassoPathData = useMemo(() => (selectionPath ? getLassoPathData(selectionPath) : ''), [selectionPath]);
+  const lassoClosePathData = useMemo(() => (selectionPath ? getLassoClosePathData(selectionPath) : ''), [selectionPath]);
+  const showLassoClosePath = Boolean(selectionPath && selectionPath.length >= 3);
+
+  return (
+    <svg aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-visible">
+      {selectionRect ? (
+        <rect
+          x={selectionRect.x}
+          y={selectionRect.y}
+          width={selectionRect.width}
+          height={selectionRect.height}
+          fill="var(--vlaina-color-whiteboard-selection-fill)"
+          stroke="var(--vlaina-color-whiteboard-selected)"
+          strokeWidth={themeWhiteboardTokens.brushCursorStrokeWidthPx}
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : null}
+      {selectionPath ? (
+        <g>
+          <path
+            d={lassoPathData}
+            fill="transparent"
+            stroke="var(--vlaina-color-floating-surface)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx * 3}
+            vectorEffect="non-scaling-stroke"
+          />
+          {showLassoClosePath ? (
+            <path
+              d={lassoClosePathData}
+              fill="transparent"
+              stroke="var(--vlaina-color-floating-surface)"
+              strokeLinecap="round"
+              strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx * 3}
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
+          <path
+            d={lassoPathData}
+            fill="transparent"
+            stroke="var(--vlaina-color-whiteboard-selected)"
+            strokeDasharray="7 5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx}
+            vectorEffect="non-scaling-stroke"
+          />
+          {showLassoClosePath ? (
+            <path
+              d={lassoClosePathData}
+              fill="transparent"
+              stroke="var(--vlaina-color-whiteboard-selected)"
+              strokeDasharray="3 6"
+              strokeLinecap="round"
+              strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx}
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
+        </g>
+      ) : null}
+    </svg>
+  );
+}
+
+const WhiteboardSelectedItemsOverlay = memo(function WhiteboardSelectedItemsOverlay({
+  elements,
+  movePreview,
+  selectedElementIds,
+  selectedStrokeIds,
+  strokes,
+  onSelectionResizePointerDown,
+}: Omit<WhiteboardSelectionOverlayProps, 'selectionPath' | 'selectionRect'>) {
   const elementById = useMemo(() => new Map(elements.map((element) => [element.id, element])), [elements]);
   const strokeById = useMemo(() => new Map(strokes.map((stroke) => [stroke.id, stroke])), [strokes]);
   const movingElementIds = movePreview?.elementIds ?? EMPTY_MOVING_IDS;
@@ -59,67 +153,10 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
   const singleBounds = baseSelectedBounds.length === 1
     ? offsetMovingRect(baseSelectedBounds[0], baseSelectedBounds[0].id, movingIdSet, movePreview)
     : null;
-  const selectionActive = Boolean(selectionRect || selectionPath);
-  const resizeBounds = !selectionActive && baseSelectedBounds.length > 0 ? groupBounds ?? singleBounds : null;
+  const resizeBounds = baseSelectedBounds.length > 0 ? groupBounds ?? singleBounds : null;
 
   return (
     <svg aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-visible">
-      {selectionRect ? (
-        <rect
-          x={selectionRect.x}
-          y={selectionRect.y}
-          width={selectionRect.width}
-          height={selectionRect.height}
-          fill="var(--vlaina-color-whiteboard-selection-fill)"
-          stroke="var(--vlaina-color-whiteboard-selected)"
-          strokeWidth={themeWhiteboardTokens.brushCursorStrokeWidthPx}
-          vectorEffect="non-scaling-stroke"
-        />
-      ) : null}
-      {selectionPath ? (
-        <g>
-          <path
-            d={getLassoPathData(selectionPath)}
-            fill="transparent"
-            stroke="var(--vlaina-color-floating-surface)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx * 3}
-            vectorEffect="non-scaling-stroke"
-          />
-          {selectionPath.length >= 3 ? (
-            <path
-              d={getLassoClosePathData(selectionPath)}
-              fill="transparent"
-              stroke="var(--vlaina-color-floating-surface)"
-              strokeLinecap="round"
-              strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx * 3}
-              vectorEffect="non-scaling-stroke"
-            />
-          ) : null}
-          <path
-            d={getLassoPathData(selectionPath)}
-            fill="transparent"
-            stroke="var(--vlaina-color-whiteboard-selected)"
-            strokeDasharray="7 5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx}
-            vectorEffect="non-scaling-stroke"
-          />
-          {selectionPath.length >= 3 ? (
-            <path
-              d={getLassoClosePathData(selectionPath)}
-              fill="transparent"
-              stroke="var(--vlaina-color-whiteboard-selected)"
-              strokeDasharray="3 6"
-              strokeLinecap="round"
-              strokeWidth={themeWhiteboardTokens.strokeSelectionWidthPx}
-              vectorEffect="non-scaling-stroke"
-            />
-          ) : null}
-        </g>
-      ) : null}
       {strokeBounds.map((bounds) => (
         <rect
           key={bounds.id}

@@ -15,6 +15,11 @@ interface EraserBounds {
   minY: number;
 }
 
+export interface WhiteboardEraserPoint {
+  point: WhiteboardPoint;
+  size: number;
+}
+
 const eraserBoundsCache = new WeakMap<WhiteboardStroke, EraserBounds | null>();
 
 export function appendStrokePoints(
@@ -129,6 +134,16 @@ export function eraseStrokeAtPoint(
     id: `${stroke.id}-cut-${index}`,
     points,
   }));
+}
+
+export function eraseStrokesAtPoints(
+  strokes: WhiteboardStroke[],
+  points: WhiteboardEraserPoint[],
+): WhiteboardStroke[] {
+  return points.reduce(
+    (current, eraserPoint) => current.flatMap((stroke) => eraseStrokeAtPoint(stroke, eraserPoint.point, eraserPoint.size)),
+    strokes,
+  );
 }
 
 function canEraserTouchStroke(stroke: WhiteboardStroke, point: WhiteboardPoint, radius: number): boolean {
