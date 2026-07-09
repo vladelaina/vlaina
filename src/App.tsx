@@ -252,7 +252,7 @@ function App() {
             <ToastContainer />
           </Suspense>
         ) : null}
-        {import.meta.env.PROD ? <RetryStatusTestButton /> : null}
+        {import.meta.env.DEV ? <RetryStatusTestButton /> : null}
       </ErrorBoundary>
     </ThemeProvider>
   );
