@@ -2,6 +2,10 @@ import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
+import {
+  MARKDOWN_BLANK_LINE_VALUE,
+  RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE,
+} from '../cursor/markdownBlankLineShared';
 
 export const NATIVE_SELECTED_TEXTLIKE_CLASS = 'editor-native-selected-textlike';
 export const NATIVE_SELECTED_HAS_NEXT_CLASS = 'editor-native-selected-has-next';
@@ -35,7 +39,8 @@ const TEXTLIKE_SELECTED_NODE_SELECTOR = [
   '.footnote-def',
   '.toc-block',
   '.callout',
-  "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']",
+  `[data-type='html-block'][data-value='${MARKDOWN_BLANK_LINE_VALUE}']`,
+  `[data-type='html-block'][data-value='${RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE}']`,
 ].join(',');
 
 const RICH_DIRECT_CHILD_SELECTOR = [

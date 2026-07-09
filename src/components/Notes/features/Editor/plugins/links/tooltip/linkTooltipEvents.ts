@@ -2,6 +2,7 @@ import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { floatingToolbarKey } from '../../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../../floating-toolbar/types';
+import { hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
 import { openEditorLinkHref } from '../utils/openEditorLinkHref';
 import {
     dispatchLinkTextCursorFromMouseEvent,
@@ -188,6 +189,13 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
     };
 
     const updateHoveredLinkFromMouseEvent = (event: MouseEvent) => {
+        if (hasSelectedBlocks(view.state)) {
+            hoveredLink = null;
+            clearShowTimer();
+            if (hasActiveLink()) hide(true);
+            return;
+        }
+
         const link = resolveTooltipEligibleLink(view, event);
         if (!link) {
             if (hoveredLink === null && !hasActiveLink()) return;

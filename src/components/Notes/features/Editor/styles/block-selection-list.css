@@ -80,13 +80,43 @@
   -webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;
 }
 
-.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {
+.milkdown .ProseMirror :is(
+  .editor-block-selected,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source-textlike,
+  .editor-native-selected-textlike,
+  .editor-block-selected-large-textlike
+) :is(a, .external-link, .internal-link),
+.milkdown .ProseMirror :is(
+  .editor-block-selected,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source-textlike,
+  .editor-native-selected-textlike,
+  .editor-block-selected-large-textlike
+) :is(.editor-raw-markdown-link-text),
+.milkdown .ProseMirror :is(
+  .editor-block-selected,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source-textlike,
+  .editor-native-selected-textlike,
+  .editor-block-selected-large-textlike
+):is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) {
+  color: var(--typora-link-color, var(--primary-color, var(--text-accent, var(--vlaina-accent)))) !important;
+  -webkit-text-fill-color: var(--typora-link-color, var(--primary-color, var(--text-accent, var(--vlaina-accent)))) !important;
+}
+
+.milkdown .ProseMirror > :is(
+  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],
+  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']
+).editor-block-selected {
   --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
   --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
   border-radius: var(--vlaina-radius-8px);
 }
 
 .milkdown .ProseMirror .editor-block-selected-inline-line {
+  --vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
+  --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
   background-color: transparent;
   box-shadow: none;
   border-radius: var(--vlaina-radius-0);

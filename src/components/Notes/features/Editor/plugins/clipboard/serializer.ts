@@ -4,6 +4,7 @@ import {
     createClipboardTraversalBudget,
     getProseNodeChildren,
 } from './clipboardTraversalBudget';
+import { isBackslashHardBreakSourceTextNode } from '../hard-break/backslashHardBreakNodes';
 
 function escapeLinkText(text: string): string {
     return text.replace(/([[\]])/g, '\\$1');
@@ -20,6 +21,10 @@ function normalizeHeadingLevel(value: unknown): number {
     return typeof value === 'number' && Number.isFinite(value)
         ? Math.max(1, Math.min(6, Math.trunc(value)))
         : 1;
+}
+
+function isHardBreakNodeName(name: string): boolean {
+    return name === 'hardbreak' || name === 'hard_break';
 }
 
 export function serializeSliceToText(slice: any): string {
@@ -46,7 +51,7 @@ export function serializeSliceToText(slice: any): string {
             return node.text;
         }
 
-        if (node.type.name === 'hard_break') {
+        if (isHardBreakNodeName(node.type.name)) {
             return '\n';
         }
 
@@ -89,7 +94,22 @@ export function serializeSliceToText(slice: any): string {
         depth: number,
     ): string | null => {
         let content = '';
-        for (const child of getProseNodeChildren(node)) {
+        const children = getProseNodeChildren(node);
+        for (let index = 0; index < children.length; index += 1) {
+            const child = children[index];
+            const next = children[index + 1];
+            if (
+                isBackslashHardBreakSourceTextNode(child)
+                && isHardBreakNodeName(next?.type?.name)
+            ) {
+                continue;
+            }
+
+            if (isHardBreakNodeName(child.type?.name)) {
+                content += '\n';
+                continue;
+            }
+
             const piece = processNode(child, depth);
             if (piece === null) return null;
             content += piece;
@@ -98,7 +118,17 @@ export function serializeSliceToText(slice: any): string {
     };
 
     let result = '';
-    for (const node of getProseNodeChildren({ content: slice.content })) {
+    const topLevelNodes = getProseNodeChildren({ content: slice.content });
+    for (let index = 0; index < topLevelNodes.length; index += 1) {
+        const node = topLevelNodes[index];
+        const next = topLevelNodes[index + 1];
+        if (
+            isBackslashHardBreakSourceTextNode(node)
+            && isHardBreakNodeName(next?.type?.name)
+        ) {
+            continue;
+        }
+
         const piece = processNode(node, 0);
         if (piece === null) return '';
         result += piece;

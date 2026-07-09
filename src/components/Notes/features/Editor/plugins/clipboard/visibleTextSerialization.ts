@@ -6,6 +6,11 @@ import {
   getProseNodeChildren,
   type ClipboardTraversalBudget,
 } from './clipboardTraversalBudget';
+import { isBackslashHardBreakSourceTextNode } from '../hard-break/backslashHardBreakNodes';
+
+function isHardBreakNodeName(name: string | undefined): boolean {
+  return name === 'hardbreak' || name === 'hard_break';
+}
 
 function isVisiblePlainTextNodeWithBudget(
   node: any,
@@ -15,7 +20,7 @@ function isVisiblePlainTextNodeWithBudget(
   if (!consumeClipboardTraversalNode(budget, depth)) return false;
   if (!node) return true;
   if (node.isText) return true;
-  if (node.type?.name === 'hard_break') return true;
+  if (isHardBreakNodeName(node.type?.name)) return true;
   if (!node.isTextblock && !['paragraph', 'heading', 'code_block'].includes(node.type?.name)) return false;
 
   return getProseNodeChildren(node).every((child) => (
@@ -35,10 +40,25 @@ function serializeVisiblePlainTextNode(
   if (!consumeClipboardTraversalNode(budget, depth)) return null;
   if (!node) return '';
   if (node.isText) return node.text ?? '';
-  if (node.type?.name === 'hard_break') return '\n';
+  if (isHardBreakNodeName(node.type?.name)) return '\n';
 
   const pieces: string[] = [];
-  for (const child of getProseNodeChildren(node)) {
+  const children = getProseNodeChildren(node);
+  for (let index = 0; index < children.length; index += 1) {
+    const child = children[index];
+    const next = children[index + 1];
+    if (
+      isBackslashHardBreakSourceTextNode(child)
+      && isHardBreakNodeName(next?.type?.name)
+    ) {
+      continue;
+    }
+
+    if (isHardBreakNodeName(child.type?.name)) {
+      pieces.push('\n');
+      continue;
+    }
+
     const piece = serializeVisiblePlainTextNode(child, budget, depth + 1);
     if (piece === null) return null;
     pieces.push(piece);
@@ -49,7 +69,17 @@ function serializeVisiblePlainTextNode(
 export function serializeSliceAsVisiblePlainText(slice: Pick<Slice, 'content'>): string {
   const budget = createClipboardTraversalBudget();
   const pieces: string[] = [];
-  for (const child of getProseNodeChildren({ content: slice.content })) {
+  const children = getProseNodeChildren({ content: slice.content });
+  for (let index = 0; index < children.length; index += 1) {
+    const child = children[index];
+    const next = children[index + 1];
+    if (
+      isBackslashHardBreakSourceTextNode(child)
+      && isHardBreakNodeName(next?.type?.name)
+    ) {
+      continue;
+    }
+
     const piece = serializeVisiblePlainTextNode(child, budget, 0);
     if (piece === null) return '';
     pieces.push(piece);

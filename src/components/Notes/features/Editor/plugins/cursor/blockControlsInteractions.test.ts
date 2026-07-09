@@ -435,7 +435,7 @@ describe('resolveDropTarget', () => {
     expect(leftBlankTarget).toMatchObject({
       insertPos: 6,
       lineY: 80,
-      lineLeft: 70,
+      lineLeft: 20,
     });
 
     const rightBlankTarget = resolveDropTarget(view, 760, 102);
@@ -445,7 +445,7 @@ describe('resolveDropTarget', () => {
     });
   });
 
-  it('keeps the drop indicator width tied to the target block plus selection bleed', () => {
+  it('keeps the drop indicator width tied to the editor content column', () => {
     const { view } = createViewMock();
 
     const paragraphTarget = resolveDropTarget(view, 100, 50);
@@ -453,8 +453,8 @@ describe('resolveDropTarget', () => {
     expect(paragraphTarget).toMatchObject({
       insertPos: 0,
       lineY: 40,
-      lineLeft: 50,
-      lineWidth: 440,
+      lineLeft: 20,
+      lineWidth: 600,
     });
   });
 
@@ -474,8 +474,8 @@ describe('resolveDropTarget', () => {
       expect(paragraphTarget).toMatchObject({
         insertPos: 0,
         lineY: 40,
-        lineLeft: 350,
-        lineWidth: 440,
+        lineLeft: 300,
+        lineWidth: 600,
       });
     } finally {
       scrollRoot.remove();

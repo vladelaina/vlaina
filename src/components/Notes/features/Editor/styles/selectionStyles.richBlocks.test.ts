@@ -153,7 +153,7 @@ describe("editor rich block selection styles", () => {
     const css = readBlockSelectionStyle();
     const rule = extractCssRule(
       css,
-      ".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],"
+      ".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],\n  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->'],\n  p.editor-editable-markdown-blank-line,"
     );
     const selectedBlankLinePreviousGapRule = extractCssRule(
       css,
@@ -162,6 +162,7 @@ describe("editor rich block selection styles", () => {
 
     expect(rule).toContain('p.editor-editable-markdown-blank-line,');
     expect(rule).toContain('p.editor-empty-paragraph:not(.is-editor-empty)');
+    expect(rule).toContain("[data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->'],");
     expect(rule).toContain(').editor-block-selected.editor-block-selected-has-next + :is(');
     expect(rule).toContain('.code-block-container,');
     expect(rule).toContain('.frontmatter-block-container,');
@@ -169,7 +170,7 @@ describe("editor rich block selection styles", () => {
     expect(rule).toContain('.video-block,');
     expect(rule).toContain('.toc-block,');
     expect(rule).toContain("[data-type='math-block'],");
-    expect(rule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])");
+    expect(rule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])");
     expect(rule).not.toContain('.mermaid-block');
     expect(rule).toContain(').editor-block-selected.editor-block-selected-has-previous,');
     expect(rule).toContain(').editor-block-drag-source.editor-block-drag-source-has-next + :is(');
@@ -179,6 +180,7 @@ describe("editor rich block selection styles", () => {
     expect(selectedBlankLinePreviousGapRule).toContain("[data-type='math-block'].math-block-wrapper");
     expect(selectedBlankLinePreviousGapRule).toContain('.mermaid-block');
     expect(selectedBlankLinePreviousGapRule).toContain("[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']");
+    expect(selectedBlankLinePreviousGapRule).toContain("[data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']");
     expect(selectedBlankLinePreviousGapRule).toContain('p.editor-editable-markdown-blank-line');
     expect(selectedBlankLinePreviousGapRule).toContain('p.editor-empty-paragraph:not(.is-editor-empty)');
     expect(selectedBlankLinePreviousGapRule).toContain(').editor-block-selected.editor-block-selected-textlike.editor-block-selected-has-previous::before {');
@@ -193,11 +195,11 @@ describe("editor rich block selection styles", () => {
     const themeCompatibilityCss = readThemeCompatibilityStyle();
     const rawHtmlWhitespaceRule = extractCssRule(
       themeCompatibilityCss,
-      ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {"
+      ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {"
     );
     const rawHtmlPreWhitespaceRule = extractCssRule(
       themeCompatibilityCss,
-      ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) :is(pre, pre *) {"
+      ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) :is(pre, pre *) {"
     );
 
     expect(rawHtmlWhitespaceRule).toContain('white-space: normal;');
@@ -370,19 +372,19 @@ describe("editor rich block selection styles", () => {
     const atomicBlockSelectorMarker = ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,";
     const htmlBlockRule = extractCssRule(
       mathCss,
-      ".milkdown [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
+      ".milkdown [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
     );
     const htmlBlockDescendantRule = extractCssRule(
       mathCss,
-      ".milkdown [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {"
+      ".milkdown [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {"
     );
     const htmlBlockPreDescendantRule = extractCssRule(
       mathCss,
-      ".milkdown [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) :is(pre, pre *) {"
+      ".milkdown [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) :is(pre, pre *) {"
     );
     const literalHtmlBlockRule = extractCssRule(
       mathCss,
-      ".milkdown [data-type='html-block'].md-htmlblock-container.md-htmlblock-literal-text:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
+      ".milkdown [data-type='html-block'].md-htmlblock-container.md-htmlblock-literal-text:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
     );
     const atomicBlockFrameRule = extractCssRule(blockSelectionCss, atomicBlockSelectorMarker);
     const atomicBlockFillRule = extractCssRule(
@@ -391,14 +393,14 @@ describe("editor rich block selection styles", () => {
     );
     const atomicBlockNextGapRule = extractCssRule(
       blockSelectionCss,
-      ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,\n  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .toc-block,\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,"
+      ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,\n  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .toc-block,\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,"
     );
     const atomicForegroundRule = extractCssRule(
       blockSelectionCss,
       [
         ".milkdown .ProseMirror :is(",
         "  [data-type='math-block'].math-block-wrapper,",
-        "  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),",
+        "  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),",
         "  .toc-block",
         "):is(",
         "  .editor-block-selected,",
@@ -446,7 +448,7 @@ describe("editor rich block selection styles", () => {
     expect(literalHtmlBlockRule).toContain('white-space: pre-wrap;');
     expect(literalHtmlBlockRule).toContain('overflow-wrap: anywhere;');
     expect(atomicBlockFillRule).toContain("[data-type='math-block'].math-block-wrapper");
-    expect(atomicBlockFillRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])");
+    expect(atomicBlockFillRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])");
     expect(atomicBlockFillRule).toContain('.toc-block');
     expect(atomicBlockFillRule).toContain('.mermaid-block');
     expect(atomicBlockFillRule).toContain('.editor-block-selected');
@@ -526,9 +528,9 @@ describe("editor rich block selection styles", () => {
     );
     const selectedAtomicDirectForegroundRule = extractCssRule(
       mathCss,
-      ".milkdown .ProseMirror :is(\n  [data-type='math-inline'],\n  [data-type='math-block'],\n  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])\n):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is("
+      ".milkdown .ProseMirror :is(\n  [data-type='math-inline'],\n  [data-type='math-block'],\n  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])\n):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is("
     );
-    const narrowedHtmlBlockSelector = "[data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])";
+    const narrowedHtmlBlockSelector = "[data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])";
     expect(selectedAtomicForegroundRule.match(/\[data-type='html-block'\]/g)).toHaveLength(2);
     expect(selectedAtomicForegroundRule.split(narrowedHtmlBlockSelector)).toHaveLength(3);
     expect(selectedAtomicForegroundRule).not.toContain("[data-type='html-block'],");
@@ -539,7 +541,7 @@ describe("editor rich block selection styles", () => {
     expect(selectedAtomicDirectForegroundRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(mathCss).toContain(".milkdown [data-type='math-inline'],");
     expect(mathCss).toContain(".milkdown [data-type='math-block'],");
-    expect(mathCss).toContain(".milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
+    expect(mathCss).toContain(".milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
     expect(mathCss).toContain('.milkdown .mermaid-block {\n  transition: none;');
     expect(mathCss).not.toContain('background-color var(--vlaina-duration-160) var(--vlaina-ease-css-default)');
     expect(mathCss).not.toContain('box-shadow var(--vlaina-duration-160) var(--vlaina-ease-css-default)');
@@ -586,7 +588,7 @@ describe("editor rich block selection styles", () => {
     expect(mathCss).not.toContain('.milkdown .ProseMirror li.editor-block-selected :is(');
     expect(mathCss).toContain('.mermaid-block');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
-    expect(blockSelectionCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *) {');
+    expect(blockSelectionCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *) {');
     expect(blockSelectionCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected * {');
     expect(mathCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected,\n.milkdown .ProseMirror.editor-block-selection-pending');
     expect(mathCss).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {');

@@ -84,24 +84,23 @@ class BlockControlsViewSessionPointer {
       this.hideDropIndicator();
       return false;
     }
+    let canDrop = true;
     if (this.isCrossNoteDrag()) {
       if (
         this.dragSourceMarkdownAfterDelete === null
         || !canInsertCrossNoteDraggedMarkdown(this.view, this.draggedMarkdown, target.insertPos)
       ) {
-        this.hideDropIndicator();
-        return false;
+        canDrop = false;
       }
     } else if (!canApplyBlockMove(this.view, this.draggedRanges, target.insertPos)) {
-      this.hideDropIndicator();
-      return false;
+      canDrop = false;
     }
-    this.pendingDrop = target;
+    this.pendingDrop = canDrop ? target : null;
     this.dropIndicator.style.left = `${Math.round(target.lineLeft)}px`;
     this.dropIndicator.style.top = `${Math.round(target.lineY - 1)}px`;
     this.dropIndicator.style.width = `${Math.round(target.lineWidth)}px`;
     this.dropIndicator.classList.add('visible');
-    return true;
+    return canDrop;
   }
 
   applyDragPointerUpdate(this: any, clientX: number, clientY: number): void {

@@ -5,6 +5,7 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import * as ProseModel from '@milkdown/kit/prose/model';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { Decoration } from '@milkdown/kit/prose/view';
+import { RAW_MARKDOWN_LINK_TEXT_CLASS } from '../links/markdown-link/markdownLinkConfig';
 import {
   clampViewportRectTop,
   convertBlockRectsToDocumentSpace,
@@ -506,6 +507,76 @@ describe('blockSelectionUtils', () => {
     await editor.destroy();
   });
 
+  it('marks inline selected link text so block selection keeps link color', async () => {
+    const editor = await createEditor('我[xs](ds)我');
+    const view = editor.ctx.get(editorViewCtx);
+    let linkTextFrom = -1;
+    let linkTextTo = -1;
+
+    view.state.doc.descendants((node, pos) => {
+      if (node.isText && node.text === 'xs' && node.marks.some((mark) => mark.type.name === 'link')) {
+        linkTextFrom = pos;
+        linkTextTo = pos + node.nodeSize;
+        return false;
+      }
+      return true;
+    });
+    expect(linkTextFrom).toBeGreaterThanOrEqual(0);
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, [{ from: linkTextFrom, to: linkTextTo }]);
+    const className = String((decorations.find()[0]?.type as any).attrs?.class ?? '');
+
+    expect(className).toContain('editor-block-selected-inline-line');
+    expect(className).toContain(RAW_MARKDOWN_LINK_TEXT_CLASS);
+
+    await editor.destroy();
+  });
+
+  it('marks only linked text as link-colored inside a mixed inline selection', async () => {
+    const editor = await createEditor('我[xs](ds)我');
+    const view = editor.ctx.get(editorViewCtx);
+    let plainTextFrom = -1;
+    let linkTextFrom = -1;
+    let linkTextTo = -1;
+
+    view.state.doc.descendants((node, pos) => {
+      if (!node.isText) return true;
+      if (plainTextFrom < 0 && node.text === '我' && node.marks.every((mark) => mark.type.name !== 'link')) {
+        plainTextFrom = pos;
+      }
+      if (node.text === 'xs' && node.marks.some((mark) => mark.type.name === 'link')) {
+        linkTextFrom = pos;
+        linkTextTo = pos + node.nodeSize;
+      }
+      return plainTextFrom < 0 || linkTextFrom < 0 || linkTextTo < 0;
+    });
+    expect(plainTextFrom).toBeGreaterThanOrEqual(0);
+    expect(linkTextFrom).toBeGreaterThan(plainTextFrom);
+    expect(linkTextTo).toBeGreaterThan(plainTextFrom);
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, [{ from: plainTextFrom, to: linkTextTo }]);
+    const decorationRows = decorations.find().map((decoration: Decoration) => ({
+      from: decoration.from,
+      to: decoration.to,
+      className: String((decoration.type as any).attrs?.class ?? ''),
+    }));
+    const fullRangeDecoration = decorationRows.find((decoration) =>
+      decoration.from === plainTextFrom && decoration.to === linkTextTo
+    );
+    const linkRangeDecoration = decorationRows.find((decoration) =>
+      decoration.from === linkTextFrom && decoration.to === linkTextTo
+    );
+
+    expect(fullRangeDecoration?.className, JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-inline-line');
+    expect(fullRangeDecoration?.className, JSON.stringify(decorationRows, null, 2))
+      .not.toContain(RAW_MARKDOWN_LINK_TEXT_CLASS);
+    expect(linkRangeDecoration?.className, JSON.stringify(decorationRows, null, 2))
+      .toBe(RAW_MARKDOWN_LINK_TEXT_CLASS);
+
+    await editor.destroy();
+  });
+
   it('marks adjacent text-like blocks without relying on CSS sibling scans', async () => {
     const editor = await createEditor(['alpha', '', 'bravo', '', 'charlie'].join('\n'));
     const view = editor.ctx.get(editorViewCtx);
@@ -554,6 +625,73 @@ describe('blockSelectionUtils', () => {
       .toContain('editor-block-selected-has-previous');
 
     await editor.destroy();
+  });
+
+  it('marks editable blank paragraphs adjacent to following paragraph inline ranges', () => {
+    const doc = richSelectionDocWith([
+      richSelectionParagraph(''),
+      richSelectionParagraph('next'),
+    ]);
+    const selectedRanges = [
+      { from: 0, to: 2 },
+      { from: 3, to: 5 },
+    ];
+    const decorations = createBlockSelectionDecorations(doc, selectedRanges);
+    const decorationRows = decorations.find().map((decoration: Decoration) => ({
+      from: decoration.from,
+      to: decoration.to,
+      className: String((decoration.type as any).attrs?.class ?? ''),
+    }));
+    const classByFrom = new Map(decorationRows.map((row) => [row.from, row.className]));
+
+    expect(classByFrom.get(selectedRanges[0].from), JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-has-next');
+    expect(classByFrom.get(selectedRanges[1].from), JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-has-previous');
+  });
+
+  it('marks preserved blank-line blocks adjacent to following paragraph inline ranges', () => {
+    const blankLine = '<!--vlaina-markdown-blank-line-->';
+    const doc = richSelectionDocWith([
+      richSelectionHtmlBlock(blankLine),
+      richSelectionParagraph('next'),
+    ]);
+    const rows: Array<{ from: number; label: string; to: number }> = [];
+    doc.forEach((node: ProseNode, offset: number) => {
+      if (node.type.name === 'paragraph') {
+        rows.push({
+          from: offset + 1,
+          label: node.textContent,
+          to: offset + node.nodeSize - 1,
+        });
+        return;
+      }
+
+      rows.push({
+        from: offset,
+        label: typeof node.attrs?.value === 'string' ? node.attrs.value : node.textContent,
+        to: offset + node.nodeSize,
+      });
+    });
+
+    const decorations = createBlockSelectionDecorations(
+      doc,
+      rows.map(({ from, to }) => ({ from, to })),
+    );
+    const classByLabel = new Map(rows.map((row) => {
+      const decoration = decorations.find(row.from, row.to).find((candidate: Decoration) =>
+        candidate.from === row.from && candidate.to === row.to
+      );
+      return [
+        row.label,
+        String((decoration?.type as any)?.attrs?.class ?? ''),
+      ];
+    }));
+
+    expect(classByLabel.get(blankLine), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .toContain('editor-block-selected-has-next');
+    expect(classByLabel.get('next'), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .toContain('editor-block-selected-has-previous');
   });
 
   it('keeps large selections on the lightweight decoration path', async () => {
@@ -634,6 +772,61 @@ describe('blockSelectionUtils', () => {
     expect(classes).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
     expect(classes.every((className) => className.includes('editor-block-selected-large-textlike'))).toBe(true);
     expect(classes.every((className) => className.includes('editor-block-selected-inline-line'))).toBe(true);
+
+    await editor.destroy();
+  });
+
+  it('marks only linked text inside mixed inline ranges on the large selection path', async () => {
+    const markdown = [
+      '我[xs](ds)我\\\nline 2',
+      ...Array.from(
+        { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD - 1 },
+        (_, index) => `paragraph ${index}`,
+      ),
+    ].join('\n\n');
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const selectableRanges = collectSelectableBlockRanges(view.state.doc);
+    const linkLineRange = selectableRanges.find((range) =>
+      view.state.doc.textBetween(range.from, range.to, '\n').includes('xs')
+    );
+    let linkTextFrom = -1;
+    let linkTextTo = -1;
+
+    view.state.doc.descendants((node, pos) => {
+      if (node.isText && node.text === 'xs' && node.marks.some((mark) => mark.type.name === 'link')) {
+        linkTextFrom = pos;
+        linkTextTo = pos + node.nodeSize;
+        return false;
+      }
+      return true;
+    });
+    expect(linkLineRange).toBeDefined();
+    expect(linkTextFrom).toBeGreaterThanOrEqual(0);
+
+    const ranges = [
+      linkLineRange!,
+      ...selectableRanges.filter((range) => range !== linkLineRange),
+    ].slice(0, LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
+    const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
+    const decorationRows = decorations.find().map((decoration: Decoration) => ({
+      from: decoration.from,
+      to: decoration.to,
+      className: String((decoration.type as any).attrs?.class ?? ''),
+    }));
+    const linkRangeDecoration = decorationRows.find((decoration) =>
+      decoration.from === linkTextFrom && decoration.to === linkTextTo
+    );
+    const mixedLineDecoration = decorationRows.find((decoration) =>
+      decoration.from === linkLineRange!.from && decoration.className.includes('editor-block-selected-large-textlike')
+    );
+
+    expect(mixedLineDecoration?.className, JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-inline-line');
+    expect(mixedLineDecoration?.className, JSON.stringify(decorationRows, null, 2))
+      .not.toContain(RAW_MARKDOWN_LINK_TEXT_CLASS);
+    expect(linkRangeDecoration?.className, JSON.stringify(decorationRows, null, 2))
+      .toBe(RAW_MARKDOWN_LINK_TEXT_CLASS);
 
     await editor.destroy();
   });

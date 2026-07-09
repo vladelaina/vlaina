@@ -1,7 +1,9 @@
 import { PluginKey } from '@milkdown/kit/prose/state';
+import type { DecorationSet } from '@milkdown/kit/prose/view';
 import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from '../../shared/boundedProseNodeScan';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
+export const RAW_MARKDOWN_LINK_TEXT_CLASS = 'editor-raw-markdown-link-text';
 export const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
 export const MAX_MARKDOWN_LINK_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 export const MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES = 5000;
@@ -13,6 +15,7 @@ export const MAX_MARKDOWN_LINK_PASTE_NODES = 5000;
 export const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)【】（）]/;
 
 export interface MarkdownLinkPluginState {
+    decorations: DecorationSet;
     hasRawMarkdownLink: boolean;
 }
 
