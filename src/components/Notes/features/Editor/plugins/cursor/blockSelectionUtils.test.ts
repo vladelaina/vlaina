@@ -627,7 +627,30 @@ describe('blockSelectionUtils', () => {
     await editor.destroy();
   });
 
-  it('does not connect preserved blank-line blocks to the next paragraph inline line', () => {
+  it('marks editable blank paragraphs adjacent to following paragraph inline ranges', () => {
+    const doc = richSelectionDocWith([
+      richSelectionParagraph(''),
+      richSelectionParagraph('next'),
+    ]);
+    const selectedRanges = [
+      { from: 0, to: 2 },
+      { from: 3, to: 5 },
+    ];
+    const decorations = createBlockSelectionDecorations(doc, selectedRanges);
+    const decorationRows = decorations.find().map((decoration: Decoration) => ({
+      from: decoration.from,
+      to: decoration.to,
+      className: String((decoration.type as any).attrs?.class ?? ''),
+    }));
+    const classByFrom = new Map(decorationRows.map((row) => [row.from, row.className]));
+
+    expect(classByFrom.get(selectedRanges[0].from), JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-has-next');
+    expect(classByFrom.get(selectedRanges[1].from), JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-has-previous');
+  });
+
+  it('marks preserved blank-line blocks adjacent to following paragraph inline ranges', () => {
     const blankLine = '<!--vlaina-markdown-blank-line-->';
     const doc = richSelectionDocWith([
       richSelectionHtmlBlock(blankLine),
@@ -666,9 +689,9 @@ describe('blockSelectionUtils', () => {
     }));
 
     expect(classByLabel.get(blankLine), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
-      .not.toContain('editor-block-selected-has-next');
+      .toContain('editor-block-selected-has-next');
     expect(classByLabel.get('next'), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
-      .not.toContain('editor-block-selected-has-previous');
+      .toContain('editor-block-selected-has-previous');
   });
 
   it('keeps large selections on the lightweight decoration path', async () => {

@@ -17,6 +17,7 @@ import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
 import { codePlugin } from '../code';
 import { calloutPlugin } from '../callout';
+import { backslashHardBreakTextPlugins } from '../hard-break';
 import {
   getFrontmatterFenceLanguage,
   getFrontmatterFenceMeta,
@@ -377,6 +378,55 @@ describe('serializeSelectedBlocksToText', () => {
     expect(copied).toBe('我[xs](ds)i我');
 
     await editor.destroy();
+  });
+
+  it('copies selected hard-break paragraph lines as newlines without html break tags', async () => {
+    await expect(copyAllSelectableBlocks('我[xs](ds)\\\ni\\\n我', backslashHardBreakTextPlugins)).resolves.toBe(
+      '我[xs](ds)\ni\n我'
+    );
+  });
+
+  it('omits source backslash markers when copying a single selected hard-break line', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '我[xs](ds)\\\ni');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    for (const plugin of backslashHardBreakTextPlugins) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+
+    try {
+      const serializer = editor.ctx.get(serializerCtx);
+      const view = editor.ctx.get(editorViewCtx);
+      const sourceBackslash: Array<{ from: number; to: number }> = [];
+
+      view.state.doc.descendants((node, pos) => {
+        if (
+          node.isText
+          && node.text === '\\'
+          && node.marks.some((mark) => mark.type.name === 'backslash_hard_break_source_text')
+        ) {
+          sourceBackslash.push({ from: pos, to: pos + node.nodeSize });
+        }
+        return true;
+      });
+
+      expect(sourceBackslash).toHaveLength(1);
+      expect(serializeSelectedBlocksToText(view.state, [
+        { from: 1, to: sourceBackslash[0]!.to },
+      ], { markdownSerializer: serializer })).toBe('我[xs](ds)');
+    } finally {
+      await editor.destroy();
+    }
   });
 
   it('copies a single plain list item as visible text without markdown escape artifacts', async () => {

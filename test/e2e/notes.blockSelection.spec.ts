@@ -808,6 +808,164 @@ test.describe("notes block selection", () => {
     }
   });
 
+  test('copies hard-break block lines as newlines and keeps a gap from the preceding blank line', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-hard-break-copy-gap');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-hard-break-copy-gap.md',
+        content: [
+          'before hard-break copy gap',
+          '',
+          '我[xs](ds)<br />',
+          'i<br />',
+          '我',
+          '',
+          'after hard-break copy gap',
+        ].join('\n'),
+      });
+
+      const indexes = await page.evaluate(() => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          rangeText: string;
+          text: string;
+        }>;
+        const blankBefore = blocks.findIndex((block, index) => (
+          block.text === '' && blocks[index + 1]?.text.includes('我xs')
+        ));
+        return {
+          blankBefore,
+          firstLine: blankBefore >= 0 ? blankBefore + 1 : -1,
+          secondLine: blankBefore >= 0 ? blankBefore + 2 : -1,
+          thirdLine: blankBefore >= 0 ? blankBefore + 3 : -1,
+          blocks,
+        };
+      });
+      expect(indexes.blankBefore, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(indexes.firstLine, JSON.stringify(indexes, null, 2)).toBe(indexes.blankBefore + 1);
+      expect(indexes.secondLine, JSON.stringify(indexes, null, 2)).toBe(indexes.firstLine + 1);
+      expect(indexes.thirdLine, JSON.stringify(indexes, null, 2)).toBe(indexes.secondLine + 1);
+
+      await app.evaluate(({ clipboard }) => clipboard.clear());
+      const copiedSelectionCount = await page.evaluate(async (selectedIndexes) => {
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(selectedIndexes);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      }, [indexes.firstLine, indexes.secondLine, indexes.thirdLine]);
+      expect(copiedSelectionCount).toBe(3);
+
+      await page.keyboard.press('Control+C');
+      await expect.poll(async () => app.evaluate(({ clipboard }) => clipboard.readText()), {
+        timeout: 10_000,
+      }).toBe('我[xs](ds)\ni\n我');
+
+      const gapSelectionCount = await page.evaluate(async (selectedIndexes) => {
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(selectedIndexes);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      }, [indexes.blankBefore, indexes.firstLine]);
+      expect(gapSelectionCount).toBe(2);
+
+      const geometry = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const resolvePaintRect = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const after = getComputedStyle(element, '::after');
+          if (after.content !== 'none' && after.display !== 'none' && after.position === 'absolute') {
+            return {
+              top: rect.top + parsePx(after.top),
+              bottom: rect.bottom - parsePx(after.bottom),
+            };
+          }
+
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+          };
+        };
+
+        const lineFills = Array.from(document.querySelectorAll<HTMLElement>('.editor-block-selection-line-fill'))
+          .map((fill) => {
+            const rect = fill.getBoundingClientRect();
+            return {
+              top: rect.top,
+              bottom: rect.bottom,
+              centerY: rect.top + rect.height / 2,
+            };
+          })
+          .filter((rect) => rect.bottom > rect.top);
+
+        const rawRows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+          .filter((element) => !element.classList.contains('editor-block-selected-parent-marker'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const paint = resolvePaintRect(element);
+            const matchingFills = lineFills.filter((fill) => (
+              fill.centerY >= rect.top - 2 &&
+              fill.centerY <= rect.bottom + 2
+            ));
+            return {
+              text: element.textContent?.trim() ?? '',
+              className: element.className,
+              rectTop: Math.round(rect.top * 100) / 100,
+              rectBottom: Math.round(rect.bottom * 100) / 100,
+              visualTop: Math.round(Math.min(paint.top, ...matchingFills.map((fill) => fill.top)) * 100) / 100,
+              visualBottom: Math.round(Math.max(paint.bottom, ...matchingFills.map((fill) => fill.bottom)) * 100) / 100,
+            };
+          })
+          .sort((left, right) => left.rectTop - right.rectTop);
+
+        const rows = rawRows.reduce<typeof rawRows>((merged, row) => {
+          const previous = merged[merged.length - 1];
+          if (
+            previous &&
+            Math.abs(previous.rectTop - row.rectTop) <= 0.5 &&
+            Math.abs(previous.rectBottom - row.rectBottom) <= 0.5
+          ) {
+            previous.text = previous.text.includes(row.text)
+              ? previous.text
+              : `${previous.text}${row.text}`;
+            previous.visualTop = Math.min(previous.visualTop, row.visualTop);
+            previous.visualBottom = Math.max(previous.visualBottom, row.visualBottom);
+            return merged;
+          }
+
+          merged.push({ ...row });
+          return merged;
+        }, []);
+
+        const blank = rows.find((row) => row.text === '') ?? null;
+        const firstLine = rows.find((row) => row.text.includes('我') && row.text.includes('xs')) ?? null;
+        return {
+          rows,
+          rawRows,
+          lineFills,
+          blank,
+          firstLine,
+          gap: blank && firstLine
+            ? Math.round((firstLine.visualTop - blank.visualBottom) * 100) / 100
+            : null,
+        };
+      });
+
+      expect(geometry).not.toBeNull();
+      expect(geometry!.blank, JSON.stringify(geometry, null, 2)).not.toBeNull();
+      expect(geometry!.firstLine, JSON.stringify(geometry, null, 2)).not.toBeNull();
+      expect(geometry!.gap, JSON.stringify(geometry, null, 2)).toBeGreaterThan(0.5);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps long hard-break paragraph row geometry stable while blank-area dragging over and away from it', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-hard-break-drag-stability');
 

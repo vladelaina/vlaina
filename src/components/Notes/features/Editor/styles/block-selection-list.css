@@ -112,6 +112,8 @@
 }
 
 .milkdown .ProseMirror .editor-block-selected-inline-line {
+  --vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
+  --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
   background-color: transparent;
   box-shadow: none;
   border-radius: var(--vlaina-radius-0);

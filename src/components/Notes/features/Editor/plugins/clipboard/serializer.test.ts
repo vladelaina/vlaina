@@ -115,6 +115,31 @@ describe('serializeSliceToText', () => {
         expect(serializeSliceToText(slice)).toBe('[OpenAI](https://openai.com)');
     });
 
+    it('serializes Milkdown hardbreak nodes as plain newlines', () => {
+        const slice = createSlice([
+            createInlineNode('paragraph', [
+                createTextNode('alpha'),
+                createInlineNode('hardbreak'),
+                createTextNode('bravo'),
+            ]),
+        ]);
+
+        expect(serializeSliceToText(slice)).toBe('alpha\nbravo');
+    });
+
+    it('omits source hardbreak markers without dropping literal backslashes', () => {
+        const slice = createSlice([
+            createInlineNode('paragraph', [
+                createTextNode('alpha\\'),
+                createTextNode('\\', [{ type: { name: 'backslash_hard_break_source_text' } }]),
+                createInlineNode('hardbreak'),
+                createTextNode('bravo'),
+            ]),
+        ]);
+
+        expect(serializeSliceToText(slice)).toBe('alpha\\\nbravo');
+    });
+
     it('escapes linked text and parenthesized urls as standard markdown', () => {
         const slice = createSlice([
             createInlineNode('paragraph', [
