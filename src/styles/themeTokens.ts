@@ -203,6 +203,7 @@ export const themeTextAreaTokens = {
   collapsedMaxHeightPx: 0,
   unboundedMaxHeightPx: 100000,
   inlineRenameMaxHeightPx: 96,
+  titleResizeHeightGuardPx: 2,
   titleResizeFallbackDelayMs: 120,
 } as const;
 

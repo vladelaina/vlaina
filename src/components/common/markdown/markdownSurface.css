@@ -17,7 +17,7 @@
 .markdown-surface h1 {
   --vlaina-markdown-heading-line-extra: var(--vlaina-markdown-heading-line-extra-large);
   color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-font-h1, 34px);
+  font-size: var(--vlaina-markdown-heading-h1-font-size, 2em);
   font-weight: var(--vlaina-font-weight-bold);
   line-height: var(--vlaina-line-height-markdown-heading);
   margin-top: var(--vlaina-space-24px);
@@ -44,7 +44,7 @@
 .markdown-surface h2 {
   --vlaina-markdown-heading-line-extra: var(--vlaina-markdown-heading-line-extra-large);
   color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-font-h2, 29px);
+  font-size: var(--vlaina-markdown-heading-h2-font-size, 1.705882353em);
   font-weight: var(--vlaina-font-weight-bold);
   line-height: var(--vlaina-line-height-markdown-heading);
   margin-top: var(--vlaina-space-20px);
@@ -54,7 +54,7 @@
 
 .markdown-surface h3 {
   color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-font-h3, 25px);
+  font-size: var(--vlaina-markdown-heading-h3-font-size, 1.470588235em);
   font-weight: var(--vlaina-font-weight-semibold);
   line-height: var(--vlaina-line-height-markdown-body);
   margin-top: var(--vlaina-space-16px);
@@ -64,7 +64,7 @@
 
 .markdown-surface h4 {
   color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-font-h4, 22px);
+  font-size: var(--vlaina-markdown-heading-h4-font-size, 1.294117647em);
   font-weight: var(--vlaina-font-weight-semibold);
   line-height: var(--vlaina-line-height-markdown-body);
   margin-top: var(--vlaina-space-14px);
@@ -74,7 +74,7 @@
 
 .markdown-surface h5 {
   color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-font-h5, 19px);
+  font-size: var(--vlaina-markdown-heading-h5-font-size, 1.117647059em);
   font-weight: var(--vlaina-font-weight-semibold);
   line-height: var(--vlaina-line-height-markdown-body);
   margin-top: var(--vlaina-space-12px);
@@ -84,7 +84,7 @@
 
 .markdown-surface h6 {
   color: var(--vlaina-text-secondary);
-  font-size: var(--vlaina-font-h6, 17px);
+  font-size: var(--vlaina-markdown-heading-h6-font-size, 1em);
   font-weight: var(--vlaina-font-weight-semibold);
   line-height: var(--vlaina-line-height-markdown-body);
   margin-top: var(--vlaina-space-12px);

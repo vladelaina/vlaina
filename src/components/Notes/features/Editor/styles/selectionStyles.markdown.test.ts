@@ -4,6 +4,7 @@ import {
   readCommonMarkdownSurfaceStyle,
   readStyleFile,
   readThemeCompatibilityStyle,
+  readThemeStyle,
 } from "./selectionStylesTestUtils";
 
 describe("editor markdown presentation styles", () => {
@@ -22,6 +23,21 @@ describe("editor markdown presentation styles", () => {
     expect(css).toContain('margin-bottom: 0;');
     expect(css).toContain('.milkdown .image-block-container {');
     expect(css).toContain('margin: var(--vlaina-space-0);');
+  });
+
+  it('scales note titles and markdown headings from the markdown body font size', () => {
+    const themeCss = readThemeStyle();
+    const commonCss = readCommonMarkdownSurfaceStyle();
+
+    expect(themeCss).toContain('--vlaina-note-title-font-size: 1.882352941em;');
+    expect(themeCss).toContain('--vlaina-note-title-compact-font-size: 1.176470588em;');
+    expect(themeCss).toContain('--vlaina-note-title-padding-y: 0.08em;');
+    expect(themeCss).toContain('--vlaina-note-title-margin-bottom: 0.941176471em;');
+    expect(themeCss).toContain('--vlaina-markdown-heading-h1-font-size: 2em;');
+    expect(themeCss).toContain('--vlaina-markdown-heading-h6-font-size: 1em;');
+    expect(commonCss).toContain('font-size: var(--vlaina-markdown-heading-h1-font-size, 2em);');
+    expect(commonCss).toContain('font-size: var(--vlaina-markdown-heading-h6-font-size, 1em);');
+    expect(commonCss).not.toContain('font-size: var(--vlaina-font-h1, 34px);');
   });
 
   it('keeps embedded floating toolbars readable inside selected blocks', () => {

@@ -19,7 +19,7 @@ export function useTitleInputAutoResize(
     }
 
     input.style.height = themeTextAreaTokens.heightAuto;
-    input.style.height = `${input.scrollHeight}px`;
+    input.style.height = `${Math.ceil(input.scrollHeight) + themeTextAreaTokens.titleResizeHeightGuardPx}px`;
     input.scrollTop = 0;
     input.scrollLeft = 0;
 

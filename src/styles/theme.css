@@ -34,7 +34,11 @@
   --vlaina-font-h2: 29px;
   --vlaina-font-30: 30px;
   --vlaina-font-h1: 34px;
-  --vlaina-note-title-font-size: 32px;
+  --vlaina-note-title-font-size: 1.882352941em;
+  --vlaina-note-title-compact-font-size: 1.176470588em;
+  --vlaina-note-title-compact-line-height: calc(1em + var(--vlaina-size-8px));
+  --vlaina-note-title-padding-y: 0.08em;
+  --vlaina-note-title-margin-bottom: 0.941176471em;
   --vlaina-font-title: 36px;
   --vlaina-font-0625rem: 0.625rem;
   --vlaina-font-075rem: 0.75rem;
@@ -446,6 +450,12 @@
   --vlaina-height-math-block-intrinsic: auto var(--vlaina-size-96px);
   --vlaina-mermaid-text: #27272A;
   --vlaina-markdown-font-size: var(--vlaina-size-17px);
+  --vlaina-markdown-heading-h1-font-size: 2em;
+  --vlaina-markdown-heading-h2-font-size: 1.705882353em;
+  --vlaina-markdown-heading-h3-font-size: 1.470588235em;
+  --vlaina-markdown-heading-h4-font-size: 1.294117647em;
+  --vlaina-markdown-heading-h5-font-size: 1.117647059em;
+  --vlaina-markdown-heading-h6-font-size: 1em;
   --vlaina-collapse-gutter-base: var(--vlaina-size-22px);
   --vlaina-collapse-marker-gap: var(--vlaina-size-24px);
   --vlaina-block-selection-color-default: var(--vlaina-editor-block-selection-bg);
