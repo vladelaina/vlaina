@@ -1,6 +1,6 @@
 import { actions as aiActions } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
-import type { AIModel, ChatMessage, ChatMessageContent, ChatSendOptions, Provider } from '@/lib/ai/types';
+import { AIErrorType, type AIModel, type ChatMessage, type ChatMessageContent, type ChatSendOptions, type Provider } from '@/lib/ai/types';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import {
   type EndpointType,
@@ -8,10 +8,15 @@ import {
   getVerifiedModelEndpointType,
   getVerifiedProviderEndpointType,
   isLikelyAnthropicModel,
-  isTransientEndpointPreStreamError,
   shouldTryAlternateEndpointAfterEndpointError,
   shouldTryAnthropicEndpointDuringDiscovery,
 } from '@/lib/ai/endpointFallback';
+import {
+  isDevRetrySimulationEnabled,
+  PRE_STREAM_RETRY_DELAY_MS,
+  sendWithPreStreamRetry,
+  throwIfAborted,
+} from './preStreamRetry';
 
 interface EndpointFallbackClient {
   sendMessage(
@@ -39,87 +44,17 @@ interface SendMessageWithEndpointFallbackOptions {
   retryDelayMs?: number;
 }
 
-const PRE_STREAM_RETRY_DELAY_MS = 900;
+const DEV_RETRY_SIMULATION_ERROR = {
+  type: AIErrorType.SERVER_ERROR,
+  message: 'Service unavailable',
+  statusCode: 503,
+};
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'AbortError'
-    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';
-}
-
-function createAbortError(): DOMException {
-  return new DOMException('Aborted', 'AbortError');
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (!signal?.aborted) return;
-  throw createAbortError();
-}
-
-function isTransientPreStreamError(error: unknown, signal?: AbortSignal): boolean {
-  if (isAbortError(error) && signal?.aborted) {
-    return false;
-  }
-
-  return isTransientEndpointPreStreamError(error);
-}
-
-function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) {
-    return Promise.reject(new DOMException('Aborted', 'AbortError'));
-  }
-  if (delayMs <= 0) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve, reject) => {
-    let timer: ReturnType<typeof setTimeout>;
-    const abort = () => {
-      clearTimeout(timer);
-      reject(new DOMException('Aborted', 'AbortError'));
-    };
-    const cleanupAndResolve = () => {
-      signal?.removeEventListener('abort', abort);
-      resolve();
-    };
-
-    signal?.addEventListener('abort', abort, { once: true });
-    timer = setTimeout(cleanupAndResolve, delayMs);
-  });
-}
-
-async function sendWithSinglePreStreamRetry(
-  send: (onChunk: (chunk: string) => void) => Promise<string>,
-  onChunk: (chunk: string) => void,
-  signal: AbortSignal | undefined,
-  delayMs: number,
-  shouldRetry: boolean
-): Promise<string> {
-  let didReceiveChunk = false;
-  const trackedOnChunk = (chunk: string) => {
-    throwIfAborted(signal);
-    didReceiveChunk = true;
-    onChunk(chunk);
-    throwIfAborted(signal);
-  };
-
-  try {
-    const result = await send(trackedOnChunk);
-    throwIfAborted(signal);
-    return result;
-  } catch (error) {
-    throwIfAborted(signal);
-    if (!shouldRetry || didReceiveChunk || !isTransientPreStreamError(error, signal)) {
-      throw error;
-    }
-
-    await waitForRetry(delayMs, signal);
-    throwIfAborted(signal);
-    didReceiveChunk = false;
-    const result = await send(trackedOnChunk);
-    throwIfAborted(signal);
-    return result;
-  }
-}
+const devRetrySimulationClient: EndpointFallbackClient = {
+  sendMessage: async () => {
+    throw DEV_RETRY_SIMULATION_ERROR;
+  },
+};
 
 export async function sendMessageWithEndpointFallback({
   content,
@@ -151,26 +86,31 @@ export async function sendMessageWithEndpointFallback({
     }
   }
 
+  const requestClient = import.meta.env.DEV && isDevRetrySimulationEnabled()
+    ? devRetrySimulationClient
+    : client;
   const shouldAutoRetry = options?.webSearchEnabled !== true;
+  const onRetryStatus = options?.onRetryStatus;
   const verifiedModelEndpointType = getVerifiedModelEndpointType(model);
   const verifiedProviderEndpointType = getVerifiedProviderEndpointType(provider);
   const isManagedProvider = isManagedProviderId(provider.id);
 
   if (isManagedProvider) {
-    return sendWithSinglePreStreamRetry(
-      (trackedOnChunk) => client.sendMessage(content, history, model, provider, trackedOnChunk, signal, options),
+    return sendWithPreStreamRetry(
+      (trackedOnChunk) => requestClient.sendMessage(content, history, model, provider, trackedOnChunk, signal, options),
       onChunk,
       signal,
       retryDelayMs,
       shouldAutoRetry,
+      onRetryStatus,
     );
   }
 
   const sendWithEndpointType = (
     endpointType: EndpointType,
     onAttemptChunk?: () => void,
-  ) => sendWithSinglePreStreamRetry(
-    (trackedOnChunk) => client.sendMessage(
+  ) => sendWithPreStreamRetry(
+    (trackedOnChunk) => requestClient.sendMessage(
       content,
       history,
       model,
@@ -186,6 +126,7 @@ export async function sendMessageWithEndpointFallback({
     signal,
     retryDelayMs,
     shouldAutoRetry,
+    onRetryStatus,
   );
 
   const sendWithVerifiedEndpoint = async (endpointType: EndpointType): Promise<string> => {
@@ -229,8 +170,8 @@ export async function sendMessageWithEndpointFallback({
   let didReceiveOpenAIChunk = false;
 
   try {
-    const result = await sendWithSinglePreStreamRetry(
-      (trackedOnChunk) => client.sendMessage(
+    const result = await sendWithPreStreamRetry(
+      (trackedOnChunk) => requestClient.sendMessage(
         content,
         history,
         model,
@@ -246,6 +187,7 @@ export async function sendMessageWithEndpointFallback({
       signal,
       retryDelayMs,
       shouldAutoRetry,
+      onRetryStatus,
     );
     throwIfAborted(signal);
     updateProvider(provider.id, { endpointType: 'openai', endpointTypeCheckedAt: Date.now() });
@@ -268,8 +210,8 @@ export async function sendMessageWithEndpointFallback({
     }
 
     try {
-      const result = await sendWithSinglePreStreamRetry(
-        (trackedOnChunk) => client.sendMessage(
+      const result = await sendWithPreStreamRetry(
+        (trackedOnChunk) => requestClient.sendMessage(
           content,
           history,
           model,
@@ -282,6 +224,7 @@ export async function sendMessageWithEndpointFallback({
         signal,
         retryDelayMs,
         shouldAutoRetry,
+        onRetryStatus,
       );
       throwIfAborted(signal);
       if (isLikelyAnthropicModel(model)) {

@@ -189,6 +189,12 @@ export function useEditMessage({
                   }
                   aiActions.updateMessageApiTranscript(sessionId, assistantMessageId, apiTranscript);
                 },
+                onRetryStatus: (message) => {
+                  if (!isActiveRequest()) {
+                    return;
+                  }
+                  aiActions.updateMessage(sessionId, assistantMessageId, message);
+                },
               },
             });
           },

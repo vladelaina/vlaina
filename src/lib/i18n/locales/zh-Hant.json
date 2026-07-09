@@ -577,6 +577,8 @@
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ 腦袋轉不過來啦，等我緩一緩或者先換個模型試試~",
   "chat.error.network": "網路連線錯誤，請檢查連線後再試。",
   "chat.error.customProviderConnectionFailed": "自動重試後仍無法連接到自訂頻道。請檢查網路或上游服務後再試。",
+  "chat.retryCountdown": "{seconds}秒後重試 - 第{attempt}次重試",
+  "chat.retryTestButton": "測試重試",
   "chat.error.timeout": "請求逾時，請稍後再試。",
   "chat.error.authExpired": "登入狀態已過期，請重新登入後再試。",
   "chat.error.authFailed": "身份驗證失敗，請檢查 API 金鑰或重新登入。",

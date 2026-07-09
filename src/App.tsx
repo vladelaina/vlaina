@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { AppContent } from '@/AppContent';
-import { DiagnosticsPanel } from '@/components/common/DiagnosticsPanel';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { RetryStatusTestButton } from '@/components/common/RetryStatusTestButton';
 import { MarkdownThemeDirectorySync } from '@/components/markdown-theme/MarkdownThemeDirectorySync';
 import { MarkdownThemeLoader } from '@/components/markdown-theme/MarkdownThemeLoader';
 import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
@@ -252,7 +252,7 @@ function App() {
             <ToastContainer />
           </Suspense>
         ) : null}
-        {import.meta.env.DEV ? <DiagnosticsPanel /> : null}
+        {import.meta.env.PROD ? <RetryStatusTestButton /> : null}
       </ErrorBoundary>
     </ThemeProvider>
   );
