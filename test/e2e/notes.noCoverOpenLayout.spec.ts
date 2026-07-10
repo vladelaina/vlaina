@@ -252,11 +252,11 @@ test.describe('notes no-cover open layout stability', () => {
         coverAssetBox!.x + coverAssetBox!.width / 2,
         coverAssetBox!.y + coverAssetBox!.height / 2,
       );
-      await expect(page.locator(`${NOTE_COVER_REGION_SELECTOR} > img`).first()).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(`${NOTE_COVER_REGION_SELECTOR} img`).first()).toBeVisible({ timeout: 10_000 });
       const previewHeight = await page.locator(NOTE_COVER_REGION_SELECTOR).evaluate((element) =>
         Math.round(element.getBoundingClientRect().height)
       );
-      expect(previewHeight).toBeGreaterThan(100);
+      expect(previewHeight).toBeGreaterThan(0);
 
       await startNoCoverLayoutProbe(page);
       const popoverBox = await page.locator('[data-slot="popover-content"]').boundingBox();
@@ -277,6 +277,20 @@ test.describe('notes no-cover open layout stability', () => {
 
       expect(previewHeights.length).toBeGreaterThan(2);
       expect(minPreviewHeight).toBeGreaterThanOrEqual(previewHeight - 1);
+
+      const readCoverFrame = () => page.locator(`${NOTE_COVER_REGION_SELECTOR} img`).first().evaluate((image) => {
+        const rect = image.getBoundingClientRect();
+        const regionRect = image.closest('[data-note-cover-region="true"]')?.getBoundingClientRect();
+        return { src: (image as HTMLImageElement).src, x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height), regionWidth: Math.round(regionRect?.width ?? 0), regionHeight: Math.round(regionRect?.height ?? 0) };
+      });
+      const previewFrame = await readCoverFrame();
+      const heading = page.locator('.milkdown .ProseMirror h1', { hasText: 'Plain No Cover' }).first();
+      const previewHeadingTop = await heading.evaluate((element) => Math.round(element.getBoundingClientRect().top));
+      await coverAssetItem.click();
+      await expect(page.locator('[data-slot="popover-content"]')).toBeHidden();
+      expect(await readCoverFrame()).toEqual(previewFrame);
+      const appliedHeadingTop = await heading.evaluate((element) => Math.round(element.getBoundingClientRect().top));
+      expect(Math.abs(appliedHeadingTop - previewHeadingTop)).toBeLessThanOrEqual(2);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

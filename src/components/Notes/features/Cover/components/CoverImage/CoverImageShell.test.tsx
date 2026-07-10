@@ -89,7 +89,7 @@ describe('CoverImageShell', () => {
     expect(hoisted.coverPickerSpy).not.toHaveBeenCalled();
   });
 
-  it('renders picker in idle phase without reserving cover height', () => {
+  it('renders picker in idle phase with a collapsed animated cover region', () => {
     const { container } = render(
       <CoverImageShell
         {...buildShellProps({
@@ -99,7 +99,8 @@ describe('CoverImageShell', () => {
     );
     expect(screen.getByTestId('cover-picker')).toBeInTheDocument();
     expect(hoisted.coverPickerSpy).toHaveBeenCalled();
-    expect(container.firstElementChild).not.toHaveStyle({ height: '320px' });
+    expect(container.firstElementChild).toHaveStyle({ height: '0px' });
+    expect(container.firstElementChild).toHaveClass('transition-[height]');
     expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
   });
 
@@ -119,18 +120,62 @@ describe('CoverImageShell', () => {
     expect(container.firstElementChild).not.toHaveClass('animate-in');
   });
 
-  it('uses the normal cover height for pending previews before selection is saved', () => {
-    const { container } = render(
+  it('keeps the last cover frame mounted until the collapse transition finishes', () => {
+    const { container, rerender } = render(
       <CoverImageShell
         {...buildShellProps({
-          showPicker: true,
-          previewSrc: '/preview.webp',
+          phase: 'ready',
+          url: 'assets/cover.png',
+          displaySrc: 'blob:cover',
         })}
       />
     );
 
-    expect(container.querySelector('img')).toHaveAttribute('src', '/preview.webp');
-    expect(container.querySelector('img')?.parentElement).toHaveStyle({ height: '320px' });
+    rerender(<CoverImageShell {...buildShellProps()} />);
+
+    const coverRegion = container.querySelector<HTMLElement>('[data-note-cover-region="true"]');
+    expect(coverRegion).toHaveStyle({ height: '0px' });
+    expect(hoisted.coverRendererSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      displaySrc: 'blob:cover',
+    }));
+
+    fireEvent.transitionEnd(coverRegion!, { propertyName: 'height' });
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('uses the normal cover height for pending previews before selection is saved', () => {
+    const { container, rerender } = render(
+      <CoverImageShell
+        {...buildShellProps({
+          showPicker: true,
+          previewSrc: '/preview.webp',
+          displaySrc: '/preview.webp',
+        })}
+      />
+    );
+
+    const previewRenderer = screen.getByTestId('cover-renderer');
+    expect(previewRenderer.parentElement).toHaveStyle({ height: '320px' });
+    expect(hoisted.coverRendererSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      displaySrc: '/preview.webp',
+      positionX: 50,
+      positionY: 50,
+    }));
+    expect(hoisted.coverPickerSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      anchorPlacement: 'empty-cover-option',
+    }));
+
+    rerender(
+      <CoverImageShell
+        {...buildShellProps({
+          phase: 'committing',
+          url: 'assets/cover.webp',
+          previewSrc: '/preview.webp',
+          displaySrc: '/preview.webp',
+        })}
+      />
+    );
+    expect(screen.getByTestId('cover-renderer')).toBe(previewRenderer);
   });
 
   it('keeps the cover placeholder height while a new cover selection is committing', () => {

@@ -20,6 +20,7 @@ vi.mock('./CoverImageShell', () => ({
 
 describe('CoverImage', () => {
   it('delegates orchestration to controller hook and renders shell with controller props', () => {
+    const onPreviewLayoutActiveChange = vi.fn();
     const shellProps = {
       url: 'assets/cover.png',
       readOnly: false,
@@ -79,6 +80,7 @@ describe('CoverImage', () => {
         currentNotePath="notes/a.md"
         pickerOpen={true}
         onPickerOpenChange={vi.fn()}
+        onPreviewLayoutActiveChange={onPreviewLayoutActiveChange}
       />
     );
 
@@ -94,6 +96,7 @@ describe('CoverImage', () => {
       currentNotePath: 'notes/a.md',
       pickerOpen: true,
       onPickerOpenChange: expect.any(Function),
+      onPreviewLayoutActiveChange,
     });
     expect(hoisted.shellSpy).toHaveBeenCalledWith(shellProps);
   });

@@ -13,6 +13,7 @@ export interface CoverImageProps {
   currentNotePath?: string;
   pickerOpen?: boolean;
   onPickerOpenChange?: (open: boolean) => void;
+  onPreviewLayoutActiveChange?: (active: boolean) => void;
 }
 
 export interface CoverImageControllerModel {

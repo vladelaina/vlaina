@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCoverSource } from './useCoverSource';
-import { clearCoverAssetUrlResolveCacheForTests } from '../utils/resolveCoverAssetUrl';
+import { getCoverResolveOptions, useCoverSource } from './useCoverSource';
+import { clearCoverAssetUrlResolveCacheForTests, resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
@@ -66,6 +66,29 @@ describe('useCoverSource', () => {
       allowMainThreadFallback: false,
     });
     expect(result.current.isError).toBe(false);
+  });
+
+  it('reuses the preview thumbnail when the same cover is committed', async () => {
+    const options = getCoverResolveOptions({
+      url: 'assets/a.png',
+      notesRootPath: '/notes-root-a',
+      currentNotePath: 'notes/today.md',
+    });
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
+
+    await expect(resolveCoverAssetUrl(options)).resolves.toBe('blob:cover-a');
+    const { result } = renderHook(() =>
+      useCoverSource({
+        url: 'assets/a.png',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+      })
+    );
+
+    expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    await waitFor(() => expect(result.current.resolvedSrc).toBe('blob:cover-a'));
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(1);
   });
 
   it('preserves animated local covers by loading the original blob', async () => {
