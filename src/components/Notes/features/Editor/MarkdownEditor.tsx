@@ -136,6 +136,7 @@ export function MarkdownEditor({
     coverController,
     coverLayoutActive,
     coverUrl,
+    handlePreviewLayoutActiveChange,
     renderedCoverController,
     reservedCoverHeight,
     shouldRenderCover,
@@ -199,12 +200,14 @@ export function MarkdownEditor({
         draggingBodyClassName="app-overlay-scrollbar-dragging"
         scrollbarVariant="compact"
         data-note-scroll-root="true"
+        data-note-cover-viewport="true"
       >
         {renderedCoverController ? (
           <NoteCoverCanvas
             controller={renderedCoverController}
             notePath={currentNotePath}
             readOnly={!shouldRenderCover}
+            onPreviewLayoutActiveChange={handlePreviewLayoutActiveChange}
           />
         ) : shouldReserveCoverSpace ? (
           <div

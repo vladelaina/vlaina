@@ -610,6 +610,15 @@ export const themeCoverLayerTokens = {
   transformOriginCenter: 'center center',
 } as const;
 
+export const themeCoverLayoutTokens = {
+  minHeightPx: 120,
+  maxHeightPx: 500,
+  minScale: 1,
+  maxScale: 10,
+  defaultViewportHeightRatio: 0.236,
+  fallbackViewportHeightPx: 1080,
+} as const;
+
 export const themeImageBlockStyleTokens = {
   normalTransition: 'width 0.1s ease-out, opacity 0.2s ease-out',
   displayBlock: 'block',

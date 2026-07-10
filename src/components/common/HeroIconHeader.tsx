@@ -112,7 +112,7 @@ export function HeroIconHeader({
       ref={headerRef}
       data-no-editor-drag-box="true"
       className={cn(
-        "relative transition-[margin-top] duration-[var(--vlaina-duration-75)] ease-out w-full",
+        "relative transition-[margin-top] duration-[var(--vlaina-duration-200)] ease-out w-full",
         !compact && "max-w-3xl mx-auto px-10",
         !compact && coverLayoutActive && "pointer-events-none",
         className
@@ -127,7 +127,7 @@ export function HeroIconHeader({
       <div className={cn(compact ? "flex items-center gap-3 py-2" : "pointer-events-none")}>
         <div
           className={cn(
-              "duration-[var(--vlaina-duration-150)] relative",
+              "duration-[var(--vlaina-duration-200)] relative",
               "transition-[padding,opacity]",
               !compact && "w-fit",
               !compact && "z-[var(--vlaina-z-30)]",

@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 import { useCoverState } from './state/useCoverState';
 import { useCoverDisplayModel } from './display/useCoverDisplayModel';
@@ -6,8 +7,9 @@ import { useCoverSelectionFlow } from './source/useCoverSelectionFlow';
 import { useCoverInteractionController } from './useCoverInteractionController';
 import { useCoverMediaController } from './display/useCoverMediaController';
 import { useCoverStableMediaState } from './display/useCoverStableMediaState';
+import { useAutomaticCoverHeight } from './state/useAutomaticCoverHeight';
 import type { CoverImageControllerModel, CoverImageProps } from '../coverImage.types';
-import { DEFAULT_POSITION_PERCENT } from '../../../utils/coverConstants';
+import { DEFAULT_POSITION_PERCENT, resolveDefaultCoverHeight } from '../../../utils/coverConstants';
 
 interface UseCoverImageControllerProps extends Omit<CoverImageProps, 'height' | 'scale' | 'readOnly'> {
   initialHeight?: number;
@@ -27,6 +29,7 @@ export function useCoverImageController({
   currentNotePath,
   pickerOpen,
   onPickerOpenChange,
+  onPreviewLayoutActiveChange,
 }: UseCoverImageControllerProps): CoverImageControllerModel {
   const layoutPanelDragging = useUIStore((state) => state.layoutPanelDragging);
   const {
@@ -56,12 +59,17 @@ export function useCoverImageController({
     handlePickerClose,
   } = useCoverSelectionFlow({
     url,
-    coverHeight,
+    coverHeight: initialHeight,
     notesRootPath,
     currentNotePath,
     onUpdate,
     setShowPicker,
   });
+
+  useLayoutEffect(() => {
+    onPreviewLayoutActiveChange?.(!url && Boolean(previewSrc));
+    return () => onPreviewLayoutActiveChange?.(false);
+  }, [onPreviewLayoutActiveChange, previewSrc, url]);
 
   useCoverPreviewReset({
     previewSrc,
@@ -142,6 +150,7 @@ export function useCoverImageController({
     crop,
     setCrop,
     coverHeight,
+    storedCoverHeight: initialHeight,
     setCoverHeight,
     url,
     readOnly,
@@ -157,6 +166,14 @@ export function useCoverImageController({
     isManualResizingRef,
     setContainerSize,
     suspendPositionSync,
+    containerObserveKey: url || previewSrc,
+  });
+
+  useAutomaticCoverHeight({
+    containerRef,
+    enabled: initialHeight === undefined,
+    observeKey: `${url ?? ''}\0${previewSrc ?? ''}\0${showPicker}`,
+    setCoverHeight,
   });
 
   const { handleMediaLoaded } = useCoverMediaController({
@@ -198,9 +215,8 @@ export function useCoverImageController({
     },
     onResizeMouseDown: handleResizeMouseDown,
     onResetHeight: () => {
-      const goldenHeight = Math.round(window.innerHeight * 0.236);
-      setCoverHeight(goldenHeight);
-      onUpdate(url, positionX, positionY, goldenHeight, scale);
+      setCoverHeight(resolveDefaultCoverHeight());
+      onUpdate(url, positionX, positionY, undefined, scale);
     },
     rendererProps: {
       layoutPanelDragging,

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNoteCoverController } from '../../Cover';
-import { DEFAULT_HEIGHT as DEFAULT_COVER_HEIGHT } from '../../Cover/utils/coverConstants';
+import { resolveDefaultCoverHeight } from '../../Cover/utils/coverConstants';
 import {
   canKeepCoverDuringEditorReload,
   getStableCoverSignature,
@@ -18,7 +18,14 @@ export function useMarkdownEditorCoverState({
 }) {
   const lastRenderedCoverRef = useRef<RenderedCoverSnapshot | null>(null);
   const coverController = useNoteCoverController(currentNotePath);
+  const [previewLayoutPath, setPreviewLayoutPath] = useState<string | null>(null);
   const coverUrl = coverController.cover.url;
+  const handlePreviewLayoutActiveChange = useCallback((active: boolean) => {
+    setPreviewLayoutPath((current) => {
+      if (active) return currentNotePath ?? null;
+      return current === currentNotePath ? null : current;
+    });
+  }, [currentNotePath]);
   const coverSignature = useMemo(
     () => getStableCoverSignature(coverController.cover),
     [coverController.cover]
@@ -80,10 +87,14 @@ export function useMarkdownEditorCoverState({
 
   return {
     coverController,
-    coverLayoutActive: Boolean(coverUrl) || Boolean(renderedCoverController?.cover.url),
+    coverLayoutActive:
+      Boolean(coverUrl) ||
+      Boolean(renderedCoverController?.cover.url) ||
+      Boolean(currentNotePath && previewLayoutPath === currentNotePath),
     coverUrl,
+    handlePreviewLayoutActiveChange,
     renderedCoverController,
-    reservedCoverHeight: coverController.cover.height ?? DEFAULT_COVER_HEIGHT,
+    reservedCoverHeight: coverController.cover.height ?? resolveDefaultCoverHeight(),
     shouldRenderCover,
     shouldReserveCoverSpace: hasActiveNote && Boolean(coverUrl) && !renderedCoverController,
   };

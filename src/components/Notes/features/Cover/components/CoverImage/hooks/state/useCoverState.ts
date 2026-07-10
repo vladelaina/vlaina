@@ -1,5 +1,5 @@
 import { useState, useRef, useLayoutEffect, useCallback } from 'react';
-import { DEFAULT_HEIGHT } from '../../../../utils/coverConstants';
+import { resolveDefaultCoverHeight } from '../../../../utils/coverConstants';
 
 interface UseCoverStateProps {
   initialHeight?: number;
@@ -14,13 +14,13 @@ export function useCoverState({
   pickerOpen,
   onPickerOpenChange
 }: UseCoverStateProps) {
-  const [coverHeight, setCoverHeight] = useState(initialHeight ?? DEFAULT_HEIGHT);
+  const [coverHeight, setCoverHeight] = useState(() => initialHeight ?? resolveDefaultCoverHeight());
   const lastHeightProp = useRef(initialHeight);
 
   useLayoutEffect(() => {
-    if (initialHeight === undefined || initialHeight === lastHeightProp.current) return;
+    if (initialHeight === lastHeightProp.current) return;
     lastHeightProp.current = initialHeight;
-    setCoverHeight(initialHeight);
+    setCoverHeight(initialHeight ?? resolveDefaultCoverHeight());
   }, [initialHeight]);
 
   const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);

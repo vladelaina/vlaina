@@ -12,6 +12,7 @@ interface UseCoverInteractionControllerProps {
   crop: { x: number; y: number };
   setCrop: Dispatch<SetStateAction<{ x: number; y: number }>>;
   coverHeight: number;
+  storedCoverHeight?: number;
   setCoverHeight: (height: number) => void;
   url: string | null;
   readOnly: boolean;
@@ -27,6 +28,7 @@ interface UseCoverInteractionControllerProps {
   isManualResizingRef: React.MutableRefObject<boolean>;
   setContainerSize: React.Dispatch<React.SetStateAction<{ width: number; height: number } | null>>;
   suspendPositionSync: boolean;
+  containerObserveKey?: string | null;
 }
 
 export function useCoverInteractionController({
@@ -37,6 +39,7 @@ export function useCoverInteractionController({
   crop,
   setCrop,
   coverHeight,
+  storedCoverHeight,
   setCoverHeight,
   url,
   readOnly,
@@ -52,6 +55,7 @@ export function useCoverInteractionController({
   isManualResizingRef,
   setContainerSize,
   suspendPositionSync,
+  containerObserveKey,
 }: UseCoverInteractionControllerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -92,7 +96,7 @@ export function useCoverInteractionController({
     setZoom,
     crop,
     setCrop,
-    coverHeight,
+    storedCoverHeight,
     url,
     readOnly,
     onUpdate,
@@ -120,7 +124,7 @@ export function useCoverInteractionController({
     isManualResizingRef,
     setContainerSize,
     setIsContainerResizing,
-    observeKey: url,
+    observeKey: containerObserveKey,
   });
 
   return {
