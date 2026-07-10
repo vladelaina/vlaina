@@ -298,7 +298,7 @@ describe('useChatService session context isolation', () => {
       onChunk: (chunk: string) => void;
       options?: ChatSendOptions;
     }) => {
-      options?.onRetryStatus?.('Service unavailable\n30秒后重试 - 第4次重试');
+      options?.onRetryStatus?.('Service unavailable\n10秒后重试 - 第1次重试');
       return await pendingProviderResponse;
     });
     const { result } = renderHook(() => useChatService());
@@ -310,7 +310,7 @@ describe('useChatService session context isolation', () => {
 
     await waitFor(() => {
       const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
-      expect(messages.at(-1)?.content).toBe('Service unavailable\n30秒后重试 - 第4次重试');
+      expect(messages.at(-1)?.content).toBe('Service unavailable\n10秒后重试 - 第1次重试');
     });
 
     resolveProvider('assistant answer');
@@ -332,7 +332,7 @@ describe('useChatService session context isolation', () => {
       onChunk: (chunk: string) => void;
       options?: ChatSendOptions;
     }) => {
-      options?.onRetryStatus?.('Service unavailable\n30秒后重试 - 第4次重试');
+      options?.onRetryStatus?.('Service unavailable\n10秒后重试 - 第1次重试');
       return await pendingProviderResponse;
     });
     const { result } = renderHook(() => useChatService());
@@ -347,7 +347,7 @@ describe('useChatService session context isolation', () => {
         'session two visible prompt',
         'session two visible answer',
         'retrying prompt',
-        'Service unavailable\n30秒后重试 - 第4次重试',
+        'Service unavailable\n10秒后重试 - 第1次重试',
       ]);
     });
 

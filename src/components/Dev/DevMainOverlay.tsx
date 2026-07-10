@@ -179,6 +179,11 @@ export function DevMainOverlay({
     >
       {isExpanded ? (
         <>
+          <DevOverlayButton
+            iconName={isRetrySimulationEnabled ? 'common.checkCircle' : 'common.refresh'}
+            label={isRetrySimulationEnabled ? 'Test retry enabled' : 'Test retry'}
+            onClick={handleToggleRetrySimulation}
+          />
           <div
             data-dev-diagnostics-panel="true"
             className="app-no-drag pointer-events-auto flex items-center gap-1.5 rounded-full border border-[var(--vlaina-color-subtle-border)] bg-[var(--vlaina-color-setting-panel)] px-2 py-1.5 text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-lg)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]"
@@ -208,11 +213,6 @@ export function DevMainOverlay({
               <Icon name="common.delete" size="xs" />
             </button>
           </div>
-          <DevOverlayButton
-            iconName={isRetrySimulationEnabled ? 'common.checkCircle' : 'common.refresh'}
-            label={isRetrySimulationEnabled ? 'Retry simulation enabled' : 'Simulate retry in 1s'}
-            onClick={handleToggleRetrySimulation}
-          />
           <DevOverlayButton
             iconName={isSimulatedUpdateActive ? 'common.checkCircle' : 'common.download'}
             label={updateSimulationSwitchLabel}

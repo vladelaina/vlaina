@@ -464,14 +464,14 @@ describe('sendMessageWithEndpointFallback', () => {
       request.catch(() => undefined);
 
       await vi.waitFor(() => {
-        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n30秒后重试 - 第4次重试');
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n10秒后重试 - 第1次重试');
       });
       expect(client.sendMessage).toHaveBeenCalledTimes(4);
 
       await vi.advanceTimersByTimeAsync(1000);
-      expect(onRetryStatus).toHaveBeenLastCalledWith('Service unavailable\n29秒后重试 - 第4次重试');
+      expect(onRetryStatus).toHaveBeenLastCalledWith('Service unavailable\n9秒后重试 - 第1次重试');
 
-      await vi.advanceTimersByTimeAsync(29_000);
+      await vi.advanceTimersByTimeAsync(9_000);
       await expect(request).resolves.toBe('eventual ok');
       expect(client.sendMessage).toHaveBeenCalledTimes(5);
     } finally {
@@ -479,7 +479,7 @@ describe('sendMessageWithEndpointFallback', () => {
     }
   });
 
-  it('backs off visible retry countdowns after the first visible retry', async () => {
+  it('uses six ten-second visible retries before capping later retries at thirty seconds', async () => {
     vi.useFakeTimers();
     try {
       useUIStore.setState({ languagePreference: 'zh-CN' });
@@ -488,15 +488,15 @@ describe('sendMessageWithEndpointFallback', () => {
         message: 'Service unavailable',
         statusCode: 503,
       };
+      let sendCount = 0;
       const client = {
-        sendMessage: vi
-          .fn()
-          .mockRejectedValueOnce(transientError)
-          .mockRejectedValueOnce(transientError)
-          .mockRejectedValueOnce(transientError)
-          .mockRejectedValueOnce(transientError)
-          .mockRejectedValueOnce(transientError)
-          .mockResolvedValueOnce('eventual ok'),
+        sendMessage: vi.fn(async () => {
+          sendCount += 1;
+          if (sendCount <= 10) {
+            throw transientError;
+          }
+          return 'eventual ok';
+        }),
       };
       const onRetryStatus = vi.fn();
 
@@ -513,17 +513,26 @@ describe('sendMessageWithEndpointFallback', () => {
       request.catch(() => undefined);
 
       await vi.waitFor(() => {
-        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n30秒后重试 - 第4次重试');
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n10秒后重试 - 第1次重试');
+      });
+
+      for (let visibleRetryNumber = 2; visibleRetryNumber <= 6; visibleRetryNumber += 1) {
+        await vi.advanceTimersByTimeAsync(10_000);
+        await vi.waitFor(() => {
+          expect(onRetryStatus).toHaveBeenCalledWith(
+            `Service unavailable\n10秒后重试 - 第${visibleRetryNumber}次重试`,
+          );
+        });
+      }
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n30秒后重试 - 第7次重试');
       });
 
       await vi.advanceTimersByTimeAsync(30_000);
-      await vi.waitFor(() => {
-        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n45秒后重试 - 第5次重试');
-      });
-
-      await vi.advanceTimersByTimeAsync(45_000);
       await expect(request).resolves.toBe('eventual ok');
-      expect(client.sendMessage).toHaveBeenCalledTimes(6);
+      expect(client.sendMessage).toHaveBeenCalledTimes(11);
     } finally {
       vi.useRealTimers();
     }
@@ -563,7 +572,7 @@ describe('sendMessageWithEndpointFallback', () => {
       request.catch(() => undefined);
 
       await vi.waitFor(() => {
-        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n1秒后重试 - 第4次重试');
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n1秒后重试 - 第1次重试');
       });
 
       await vi.advanceTimersByTimeAsync(1000);
@@ -575,12 +584,11 @@ describe('sendMessageWithEndpointFallback', () => {
     }
   });
 
-  it('uses simulated upstream failures instead of the configured channel when retry simulation is enabled', async () => {
+  it('uses simulated failures while enabled and resumes the configured channel after disabling', async () => {
     vi.useFakeTimers();
     try {
       window.localStorage.setItem(DEV_RETRY_SIMULATION_STORAGE_KEY, 'true');
       useUIStore.setState({ languagePreference: 'zh-CN' });
-      const controller = new AbortController();
       const client = {
         sendMessage: vi.fn().mockResolvedValue('real channel answer'),
       };
@@ -593,20 +601,20 @@ describe('sendMessageWithEndpointFallback', () => {
         provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
         onChunk: vi.fn(),
         client,
-        signal: controller.signal,
         retryDelayMs: 0,
         options: { onRetryStatus },
       });
       request.catch(() => undefined);
 
       await vi.waitFor(() => {
-        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n1秒后重试 - 第4次重试');
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n1秒后重试 - 第1次重试');
       });
       expect(client.sendMessage).not.toHaveBeenCalled();
 
-      controller.abort();
+      window.localStorage.removeItem(DEV_RETRY_SIMULATION_STORAGE_KEY);
       await vi.advanceTimersByTimeAsync(1000);
-      await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+      await expect(request).resolves.toBe('real channel answer');
+      expect(client.sendMessage).toHaveBeenCalledTimes(1);
     } finally {
       window.localStorage.removeItem(DEV_RETRY_SIMULATION_STORAGE_KEY);
       vi.useRealTimers();
@@ -642,12 +650,12 @@ describe('sendMessageWithEndpointFallback', () => {
       request.catch(() => undefined);
 
       await vi.waitFor(() => {
-        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n30秒后重试 - 第4次重试');
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n10秒后重试 - 第1次重试');
       });
       expect(client.sendMessage).toHaveBeenCalledTimes(4);
 
       controller.abort();
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(10_000);
       await expect(request).rejects.toMatchObject({ name: 'AbortError' });
       expect(client.sendMessage).toHaveBeenCalledTimes(4);
     } finally {
@@ -1175,9 +1183,9 @@ describe('sendMessageWithEndpointFallback', () => {
       request.catch(() => undefined);
 
       await vi.waitFor(() => {
-        expect(onRetryStatus).toHaveBeenCalledWith('openai stream reset\n30秒后重试 - 第4次重试');
+        expect(onRetryStatus).toHaveBeenCalledWith('openai stream reset\n10秒后重试 - 第1次重试');
       });
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(10_000);
 
       expect(await request).toBe('openai ok');
       expect(client.sendMessage).toHaveBeenCalledTimes(5);
@@ -1399,10 +1407,10 @@ describe('sendMessageWithEndpointFallback', () => {
 
       await vi.waitFor(() => {
         expect(onRetryStatus).toHaveBeenCalledWith(
-          'Anthropic chat request to https://anthropic.qnaigc.com/v1/messages failed: Failed to fetch\n30秒后重试 - 第4次重试',
+          'Anthropic chat request to https://anthropic.qnaigc.com/v1/messages failed: Failed to fetch\n10秒后重试 - 第1次重试',
         );
       });
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(10_000);
 
       await expect(request).resolves.toBe('anthropic ok');
       expect(client.sendMessage).toHaveBeenCalledTimes(6);

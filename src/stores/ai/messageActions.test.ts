@@ -691,10 +691,10 @@ describe('message actions API transcript handling', () => {
       {
         ...createAssistantMessage(),
         id: 'assistant-1',
-        content: 'Service unavailable\n30秒后重试 - 第4次重试',
+        content: 'Service unavailable\n10秒后重试 - 第1次重试',
         apiTranscript: undefined,
         versions: [{
-          content: 'Service unavailable\n30秒后重试 - 第4次重试',
+          content: 'Service unavailable\n10秒后重试 - 第1次重试',
           createdAt: 1,
           kind: 'original' as const,
           subsequentMessages: [],

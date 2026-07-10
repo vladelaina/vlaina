@@ -4,6 +4,7 @@ import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
   buildMentionedNotesContext,
   buildMessageFileAttachmentContext,
+  buildMessageFileAttachmentMentionText,
   buildMessageImageSources,
   isImageAttachment,
   limitChatMessageImageAttachments,
@@ -34,15 +35,13 @@ export async function buildSendMessageStorageContent({
   let storageContent = userMessageText;
   let messageImageSources: string[] = [];
   if (requestAttachments.length > 0) {
-    const [builtImages, fileAttachmentContext] = await Promise.all([
-      buildMessageImageSources(requestAttachments),
-      buildMessageFileAttachmentContext(requestAttachments),
-    ]);
+    const builtImages = await buildMessageImageSources(requestAttachments);
     const imageMarkdown = builtImages.content;
+    const fileAttachmentMentionText = buildMessageFileAttachmentMentionText(requestAttachments);
     messageImageSources = builtImages.imageSources;
     storageContent = [
       imageMarkdown,
-      fileAttachmentContext,
+      fileAttachmentMentionText,
       userMessageText,
     ].filter((part) => part.trim()).join('\n\n');
   }
