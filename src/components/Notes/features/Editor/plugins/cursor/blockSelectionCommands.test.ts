@@ -592,6 +592,12 @@ describe('serializeSelectedBlocksToText', () => {
       expected: '5. B\n6. C',
     },
     {
+      name: 'leading ordered list items from zero start',
+      markdown: '0. A\n1. B\n2. C',
+      indexes: [0, 1],
+      expected: '0. A\n1. B',
+    },
+    {
       name: 'middle nested ordered list items',
       markdown: '- parent\n  1. A\n  2. B\n  3. C',
       indexes: [2, 3],
