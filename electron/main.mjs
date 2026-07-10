@@ -46,7 +46,10 @@ const managedApiBaseUrl = `${apiBaseUrl}/v1`;
 const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'logo.png');
 const trayIconSize = process.platform === 'darwin' ? 18 : 16;
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
-const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
+const desktopAccountService = createDesktopAccountService({
+  apiBaseUrl,
+  fetchImpl: fetchWithElectronSession,
+});
 const errorLogService = createErrorLogService({ app });
 const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
 const readOnlyNetworkRetryDelaysMs = [300];
@@ -72,7 +75,6 @@ const {
   configureProxySafely,
   configuredProxyConfig,
 } = createProxyConfiguration({
-  app,
   normalizeProxyConfig,
   session,
 });

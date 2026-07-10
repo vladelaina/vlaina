@@ -104,7 +104,7 @@ export function normalizeAuthError(raw: string): string {
     return translate('account.error.secureStorageUnavailable');
   }
   if (
-    /unable to reach vlaina api|failed to fetch|networkerror|network request failed|fetch failed|load failed|err_internet_disconnected/i.test(
+    /unable to reach vlaina api|failed to fetch|networkerror|network request failed|fetch failed|load failed|(?:net::)?err_[a-z_]+/i.test(
       message
     )
   ) {

@@ -370,6 +370,29 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateModel).not.toHaveBeenCalled();
   });
 
+  it('does not multiply backend retries for managed transient failures', async () => {
+    const transientError = {
+      type: AIErrorType.SERVER_ERROR,
+      message: 'Service unavailable',
+      statusCode: 503,
+    };
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(transientError),
+    };
+
+    await expect(sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildManagedModel(),
+      provider: buildManagedProvider(),
+      onChunk: vi.fn(),
+      client,
+      retryDelayMs: 0,
+    })).rejects.toBe(transientError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('does not write endpoint state after managed success', async () => {
     const updateProvider = vi.fn();
     const updateModel = vi.fn();
@@ -523,6 +546,50 @@ describe('sendMessageWithEndpointFallback', () => {
 
       await vi.advanceTimersByTimeAsync(45_000);
       await expect(request).resolves.toBe('eventual ok');
+      expect(client.sendMessage).toHaveBeenCalledTimes(6);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops retrying after the sixth pre-stream failure', async () => {
+    vi.useFakeTimers();
+    try {
+      useUIStore.setState({ languagePreference: 'zh-CN' });
+      const transientError = {
+        type: AIErrorType.SERVER_ERROR,
+        message: 'Service unavailable',
+        statusCode: 503,
+      };
+      const client = {
+        sendMessage: vi.fn().mockRejectedValue(transientError),
+      };
+      const onRetryStatus = vi.fn();
+
+      const request = sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildOpenAIModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        retryDelayMs: 0,
+        options: { onRetryStatus },
+      });
+      request.catch(() => undefined);
+
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n30秒后重试 - 第4次重试');
+      });
+      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.waitFor(() => {
+        expect(onRetryStatus).toHaveBeenCalledWith('Service unavailable\n45秒后重试 - 第5次重试');
+      });
+      await vi.advanceTimersByTimeAsync(45_000);
+
+      await expect(request).rejects.toEqual(transientError);
+      expect(client.sendMessage).toHaveBeenCalledTimes(6);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(client.sendMessage).toHaveBeenCalledTimes(6);
     } finally {
       vi.useRealTimers();

@@ -23,6 +23,7 @@ interface SendMessageStorageContentOptions {
 interface SendMessageStorageContent {
   storageContent: string;
   messageImageSources: string[];
+  fileAttachmentContext: string;
 }
 
 export async function buildSendMessageStorageContent({
@@ -33,13 +34,15 @@ export async function buildSendMessageStorageContent({
 }: SendMessageStorageContentOptions): Promise<SendMessageStorageContent> {
   let storageContent = userMessageText;
   let messageImageSources: string[] = [];
+  let fileAttachmentContext = '';
   if (requestAttachments.length > 0) {
-    const [builtImages, fileAttachmentContext] = await Promise.all([
+    const [builtImages, builtFileAttachmentContext] = await Promise.all([
       buildMessageImageSources(requestAttachments),
       buildMessageFileAttachmentContext(requestAttachments),
     ]);
     const imageMarkdown = builtImages.content;
     messageImageSources = builtImages.imageSources;
+    fileAttachmentContext = builtFileAttachmentContext;
     storageContent = [
       imageMarkdown,
       fileAttachmentContext,
@@ -54,6 +57,7 @@ export async function buildSendMessageStorageContent({
   return {
     storageContent,
     messageImageSources,
+    fileAttachmentContext,
   };
 }
 
@@ -62,6 +66,7 @@ interface SendMessageApiContentOptions {
   userMessageText: string;
   noteMentions: NoteMentionReference[];
   signal: AbortSignal;
+  fileAttachmentContext?: string;
 }
 
 export async function buildSendMessageApiContent({
@@ -69,15 +74,18 @@ export async function buildSendMessageApiContent({
   userMessageText,
   noteMentions,
   signal,
+  fileAttachmentContext: preparedFileAttachmentContext,
 }: SendMessageApiContentOptions): Promise<ChatMessageContent> {
   throwIfChatRequestAborted(signal);
-  const mentionedNotes = await loadMentionedNotes(noteMentions);
-  throwIfChatRequestAborted(signal);
-  const mentionedFolderImages = await loadMentionedFolderImageAttachments(noteMentions);
+  const [mentionedNotes, mentionedFolderImages, fileAttachmentContext] = await Promise.all([
+    loadMentionedNotes(noteMentions),
+    loadMentionedFolderImageAttachments(noteMentions),
+    preparedFileAttachmentContext === undefined
+      ? buildMessageFileAttachmentContext(requestAttachments)
+      : Promise.resolve(preparedFileAttachmentContext),
+  ]);
   throwIfChatRequestAborted(signal);
   const notesContext = buildMentionedNotesContext(mentionedNotes);
-  const fileAttachmentContext = await buildMessageFileAttachmentContext(requestAttachments);
-  throwIfChatRequestAborted(signal);
   const requestText = [
     fileAttachmentContext,
     userMessageText,

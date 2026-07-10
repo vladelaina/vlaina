@@ -10,6 +10,7 @@ export const DEV_RETRY_SIMULATION_STORAGE_KEY = 'vlaina_dev_retry_simulation';
 export const DEV_RETRY_SIMULATION_CHANGED_EVENT = 'vlaina-dev-retry-simulation-changed';
 
 const PRE_STREAM_QUICK_RETRY_COUNT = 3;
+const PRE_STREAM_MAX_ATTEMPTS = 6;
 const PRE_STREAM_RETRY_STATUS_INTERVAL_MS = 1_000;
 const PRE_STREAM_VISIBLE_RETRY_DELAY_STEP_MS = 15_000;
 const PRE_STREAM_VISIBLE_RETRY_MAX_DELAY_MS = 60_000;
@@ -156,6 +157,9 @@ export async function sendWithPreStreamRetry(
       }
 
       const nextRetryNumber = retryCount + 1;
+      if (nextRetryNumber >= PRE_STREAM_MAX_ATTEMPTS) {
+        throw error;
+      }
       if (nextRetryNumber <= PRE_STREAM_QUICK_RETRY_COUNT) {
         await waitForRetry(delayMs, signal);
       } else {

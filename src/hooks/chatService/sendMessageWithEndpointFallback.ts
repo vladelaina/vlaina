@@ -89,11 +89,11 @@ export async function sendMessageWithEndpointFallback({
   const requestClient = import.meta.env.DEV && isDevRetrySimulationEnabled()
     ? devRetrySimulationClient
     : client;
-  const shouldAutoRetry = options?.webSearchEnabled !== true;
   const onRetryStatus = options?.onRetryStatus;
   const verifiedModelEndpointType = getVerifiedModelEndpointType(model);
   const verifiedProviderEndpointType = getVerifiedProviderEndpointType(provider);
   const isManagedProvider = isManagedProviderId(provider.id);
+  const shouldAutoRetry = !isManagedProvider && options?.webSearchEnabled !== true;
 
   if (isManagedProvider) {
     return sendWithPreStreamRetry(

@@ -147,7 +147,10 @@ export function normalizeProxyConfig(rawProxy, source) {
     if (!['http:', 'https:', 'socks4:', 'socks5:'].includes(parsed.protocol)) {
       return null;
     }
-    const host = parsed.hostname.includes(':') ? `[${parsed.hostname}]` : parsed.hostname;
+    const hostname = parsed.hostname.startsWith('[') && parsed.hostname.endsWith(']')
+      ? parsed.hostname.slice(1, -1)
+      : parsed.hostname;
+    const host = hostname.includes(':') ? `[${hostname}]` : hostname;
     const hostPort = parsed.port ? `${host}:${parsed.port}` : host;
     const proxyRules = parsed.protocol === 'http:' || parsed.protocol === 'https:'
       ? `http=${hostPort};https=${hostPort}`

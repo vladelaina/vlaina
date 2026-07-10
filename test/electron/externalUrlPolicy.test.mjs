@@ -80,6 +80,11 @@ describe('electron external URL policy', () => {
       proxyRules: 'http=example.com:8443;https=example.com:8443',
       source: 'env',
     });
+    expect(normalizeProxyConfig('http://[::1]:38421', 'env')).toEqual({
+      proxyServer: 'http://[::1]:38421/',
+      proxyRules: 'http=[::1]:38421;https=[::1]:38421',
+      source: 'env',
+    });
   });
 
   it('does not coerce hostile runtime URL values for logging or proxy normalization', () => {

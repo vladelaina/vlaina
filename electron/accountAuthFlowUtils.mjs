@@ -234,8 +234,10 @@ function isTransientAccountNetworkError(error) {
   if (error?.name === 'AbortError') {
     return false;
   }
+  const hasTransientElectronNetworkCode = /(?:net::)?err_(?:address_unreachable|connection_(?:aborted|closed|refused|reset|timed_out)|internet_disconnected|name_not_resolved|network_changed|proxy_connection_failed|socket_not_connected|timed_out|tunnel_connection_failed)/.test(message);
   return (
     error instanceof TypeError ||
+    hasTransientElectronNetworkCode ||
     message.includes('failed to fetch') ||
     message.includes('fetch failed') ||
     message.includes('networkerror') ||

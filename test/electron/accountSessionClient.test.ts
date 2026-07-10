@@ -158,6 +158,27 @@ describe('desktop account session client', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example.com/auth/session');
   });
 
+  it('uses the injected Electron fetch implementation for session probes', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      connected: true,
+      provider: 'google',
+      username: 'alice',
+      primaryEmail: 'alice@example.com',
+      avatarUrl: null,
+    }), { status: 200 }));
+    const globalFetch = vi.fn();
+    vi.stubGlobal('fetch', globalFetch);
+    const { client } = createHarness({ fetchImpl });
+
+    await expect(client.getDesktopAccountSessionStatus()).resolves.toMatchObject({
+      connected: true,
+      username: 'alice',
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(globalFetch).not.toHaveBeenCalled();
+  });
+
   it('normalizes desktop session identity payloads', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       connected: true,

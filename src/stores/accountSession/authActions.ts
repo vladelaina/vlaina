@@ -10,6 +10,9 @@ import {
   clearAuthIntent,
   isEmailCodeRequestCooldownError,
   normalizeAuthError,
+  normalizePersistedUser,
+  persistUser,
+  refreshAvatar,
 } from './authSupport';
 import { applyDisconnectedAccount } from './sessionState';
 import {
@@ -100,12 +103,49 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
           return false;
         }
         if (result?.success) {
-          invalidateAccountSessionChecks();
-          await get().checkStatus({ force: true });
-          if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+          const normalizedIdentity = normalizePersistedUser({
+            isConnected: true,
+            provider: normalizeAccountProvider(result.provider) ?? 'email',
+            username: result.username ?? null,
+            primaryEmail: result.primaryEmail ?? normalizedEmail,
+            avatarUrl: result.avatarUrl ?? null,
+            membershipTier: null,
+            membershipName: null,
+          });
+          const provider = normalizeAccountProvider(normalizedIdentity.provider);
+          const username = normalizedIdentity.username ?? null;
+          const primaryEmail = normalizedIdentity.primaryEmail ?? null;
+          const avatarUrl = normalizedIdentity.avatarUrl ?? null;
+          if (!provider || !username) {
+            set({ error: normalizeAuthError('Email sign-in failed') });
             return false;
           }
-          set({ isConnecting: false, error: null });
+
+          invalidateAccountSessionChecks();
+          set({
+            isConnected: true,
+            provider,
+            username,
+            primaryEmail,
+            avatarUrl,
+            membershipTier: null,
+            membershipName: null,
+            isConnecting: false,
+            isLoading: false,
+            hasCheckedStatus: true,
+            error: null,
+          });
+          persistUser({
+            isConnected: true,
+            provider,
+            username,
+            primaryEmail,
+            avatarUrl,
+            membershipTier: null,
+            membershipName: null,
+          });
+          void get().checkStatus({ force: true }).catch(() => undefined);
+          void refreshAvatar(set, get, username, avatarUrl);
           return true;
         }
         set({ error: normalizeAuthError(result?.error || 'Email sign-in failed') });

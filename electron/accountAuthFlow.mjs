@@ -19,7 +19,7 @@ import {
   withAccountRequestTimeout,
 } from './accountAuthFlowUtils.mjs';
 
-export function createDesktopAccountService({ apiBaseUrl }) {
+export function createDesktopAccountService({ apiBaseUrl, fetchImpl = fetch }) {
   const {
     readStoredAccountCredentials,
     writeStoredAccountCredentials,
@@ -31,6 +31,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
 
   const sessionClient = createDesktopAccountSessionClient({
     apiBaseUrl,
+    fetchImpl,
     readStoredAccountCredentials,
     clearStoredAccountCredentials,
     rotateStoredSessionToken,
@@ -75,7 +76,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
 
       await retryTransientAccountNetworkError(() =>
         withAccountRequestTimeout(async (signal) => {
-          const response = await raceWithAbort(fetch(`${apiBaseUrl}/auth/email/request-code`, {
+          const response = await raceWithAbort(fetchImpl(`${apiBaseUrl}/auth/email/request-code`, {
             method: 'POST',
             cache: 'no-store',
             signal,
@@ -135,7 +136,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
       if (credentials?.appSessionToken) {
         try {
           await withAccountRequestTimeout((signal) =>
-            raceWithAbort(fetch(`${apiBaseUrl}/auth/session/revoke`, {
+            raceWithAbort(fetchImpl(`${apiBaseUrl}/auth/session/revoke`, {
               method: 'POST',
               signal,
               headers: buildDesktopSessionHeaders(credentials.appSessionToken),

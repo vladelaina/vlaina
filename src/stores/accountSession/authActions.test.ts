@@ -1092,10 +1092,21 @@ describe('accountSession auth actions', () => {
     expect(set).not.toHaveBeenCalledWith({ error: 'normalized:network down' });
   });
 
-  it('verifyEmailCode checks status on successful desktop verification', async () => {
+  it('verifyEmailCode applies successful desktop verification before the status refresh finishes', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
-    mocks.accountCommands.verifyEmailAuthCode.mockResolvedValue({ success: true });
-    const checkStatus = vi.fn().mockResolvedValue(undefined);
+    mocks.accountCommands.verifyEmailAuthCode.mockResolvedValue({
+      success: true,
+      provider: 'email',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      error: null,
+    });
+    let resolveStatus!: () => void;
+    const statusPromise = new Promise<void>((resolve) => {
+      resolveStatus = resolve;
+    });
+    const checkStatus = vi.fn(() => statusPromise);
     const set = vi.fn();
     const get = vi.fn(() => ({ checkStatus }));
 
@@ -1106,8 +1117,32 @@ describe('accountSession auth actions', () => {
 
     expect(result).toBe(true);
     expect(mocks.accountCommands.verifyEmailAuthCode).toHaveBeenCalledWith('vla@example.com', '123456');
-    expect(checkStatus).toHaveBeenCalledTimes(1);
-    expect(set).toHaveBeenLastCalledWith({ isConnecting: false, error: null });
+    expect(checkStatus).toHaveBeenCalledWith({ force: true });
+    expect(set).toHaveBeenLastCalledWith({
+      isConnected: true,
+      provider: 'email',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
+      isConnecting: false,
+      isLoading: false,
+      hasCheckedStatus: true,
+      error: null,
+    });
+    expect(mocks.persistUser).toHaveBeenCalledWith({
+      isConnected: true,
+      provider: 'email',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
+    });
+
+    resolveStatus();
+    await statusPromise;
   });
 
   it('verifyEmailCode rejects invalid email or code values before any network call', async () => {

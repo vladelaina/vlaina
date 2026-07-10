@@ -160,7 +160,7 @@ export function useSendMessage({
         composerRequest.submittedAttachments = requestAttachments;
         ensureRequestActive();
 
-        const { storageContent, messageImageSources } = await buildSendMessageStorageContent({
+        const { storageContent, messageImageSources, fileAttachmentContext } = await buildSendMessageStorageContent({
           requestAttachments,
           userMessageText: input.userMessageText,
           mentionText: input.mentionText,
@@ -219,6 +219,7 @@ export function useSendMessage({
           requestController,
           requestStartedAt,
           requestAttachments,
+          fileAttachmentContext,
           requestHistory,
           input,
           selectedModel,

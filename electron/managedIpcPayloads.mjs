@@ -4,6 +4,7 @@ const MAX_MANAGED_BINARY_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_MANAGED_BINARY_BODY_BASE64_CHARS = Math.ceil(MAX_MANAGED_BINARY_BODY_BYTES / 3) * 4;
 const MAX_MANAGED_BINARY_HEADER_VALUE_CHARS = 16 * 1024;
 const ALLOWED_MANAGED_BINARY_HEADERS = new Set(['content-type']);
+const MANAGED_STREAM_CHUNK_FLUSH_DELAY_MS = 16;
 
 export function normalizeManagedBinaryPayload(payload) {
   if (typeof payload?.bodyBase64 !== 'string') {
@@ -135,6 +136,62 @@ export function createManagedStreamAccumulator(onChunk) {
         hasFinishedReasoning = true;
       }
       return fullContent;
+    },
+  };
+}
+
+export function createManagedStreamChunkScheduler(onFlush) {
+  let pendingContent = null;
+  let lastFlushedContent = null;
+  let timeoutId = null;
+  let hasFlushedOnce = false;
+  let cancelled = false;
+
+  const clearScheduledFlush = () => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  const flush = () => {
+    clearScheduledFlush();
+    if (cancelled || pendingContent === null) {
+      return !cancelled;
+    }
+    const content = pendingContent;
+    pendingContent = null;
+    if (content === lastFlushedContent) {
+      return true;
+    }
+    hasFlushedOnce = true;
+    lastFlushedContent = content;
+    return onFlush(content) !== false;
+  };
+
+  return {
+    push(content) {
+      if (cancelled) return false;
+      pendingContent = content;
+      if (!hasFlushedOnce) {
+        return flush();
+      }
+      if (timeoutId === null) {
+        timeoutId = setTimeout(flush, MANAGED_STREAM_CHUNK_FLUSH_DELAY_MS);
+      }
+      return true;
+    },
+    flushNow(content) {
+      if (cancelled) return false;
+      if (typeof content === 'string') {
+        pendingContent = content;
+      }
+      return flush();
+    },
+    cancel() {
+      cancelled = true;
+      pendingContent = null;
+      clearScheduledFlush();
     },
   };
 }

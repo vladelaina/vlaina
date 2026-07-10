@@ -27,6 +27,15 @@ describe('normalizeAuthError', () => {
     expect(normalizeAuthError('NetworkError when attempting to fetch resource.')).toBe(
       '๑ᵒᯅᵒ๑ Network connection error'
     );
+    expect(normalizeAuthError('net::ERR_PROXY_CONNECTION_FAILED')).toBe(
+      '๑ᵒᯅᵒ๑ Network connection error'
+    );
+    expect(normalizeAuthError('net::ERR_NAME_NOT_RESOLVED')).toBe(
+      '๑ᵒᯅᵒ๑ Network connection error'
+    );
+    expect(normalizeAuthError('net::ERR_CERT_AUTHORITY_INVALID')).toBe(
+      '๑ᵒᯅᵒ๑ Network connection error'
+    );
   });
 
   it('does not classify secure storage failures as network failures', () => {

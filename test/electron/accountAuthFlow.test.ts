@@ -70,9 +70,12 @@ vi.mock('../../electron/accountSessionClient.mjs', () => ({
 
 import { createDesktopAccountService } from '../../electron/accountAuthFlow.mjs';
 
-function registerHarness() {
+function registerHarness(options: { fetchImpl?: typeof fetch } = {}) {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
-  const service = createDesktopAccountService({ apiBaseUrl: 'https://api.example.com' });
+  const service = createDesktopAccountService({
+    apiBaseUrl: 'https://api.example.com',
+    ...options,
+  });
   service.registerAccountIpc({
     handleIpc: (name: string, handler: (...args: unknown[]) => unknown) => {
       handlers.set(name, handler);
@@ -344,9 +347,8 @@ describe('desktop account auth flow', () => {
   });
 
   it('normalizes desktop email code requests before sending them to the API', async () => {
-    const { handlers } = registerHarness();
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
+    const { handlers } = registerHarness({ fetchImpl: fetchMock });
     mocks.readJsonResponse.mockResolvedValue({});
 
     await expect(handlers.get('desktop:account:request-email-code')?.({}, ' VLA@example.com ')).resolves.toBe(true);
@@ -358,13 +360,40 @@ describe('desktop account auth flow', () => {
     });
   });
 
+  it('uses the injected Electron fetch implementation for desktop email requests', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    const globalFetch = vi.fn();
+    vi.stubGlobal('fetch', globalFetch);
+    const { handlers } = registerHarness({ fetchImpl });
+    mocks.readJsonResponse.mockResolvedValue({});
+
+    await expect(handlers.get('desktop:account:request-email-code')?.({}, 'vla@example.com')).resolves.toBe(true);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(globalFetch).not.toHaveBeenCalled();
+  });
+
   it('retries transient desktop email code request failures before surfacing an error', async () => {
     vi.useFakeTimers();
-    const { handlers } = registerHarness();
     const fetchMock = vi.fn()
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockResolvedValueOnce(new Response('{}', { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
+    const { handlers } = registerHarness({ fetchImpl: fetchMock });
+    mocks.readJsonResponse.mockResolvedValue({});
+
+    const request = handlers.get('desktop:account:request-email-code')?.({}, 'vla@example.com');
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(request).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries transient Electron proxy failures for desktop email code requests', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error('net::ERR_PROXY_CONNECTION_FAILED'))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    const { handlers } = registerHarness({ fetchImpl: fetchMock });
     mocks.readJsonResponse.mockResolvedValue({});
 
     const request = handlers.get('desktop:account:request-email-code')?.({}, 'vla@example.com');
