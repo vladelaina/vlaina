@@ -251,14 +251,23 @@ describe('DevMainOverlay', () => {
     expect(mocks.clearDiagnosticsLog).toHaveBeenCalledTimes(1);
   });
 
-  it('toggles retry simulation for chat requests', () => {
+  it('puts the retry test first and toggles it for chat requests', () => {
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
     expandDevelopmentTools();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Simulate retry in 1s' }));
+    const retryButton = screen.getByRole('button', { name: 'Test retry' });
+    const copyLogsButton = screen.getByRole('button', { name: 'Copy logs' });
+    expect(Boolean(retryButton.compareDocumentPosition(copyLogsButton) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+
+    fireEvent.click(retryButton);
 
     expect(window.localStorage.getItem('vlaina_dev_retry_simulation')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Retry simulation enabled' })).toBeInTheDocument();
+    const enabledButton = screen.getByRole('button', { name: 'Test retry enabled' });
+
+    fireEvent.click(enabledButton);
+
+    expect(window.localStorage.getItem('vlaina_dev_retry_simulation')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Test retry' })).toBeInTheDocument();
   });
 
   it('keeps the existing dev color mode and Lab shortcuts working', () => {

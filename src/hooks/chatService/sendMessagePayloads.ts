@@ -4,6 +4,7 @@ import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
   buildMentionedNotesContext,
   buildMessageFileAttachmentContext,
+  buildMessageFileAttachmentMentionText,
   buildMessageImageSources,
   isImageAttachment,
   limitChatMessageImageAttachments,
@@ -23,7 +24,6 @@ interface SendMessageStorageContentOptions {
 interface SendMessageStorageContent {
   storageContent: string;
   messageImageSources: string[];
-  fileAttachmentContext: string;
 }
 
 export async function buildSendMessageStorageContent({
@@ -34,18 +34,14 @@ export async function buildSendMessageStorageContent({
 }: SendMessageStorageContentOptions): Promise<SendMessageStorageContent> {
   let storageContent = userMessageText;
   let messageImageSources: string[] = [];
-  let fileAttachmentContext = '';
   if (requestAttachments.length > 0) {
-    const [builtImages, builtFileAttachmentContext] = await Promise.all([
-      buildMessageImageSources(requestAttachments),
-      buildMessageFileAttachmentContext(requestAttachments),
-    ]);
+    const builtImages = await buildMessageImageSources(requestAttachments);
     const imageMarkdown = builtImages.content;
+    const fileAttachmentMentionText = buildMessageFileAttachmentMentionText(requestAttachments);
     messageImageSources = builtImages.imageSources;
-    fileAttachmentContext = builtFileAttachmentContext;
     storageContent = [
       imageMarkdown,
-      fileAttachmentContext,
+      fileAttachmentMentionText,
       userMessageText,
     ].filter((part) => part.trim()).join('\n\n');
   }
@@ -57,7 +53,6 @@ export async function buildSendMessageStorageContent({
   return {
     storageContent,
     messageImageSources,
-    fileAttachmentContext,
   };
 }
 
@@ -66,7 +61,6 @@ interface SendMessageApiContentOptions {
   userMessageText: string;
   noteMentions: NoteMentionReference[];
   signal: AbortSignal;
-  fileAttachmentContext?: string;
 }
 
 export async function buildSendMessageApiContent({
@@ -74,15 +68,12 @@ export async function buildSendMessageApiContent({
   userMessageText,
   noteMentions,
   signal,
-  fileAttachmentContext: preparedFileAttachmentContext,
 }: SendMessageApiContentOptions): Promise<ChatMessageContent> {
   throwIfChatRequestAborted(signal);
   const [mentionedNotes, mentionedFolderImages, fileAttachmentContext] = await Promise.all([
     loadMentionedNotes(noteMentions),
     loadMentionedFolderImageAttachments(noteMentions),
-    preparedFileAttachmentContext === undefined
-      ? buildMessageFileAttachmentContext(requestAttachments)
-      : Promise.resolve(preparedFileAttachmentContext),
+    buildMessageFileAttachmentContext(requestAttachments),
   ]);
   throwIfChatRequestAborted(signal);
   const notesContext = buildMentionedNotesContext(mentionedNotes);

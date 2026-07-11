@@ -2,7 +2,7 @@ import { isTransientEndpointPreStreamError } from '@/lib/ai/endpointFallback';
 import { formatRetryStatusMessage } from '@/lib/ai/retryStatusMessage';
 
 export const PRE_STREAM_RETRY_DELAY_MS = 900;
-export const PRE_STREAM_VISIBLE_RETRY_DELAY_MS = 30_000;
+export const PRE_STREAM_VISIBLE_RETRY_DELAY_MS = 10_000;
 export const PRE_STREAM_DEV_VISIBLE_RETRY_DELAY_MS = 1_000;
 export const DEV_VISIBLE_RETRY_DELAY_STORAGE_KEY = 'vlaina_dev_visible_retry_delay_1s';
 export const DEV_VISIBLE_RETRY_DELAY_CHANGED_EVENT = 'vlaina-dev-visible-retry-delay-changed';
@@ -12,8 +12,6 @@ export const DEV_RETRY_SIMULATION_CHANGED_EVENT = 'vlaina-dev-retry-simulation-c
 const PRE_STREAM_QUICK_RETRY_COUNT = 3;
 const PRE_STREAM_MAX_ATTEMPTS = 6;
 const PRE_STREAM_RETRY_STATUS_INTERVAL_MS = 1_000;
-const PRE_STREAM_VISIBLE_RETRY_DELAY_STEP_MS = 15_000;
-const PRE_STREAM_VISIBLE_RETRY_MAX_DELAY_MS = 60_000;
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
@@ -97,34 +95,30 @@ export function setDevRetrySimulationEnabled(enabled: boolean): void {
   window.dispatchEvent(new Event(DEV_RETRY_SIMULATION_CHANGED_EVENT));
 }
 
-function getVisibleRetryDelayMs(retryNumber: number): number {
+function getVisibleRetryDelayMs(): number {
   if (isDevVisibleRetryDelayFastEnabled() || isDevRetrySimulationEnabled()) {
     return PRE_STREAM_DEV_VISIBLE_RETRY_DELAY_MS;
   }
 
-  const visibleRetryIndex = Math.max(1, retryNumber - PRE_STREAM_QUICK_RETRY_COUNT);
-  return Math.min(
-    PRE_STREAM_VISIBLE_RETRY_MAX_DELAY_MS,
-    PRE_STREAM_VISIBLE_RETRY_DELAY_MS + (visibleRetryIndex - 1) * PRE_STREAM_VISIBLE_RETRY_DELAY_STEP_MS,
-  );
+  return PRE_STREAM_VISIBLE_RETRY_DELAY_MS;
 }
 
 async function waitForVisibleRetry(
-  retryNumber: number,
+  visibleRetryNumber: number,
   error: unknown,
   signal: AbortSignal | undefined,
   onRetryStatus: ((message: string) => void) | undefined,
 ): Promise<void> {
   const startedAt = Date.now();
-  const delayMs = getVisibleRetryDelayMs(retryNumber);
+  const delayMs = getVisibleRetryDelayMs();
   let remainingMs = delayMs;
 
-  onRetryStatus?.(formatRetryStatusMessage(error, remainingMs, retryNumber));
+  onRetryStatus?.(formatRetryStatusMessage(error, remainingMs, visibleRetryNumber));
   while (remainingMs > 0) {
     await waitForRetry(Math.min(PRE_STREAM_RETRY_STATUS_INTERVAL_MS, remainingMs), signal);
     remainingMs = delayMs - (Date.now() - startedAt);
     if (remainingMs > 0) {
-      onRetryStatus?.(formatRetryStatusMessage(error, remainingMs, retryNumber));
+      onRetryStatus?.(formatRetryStatusMessage(error, remainingMs, visibleRetryNumber));
     }
   }
 }
@@ -163,7 +157,8 @@ export async function sendWithPreStreamRetry(
       if (nextRetryNumber <= PRE_STREAM_QUICK_RETRY_COUNT) {
         await waitForRetry(delayMs, signal);
       } else {
-        await waitForVisibleRetry(nextRetryNumber, error, signal, onRetryStatus);
+        const visibleRetryNumber = nextRetryNumber - PRE_STREAM_QUICK_RETRY_COUNT;
+        await waitForVisibleRetry(visibleRetryNumber, error, signal, onRetryStatus);
       }
       throwIfAborted(signal);
     }

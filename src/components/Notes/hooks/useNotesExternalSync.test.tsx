@@ -811,7 +811,7 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('does not reload the tree for a standalone non-Markdown file create after the rename window expires', async () => {
+  it('reloads the tree for a standalone image create after the rename window expires', async () => {
     const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
@@ -825,12 +825,12 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
     expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
     expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
-    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
 
     hook.unmount();
   });
 
-  it('does not reload the tree for a standalone non-Markdown file remove after the rename window expires', async () => {
+  it('reloads the tree for a standalone image remove after the rename window expires', async () => {
     const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
@@ -844,7 +844,7 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
     expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
     expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
-    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
 
     hook.unmount();
   });

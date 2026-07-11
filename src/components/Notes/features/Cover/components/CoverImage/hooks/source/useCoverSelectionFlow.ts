@@ -2,13 +2,13 @@ import { useCallback, useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE } from '../../../../utils/coverConstants';
 import { loadImageWithDimensions } from '../../../../utils/coverDimensionCache';
-import { useCoverSource } from '../../../../hooks/useCoverSource';
+import { getCoverResolveOptions, useCoverSource } from '../../../../hooks/useCoverSource';
 import { resolveCoverAssetUrl } from '../../../../utils/resolveCoverAssetUrl';
 import { resolveCoverFlowPhase } from './coverSelectionPhase';
 
 interface UseCoverSelectionFlowOptions {
   url: string | null;
-  coverHeight: number;
+  coverHeight?: number;
   notesRootPath: string;
   currentNotePath?: string;
   onUpdate: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
@@ -16,6 +16,14 @@ interface UseCoverSelectionFlowOptions {
 }
 
 export const MAX_PENDING_COVER_PREVIEW_REQUESTS = 50;
+
+function buildPreviewScope(notesRootPath: string, currentNotePath?: string) {
+  return `${notesRootPath}\0${currentNotePath ?? ''}`;
+}
+
+function buildPreviewIdentity(scope: string, assetPath: string) {
+  return `${scope}\0${assetPath}`;
+}
 
 export function useCoverSelectionFlow({
   url,
@@ -47,7 +55,10 @@ export function useCoverSelectionFlow({
     isSelectionCommitting,
   }), [isError, isSelectionCommitting, previewSrc, url]);
 
-  const lastPreviewPathRef = useRef<string | null>(null);
+  const previewScope = buildPreviewScope(notesRootPath, currentNotePath);
+  const activePreviewScopeRef = useRef(previewScope);
+  activePreviewScopeRef.current = previewScope;
+  const lastPreviewIdentityRef = useRef<string | null>(null);
   const previewRequestRef = useRef(new Map<string, Promise<string | null>>());
   const commitCoverUpdate = useCallback((assetPath: string) => {
     flushSync(() => {
@@ -56,8 +67,9 @@ export function useCoverSelectionFlow({
   }, [coverHeight, onUpdate]);
 
   const handleCoverSelect = useCallback((assetPath: string) => {
-    const previewedAssetPath = lastPreviewPathRef.current;
-    lastPreviewPathRef.current = null;
+    const selectedIdentity = buildPreviewIdentity(previewScope, assetPath);
+    const previewedIdentity = lastPreviewIdentityRef.current;
+    lastPreviewIdentityRef.current = null;
 
     if (assetPath === url) {
       setPreviewSrc(null);
@@ -69,7 +81,7 @@ export function useCoverSelectionFlow({
 
     const shouldKeepPreview =
       Boolean(previewSrc) &&
-      assetPath === previewedAssetPath;
+      selectedIdentity === previewedIdentity;
 
     if (!shouldKeepPreview) {
       setPreviewSrc(null);
@@ -80,40 +92,44 @@ export function useCoverSelectionFlow({
   }, [
     beginSelectionCommit,
     commitCoverUpdate,
-    coverHeight,
-    currentNotePath,
     endSelectionCommit,
+    previewScope,
     previewSrc,
     setPreviewSrc,
     setShowPicker,
     url,
-    notesRootPath,
   ]);
 
   const handlePreview = useCallback(async (assetPath: string | null) => {
-    lastPreviewPathRef.current = assetPath;
     if (assetPath) endSelectionCommit();
 
     if (!assetPath) {
+      lastPreviewIdentityRef.current = null;
       if (!isSelectionCommitting) setPreviewSrc(null);
       return;
     }
 
+    const previewIdentity = buildPreviewIdentity(previewScope, assetPath);
+    lastPreviewIdentityRef.current = previewIdentity;
+
     try {
-      const requestKey = `${notesRootPath}::${assetPath}`;
+      const requestKey = previewIdentity;
       let request = previewRequestRef.current.get(requestKey);
       if (!request) {
         if (previewRequestRef.current.size >= MAX_PENDING_COVER_PREVIEW_REQUESTS) {
-          if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
+          if (
+            previewScope === activePreviewScopeRef.current
+            && previewIdentity === lastPreviewIdentityRef.current
+          ) setPreviewSrc(null);
           return;
         }
         request = (async () => {
           try {
-            const imageUrl = await resolveCoverAssetUrl({
-              assetPath,
+            const imageUrl = await resolveCoverAssetUrl(getCoverResolveOptions({
+              url: assetPath,
               notesRootPath,
               currentNotePath,
-            });
+            }));
             const dimensions = await loadImageWithDimensions(imageUrl);
             return dimensions ? imageUrl : null;
           } finally {
@@ -125,10 +141,16 @@ export function useCoverSelectionFlow({
 
       const imageUrl = await request;
       if (!imageUrl) {
-        if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
+        if (
+          previewScope === activePreviewScopeRef.current
+          && previewIdentity === lastPreviewIdentityRef.current
+        ) setPreviewSrc(null);
         return;
       }
-      if (assetPath === lastPreviewPathRef.current) {
+      if (
+        previewScope === activePreviewScopeRef.current
+        && previewIdentity === lastPreviewIdentityRef.current
+      ) {
         if (assetPath === url || imageUrl === resolvedSrc) {
           setPreviewSrc(null);
           return;
@@ -136,12 +158,15 @@ export function useCoverSelectionFlow({
         setPreviewSrc(imageUrl);
       }
     } catch {
-      if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
+      if (
+        previewScope === activePreviewScopeRef.current
+        && previewIdentity === lastPreviewIdentityRef.current
+      ) setPreviewSrc(null);
     }
-  }, [currentNotePath, endSelectionCommit, isSelectionCommitting, resolvedSrc, setPreviewSrc, url, notesRootPath]);
+  }, [currentNotePath, endSelectionCommit, isSelectionCommitting, notesRootPath, previewScope, resolvedSrc, setPreviewSrc, url]);
 
   const handlePickerClose = useCallback(() => {
-    lastPreviewPathRef.current = null;
+    lastPreviewIdentityRef.current = null;
     if (!isSelectionCommitting) {
       setPreviewSrc(null);
     }

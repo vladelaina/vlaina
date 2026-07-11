@@ -7,6 +7,7 @@ export {
 
 export type { 
   NoteFile, 
+  ImageFile,
   FolderNode, 
   FileTreeSortMode,
   FileTreeNode, 

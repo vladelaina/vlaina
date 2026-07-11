@@ -74,7 +74,7 @@ function normalizeOrderedListOrder(value: unknown): number {
     : typeof value === 'string' && ORDERED_LIST_ORDER_PATTERN.test(value.trim())
       ? Number(value.trim())
       : Number.NaN;
-  if (!Number.isSafeInteger(parsed) || parsed === 0) return 1;
+  if (!Number.isSafeInteger(parsed)) return 1;
   return parsed;
 }
 

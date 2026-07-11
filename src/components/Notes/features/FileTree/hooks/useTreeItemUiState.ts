@@ -9,9 +9,10 @@ import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 interface UseTreeItemUiStateOptions {
   path: string;
   name: string;
+  renameEnabled?: boolean;
 }
 
-export function useTreeItemUiState({ path, name }: UseTreeItemUiStateOptions) {
+export function useTreeItemUiState({ path, name, renameEnabled = true }: UseTreeItemUiStateOptions) {
   const addToast = useToastStore((state) => state.addToast);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -34,6 +35,10 @@ export function useTreeItemUiState({ path, name }: UseTreeItemUiStateOptions) {
   }, [isRenaming, name]);
 
   useEffect(() => {
+    if (!renameEnabled) {
+      return;
+    }
+
     return registerSidebarHoverRenameTarget(path, {
       startRename: () => {
         setIsRenaming(true);
@@ -44,7 +49,7 @@ export function useTreeItemUiState({ path, name }: UseTreeItemUiStateOptions) {
       },
       isRenaming: () => isRenamingRef.current,
     });
-  }, [path]);
+  }, [path, renameEnabled]);
 
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();

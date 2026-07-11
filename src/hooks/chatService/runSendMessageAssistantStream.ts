@@ -28,7 +28,6 @@ interface RunSendMessageAssistantStreamOptions {
   requestController: AbortController;
   requestStartedAt: number;
   requestAttachments: Attachment[];
-  fileAttachmentContext: string;
   requestHistory: ChatMessage[];
   input: NormalizedSendMessageInput;
   selectedModel: AIModel;
@@ -49,7 +48,6 @@ export function runSendMessageAssistantStream({
   requestController,
   requestStartedAt,
   requestAttachments,
-  fileAttachmentContext,
   requestHistory,
   input,
   selectedModel,
@@ -73,7 +71,6 @@ export function runSendMessageAssistantStream({
         userMessageText: input.userMessageText,
         noteMentions: input.noteMentions,
         signal,
-        fileAttachmentContext,
       });
       return await sendMessageWithEndpointFallback({
         content: apiMessageContent,

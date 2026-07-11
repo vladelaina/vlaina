@@ -60,20 +60,4 @@ describe('send message payload preparation', () => {
 
     await expect(request).resolves.toBe('Referenced notes\n\nUser request:\nAttached files\n\nQuestion');
   });
-
-  it('reuses the file context prepared for message storage', async () => {
-    mocks.loadMentionedNotes.mockResolvedValue([]);
-    mocks.loadMentionedFolderImageAttachments.mockResolvedValue([]);
-    mocks.buildMentionedNotesContext.mockReturnValueOnce('');
-
-    await expect(buildSendMessageApiContent({
-      requestAttachments: [],
-      userMessageText: 'Question',
-      noteMentions: [],
-      signal: new AbortController().signal,
-      fileAttachmentContext: 'Prepared attachment',
-    })).resolves.toBe('Prepared attachment\n\nQuestion');
-
-    expect(mocks.buildMessageFileAttachmentContext).not.toHaveBeenCalled();
-  });
 });

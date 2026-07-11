@@ -272,7 +272,7 @@ describe('notesSidebarTags', () => {
 
   it('caps tag scope tree traversal when no markdown notes are found', () => {
     let lateChildrenAccessed = false;
-    const lateFolder = {
+    const lateFolder: FolderNode = {
       id: 'late',
       name: 'late',
       path: 'late',

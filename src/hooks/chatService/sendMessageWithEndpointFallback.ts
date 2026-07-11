@@ -70,7 +70,7 @@ export async function sendMessageWithEndpointFallback({
   retryDelayMs = PRE_STREAM_RETRY_DELAY_MS,
 }: SendMessageWithEndpointFallbackOptions): Promise<string> {
   throwIfAborted(signal);
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && !isDevRetrySimulationEnabled()) {
     const { maybeSendChatE2EMockMessage } = await import('@/lib/e2e/chatE2EMock');
     const e2eMockResult = await maybeSendChatE2EMockMessage({
       content,
@@ -86,9 +86,12 @@ export async function sendMessageWithEndpointFallback({
     }
   }
 
-  const requestClient = import.meta.env.DEV && isDevRetrySimulationEnabled()
-    ? devRetrySimulationClient
-    : client;
+  const sendWithActiveClient: EndpointFallbackClient['sendMessage'] = (...args) => {
+    const activeClient = import.meta.env.DEV && isDevRetrySimulationEnabled()
+      ? devRetrySimulationClient
+      : client;
+    return activeClient.sendMessage(...args);
+  };
   const onRetryStatus = options?.onRetryStatus;
   const verifiedModelEndpointType = getVerifiedModelEndpointType(model);
   const verifiedProviderEndpointType = getVerifiedProviderEndpointType(provider);
@@ -97,7 +100,7 @@ export async function sendMessageWithEndpointFallback({
 
   if (isManagedProvider) {
     return sendWithPreStreamRetry(
-      (trackedOnChunk) => requestClient.sendMessage(content, history, model, provider, trackedOnChunk, signal, options),
+      (trackedOnChunk) => sendWithActiveClient(content, history, model, provider, trackedOnChunk, signal, options),
       onChunk,
       signal,
       retryDelayMs,
@@ -110,7 +113,7 @@ export async function sendMessageWithEndpointFallback({
     endpointType: EndpointType,
     onAttemptChunk?: () => void,
   ) => sendWithPreStreamRetry(
-    (trackedOnChunk) => requestClient.sendMessage(
+    (trackedOnChunk) => sendWithActiveClient(
       content,
       history,
       model,
@@ -171,7 +174,7 @@ export async function sendMessageWithEndpointFallback({
 
   try {
     const result = await sendWithPreStreamRetry(
-      (trackedOnChunk) => requestClient.sendMessage(
+      (trackedOnChunk) => sendWithActiveClient(
         content,
         history,
         model,
@@ -211,7 +214,7 @@ export async function sendMessageWithEndpointFallback({
 
     try {
       const result = await sendWithPreStreamRetry(
-        (trackedOnChunk) => requestClient.sendMessage(
+        (trackedOnChunk) => sendWithActiveClient(
           content,
           history,
           model,

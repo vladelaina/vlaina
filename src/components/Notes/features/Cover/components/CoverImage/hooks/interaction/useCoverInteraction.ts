@@ -15,7 +15,7 @@ interface UseCoverInteractionProps {
   setZoom: (zoom: number) => void;
   crop: { x: number; y: number };
   setCrop: (crop: { x: number; y: number }) => void;
-  coverHeight: number;
+  storedCoverHeight?: number;
   url: string | null;
   readOnly: boolean;
   onUpdate: (url: string | null, x: number, y: number, h?: number, s?: number) => void;
@@ -32,7 +32,7 @@ export function useCoverInteraction({
   setZoom,
   crop,
   setCrop,
-  coverHeight,
+  storedCoverHeight,
   url,
   readOnly,
   onUpdate,
@@ -65,7 +65,7 @@ export function useCoverInteraction({
     mediaSize,
     effectiveContainerSize,
     url,
-    coverHeight,
+    storedCoverHeight,
     onUpdate,
   });
 

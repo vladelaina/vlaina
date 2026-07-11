@@ -16,7 +16,10 @@ export {
   buildMessageImageSources,
   normalizeVisionAttachment,
 } from './visionAttachments';
-export { buildMessageFileAttachmentContext } from './fileAttachmentContext';
+export {
+  buildMessageFileAttachmentContext,
+  buildMessageFileAttachmentMentionText,
+} from './fileAttachmentContext';
 export {
   buildMentionedNotesContext,
   loadMentionedFolderImageAttachments,

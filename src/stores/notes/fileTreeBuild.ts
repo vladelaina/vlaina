@@ -1,5 +1,6 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
+import { isImageFilename } from '@/lib/assets/core/naming';
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
 import { isSafeNotesRootPathSegment, MAX_NOTES_ROOT_RELATIVE_PATH_CHARS } from './utils/fs/notesRootPathContainment';
@@ -29,7 +30,7 @@ interface FileTreeBuildBudget {
 interface FileTreeLevelEntry {
   entryPath: string;
   name: string;
-  isDirectory: boolean;
+  kind: 'folder' | 'note' | 'image';
 }
 
 function isLowPriorityDirectory(name: string) {
@@ -53,8 +54,12 @@ function getFileTreeScanPriority(entry: { name: string; isDirectory?: boolean; i
     return 1;
   }
 
-  if (entry.isDirectory === true) {
+  if (entry.isFile === true && isImageFilename(entry.name)) {
     return 2;
+  }
+
+  if (entry.isDirectory === true) {
+    return 3;
   }
 
   return 3;
@@ -186,18 +191,23 @@ export async function buildFileTreeLevel(
 
     const isDir = entry.isDirectory === true;
     const isMarkdownFile = entry.isFile === true && isSupportedMarkdownPath(entry.name);
-    if (!isDir && !isMarkdownFile) continue;
+    const isImageFile = entry.isFile === true && isImageFilename(entry.name);
+    if (!isDir && !isMarkdownFile && !isImageFile) continue;
     if (isDir && shouldHideDirectory(entry.name)) continue;
     if (budget && budget.visitedEntries >= MAX_FILE_TREE_ENTRIES) break;
     if (budget) budget.visitedEntries += 1;
-    levelEntries.push({ entryPath, name: entry.name, isDirectory: isDir });
+    levelEntries.push({
+      entryPath,
+      name: entry.name,
+      kind: isDir ? 'folder' : isMarkdownFile ? 'note' : 'image',
+    });
   }
 
   const nodes = await mapWithConcurrencyLimit(
     levelEntries,
     MAX_GIT_REPOSITORY_DETECTION_CONCURRENCY,
     async (entry): Promise<FileTreeNode> => {
-      if (entry.isDirectory) {
+      if (entry.kind === 'folder') {
         const isGitRepository = detectGitRepositories && !isLowPriorityDirectory(entry.name)
           ? await isGitRepositoryDirectory(await joinPath(fullPath, entry.name))
           : false;
@@ -214,9 +224,10 @@ export async function buildFileTreeLevel(
 
       return {
         id: entry.entryPath,
-        name: stripSupportedMarkdownExtension(entry.name),
+        name: entry.kind === 'note' ? stripSupportedMarkdownExtension(entry.name) : entry.name,
         path: entry.entryPath,
         isFolder: false,
+        ...(entry.kind === 'image' ? { kind: 'image' as const } : {}),
       };
     },
   );
