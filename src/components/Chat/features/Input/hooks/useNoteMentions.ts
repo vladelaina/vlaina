@@ -76,6 +76,7 @@ export function useNoteMentions({
 
   const {
     mentions,
+    hasMentionCandidates,
     clearMentions,
     currentPageCandidates,
     folderCandidates,
@@ -103,6 +104,7 @@ export function useNoteMentions({
 
   return {
     noteMentions: mentions,
+    hasMentionCandidates,
     clearNoteMentions: clearMentions,
     currentPageCandidates,
     folderCandidates,

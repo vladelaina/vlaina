@@ -277,6 +277,7 @@ export function useNoteMentionState({
 
   return {
     mentions,
+    hasMentionCandidates: allNoteCandidates.length > 0,
     clearMentions,
     restoreMentions,
     currentPageCandidates,

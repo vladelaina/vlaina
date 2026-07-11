@@ -9,6 +9,7 @@ import { useI18n } from '@/lib/i18n';
 interface ChatInputActionsProps {
   onTriggerFileSelect: () => void;
   onTriggerMentionSelect: () => void;
+  hasMentionCandidates: boolean;
   isLoading: boolean;
   canSend: boolean;
   canSubmit: boolean;
@@ -24,6 +25,7 @@ interface ChatInputActionsProps {
 export function ChatInputActions({
   onTriggerFileSelect,
   onTriggerMentionSelect,
+  hasMentionCandidates,
   isLoading,
   canSend,
   canSubmit,
@@ -128,19 +130,21 @@ export function ChatInputActions({
                 <span>{t('chat.webSearch')}</span>
               </button>
             )}
-            <button
-              type="button"
-              data-chat-input-action="mention"
-              onClick={handleTriggerMentionSelect}
-              className={cn(
-                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
-                "text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]",
-                getSidebarIdleRowSurfaceClass('chat')
-              )}
-            >
-              <span className="flex size-5 items-center justify-center text-[var(--vlaina-font-h6)] font-semibold leading-none !text-[var(--vlaina-accent)]">@</span>
-              <span>{t('chat.mentionFileOrFolder')}</span>
-            </button>
+            {hasMentionCandidates && (
+              <button
+                type="button"
+                data-chat-input-action="mention"
+                onClick={handleTriggerMentionSelect}
+                className={cn(
+                  "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
+                  "text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]",
+                  getSidebarIdleRowSurfaceClass('chat')
+                )}
+              >
+                <span className="flex size-5 items-center justify-center text-[var(--vlaina-font-h6)] font-semibold leading-none !text-[var(--vlaina-accent)]">@</span>
+                <span>{t('chat.mentionFileOrFolder')}</span>
+              </button>
+            )}
             <button
               type="button"
               data-chat-input-action="upload"

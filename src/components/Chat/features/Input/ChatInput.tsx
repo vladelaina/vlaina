@@ -92,6 +92,7 @@ export const ChatInput = memo(function ChatInput({
 
   const {
     noteMentions,
+    hasMentionCandidates,
     clearNoteMentions,
     currentPageCandidates,
     folderCandidates,
@@ -248,6 +249,7 @@ export const ChatInput = memo(function ChatInput({
       handleTextareaPaste={handleTextareaPaste}
       handleTriggerFileSelect={handleTriggerFileSelect}
       handleTriggerMentionSelect={handleTriggerMentionSelect}
+      hasMentionCandidates={hasMentionCandidates}
       hasSelectedModel={hasSelectedModel}
       isBlockDropActive={isBlockDropActive}
       isDragging={isDragging}
