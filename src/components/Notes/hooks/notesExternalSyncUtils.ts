@@ -2,6 +2,7 @@ import type { DesktopWatchEvent } from '@/lib/desktop/watch';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { isImageFilename } from '@/lib/assets/core/naming';
 import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
@@ -68,6 +69,10 @@ export function isIgnoredWatchPath(relativePath: string): boolean {
 
 export function isMarkdownPath(relativePath: string): boolean {
   return isSupportedMarkdownPath(relativePath);
+}
+
+export function isImagePath(relativePath: string): boolean {
+  return isImageFilename(relativePath);
 }
 
 function toRelevantRelativePath(notesRootPath: string, absolutePath: string): string | null {

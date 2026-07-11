@@ -4,6 +4,7 @@ import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInl
 import type { FolderNode } from '@/stores/useNotesStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { FileItem } from './FileItem';
+import { ImageFileItem } from './ImageFileItem';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn } from '@/lib/utils';
 import {
@@ -229,6 +230,14 @@ export const FolderItem = memo(function FolderItem({
                 depth={depth + 1}
                 showStarBadge={false}
                 dragEnabled={dragEnabled}
+                showMenuButton={showMenuButton}
+              />
+            ) : child.kind === 'image' ? (
+              <ImageFileItem
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                parentFolderPath={node.path}
                 showMenuButton={showMenuButton}
               />
             ) : (

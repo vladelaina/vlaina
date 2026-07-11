@@ -6,6 +6,15 @@ export interface NoteFile {
   name: string;
   path: string;
   isFolder: false;
+  kind?: 'note';
+}
+
+export interface ImageFile {
+  id: string;
+  name: string;
+  path: string;
+  isFolder: false;
+  kind: 'image';
 }
 
 export interface FolderNode {
@@ -18,7 +27,7 @@ export interface FolderNode {
   isGitRepository?: boolean;
 }
 
-export type FileTreeNode = NoteFile | FolderNode;
+export type FileTreeNode = NoteFile | ImageFile | FolderNode;
 export type FileTreeSortMode = 'name-asc' | 'name-desc' | 'updated-desc' | 'created-desc';
 
 export interface NoteCoverMetadata {

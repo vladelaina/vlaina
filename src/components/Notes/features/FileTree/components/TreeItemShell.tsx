@@ -11,7 +11,7 @@ import {
 
 interface TreeItemShellProps {
   itemPath: string;
-  itemKind: 'file' | 'folder';
+  itemKind: 'file' | 'folder' | 'image';
   parentFolderPath?: string;
   depth: number;
   leading: ReactNode;

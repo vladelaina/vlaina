@@ -144,7 +144,7 @@ describe('CoverImageShell', () => {
   });
 
   it('uses the normal cover height for pending previews before selection is saved', () => {
-    const { container, rerender } = render(
+    const { rerender } = render(
       <CoverImageShell
         {...buildShellProps({
           showPicker: true,

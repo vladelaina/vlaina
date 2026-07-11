@@ -1,4 +1,5 @@
 import type { FolderNode } from '@/stores/notes/types';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
 const MAX_AUTO_CREATE_FILE_TREE_SCAN_NODES = 20_000;
 
@@ -55,10 +56,12 @@ function scanFileTreeForNoteFiles(rootFolder: FolderNode | null): {
   while (stack.length > 0 && visitedNodes < MAX_AUTO_CREATE_FILE_TREE_SCAN_NODES) {
     const node = stack.pop()!;
     visitedNodes += 1;
-    if (!node.isFolder) {
+    if (!node.isFolder && isSupportedMarkdownPath(node.path)) {
       return { hasFiles: true, exhaustedBudget: false };
     }
-    stack.push(...node.children);
+    if (node.isFolder) {
+      stack.push(...node.children);
+    }
   }
 
   return { hasFiles: false, exhaustedBudget: stack.length > 0 };

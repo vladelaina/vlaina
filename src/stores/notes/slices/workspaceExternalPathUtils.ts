@@ -30,7 +30,7 @@ export function isKnownNoteFilePath(
 ) {
   const node = input.rootFolder ? findNode(input.rootFolder.children, path) : null;
   if (node) {
-    return !node.isFolder;
+    return !node.isFolder && isSupportedMarkdownPath(node.path);
   }
 
   return Boolean(
