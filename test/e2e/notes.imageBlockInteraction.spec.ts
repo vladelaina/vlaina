@@ -1,4 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import {
   EDITOR_SELECTOR,
   NOTE_IMAGE_BLOCK_SELECTOR,
@@ -688,6 +690,62 @@ test.describe('notes image block interaction', () => {
       expect(diagnostics[0]!.blockHeight).toBeGreaterThan(0);
       expect(diagnostics[0]!.imageWidth).toBeGreaterThan(0);
       expect(diagnostics[0]!.imageHeight).toBeGreaterThan(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('loads Obsidian image embeds relative to the current note directory', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-obsidian-relative-image-embed');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const { notePaths } = await createNotesRootFilesFixture(page, {
+        name: 'obsidian-relative-image-embed',
+        files: [
+          {
+            filename: 'daily/note.md',
+            content: [
+              '# E2E Obsidian Relative Image Embed',
+              '',
+              '![[附件/images.png]]',
+              '',
+              'After Obsidian image embed sentinel.',
+              '',
+            ].join('\n'),
+          },
+        ],
+      });
+      const notePath = notePaths[0]!;
+      const imagePath = path.join(path.dirname(notePath), '附件', 'images.png');
+      await fs.mkdir(path.dirname(imagePath), { recursive: true });
+      await fs.writeFile(
+        imagePath,
+        Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64'),
+      );
+
+      await openAbsoluteNote(page, notePath);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('After Obsidian image embed sentinel.', {
+        timeout: 30_000,
+      });
+
+      const imageBlock = page.locator(`${NOTE_IMAGE_BLOCK_SELECTOR}[data-src="附件/images.png"]`);
+      await scrollImageBlockIntoView(imageBlock);
+      await waitForImageBlockReady(imageBlock, 'Obsidian current-note relative image embed');
+      await expect.poll(async () => imageBlock.locator('img').evaluate((image) => ({
+        complete: image.complete,
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+        renderedSrc: image.getAttribute('src') ?? '',
+        dataSrc: image.getAttribute('data-src') ?? '',
+      })), { timeout: 10_000 }).toMatchObject({
+        complete: true,
+        naturalWidth: 1,
+        naturalHeight: 1,
+        dataSrc: '附件/images.png',
+      });
+      await expect(page.locator('[data-note-source-fallback="true"]')).toHaveCount(0);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

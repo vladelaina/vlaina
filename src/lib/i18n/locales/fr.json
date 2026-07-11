@@ -577,6 +577,8 @@
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Mon cerveau a besoin d’une pause. Réessaie dans un instant, ou essaie d’abord un autre modèle~",
   "chat.error.network": "Erreur de connexion réseau. Vérifiez votre connexion puis réessayez.",
   "chat.error.customProviderConnectionFailed": "Impossible de joindre le canal personnalisé après les tentatives automatiques. Vérifiez votre réseau ou le service en amont, puis réessayez.",
+  "chat.retryCountdown": "Nouvelle tentative dans {seconds} s - tentative {attempt}",
+  "chat.retryTestButton": "Tester la reprise",
   "chat.error.timeout": "La requête a expiré. Réessayez plus tard.",
   "chat.error.authExpired": "Votre session de connexion a expiré. Reconnectez-vous puis réessayez.",
   "chat.error.authFailed": "Échec de l’authentification. Vérifiez votre clé API ou reconnectez-vous.",

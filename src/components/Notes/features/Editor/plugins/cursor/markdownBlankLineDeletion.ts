@@ -16,6 +16,7 @@ import {
   replaceRangeWithEditableMarkdownBlankLine
 } from './markdownBlankLineShared';
 import { handleEditableMarkdownBlankLineAfterHeadingDelete } from './markdownBlankLineHeadingDeletion';
+import { handleDocumentStartTitleBoundaryDelete } from './markdownBlankLineTitleBoundaryDeletion';
 
 function getPlainDeleteDirection(event: KeyboardEvent): -1 | 1 | null {
   if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
@@ -299,6 +300,7 @@ export function handleMarkdownBlankLineDeletion(view: EditorView, event: Keyboar
 
   const handled = (
     handleSelectedMarkdownBlankLineDelete(view, direction) ||
+    handleDocumentStartTitleBoundaryDelete(view, direction) ||
     handleEditableMarkdownBlankLineAfterHeadingDelete(view) ||
     handleEditableMarkdownBlankLineDelete(view, direction) ||
     handleEditableMarkdownBlankLineBesideStructuralBlockDelete(view, direction) ||

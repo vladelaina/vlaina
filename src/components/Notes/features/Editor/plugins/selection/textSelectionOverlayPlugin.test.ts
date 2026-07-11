@@ -17,6 +17,8 @@ import {
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { floatingToolbarPlugin } from '../floating-toolbar/floatingToolbarPlugin';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
+import { blankAreaDragBoxPlugin } from '../cursor/blankAreaDragBoxPlugin';
+import { dispatchBlockSelectionAction } from '../cursor/blockSelectionPluginState';
 import { mathPlugin } from '../math';
 import { tocPlugin } from '../toc';
 import { videoPlugin } from '../video';
@@ -98,6 +100,23 @@ describe('textSelectionOverlayPlugin', () => {
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 4)));
 
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+  });
+
+  it('clears stale text selection overlays when block selection starts', async () => {
+    const view = await createEditor('linked text', [blankAreaDragBoxPlugin]);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 7)));
+    expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(1);
+    expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+
+    dispatchBlockSelectionAction(view, {
+      type: 'set-blocks',
+      blocks: [{ from: 0, to: view.state.doc.content.size }],
+    });
+
+    expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(0);
+    expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+    expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
   });
 
   it('keeps native pointer routing after pointer text selection completes', async () => {

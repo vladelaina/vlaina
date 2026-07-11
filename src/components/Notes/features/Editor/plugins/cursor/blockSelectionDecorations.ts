@@ -1,5 +1,7 @@
 import type { EditorState } from '@milkdown/kit/prose/state';
+import type { MarkType } from '@milkdown/kit/prose/model';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import { RAW_MARKDOWN_LINK_TEXT_CLASS } from '../links/markdown-link/markdownLinkConfig';
 import { LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD, type BlockRange } from './blockSelectionTypes';
 import {
   getBlockRangeKey,
@@ -23,6 +25,70 @@ import {
 
 export { areBlockSelectionDisplayRangesVisuallyAdjacent } from './blockSelectionDecorationAdjacency';
 export { getBlockSelectionDecorationClass } from './blockSelectionDecorationClasses';
+
+function normalizeTextRange(doc: EditorState['doc'], range: BlockRange): BlockRange | null {
+  const from = Math.max(0, Math.min(range.from, doc.content.size));
+  const to = Math.max(from, Math.min(range.to, doc.content.size));
+  return to > from ? { from, to } : null;
+}
+
+function collectMarkedTextRanges(doc: EditorState['doc'], range: BlockRange, markType: MarkType): BlockRange[] {
+  const normalizedRange = normalizeTextRange(doc, range);
+  if (!normalizedRange) return [];
+
+  const markedRanges: BlockRange[] = [];
+  const { from, to } = normalizedRange;
+
+  doc.nodesBetween(from, to, (node, pos) => {
+    if (!node.isText) return true;
+
+    const textFrom = Math.max(from, pos);
+    const textTo = Math.min(to, pos + node.nodeSize);
+    if (textTo <= textFrom) return true;
+
+    if (markType.isInSet(node.marks)) {
+      const previous = markedRanges[markedRanges.length - 1];
+      if (previous && previous.to === textFrom) {
+        previous.to = textTo;
+      } else {
+        markedRanges.push({ from: textFrom, to: textTo });
+      }
+    }
+
+    return true;
+  });
+
+  return markedRanges;
+}
+
+function isTextRangeFullyMarked(doc: EditorState['doc'], range: BlockRange, markType: MarkType): boolean {
+  const normalizedRange = normalizeTextRange(doc, range);
+  if (!normalizedRange) return false;
+  const markedRanges = collectMarkedTextRanges(doc, normalizedRange, markType);
+  return markedRanges.length === 1
+    && markedRanges[0].from === normalizedRange.from
+    && markedRanges[0].to === normalizedRange.to;
+}
+
+function getInlineSelectionLinkClass(doc: EditorState['doc'], range: BlockRange): string {
+  const linkMarkType = doc.type.schema.marks.link;
+  if (!linkMarkType) return '';
+  return isTextRangeFullyMarked(doc, range, linkMarkType) ? RAW_MARKDOWN_LINK_TEXT_CLASS : '';
+}
+
+function createInlineSelectionLinkTextDecorations(doc: EditorState['doc'], range: BlockRange): Decoration[] {
+  const linkMarkType = doc.type.schema.marks.link;
+  if (!linkMarkType || isTextRangeFullyMarked(doc, range, linkMarkType)) return [];
+
+  return collectMarkedTextRanges(doc, range, linkMarkType).map((linkRange) => (
+    Decoration.inline(linkRange.from, linkRange.to, {
+      class: RAW_MARKDOWN_LINK_TEXT_CLASS,
+    }, {
+      inclusiveStart: false,
+      inclusiveEnd: false,
+    })
+  ));
+}
 
 export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks: readonly BlockRange[]): DecorationSet {
   if (blocks.length === 0) return DecorationSet.empty;
@@ -66,6 +132,7 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
         isTextLikeDecorationRange(doc, range, isNodeRange)
           ? LARGE_TEXTLIKE_BLOCK_SELECTION_DECORATION_CLASS
           : LARGE_RICH_BLOCK_SELECTION_DECORATION_CLASS,
+        !isNodeRange ? getInlineSelectionLinkClass(doc, range) : '',
         structuralClass,
         context.hasNextDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-next' : '',
         context.hasPreviousDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-previous' : '',
@@ -75,9 +142,12 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
         return [Decoration.node(range.from, range.to, { class: className })];
       }
       const inlineRange = trimTrailingHardBreakFromInlineRange(doc, range);
-      return inlineRange ? [Decoration.inline(inlineRange.from, inlineRange.to, {
-        class: className,
-      })] : [];
+      return inlineRange ? [
+        Decoration.inline(inlineRange.from, inlineRange.to, {
+          class: className,
+        }),
+        ...createInlineSelectionLinkTextDecorations(doc, inlineRange),
+      ] : [];
     }
 
     const rangeKey = getBlockRangeKey(range.from, range.to);
@@ -87,6 +157,7 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
       class: [
         getBlockSelectionDecorationClass(doc, range, displayRanges, context),
         isTextLikeSelection ? 'editor-block-selected-textlike' : '',
+        !isNodeRange ? getInlineSelectionLinkClass(doc, range) : '',
         structuralClass,
         context.hasNextDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-next' : '',
         context.hasPreviousDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-previous' : '',
@@ -102,7 +173,10 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
     if (!inlineRange) return [];
 
     addParentMarkerDecorations(range);
-    return [Decoration.inline(inlineRange.from, inlineRange.to, attrs)];
+    return [
+      Decoration.inline(inlineRange.from, inlineRange.to, attrs),
+      ...createInlineSelectionLinkTextDecorations(doc, inlineRange),
+    ];
   });
 
   return DecorationSet.create(doc, [

@@ -4,6 +4,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import {
   preloadChatSidebarModule,
   preloadChatViewModule,
+  preloadAIStoreModule,
   preloadModelSelectorModule,
   preloadNotesSidebarModule,
   preloadNotesTabRowModule,
@@ -84,6 +85,7 @@ export function useAppContentViewLifecycle({
   const didReportStartupReadyRef = useRef(false);
   const didEnableCenterChromeRef = useRef(false);
   const didEnableDeferredChromeRef = useRef(false);
+  const didPrewarmManagedModelsRef = useRef(false);
   const centerChromeTimerRef = useRef<number | null>(null);
   const deferredChromeTimerRef = useRef<number | null>(null);
   const preloadedPrimaryViewRef = useRef<AppViewMode | null>(null);
@@ -216,6 +218,15 @@ export function useAppContentViewLifecycle({
     void preloadNotesTabRowModule();
     void preloadModelSelectorModule();
     void preloadTemporaryChatToggleModule();
+    if (!didPrewarmManagedModelsRef.current) {
+      didPrewarmManagedModelsRef.current = true;
+      void preloadAIStoreModule()
+        .then((mod) => {
+          mod.actions.refreshManagedProviderInBackground();
+        })
+        .catch(() => {
+        });
+    }
 
     setMountedAppViews(addPrewarmedAppViews);
     setRenderedSidebarAppViews(addPrewarmedAppViews);

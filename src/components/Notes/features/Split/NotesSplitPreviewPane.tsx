@@ -214,7 +214,12 @@ export function NotesSplitPreviewPane({
         />
       ) : null}
 
-      <OverlayScrollArea className="min-h-0 flex-1" viewportClassName="flex flex-col items-center relative" scrollbarVariant="compact">
+      <OverlayScrollArea
+        className="min-h-0 flex-1"
+        viewportClassName="flex flex-col items-center relative"
+        scrollbarVariant="compact"
+        data-note-cover-viewport="true"
+      >
         {cover.url ? (
           <CoverImage
             url={cover.url}
@@ -240,7 +245,6 @@ export function NotesSplitPreviewPane({
           imageLoader={loadImage}
           readOnly
           title={title}
-          titleClassName="text-xl"
         />
 
         <div

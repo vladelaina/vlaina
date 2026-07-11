@@ -2,7 +2,7 @@ import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { flushExpiredPendingRenames, getNextPendingRenameDelay, queuePendingRename } from './notesExternalRenameQueue';
 import { buildExternalTreeSnapshot, detectExternalTreePathChanges } from './notesExternalPollingUtils';
-import { isMarkdownPath } from './notesExternalSyncUtils';
+import { isImagePath, isMarkdownPath } from './notesExternalSyncUtils';
 import {
   flushExpiredPendingCreates,
   getNextPendingCreateDelay,
@@ -69,6 +69,8 @@ export function createNotesExternalReconcileHandlers(ctx: NotesExternalSyncConte
       if (ctx.isRelevantDeletedPath(expiredEntry.oldPath, expiredEntry.kind)) {
         await ctx.applyExternalDeletion(expiredEntry.oldPath);
         handledExpiredDelete = true;
+      } else if (isImagePath(expiredEntry.oldPath)) {
+        handledExpiredDelete = true;
       }
     }
 
@@ -130,6 +132,7 @@ export function createNotesExternalReconcileHandlers(ctx: NotesExternalSyncConte
       }
 
       const isMarkdownEventPath = isMarkdownPath(relativePath);
+      const isImageEventPath = isImagePath(relativePath);
       if (currentNotePath && !isAbsolutePath(currentNotePath) && currentNotePath === relativePath) {
         if (isMarkdownEventPath) {
           shouldSyncCurrentNote = true;
@@ -137,6 +140,10 @@ export function createNotesExternalReconcileHandlers(ctx: NotesExternalSyncConte
         continue;
       }
       if (!isMarkdownEventPath) {
+        if (isImageEventPath) {
+          shouldReloadTree = true;
+          continue;
+        }
         if (relativePath === '' || pathKind === 'folder' || ctx.isKnownFolderPath(relativePath)) {
           shouldReloadTree = true;
           ctx.invalidateNoteCache(relativePath, { includeDescendants: true });
@@ -222,21 +229,27 @@ export function createNotesExternalReconcileHandlers(ctx: NotesExternalSyncConte
     if (!changes.hasChanges) {
       return false;
     }
+    let shouldReloadTree = changes.hasAdditions;
     for (const rename of changes.renames) {
-      await ctx.applyExternalRenamePathChange(rename.oldPath, rename.newPath);
+      const handled = await ctx.applyExternalRenamePathChange(rename.oldPath, rename.newPath);
+      shouldReloadTree = !handled || shouldReloadTree;
       if (!ctx.isActiveNotesPath()) {
         return true;
       }
     }
 
     for (const deletedPath of changes.deletions) {
-      await ctx.applyExternalDeletion(deletedPath);
+      if (ctx.isRelevantDeletedPath(deletedPath, undefined)) {
+        await ctx.applyExternalDeletion(deletedPath);
+      } else {
+        shouldReloadTree = true;
+      }
       if (!ctx.isActiveNotesPath()) {
         return true;
       }
     }
 
-    if (changes.hasAdditions && ctx.isActiveNotesPath()) {
+    if (shouldReloadTree && ctx.isActiveNotesPath()) {
       await ctx.loadFileTree(true);
     }
 

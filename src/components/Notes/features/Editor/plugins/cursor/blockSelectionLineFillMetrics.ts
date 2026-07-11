@@ -54,8 +54,8 @@ export function resolveLineFillEdges(element: HTMLElement): LineFillEdges {
   );
 
   return {
-    top: -bleedY,
-    bottom: -bleedY,
+    top: readCssPx(style, '--vlaina-block-selection-fill-top', -bleedY),
+    bottom: readCssPx(style, '--vlaina-block-selection-fill-bottom', -bleedY),
   };
 }
 

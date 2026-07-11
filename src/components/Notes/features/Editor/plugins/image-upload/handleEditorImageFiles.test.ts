@@ -44,6 +44,105 @@ describe('handleEditorImageFiles', () => {
         expect(dispatch).toHaveBeenCalledTimes(1);
     });
 
+    it('does not insert when the active note changes while the upload is pending', async () => {
+        let resolveUpload: (value: {
+            success: true;
+            path: string;
+            isDuplicate: false;
+        }) => void = () => undefined;
+        const scrollIntoView = vi.fn(function () {
+            return tr;
+        });
+        const replaceSelectionWith = vi.fn(function () {
+            return { scrollIntoView, docChanged: true };
+        });
+        const tr = { replaceSelectionWith };
+        const dispatch = vi.fn();
+        const create = vi.fn(() => ({ type: 'image-node' }));
+        const uploadAsset = vi.fn().mockReturnValue(new Promise((resolve) => {
+            resolveUpload = resolve;
+        }));
+        const doc = { eq: vi.fn((other: unknown) => other === doc) };
+        const selection = { eq: vi.fn((other: unknown) => other === selection) };
+        const view = {
+            state: {
+                schema: { nodes: { image: { create } } },
+                tr,
+                doc,
+                selection,
+            },
+            dom: { dispatchEvent: vi.fn(), isConnected: true },
+            dispatch,
+        };
+        const file = new File(['demo'], 'demo.png', { type: 'image/png' });
+        let currentNote = { path: 'daily/demo.md', content: '' };
+
+        const inserted = uploadImageFileAndInsert(file, view as never, () => ({
+            uploadAsset,
+            currentNote,
+        }));
+        await Promise.resolve();
+        currentNote = { path: 'daily/other.md', content: '' };
+        resolveUpload({
+            success: true,
+            path: './assets/demo.png',
+            isDuplicate: false,
+        });
+
+        await expect(inserted).resolves.toBe(false);
+        expect(uploadAsset).toHaveBeenCalledWith(file, 'daily/demo.md');
+        expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    it('does not insert when the editor document changes while the upload is pending', async () => {
+        let resolveUpload: (value: {
+            success: true;
+            path: string;
+            isDuplicate: false;
+        }) => void = () => undefined;
+        const scrollIntoView = vi.fn(function () {
+            return tr;
+        });
+        const replaceSelectionWith = vi.fn(function () {
+            return { scrollIntoView, docChanged: true };
+        });
+        const tr = { replaceSelectionWith };
+        const dispatch = vi.fn();
+        const create = vi.fn(() => ({ type: 'image-node' }));
+        const uploadAsset = vi.fn().mockReturnValue(new Promise((resolve) => {
+            resolveUpload = resolve;
+        }));
+        const originalDoc = { eq: vi.fn((other: unknown) => other === originalDoc) };
+        const changedDoc = { eq: vi.fn((other: unknown) => other === changedDoc) };
+        const selection = { eq: vi.fn((other: unknown) => other === selection) };
+        const view = {
+            state: {
+                schema: { nodes: { image: { create } } },
+                tr,
+                doc: originalDoc,
+                selection,
+            },
+            dom: { dispatchEvent: vi.fn(), isConnected: true },
+            dispatch,
+        };
+        const file = new File(['demo'], 'demo.png', { type: 'image/png' });
+
+        const inserted = uploadImageFileAndInsert(file, view as never, () => ({
+            uploadAsset,
+            currentNote: { path: 'daily/demo.md', content: '' },
+        }));
+        await Promise.resolve();
+        view.state.doc = changedDoc;
+        resolveUpload({
+            success: true,
+            path: './assets/demo.png',
+            isDuplicate: false,
+        });
+
+        await expect(inserted).resolves.toBe(false);
+        expect(dispatch).not.toHaveBeenCalled();
+    });
+
     it('does not upload when the current selection cannot accept images', async () => {
         const replaceSelectionWith = vi.fn(() => {
             throw new Error('cannot insert');

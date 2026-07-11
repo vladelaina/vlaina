@@ -1868,7 +1868,7 @@ test.describe("notes block selection regressions", () => {
           expectedClassName: 'editor-block-selected-large-rich',
           forbiddenClassName: 'editor-block-selected-large-textlike',
           label: 'large selection html block',
-          selector: `${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value="<!--vlaina-markdown-blank-line-->"]):not([data-value="<!--vlaina-markdown-tight-heading-->"]).editor-block-selected`,
+          selector: `${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value="<!--vlaina-markdown-blank-line-->"]):not([data-value="<!--vlaina-rendered-html-boundary-blank-line-->"]):not([data-value="<!--vlaina-markdown-tight-heading-->"]).editor-block-selected`,
           text: 'Large selection HTML sentinel',
         },
         {

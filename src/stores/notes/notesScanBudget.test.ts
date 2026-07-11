@@ -28,7 +28,7 @@ describe('notes scan budgets', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 1, size: 128 });
   });
 
-  it('does not spend file tree budget on unsupported sibling files before markdown notes', async () => {
+  it('keeps markdown notes ahead of image files in the file tree budget', async () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 6000 }, (_, index) => ({
         name: `image-${index}.png`,
@@ -44,17 +44,25 @@ describe('notes scan budgets', () => {
       },
     ]);
 
-    await expect(buildFileTree('/notesRoot')).resolves.toEqual([
-      {
-        id: 'alpha.md',
-        name: 'alpha',
-        path: 'alpha.md',
-        isFolder: false,
-      },
-    ]);
+    const tree = await buildFileTree('/notesRoot');
+
+    expect(tree).toHaveLength(5000);
+    expect(findNode(tree, 'alpha.md')).toEqual({
+      id: 'alpha.md',
+      name: 'alpha',
+      path: 'alpha.md',
+      isFolder: false,
+    });
+    expect(findNode(tree, 'image-0.png')).toEqual({
+      id: 'image-0.png',
+      name: 'image-0.png',
+      path: 'image-0.png',
+      isFolder: false,
+      kind: 'image',
+    });
   });
 
-  it('prioritizes markdown before capping non-markdown file tree scanning', async () => {
+  it('prioritizes late markdown before capping image file tree scanning', async () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 10_000 }, (_, index) => ({
         name: `image-${index}.png`,
@@ -70,14 +78,15 @@ describe('notes scan budgets', () => {
       },
     ]);
 
-    await expect(buildFileTree('/notesRoot')).resolves.toEqual([
-      {
-        id: 'late.md',
-        name: 'late',
-        path: 'late.md',
-        isFolder: false,
-      },
-    ]);
+    const tree = await buildFileTree('/notesRoot');
+
+    expect(tree).toHaveLength(5000);
+    expect(findNode(tree, 'late.md')).toEqual({
+      id: 'late.md',
+      name: 'late',
+      path: 'late.md',
+      isFolder: false,
+    });
   });
 
   it('does not spend file tree entry budget on sibling folders before markdown notes', async () => {

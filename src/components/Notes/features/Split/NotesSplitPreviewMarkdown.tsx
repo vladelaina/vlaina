@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import {
   READONLY_MARKDOWN_REMARK_PLUGINS,
 } from '@/components/common/markdown/markdownPipeline';
+import { remarkObsidianImageEmbeds } from '@/components/common/markdown/obsidianImageEmbed';
 
 type MarkdownAstNode = {
   children?: MarkdownAstNode[];
@@ -53,6 +54,7 @@ function remarkReadonlyMarkdownBlankLines() {
 
 export const SPLIT_PREVIEW_REMARK_PLUGINS = [
   ...READONLY_MARKDOWN_REMARK_PLUGINS,
+  remarkObsidianImageEmbeds,
   remarkReadonlyMarkdownBlankLines,
 ] as any[];
 

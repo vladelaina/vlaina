@@ -73,3 +73,11 @@ export async function buildMessageFileAttachmentContext(attachments: Attachment[
 
   return sections.length > 0 ? `Attached files:\n\n${sections.join('\n\n')}` : '';
 }
+
+export function buildMessageFileAttachmentMentionText(attachments: Attachment[]): string {
+  return attachments
+    .slice(0, MAX_CHAT_MESSAGE_FILE_ATTACHMENTS)
+    .filter(isTextAttachment)
+    .map((attachment) => `@${trimString(attachment.name) || 'attachment.txt'}`)
+    .join(' ');
+}

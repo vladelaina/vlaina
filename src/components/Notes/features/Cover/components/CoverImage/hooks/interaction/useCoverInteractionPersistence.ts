@@ -5,7 +5,7 @@ interface UseCoverInteractionPersistenceProps {
   mediaSize: { width: number; height: number } | null;
   effectiveContainerSize: { width: number; height: number } | null;
   url: string | null;
-  coverHeight: number;
+  storedCoverHeight?: number;
   onUpdate: (url: string | null, x: number, y: number, h?: number, s?: number) => void;
 }
 
@@ -13,7 +13,7 @@ export function useCoverInteractionPersistence({
   mediaSize,
   effectiveContainerSize,
   url,
-  coverHeight,
+  storedCoverHeight,
   onUpdate,
 }: UseCoverInteractionPersistenceProps) {
   const saveToDb = useCallback((currentCrop: { x: number; y: number }, currentZoom: number) => {
@@ -26,8 +26,8 @@ export function useCoverInteractionPersistence({
       currentZoom
     );
 
-    onUpdate(url, percent.x, percent.y, coverHeight, currentZoom);
-  }, [mediaSize, effectiveContainerSize, url, coverHeight, onUpdate]);
+    onUpdate(url, percent.x, percent.y, storedCoverHeight, currentZoom);
+  }, [mediaSize, effectiveContainerSize, url, storedCoverHeight, onUpdate]);
 
   return { saveToDb };
 }

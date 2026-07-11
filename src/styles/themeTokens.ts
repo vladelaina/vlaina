@@ -203,6 +203,7 @@ export const themeTextAreaTokens = {
   collapsedMaxHeightPx: 0,
   unboundedMaxHeightPx: 100000,
   inlineRenameMaxHeightPx: 96,
+  titleResizeHeightGuardPx: 2,
   titleResizeFallbackDelayMs: 120,
 } as const;
 
@@ -632,6 +633,15 @@ export const themeCoverLayerTokens = {
   sizeFull: '100%',
   positionCenter: '50%',
   transformOriginCenter: 'center center',
+} as const;
+
+export const themeCoverLayoutTokens = {
+  minHeightPx: 120,
+  maxHeightPx: 500,
+  minScale: 1,
+  maxScale: 10,
+  defaultViewportHeightRatio: 0.236,
+  fallbackViewportHeightPx: 1080,
 } as const;
 
 export const themeImageBlockStyleTokens = {

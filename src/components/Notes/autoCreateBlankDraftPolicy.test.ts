@@ -93,6 +93,26 @@ describe('shouldAutoCreateBlankDraft', () => {
     expect(result.blockedReasons).not.toContain('notes-root-has-files');
   });
 
+  it('allows a blank draft when the opened folder contains only images', () => {
+    const result = shouldAutoCreateBlankDraft(createInput({
+      rootFolder: {
+        ...emptyRoot,
+        children: [
+          {
+            id: 'images/cover.png',
+            name: 'cover.png',
+            path: 'images/cover.png',
+            isFolder: false,
+            kind: 'image',
+          },
+        ],
+      },
+    }));
+
+    expect(result.shouldCreate).toBe(true);
+    expect(result.blockedReasons).not.toContain('notes-root-has-files');
+  });
+
   it('does not auto-create a blank draft when the file tree scan budget is exhausted', () => {
     const result = shouldAutoCreateBlankDraft(createInput({
       rootFolder: {

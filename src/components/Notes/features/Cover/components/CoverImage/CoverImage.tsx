@@ -14,6 +14,7 @@ export function CoverImage({
     currentNotePath,
     pickerOpen,
     onPickerOpenChange,
+    onPreviewLayoutActiveChange,
 }: CoverImageProps) {
   const shellProps = useCoverImageController({
     url,
@@ -27,6 +28,7 @@ export function CoverImage({
     currentNotePath,
     pickerOpen,
     onPickerOpenChange,
+    onPreviewLayoutActiveChange,
   });
 
   return <CoverImageShell {...shellProps} />;

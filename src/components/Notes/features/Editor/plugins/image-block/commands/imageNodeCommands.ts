@@ -57,10 +57,12 @@ function resolveInsertedImagePos(doc: ProseNode, insertionPos: number, expectedA
 export function applyImageNodeAttrsAtPos(
     view: EditorView,
     pos: number,
-    incomingAttrs: ImageNodeAttrs
+    incomingAttrs: ImageNodeAttrs,
+    expectedAttrs?: ImageNodeAttrs
 ): boolean {
     const latestNode = getImageNodeAtPos(view, pos);
     if (!latestNode) return false;
+    if (expectedAttrs && !matchesImageNode(latestNode, expectedAttrs)) return false;
     const latestAttrs = latestNode.attrs as ImageNodeAttrs;
     const nextAttrs = mergeImageNodeAttrs(latestAttrs, incomingAttrs);
     markEditorImageUserInput(view);

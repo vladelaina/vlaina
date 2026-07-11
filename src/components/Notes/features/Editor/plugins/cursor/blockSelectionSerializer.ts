@@ -33,6 +33,10 @@ import {
   stripCommonContinuationIndent,
   trimLeadingBlankLines,
 } from './blockSelectionFenceIndent';
+import {
+  coalesceParagraphInlineRanges,
+  serializeParagraphInlineRange,
+} from './blockSelectionParagraphInlineSerialization';
 
 interface SerializeSelectedBlocksOptions {
   markdownSerializer?: Serializer | null;
@@ -60,7 +64,9 @@ function serializeSingleListBlockWithoutMarker(
   ) {
     return normalizeSelectedFencedCodeIndent(
       stripSingleListBlockMarker(
-        normalizeSerializedMarkdownBlock(serializeSliceAsVisiblePlainText({ content: directListItem.content }))
+        normalizeSerializedMarkdownBlock(
+          serializeSliceAsVisiblePlainText({ content: directListItem.content })
+        )
       )
     );
   }
@@ -136,7 +142,7 @@ export function serializeSelectedBlocksToText(
     state.doc,
     normalizeBlockRanges(blocks),
   );
-  const pruned = pruneContainedBlockRanges(normalized);
+  const pruned = coalesceParagraphInlineRanges(state.doc, pruneContainedBlockRanges(normalized));
   if (pruned.length === 0) return '';
 
   if (!options.preserveSingleListBlockMarker && pruned.length === 1 && normalized.length === 1) {
@@ -155,6 +161,11 @@ export function serializeSelectedBlocksToText(
     try {
       const markdownPieces = pruned
         .map((block) => {
+          const inlineParagraphText = serializeParagraphInlineRange(state, block);
+          if (inlineParagraphText !== null) {
+            return inlineParagraphText;
+          }
+
           const plainParagraphText = serializePlainParagraphBlock(state, block);
           if (plainParagraphText !== null) {
             return plainParagraphText;
@@ -174,11 +185,18 @@ export function serializeSelectedBlocksToText(
   }
 
   const pieces = pruned
-    .map((block) => normalizeSerializedSelectedBlockMarkdown(
-      state,
-      block,
-      serializeSliceToText(state.doc.slice(block.from, block.to))
-    ));
+    .map((block) => {
+      const inlineParagraphText = serializeParagraphInlineRange(state, block);
+      if (inlineParagraphText !== null) {
+        return inlineParagraphText;
+      }
+
+      return normalizeSerializedSelectedBlockMarkdown(
+        state,
+        block,
+        serializeSliceToText(state.doc.slice(block.from, block.to))
+      );
+    });
 
   return serializeLeadingFrontmatterMarkdown(
     joinSerializedBlockRanges(state.doc, pruned, pieces)

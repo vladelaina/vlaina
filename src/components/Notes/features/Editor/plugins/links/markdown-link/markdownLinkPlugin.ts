@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { Fragment, Slice } from '@milkdown/kit/prose/model';
+import { DecorationSet } from '@milkdown/kit/prose/view';
 import { resolvePasteRange } from '../../clipboard/pasteCursorUtils';
 import { sanitizeExplicitMarkdownLinkHref } from '../utils/linkHref';
 import {
@@ -16,6 +17,7 @@ import {
     MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS,
     MAX_MARKDOWN_LINK_TRANSACTION_STEP_TEXT_CHARS,
     markdownLinkPluginKey,
+    RAW_MARKDOWN_LINK_TEXT_CLASS,
     type MarkdownLinkPluginState,
     MAX_MARKDOWN_LINK_DOC_SCAN_SIZE,
     MAX_MARKDOWN_LINK_PASTE_CHARS,
@@ -38,6 +40,7 @@ import {
 } from './markdownLinkMatches';
 import { collectMarkdownLinkAutoCollapseScanRanges } from './markdownLinkScanRanges';
 import { createMarkdownLinkPasteNodes } from './markdownLinkPaste';
+import { createRawMarkdownLinkTextDecorations } from './markdownLinkDecorations';
 
 export {
     MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES,
@@ -46,6 +49,7 @@ export {
     MAX_MARKDOWN_LINK_PASTE_NODES,
     MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS,
     MAX_MARKDOWN_LINK_TRANSACTION_STEP_TEXT_CHARS,
+    RAW_MARKDOWN_LINK_TEXT_CLASS,
     collectMarkdownLinkAutoCollapseScanRanges,
     collectRawMarkdownLinkMatches,
     collectRawMarkdownLinkMatchesInRange,
@@ -62,16 +66,27 @@ export {
 };
 export type { RawMarkdownLinkMatch };
 
+const EMPTY_MARKDOWN_LINK_PLUGIN_STATE: MarkdownLinkPluginState = {
+    decorations: DecorationSet.empty,
+    hasRawMarkdownLink: false,
+};
+
+function createMarkdownLinkPluginState(doc: Parameters<typeof collectRawMarkdownLinkMatches>[0]): MarkdownLinkPluginState {
+    const rawMarkdownLinks = collectRawMarkdownLinkMatches(doc);
+    return {
+        decorations: createRawMarkdownLinkTextDecorations(doc, rawMarkdownLinks),
+        hasRawMarkdownLink: rawMarkdownLinks.length > 0,
+    };
+}
+
 export const markdownLinkPlugin = $prose(() => {
     return new Plugin<MarkdownLinkPluginState>({
         key: markdownLinkPluginKey,
         state: {
             init(_config, state) {
-                return {
-                    hasRawMarkdownLink: state.doc.content.size <= MAX_MARKDOWN_LINK_DOC_SCAN_SIZE
-                        ? docHasRawMarkdownLink(state.doc)
-                        : false,
-                };
+                return state.doc.content.size <= MAX_MARKDOWN_LINK_DOC_SCAN_SIZE
+                    ? createMarkdownLinkPluginState(state.doc)
+                    : EMPTY_MARKDOWN_LINK_PLUGIN_STATE;
             },
             apply(tr, previous, oldState) {
                 if (!tr.docChanged) {
@@ -79,22 +94,18 @@ export const markdownLinkPlugin = $prose(() => {
                 }
 
                 if (tr.doc.content.size > MAX_MARKDOWN_LINK_DOC_SCAN_SIZE) {
-                    return { hasRawMarkdownLink: false };
+                    return EMPTY_MARKDOWN_LINK_PLUGIN_STATE;
                 }
 
                 if (!previous.hasRawMarkdownLink) {
                     if (oldState.doc.content.size > MAX_MARKDOWN_LINK_DOC_SCAN_SIZE) {
-                        return {
-                            hasRawMarkdownLink: docHasRawMarkdownLink(tr.doc),
-                        };
+                        return createMarkdownLinkPluginState(tr.doc);
                     }
                     const hasAffectedRawMarkdownLink = transactionChangeMayAffectRawMarkdownLink(oldState.doc, tr.doc, tr);
                     if (!transactionMayCreateMarkdownLink(tr) && !hasAffectedRawMarkdownLink) {
                         return previous;
                     }
-                    return {
-                        hasRawMarkdownLink: hasAffectedRawMarkdownLink,
-                    };
+                    return createMarkdownLinkPluginState(tr.doc);
                 }
 
                 if (
@@ -102,12 +113,13 @@ export const markdownLinkPlugin = $prose(() => {
                     && !transactionMayCreateMarkdownLink(tr)
                     && !transactionChangeMayAffectRawMarkdownLink(oldState.doc, tr.doc, tr)
                 ) {
-                    return previous;
+                    return {
+                        ...previous,
+                        decorations: previous.decorations.map(tr.mapping, tr.doc),
+                    };
                 }
 
-                return {
-                    hasRawMarkdownLink: docHasRawMarkdownLink(tr.doc),
-                };
+                return createMarkdownLinkPluginState(tr.doc);
             },
         },
 
@@ -184,6 +196,10 @@ export const markdownLinkPlugin = $prose(() => {
         },
 
         props: {
+            decorations(state) {
+                return markdownLinkPluginKey.getState(state)?.decorations ?? DecorationSet.empty;
+            },
+
             handleTextInput(view, from, _to, inputText) {
                 // Only trigger on space, newline, or certain punctuation
                 if (!/^[\s.,;:!?，。；：！？、】【》）]$/.test(inputText)) {

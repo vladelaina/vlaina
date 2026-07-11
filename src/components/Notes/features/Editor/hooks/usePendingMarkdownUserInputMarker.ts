@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { MutableRefObject } from 'react';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
+import { useNotesStore } from '@/stores/useNotesStore';
 import {
   COMPOSITION_APPEND_GUARD_MS,
   MAX_COMPOSITION_REPAIR_TEXT_LENGTH,
@@ -16,7 +17,7 @@ import {
   shouldClearCompositionAppendGuard,
   shouldSuppressCompositionSelectionRepair,
 } from './pendingMarkdownAutosaveEvents';
-import type { CompositionStartSelection } from './pendingMarkdownAutosaveTypes';
+import type { CompositionStartSelection, PendingMarkdownSnapshot } from './pendingMarkdownAutosaveTypes';
 import { finalizeCompositionCommit, scheduleCompositionCommitFinalization } from './pendingMarkdownCompositionCommit';
 import {
   collapseCommittedCompositionSelection,
@@ -44,11 +45,13 @@ interface PendingMarkdownUserInputMarkerOptions {
   lastCompositionCommitAtRef: MutableRefObject<number>;
   isCompositionSelectionRepairSuppressedRef: MutableRefObject<boolean>;
   allowDeferredCompositionMarkdownWithoutCommitRef: MutableRefObject<boolean>;
-  pendingRawMarkdownRef: MutableRefObject<string | null>;
-  pendingMarkdownRef: MutableRefObject<string | null>;
+  pendingRawMarkdownRef: MutableRefObject<PendingMarkdownSnapshot | null>;
+  pendingMarkdownRef: MutableRefObject<PendingMarkdownSnapshot | null>;
   pendingMarkdownApplyTimeoutRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
+  editorUserInputBaseContentRef: MutableRefObject<string | null>;
   hasEditorUserInput: MutableRefObject<boolean>;
   userInputVersionRef: MutableRefObject<number>;
+  currentNotePath: string | undefined;
   clearCompositionAppendGuard: () => void;
 }
 
@@ -70,8 +73,10 @@ export function usePendingMarkdownUserInputMarker({
   pendingRawMarkdownRef,
   pendingMarkdownRef,
   pendingMarkdownApplyTimeoutRef,
+  editorUserInputBaseContentRef,
   hasEditorUserInput,
   userInputVersionRef,
+  currentNotePath,
   clearCompositionAppendGuard,
 }: PendingMarkdownUserInputMarkerOptions) {
   return useCallback((
@@ -123,6 +128,9 @@ export function usePendingMarkdownUserInputMarker({
       const isCompositionEvent = isCompositionInputEvent(event);
       const isContentEditingEvent = isContentEditingUserEvent(event);
       const markUserInputVersion = () => {
+        const currentNote = useNotesStore.getState().currentNote;
+        editorUserInputBaseContentRef.current =
+          currentNote && currentNote.path === currentNotePath ? currentNote.content : null;
         hasEditorUserInput.current = true;
         userInputVersionRef.current += 1;
       };

@@ -291,6 +291,51 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().recentNotes).toEqual(['docs/beta.md']);
   });
 
+  it('preserves dirty target tab content when an external rename lands on it', async () => {
+    const alphaFile = createFile('docs/alpha.md', 'alpha');
+    const betaFile = createFile('docs/beta.md', 'beta');
+    const gammaFile = createFile('docs/gamma.md', 'gamma');
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [alphaFile, betaFile, gammaFile]),
+      ]),
+      currentNote: { path: 'docs/gamma.md', content: '# gamma' },
+      isDirty: false,
+      openTabs: [
+        { path: 'docs/gamma.md', name: 'gamma', isDirty: false },
+        { path: 'docs/beta.md', name: 'beta', isDirty: true },
+      ],
+      noteContentsCache: new Map([
+        ['docs/alpha.md', { content: '# alpha from disk', modifiedAt: 1 }],
+        ['docs/beta.md', { content: '# beta unsaved', modifiedAt: 2 }],
+        ['docs/gamma.md', { content: '# gamma', modifiedAt: 3 }],
+      ]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          'docs/alpha.md': { createdAt: 1 },
+          'docs/beta.md': { createdAt: 2 },
+          'docs/gamma.md': { createdAt: 3 },
+        },
+      },
+    });
+
+    await store.getState().applyExternalPathRename('docs/alpha.md', 'docs/beta.md');
+
+    expect(store.getState().currentNote).toEqual({ path: 'docs/gamma.md', content: '# gamma' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/gamma.md', name: 'gamma', isDirty: false },
+      { path: 'docs/beta.md', name: 'beta', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get('docs/beta.md')).toEqual({
+      content: '# beta unsaved',
+      modifiedAt: 2,
+    });
+    expect(store.getState().error).toBe(
+      'External rename landed on a note with unsaved changes. The unsaved content is preserved; save to restore it.',
+    );
+  });
+
   it('removes a known Markdown note when it is externally renamed to a non-Markdown target', async () => {
     const keepFile = createFile('docs/keep.md', 'keep');
     const initialFile = createFile('docs/alpha.md', 'alpha');

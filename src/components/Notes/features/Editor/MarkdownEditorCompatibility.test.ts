@@ -503,6 +503,17 @@ describe('MarkdownEditor compatibility', () => {
     await destroyEditor(editor);
   });
 
+  it('opens Obsidian image embeds as editable image nodes', async () => {
+    const editor = await createEditor('Before ![[附件/images.png|Local image]] after');
+
+    const view = editor.ctx.get(editorViewCtx);
+    const image = view.dom.querySelector('.image-block-container[data-src="附件/images.png"][data-alt="Local image"]');
+    expect(image).toBeInstanceOf(HTMLElement);
+    expect(view.state.doc.textContent).toContain('Before');
+    expect(view.state.doc.textContent).toContain('after');
+    await destroyEditor(editor);
+  });
+
   it('opens markdown containing footnote reference and definition nodes', async () => {
     const editor = await createEditor(['Footnote ref[^1].', '', '[^1]: Footnote body'].join('\n'));
 

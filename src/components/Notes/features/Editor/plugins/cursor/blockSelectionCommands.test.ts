@@ -17,6 +17,7 @@ import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
 import { codePlugin } from '../code';
 import { calloutPlugin } from '../callout';
+import { backslashHardBreakTextPlugins } from '../hard-break';
 import {
   getFrontmatterFenceLanguage,
   getFrontmatterFenceMeta,
@@ -331,6 +332,103 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
+  it('copies adjacent inline ranges from the same paragraph without hard break artifacts', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '我[xs](ds)i我');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const segments: Array<{ from: number; linked: boolean; text: string; to: number }> = [];
+
+    view.state.doc.descendants((node, pos) => {
+      if (!node.isText) return true;
+      segments.push({
+        from: pos,
+        linked: node.marks.some((mark) => mark.type.name === 'link'),
+        text: node.text ?? '',
+        to: pos + node.nodeSize,
+      });
+      return true;
+    });
+
+    const firstPlain = segments.find((segment) => !segment.linked && segment.text === '我');
+    const link = segments.find((segment) => segment.linked && segment.text === 'xs');
+    const tail = segments.find((segment) => !segment.linked && segment.from >= (link?.to ?? -1));
+
+    expect(firstPlain).toBeDefined();
+    expect(link).toBeDefined();
+    expect(tail?.text).toBe('i我');
+
+    const copied = serializeSelectedBlocksToText(view.state, [
+      { from: firstPlain!.from, to: link!.to },
+      { from: tail!.from, to: tail!.from + 1 },
+      { from: tail!.from + 1, to: tail!.to },
+    ], { markdownSerializer: serializer });
+
+    expect(copied).toBe('我[xs](ds)i我');
+
+    await editor.destroy();
+  });
+
+  it('copies selected hard-break paragraph lines as newlines without html break tags', async () => {
+    await expect(copyAllSelectableBlocks('我[xs](ds)\\\ni\\\n我', backslashHardBreakTextPlugins)).resolves.toBe(
+      '我[xs](ds)\ni\n我'
+    );
+  });
+
+  it('omits source backslash markers when copying a single selected hard-break line', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '我[xs](ds)\\\ni');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    for (const plugin of backslashHardBreakTextPlugins) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+
+    try {
+      const serializer = editor.ctx.get(serializerCtx);
+      const view = editor.ctx.get(editorViewCtx);
+      const sourceBackslash: Array<{ from: number; to: number }> = [];
+
+      view.state.doc.descendants((node, pos) => {
+        if (
+          node.isText
+          && node.text === '\\'
+          && node.marks.some((mark) => mark.type.name === 'backslash_hard_break_source_text')
+        ) {
+          sourceBackslash.push({ from: pos, to: pos + node.nodeSize });
+        }
+        return true;
+      });
+
+      expect(sourceBackslash).toHaveLength(1);
+      expect(serializeSelectedBlocksToText(view.state, [
+        { from: 1, to: sourceBackslash[0]!.to },
+      ], { markdownSerializer: serializer })).toBe('我[xs](ds)');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('copies a single plain list item as visible text without markdown escape artifacts', async () => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -492,6 +590,12 @@ describe('serializeSelectedBlocksToText', () => {
       markdown: '4. A\n5. B\n6. C',
       indexes: [1, 2],
       expected: '5. B\n6. C',
+    },
+    {
+      name: 'leading ordered list items from zero start',
+      markdown: '0. A\n1. B\n2. C',
+      indexes: [0, 1],
+      expected: '0. A\n1. B',
     },
     {
       name: 'middle nested ordered list items',

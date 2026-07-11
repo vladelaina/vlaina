@@ -12,6 +12,7 @@ import {
 } from '@/lib/ai/authorizedExternalNoteMentions';
 import {
   buildMessageFileAttachmentContext,
+  buildMessageFileAttachmentMentionText,
   buildMessageImageSources,
   buildMentionedNotesContext,
   buildStoredUserMessageContent,
@@ -24,6 +25,7 @@ import {
   normalizeNoteMentions,
   refreshManagedBudgetIfNeeded,
 } from './helpers';
+import { buildSendMessageStorageContent } from './sendMessagePayloads';
 
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
 
@@ -264,6 +266,43 @@ describe('chat service helpers', () => {
       'Remember this.',
       '</attached_file>',
     ].join('\n'));
+  });
+
+  it('builds @ references for text files stored in user messages', () => {
+    const mentionText = buildMessageFileAttachmentMentionText([
+      createAttachment({
+        id: 'notes',
+        previewUrl: '',
+        assetUrl: 'file:///home/user/.vlaina/chat/attachments/Untitled%202.md',
+        name: 'Untitled 2.md',
+        type: 'text/markdown',
+        textContent: '# Notes',
+      }),
+      createAttachment(),
+    ]);
+
+    expect(mentionText).toBe('@Untitled 2.md');
+  });
+
+  it('stores attached text files like @ file references instead of inline file context', async () => {
+    const result = await buildSendMessageStorageContent({
+      requestAttachments: [
+        createAttachment({
+          id: 'notes',
+          previewUrl: '',
+          assetUrl: 'file:///home/user/.vlaina/chat/attachments/Untitled%202.md',
+          name: 'Untitled 2.md',
+          type: 'text/markdown',
+          textContent: '# Notes',
+        }),
+      ],
+      userMessageText: 'Summarize this',
+      mentionText: '',
+      noteMentions: [],
+    });
+
+    expect(result.storageContent).toBe('@Untitled 2.md\n\nSummarize this');
+    expect(result.storageContent).not.toContain('Attached files:');
   });
 
   it('loads persisted text file attachment content from trusted chat attachment paths', async () => {

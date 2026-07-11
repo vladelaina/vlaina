@@ -577,6 +577,8 @@
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ La mia testa ha bisogno di una pausa. Riprova tra poco oppure prova prima un altro modello~",
   "chat.error.network": "Errore di connessione di rete. Controlla la connessione e riprova.",
   "chat.error.customProviderConnectionFailed": "Impossibile raggiungere il canale personalizzato dopo i tentativi automatici. Controlla la rete o il servizio upstream e riprova.",
+  "chat.retryCountdown": "Nuovo tentativo tra {seconds} s - tentativo {attempt}",
+  "chat.retryTestButton": "Test retry",
   "chat.error.timeout": "La richiesta è scaduta. Riprova più tardi.",
   "chat.error.authExpired": "La sessione di accesso è scaduta. Accedi di nuovo e riprova.",
   "chat.error.authFailed": "Autenticazione non riuscita. Controlla la chiave API o accedi di nuovo.",

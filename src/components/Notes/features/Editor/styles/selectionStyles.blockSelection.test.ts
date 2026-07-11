@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   readStyleFile,
   readBlockSelectionStyle,
+  readThemeCompatibilityStyle,
   readThemeStyle,
   extractCssRule,
   extractSelectorListsContaining,
@@ -71,6 +72,33 @@ describe("editor block selection styles", () => {
     expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-large-textlike.editor-tag-token {');
     expect(tagRule).toContain('color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
     expect(tagRule).toContain('-webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
+  });
+
+  it('keeps links at their link color inside block selections', () => {
+    const css = readBlockSelectionStyle();
+    const themeCompatibilityCss = readThemeCompatibilityStyle();
+    const linkColor = 'var(--typora-link-color, var(--primary-color, var(--text-accent, var(--vlaina-accent))))';
+    const linkRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror :is(\n  .editor-block-selected,'
+    );
+    const linkExclusion = ':not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *)';
+
+    expect(linkRule).toContain('.editor-block-selected-textlike,');
+    expect(linkRule).toContain('.editor-block-drag-source-textlike,');
+    expect(linkRule).toContain('.editor-native-selected-textlike,');
+    expect(linkRule).toContain('.editor-block-selected-large-textlike');
+    expect(linkRule).toContain(') :is(a, .external-link, .internal-link),');
+    expect(linkRule).toContain(') :is(.editor-raw-markdown-link-text),');
+    expect(linkRule).toContain('):is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) {');
+    expect(linkRule).toContain(`color: ${linkColor} !important;`);
+    expect(linkRule).toContain(`-webkit-text-fill-color: ${linkColor} !important;`);
+    expect(css).toContain(linkExclusion);
+    expect(themeCompatibilityCss).toContain(linkExclusion);
+    expect(themeCompatibilityCss).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(");
+    expect(themeCompatibilityCss).toContain("):is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) {");
+    expect(themeCompatibilityCss).toContain(`color: ${linkColor} !important;`);
+    expect(themeCompatibilityCss).toContain(`-webkit-text-fill-color: ${linkColor} !important;`);
   });
 
   it('hides editable list gap placeholder text while keeping the caret visible', () => {
@@ -309,7 +337,7 @@ describe("editor block selection styles", () => {
     const blockSelectionCss = readBlockSelectionStyle();
     const editorBlankLineRule = extractCssRule(
       markdownCss,
-      ".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']"
+      ".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],"
     );
     const editableBlankLineRule = extractCssRule(
       markdownCss,
@@ -331,7 +359,8 @@ describe("editor block selection styles", () => {
     expect(trailingBreakBlankLineRule).toContain('padding: var(--vlaina-space-0);');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-native-selected-textlike {');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
-    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {");
+    expect(editorBlankLineRule).toContain("[data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']");
+    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],\n  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']\n).editor-block-selected {");
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike::after,');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);');
     expect(blockSelectionCss).toContain('top: var(--vlaina-block-selection-fill-top);');
@@ -495,7 +524,7 @@ describe("editor block selection styles", () => {
     expect(blockSelectionCss).not.toContain('.footnote-def,');
     expect(blockSelectionCss).toContain('.toc-block,');
     expect(blockSelectionCss).not.toContain('.callout,');
-    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected");
+    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],\n  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']\n).editor-block-selected");
     expect(markdownCss).not.toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode::before');
   });
 });

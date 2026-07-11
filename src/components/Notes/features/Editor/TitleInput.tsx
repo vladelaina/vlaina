@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, type CSSProperties } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { focusEditorToFirstLineEnd } from './utils/focusEditor';
@@ -39,6 +39,16 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
   const setNotesPreviewTitle = useUIStore(s => s.setNotesPreviewTitle);
   const addToast = useToastStore(s => s.addToast);
   const titleInputDataAttrs = { [NOTE_TITLE_INPUT_DATA_ATTR]: 'true' as const };
+  const titleInputStyle: CSSProperties = compact ? {
+    boxSizing: 'border-box',
+    fontSize: 'var(--vlaina-note-title-compact-font-size)',
+    lineHeight: 'var(--vlaina-note-title-compact-line-height)',
+    paddingBlock: 'var(--vlaina-note-title-padding-y)',
+  } : {
+    boxSizing: 'border-box',
+    fontSize: 'var(--vlaina-note-title-font-size)',
+    paddingBlock: 'var(--vlaina-note-title-padding-y)',
+  };
 
   const resizeTitleInput = useTitleInputAutoResize(inputRef, title);
 
@@ -245,11 +255,8 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
       onPointerDown={handleTitleInteraction}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[var(--vlaina-note-title-font-size)] font-bold leading-[var(--vlaina-leading-title)] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-[var(--vlaina-color-white)]"
-      style={compact ? {
-        fontSize: 'var(--vlaina-text-xl)',
-        lineHeight: 'var(--vlaina-size-28px)',
-      } : undefined}
+      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none font-bold leading-[var(--vlaina-leading-title)] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-[var(--vlaina-color-white)]"
+      style={titleInputStyle}
       placeholder={t('notes.untitled')}
     />
   );

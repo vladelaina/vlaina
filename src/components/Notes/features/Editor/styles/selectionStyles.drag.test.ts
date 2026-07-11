@@ -69,9 +69,9 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('background-color: transparent !important;');
     expect(css).toContain('box-shadow: none !important;');
     expect(dragSourceForegroundRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block):not(.milkdown-table-block),');
-    expect(dragSourceForegroundRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *),');
+    expect(dragSourceForegroundRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *),');
     expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike,');
-    expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *) {');
+    expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *) {');
     expect(css).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-next,');
     expect(css).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-previous,');
     expect(dragSourceMarkerRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror li.editor-block-selected-parent-marker::marker,');
@@ -116,6 +116,8 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected-inline-line::after,');
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-inline-line::after {');
     expect(css).toContain('display: none !important;');
+    expect(css).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
+    expect(css).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
     expect(css).toContain('background-color: transparent;');
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
@@ -160,7 +162,7 @@ describe("editor block drag interaction styles", () => {
   it('keeps markdown blank-line html blocks from intercepting floating toolbar clicks', () => {
     const css = readStyleFile('markdown.css');
 
-    expect(css).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'] {");
+    expect(css).toContain(".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],\n  [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']\n) {");
     expect(css).toContain('pointer-events: none;');
   });
 
@@ -234,8 +236,10 @@ describe("editor block drag interaction styles", () => {
     const markdownCss = readStyleFile('markdown.css');
     const themeCss = readThemeStyle();
 
-    expect(themeCss).toContain('--vlaina-editor-collapse-pos-heading: calc(0px - var(--vlaina-editor-collapse-gutter-base));');
-    expect(themeCss).toContain('--vlaina-editor-collapse-pos-list: calc(0px - var(--vlaina-editor-collapse-gutter-base) - var(--vlaina-editor-collapse-marker-gap));');
+    expect(themeCss).toContain('--vlaina-collapse-heading-text-gap: max(var(--vlaina-space-4px), 0.25em);');
+    expect(themeCss).toContain('--vlaina-editor-collapse-pos-heading: calc(0px - var(--vlaina-size-18px) - var(--vlaina-collapse-heading-text-gap));');
+    expect(themeCss).toContain('--vlaina-collapse-list-marker-reserve: max(var(--vlaina-space-28px), 0.75em);');
+    expect(themeCss).toContain('--vlaina-editor-collapse-pos-list: calc(0px - var(--vlaina-size-18px) - var(--vlaina-collapse-list-marker-reserve));');
     expect(themeCss).toContain('--vlaina-list-marker-extra: 0px;');
     expect(themeCss).not.toContain('--vlaina-editor-collapse-pos-list: calc(-1 *');
     expect(markdownCss).toContain('left: var(--vlaina-editor-collapse-pos-heading, -22px);');

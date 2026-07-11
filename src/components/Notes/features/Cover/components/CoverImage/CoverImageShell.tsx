@@ -1,5 +1,5 @@
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useI18n } from '@/lib/i18n';
 import { CoverPicker } from '../../../AssetLibrary';
 import { CoverRenderer } from './CoverRenderer';
 import type { CoverImageControllerModel } from './coverImage.types';
@@ -27,28 +27,81 @@ export function CoverImageShell({
   onResetHeight,
   rendererProps,
 }: CoverImageControllerModel) {
-  const { t } = useI18n();
   const shouldAnimateExistingCover = Boolean(url) && !displaySrc;
+  const hadCoverRef = useRef(Boolean(url));
+  const lastCoverFrameRef = useRef<{
+    displaySrc: string;
+    positionX: number;
+    positionY: number;
+    rendererProps: CoverImageControllerModel['rendererProps'];
+  } | null>(null);
+  const [collapsePending, setCollapsePending] = useState(false);
 
-  if (phase === 'idle' && !showPicker) {
+  if (url) {
+    hadCoverRef.current = true;
+    lastCoverFrameRef.current = { displaySrc, positionX, positionY, rendererProps };
+  }
+
+  const shouldStartCollapse = !url && hadCoverRef.current;
+  const shouldRenderCollapse = collapsePending || shouldStartCollapse;
+  const finishCollapse = useCallback(() => {
+    hadCoverRef.current = false;
+    lastCoverFrameRef.current = null;
+    setCollapsePending(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (url) {
+      if (collapsePending) setCollapsePending(false);
+      return;
+    }
+    if (!shouldStartCollapse) return;
+
+    setCollapsePending(true);
+    if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const frame = requestAnimationFrame(finishCollapse);
+    return () => cancelAnimationFrame(frame);
+  }, [collapsePending, finishCollapse, shouldStartCollapse, url]);
+
+  if (phase === 'idle' && !showPicker && !shouldRenderCollapse) {
     return null;
   }
 
   if (!url) {
+    const collapseFrame = shouldRenderCollapse ? lastCoverFrameRef.current : null;
     const shouldHoldCoverSpace = phase === 'previewing' || phase === 'committing' || Boolean(previewSrc);
     const shouldShowEmptyPlaceholder = shouldHoldCoverSpace && !previewSrc;
 
     return (
       <div
         className={cn(
-          'relative w-full shrink-0 animate-in fade-in-0 duration-[var(--vlaina-duration-150)] ease-out motion-reduce:animate-none',
-          shouldHoldCoverSpace && 'bg-[var(--vlaina-bg-secondary)] overflow-hidden'
+          'relative w-full shrink-0 animate-in fade-in-0 transition-[height] duration-[var(--vlaina-duration-200)] ease-out motion-reduce:animate-none motion-reduce:transition-none',
+          (shouldHoldCoverSpace || collapseFrame) && 'bg-[var(--vlaina-bg-secondary)] overflow-hidden'
         )}
+        ref={containerRef}
         data-note-cover-region="true"
-        style={shouldHoldCoverSpace ? { height: coverHeight, overflowAnchor: 'none' } : undefined}
+        style={{ height: shouldHoldCoverSpace ? coverHeight : 0, overflowAnchor: 'none' }}
+        onTransitionEnd={(event) => {
+          if (event.target === event.currentTarget && event.propertyName === 'height' && collapseFrame) {
+            finishCollapse();
+          }
+        }}
       >
-        {previewSrc ? (
-          <img src={previewSrc} alt={t('cover.previewAlt')} className="absolute inset-0 w-full h-full object-cover" />
+        {collapseFrame ? (
+          <CoverRenderer
+            {...collapseFrame.rendererProps}
+            displaySrc={collapseFrame.displaySrc}
+            positionX={collapseFrame.positionX}
+            positionY={collapseFrame.positionY}
+          />
+        ) : previewSrc ? (
+          <CoverRenderer
+            {...rendererProps}
+            displaySrc={displaySrc || previewSrc}
+            positionX={positionX}
+            positionY={positionY}
+          />
         ) : shouldShowEmptyPlaceholder ? (
           <div
             aria-hidden="true"
@@ -62,7 +115,7 @@ export function CoverImageShell({
           onPreview={onPreview}
           notesRootPath={notesRootPath}
           currentNotePath={currentNotePath}
-          anchorPlacement={shouldHoldCoverSpace ? 'cover' : 'empty-cover-option'}
+          anchorPlacement="empty-cover-option"
         />
       </div>
     );

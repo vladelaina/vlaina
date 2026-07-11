@@ -16,6 +16,35 @@ export async function uploadImageFile(
     return storeState.uploadAsset(file, storeState.currentNote?.path);
 }
 
+function isUploadTargetStillCurrent(
+    view: EditorView,
+    getStoreState: () => ImageUploadStoreState,
+    uploadNotePath: string | undefined,
+    originalDoc: EditorView['state']['doc'],
+    originalSelection: EditorView['state']['selection'],
+): boolean {
+    if (view.dom?.isConnected === false) {
+        return false;
+    }
+
+    const currentNotePath = getStoreState().currentNote?.path;
+    if (currentNotePath !== uploadNotePath) {
+        return false;
+    }
+
+    const currentDoc = view.state.doc as { eq?: (other: unknown) => boolean } | undefined;
+    if (typeof currentDoc?.eq === 'function' && !currentDoc.eq(originalDoc)) {
+        return false;
+    }
+
+    const currentSelection = view.state.selection as { eq?: (other: unknown) => boolean } | undefined;
+    if (typeof currentSelection?.eq === 'function' && !currentSelection.eq(originalSelection)) {
+        return false;
+    }
+
+    return true;
+}
+
 function isTransientMissingNotesRootUpload(result: UploadResult): boolean {
     return !result.success && result.error === 'Opened folder path is unavailable';
 }
@@ -32,12 +61,19 @@ export async function uploadImageFileAndInsert(
 
     try {
         const storeState = getStoreState();
+        const uploadNotePath = storeState.currentNote?.path;
+        const originalDoc = view.state.doc;
+        const originalSelection = view.state.selection;
         const result = await uploadImageFile(file, storeState);
         if (!result.success || !result.path) {
             if (isTransientMissingNotesRootUpload(result)) {
                 return false;
             }
             useToastStore.getState().addToast(translate('editor.imageUploadFailed'), 'error');
+            return false;
+        }
+
+        if (!isUploadTargetStillCurrent(view, getStoreState, uploadNotePath, originalDoc, originalSelection)) {
             return false;
         }
 

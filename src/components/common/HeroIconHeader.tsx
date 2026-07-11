@@ -112,7 +112,7 @@ export function HeroIconHeader({
       ref={headerRef}
       data-no-editor-drag-box="true"
       className={cn(
-        "relative transition-[margin-top] duration-[var(--vlaina-duration-75)] ease-out w-full",
+        "relative transition-[margin-top] duration-[var(--vlaina-duration-200)] ease-out w-full",
         !compact && "max-w-3xl mx-auto px-10",
         !compact && coverLayoutActive && "pointer-events-none",
         className
@@ -127,7 +127,7 @@ export function HeroIconHeader({
       <div className={cn(compact ? "flex items-center gap-3 py-2" : "pointer-events-none")}>
         <div
           className={cn(
-              "duration-[var(--vlaina-duration-150)] relative",
+              "duration-[var(--vlaina-duration-200)] relative",
               "transition-[padding,opacity]",
               !compact && "w-fit",
               !compact && "z-[var(--vlaina-z-30)]",
@@ -238,9 +238,16 @@ export function HeroIconHeader({
         </div>
 
         {compact && (
-          <div className="flex-1 min-w-0">
+          <div
+            className="flex-1 min-w-0"
+            data-vlaina-markdown-font-size-surface="true"
+            style={{ fontSize: 'var(--vlaina-markdown-font-size, var(--vlaina-size-17px))' }}
+          >
              {renderTitle ? renderTitle() : (
-                <div className="text-base font-bold text-[var(--vlaina-text-primary)] break-words">
+                <div
+                  className="font-bold text-[var(--vlaina-text-primary)] break-words"
+                  style={{ fontSize: 'var(--vlaina-note-title-compact-font-size)' }}
+                >
                     {title}
                 </div>
              )}
@@ -252,19 +259,36 @@ export function HeroIconHeader({
       {!compact && (
         <>
           {renderTitle && (
-              <div className="mb-4 pointer-events-auto">
+              <div
+                className="pointer-events-auto"
+                data-vlaina-markdown-font-size-surface="true"
+                style={{
+                  fontSize: 'var(--vlaina-markdown-font-size, var(--vlaina-size-17px))',
+                  marginBottom: 'var(--vlaina-note-title-margin-bottom)',
+                }}
+              >
                   {renderTitle()}
               </div>
           )}
           {title !== undefined && !renderTitle && (
               <div
-                className={cn(
-                  "mb-4 pointer-events-auto text-4xl font-bold text-[var(--vlaina-text-primary)] break-words outline-none placeholder:text-[var(--vlaina-text-tertiary)]",
-                  titleClassName
-                )}
-                data-hero-icon-title="true"
+                className="pointer-events-auto"
+                data-vlaina-markdown-font-size-surface="true"
+                style={{
+                  fontSize: 'var(--vlaina-markdown-font-size, var(--vlaina-size-17px))',
+                  marginBottom: 'var(--vlaina-note-title-margin-bottom)',
+                }}
               >
+                <div
+                  className={cn(
+                    "font-bold text-[var(--vlaina-text-primary)] break-words outline-none placeholder:text-[var(--vlaina-text-tertiary)]",
+                    titleClassName
+                  )}
+                  data-hero-icon-title="true"
+                  style={{ fontSize: 'var(--vlaina-note-title-font-size)' }}
+                >
                   {title}
+                </div>
               </div>
           )}
         </>

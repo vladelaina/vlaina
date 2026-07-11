@@ -17,6 +17,25 @@ function getSelectedCodeMirrorText(cm: CodeMirror): string {
     .join('\n');
 }
 
+function isCodeMirrorSelectionStillCurrent(
+  cm: CodeMirror,
+  originalDoc: CodeMirror['state']['doc'],
+  originalSelection: CodeMirror['state']['selection'],
+  originalText: string
+): boolean {
+  const currentDoc = cm.state.doc as { eq?: (other: unknown) => boolean } | undefined;
+  if (typeof currentDoc?.eq === 'function' && !currentDoc.eq(originalDoc)) {
+    return false;
+  }
+
+  const currentSelection = cm.state.selection as { eq?: (other: unknown) => boolean } | undefined;
+  if (typeof currentSelection?.eq === 'function') {
+    return currentSelection.eq(originalSelection);
+  }
+
+  return getSelectedCodeMirrorText(cm) === originalText;
+}
+
 function collapseCodeMirrorSelection(cm: CodeMirror) {
   const { main } = cm.state.selection;
   cm.dispatch({
@@ -75,8 +94,10 @@ export function copyCodeMirrorSelection(
   }
 
   event?.preventDefault();
+  const originalDoc = cm.state.doc;
+  const originalSelection = cm.state.selection;
   void writeTextToClipboard(text).then((didCopy) => {
-    if (!didCopy) {
+    if (!didCopy || !isCodeMirrorSelectionStillCurrent(cm, originalDoc, originalSelection, text)) {
       return;
     }
 
@@ -123,8 +144,10 @@ export function cutCodeMirrorSelection(
   }
 
   event?.preventDefault();
+  const originalDoc = cm.state.doc;
+  const originalSelection = cm.state.selection;
   void writeTextToClipboard(text).then((didCopy) => {
-    if (!didCopy) {
+    if (!didCopy || !isCodeMirrorSelectionStillCurrent(cm, originalDoc, originalSelection, text)) {
       return;
     }
 

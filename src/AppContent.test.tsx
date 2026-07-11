@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   listImportedMarkdownThemesFromDirectory: vi.fn(),
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
+  refreshManagedProviderInBackground: vi.fn(),
   settingsModuleImports: 0,
   temporaryChatToggleModuleImports: 0,
   fontSize: 17,
@@ -319,6 +320,9 @@ vi.mock('@/lib/appVersion', () => ({
 
 vi.mock('@/stores/useAIStore', () => ({
   startAIStoreRuntimeEffects: mocks.startAIStoreRuntimeEffects,
+  actions: {
+    refreshManagedProviderInBackground: mocks.refreshManagedProviderInBackground,
+  },
 }));
 
 vi.mock('@/lib/markdown/theme-compatibility/importedThemeStorage', () => ({
@@ -377,6 +381,16 @@ describe('AppContent view switching chrome readiness', () => {
     await waitFor(() => {
       expect(mocks.temporaryChatToggleModuleImports).toBeGreaterThanOrEqual(1);
     });
+  });
+
+  it('prewarms the managed model catalog after the initial notes view is ready', async () => {
+    render(<AppContent />);
+
+    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    await waitFor(() => {
+      expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledWith();
+    });
+    expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {
@@ -486,6 +500,10 @@ describe('AppContent view switching chrome readiness', () => {
 
   it('cycles imported markdown themes from the dev-only main overlay', async () => {
     render(<AppContent />);
+
+    fireEvent.click(await screen.findByRole('button', {
+      name: 'Expand development tools',
+    }));
 
     fireEvent.click(await screen.findByRole('button', {
       name: 'Switch Markdown theme (default)',

@@ -9,6 +9,7 @@ import {
 import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
 import {
   applyBlockMove,
+  canApplyBlockMove,
   getDraggableBlockRanges,
   getHandleBlockTargets,
   resolveBlockTargetByPos,
@@ -180,6 +181,8 @@ describe('BlockControlsViewSession', () => {
     useNotesStore.setState(useNotesStore.getInitialState(), true);
     clearCurrentEditorBlockPositionSnapshot();
     vi.mocked(applyBlockMove).mockClear();
+    vi.mocked(canApplyBlockMove).mockClear();
+    vi.mocked(canApplyBlockMove).mockReturnValue(true);
     vi.mocked(getDraggableBlockRanges).mockClear();
     vi.mocked(getDraggableBlockRanges).mockReturnValue([{ from: 1, to: 5 }]);
     vi.mocked(getHandleBlockTargets).mockClear();
@@ -552,6 +555,39 @@ describe('BlockControlsViewSession', () => {
       document
         .querySelector<HTMLElement>('.editor-block-control-handle')
         ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 120, buttons: 1, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { clientX: 40, clientY: 120, bubbles: true }));
+
+      expect(applyBlockMove).not.toHaveBeenCalled();
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('keeps the editor drop indicator visible over invalid local move targets', () => {
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+
+    vi.mocked(resolveDropTarget).mockReturnValue({
+      insertPos: 3,
+      lineLeft: 80,
+      lineY: 100,
+      lineWidth: 280,
+    });
+    vi.mocked(canApplyBlockMove).mockReturnValue(false);
+    document.elementsFromPoint = vi.fn(() => []);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+
+      const indicator = document.querySelector<HTMLElement>('.editor-block-drop-indicator');
+      expect(indicator?.classList.contains('visible')).toBe(true);
+      expect(indicator?.style.left).toBe('80px');
+      expect(indicator?.style.width).toBe('280px');
+      expect(session.pendingDrop).toBeNull();
+
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 120, buttons: 1, bubbles: true }));
       document.dispatchEvent(new MouseEvent('mouseup', { clientX: 40, clientY: 120, bubbles: true }));
 

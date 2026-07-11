@@ -5,6 +5,7 @@ import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import { EDITABLE_LIST_GAP_PLACEHOLDER } from '../task-list/listTabIndentPlugin';
 import { createTableNodeFromPipeCells } from '../table/pipeTableShortcut';
 import {
   appendMarkdownBlankLineNodeSelectionRecoveryTransaction,
@@ -19,6 +20,7 @@ import {
 } from './markdownBlankLineInteraction';
 
 const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
+const RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE = '<!--vlaina-rendered-html-boundary-blank-line-->';
 const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 
 async function createEditor(markdown: string) {
@@ -220,6 +222,20 @@ function createOrderedList(view: EditorView): ProseNode | null {
   return orderedListType.create(null, [
     listItemType.create(null, [
       paragraphType.create(null, schema.text('Ordered item')),
+    ]),
+  ]);
+}
+
+function createOrderedListGap(view: EditorView): ProseNode {
+  const { schema } = view.state;
+  const { ordered_list: orderedListType, list_item: listItemType, paragraph: paragraphType } = schema.nodes;
+  if (!orderedListType || !listItemType || !paragraphType) {
+    throw new Error('Expected ordered list schema nodes');
+  }
+
+  return orderedListType.create(null, [
+    listItemType.create({ label: '1.', listType: 'ordered' }, [
+      paragraphType.create(null, schema.text(EDITABLE_LIST_GAP_PLACEHOLDER)),
     ]),
   ]);
 }
@@ -528,6 +544,61 @@ describe('markdownBlankLineInteraction', () => {
     expect(accessedChildren).toEqual([0, 1]);
   });
 
+  it('resolves rendered HTML boundary blank line placeholder node positions', () => {
+    const blankLine = document.createElement('div');
+    const node = {
+      attrs: { value: RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE },
+      nodeSize: 1,
+      type: { name: 'html_block' },
+    };
+    const view = {
+      nodeDOM: vi.fn(() => blankLine),
+      posAtDOM: vi.fn(() => 2),
+      state: {
+        doc: {
+          nodeAt: vi.fn(() => node),
+        },
+      },
+    };
+
+    expect(resolveMarkdownBlankLineNodePos(view as any, blankLine)).toBe(2);
+  });
+
+  it('resolves rendered HTML boundary blank line placeholder positions during fallback scans', () => {
+    const blankLine = document.createElement('div');
+    const otherBlankLine = document.createElement('div');
+    const nodes = [
+      {
+        attrs: {},
+        nodeSize: 2,
+        type: { name: 'paragraph' },
+      },
+      {
+        attrs: { value: RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE },
+        nodeSize: 1,
+        type: { name: 'html_block' },
+      },
+    ];
+    const doc = {
+      child(index: number) {
+        return nodes[index];
+      },
+      childCount: nodes.length,
+      nodeAt: vi.fn(),
+    };
+    const view = {
+      nodeDOM(pos: number) {
+        return pos === 2 ? blankLine : otherBlankLine;
+      },
+      posAtDOM: vi.fn(() => {
+        throw new Error('Force fallback scan');
+      }),
+      state: { doc },
+    };
+
+    expect(resolveMarkdownBlankLineNodePos(view as any, blankLine)).toBe(2);
+  });
+
   it('caps fallback blank line node position scans by node count', () => {
     const blankLine = document.createElement('div');
     let accessed = 0;
@@ -611,6 +682,135 @@ describe('markdownBlankLineInteraction', () => {
       expect(view.state.doc.child(0).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
       expect(view.state.doc.child(1).textContent).toBe('Beta');
     } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('moves focus to the note title after deleting the top editable blank line', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+    const titleInput = document.createElement('textarea');
+    titleInput.setAttribute('data-note-title-input', 'true');
+    titleInput.value = 'Title';
+    document.body.append(titleInput);
+
+    try {
+      const { schema } = view.state;
+      replaceDocument(view, [
+        createEditableBlankLineParagraph(view),
+        schema.nodes.paragraph.create(null, schema.text('Body')),
+      ]);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(
+        view.state.doc,
+        1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length,
+      )));
+
+      const event = createDeleteEvent('Backspace');
+      const handled = handleMarkdownBlankLineDeletion(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(titleInput);
+      expect(titleInput.selectionStart).toBe(titleInput.value.length);
+      expect(titleInput.selectionEnd).toBe(titleInput.value.length);
+      expect(view.state.doc.childCount).toBe(1);
+      expect(view.state.doc.child(0).textContent).toBe('Body');
+    } finally {
+      titleInput.remove();
+      await editor.destroy();
+    }
+  });
+
+  it('moves focus to the note title after Backspace deletes a top persisted blank line', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+    const titleInput = document.createElement('textarea');
+    titleInput.setAttribute('data-note-title-input', 'true');
+    titleInput.value = 'Title';
+    document.body.append(titleInput);
+
+    try {
+      const { schema } = view.state;
+      replaceDocument(view, [
+        createMarkdownBlankLine(view),
+        schema.nodes.paragraph.create(null, schema.text('Body')),
+      ]);
+      const bodyPos = topLevelNodePos(view, (node) => node.type.name === 'paragraph' && node.textContent === 'Body');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, bodyPos + 1)));
+
+      const event = createDeleteEvent('Backspace');
+      const handled = handleMarkdownBlankLineDeletion(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(titleInput);
+      expect(titleInput.selectionStart).toBe(titleInput.value.length);
+      expect(titleInput.selectionEnd).toBe(titleInput.value.length);
+      expect(view.state.doc.childCount).toBe(1);
+      expect(view.state.doc.child(0).textContent).toBe('Body');
+    } finally {
+      titleInput.remove();
+      await editor.destroy();
+    }
+  });
+
+  it('moves focus to the note title from a top ordered list gap', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+    const titleInput = document.createElement('textarea');
+    titleInput.setAttribute('data-note-title-input', 'true');
+    titleInput.value = 'Title';
+    document.body.append(titleInput);
+
+    try {
+      replaceDocument(view, [createOrderedListGap(view)]);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 3)));
+
+      const event = createDeleteEvent('Backspace');
+      const handled = handleMarkdownBlankLineDeletion(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(titleInput);
+      expect(titleInput.selectionStart).toBe(titleInput.value.length);
+      expect(titleInput.selectionEnd).toBe(titleInput.value.length);
+      expect(view.state.doc.childCount).toBe(1);
+      expect(view.state.doc.child(0).type.name).toBe('paragraph');
+      expect(view.state.doc.child(0).content.size).toBe(0);
+    } finally {
+      titleInput.remove();
+      await editor.destroy();
+    }
+  });
+
+  it('moves focus to the note title after deleting a top list gap paragraph', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+    const titleInput = document.createElement('textarea');
+    titleInput.setAttribute('data-note-title-input', 'true');
+    titleInput.value = 'Title';
+    document.body.append(titleInput);
+
+    try {
+      const { schema } = view.state;
+      replaceDocument(view, [
+        schema.nodes.paragraph.create(null, schema.text(EDITABLE_LIST_GAP_PLACEHOLDER)),
+        createOrderedListGap(view),
+      ]);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)));
+
+      const event = createDeleteEvent('Backspace');
+      const handled = handleMarkdownBlankLineDeletion(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(titleInput);
+      expect(titleInput.selectionStart).toBe(titleInput.value.length);
+      expect(titleInput.selectionEnd).toBe(titleInput.value.length);
+      expect(view.state.doc.childCount).toBe(1);
+      expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    } finally {
+      titleInput.remove();
       await editor.destroy();
     }
   });

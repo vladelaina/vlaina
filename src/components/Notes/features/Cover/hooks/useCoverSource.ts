@@ -11,7 +11,7 @@ import { logNotesSplitDiagnostic } from '@/lib/diagnostics/notesSplitDiagnostics
 
 const COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX = 1280;
 
-function getCoverResolveOptions({
+export function getCoverResolveOptions({
     url,
     notesRootPath,
     currentNotePath,

@@ -18,13 +18,14 @@ import {
 const LIST_CHILD_INDENT_PX = 24;
 const LIST_MARKER_OFFSET_PX = 24;
 const MIN_DROP_LINE_WIDTH = 24;
-const DROP_LINE_BLEED_X = 10;
 const DEFAULT_CONTROLS_HEIGHT_PX = 24;
+const DEFAULT_CONTROLS_WIDTH_PX = 24;
 const BLOCK_CONTROL_BUTTON_SIZE_PX = 24;
 const COLLAPSE_GUTTER_BASE_PX = 22;
 const COLLAPSE_MARKER_GAP_PX = 24;
 export const BLOCK_CONTROLS_DRAG_SURFACE_PAD_X_PX = 4;
 export const BLOCK_CONTROLS_COLLAPSE_GAP_PX = 10;
+const BLOCK_CONTROLS_COLLAPSE_ROUNDING_PAD_PX = 1;
 
 const HEADING_COLLAPSE_CLEAR_OFFSET_PX = COLLAPSE_GUTTER_BASE_PX + BLOCK_CONTROL_BUTTON_SIZE_PX;
 const LIST_COLLAPSE_CLEAR_OFFSET_PX = COLLAPSE_GUTTER_BASE_PX + COLLAPSE_MARKER_GAP_PX;
@@ -33,6 +34,17 @@ export const BLOCK_CONTROLS_LEFT_OFFSET_PX = Math.max(
   HEADING_COLLAPSE_CLEAR_OFFSET_PX,
   LIST_COLLAPSE_CLEAR_OFFSET_PX,
 ) + BLOCK_CONTROLS_DRAG_SURFACE_PAD_X_PX + BLOCK_CONTROLS_COLLAPSE_GAP_PX;
+
+function findDirectCollapseToggle(element?: HTMLElement): HTMLElement | null {
+  if (!element) return null;
+  if (/^H[1-6]$/.test(element.tagName)) {
+    return element.querySelector<HTMLElement>(':scope > .heading-toggle-btn[data-has-content="true"]');
+  }
+  if (element.tagName === 'LI') {
+    return element.querySelector<HTMLElement>(':scope > .editor-collapse-btn[data-has-content="true"]');
+  }
+  return null;
+}
 
 function resolveListContentLeft(item: HTMLElement, fallbackLeft: number): number {
   const firstBlock = item.firstElementChild as HTMLElement | null;
@@ -82,8 +94,21 @@ export function setControlsPosition(
 ): void {
   const horizontalTarget = options.horizontalAnchor ?? target;
   const listMarkerOffset = horizontalTarget.isListItem ? LIST_MARKER_OFFSET_PX : 0;
-  const left = Math.max(8, horizontalTarget.rect.left - controlsLeftOffset - listMarkerOffset);
-  const controlsHeight = controls.getBoundingClientRect().height || DEFAULT_CONTROLS_HEIGHT_PX;
+  const controlsRect = controls.getBoundingClientRect();
+  const controlsWidth = controlsRect.width || DEFAULT_CONTROLS_WIDTH_PX;
+  const controlsHeight = controlsRect.height || DEFAULT_CONTROLS_HEIGHT_PX;
+  let left = horizontalTarget.rect.left - controlsLeftOffset - listMarkerOffset;
+  const collapseToggle = findDirectCollapseToggle(horizontalTarget.element);
+  if (collapseToggle) {
+    const collapseRect = collapseToggle.getBoundingClientRect();
+    if (collapseRect.width > 0 && collapseRect.height > 0) {
+      left = Math.min(
+        left,
+        collapseRect.left - BLOCK_CONTROLS_COLLAPSE_GAP_PX - BLOCK_CONTROLS_COLLAPSE_ROUNDING_PAD_PX - controlsWidth,
+      );
+    }
+  }
+  left = Math.max(8, left);
   const top = target.rect.top + target.rect.height / 2 - controlsHeight / 2;
   controls.style.left = `${Math.round(left)}px`;
   controls.style.top = `${Math.round(top)}px`;
@@ -156,8 +181,8 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
 
   const rect = target.rect;
   const insertBefore = clientY < rect.top + rect.height / 2;
-  const lineLeft = Math.max(editorRect.left, rect.left - DROP_LINE_BLEED_X);
-  const lineRight = Math.min(editorRect.right, rect.right + DROP_LINE_BLEED_X);
+  const lineLeft = editorRect.left;
+  const lineRight = editorRect.right;
 
   if (!insertBefore && target.element.tagName === 'LI') {
     const contentLeft = resolveListContentLeft(target.element, rect.left);

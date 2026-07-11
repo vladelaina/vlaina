@@ -2,6 +2,7 @@ import { memo } from 'react';
 import type { FileTreeNode } from '@/stores/useNotesStore';
 import { FileItem } from './FileItem';
 import { FolderItem } from './FolderItem';
+import { ImageFileItem } from './ImageFileItem';
 
 interface FileTreeItemProps {
   node: FileTreeNode;
@@ -18,6 +19,10 @@ export const FileTreeItem = memo(function FileTreeItem({
 }: FileTreeItemProps) {
   if (node.isFolder) {
     return <FolderItem node={node} depth={depth} renderChildren={renderChildren} />;
+  }
+
+  if (node.kind === 'image') {
+    return <ImageFileItem node={node} depth={depth} parentFolderPath={parentFolderPath} />;
   }
 
   return <FileItem node={node} depth={depth} parentFolderPath={parentFolderPath} />;

@@ -8,6 +8,7 @@ import {
 } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import { isDraftNotePath } from '../draftNote';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import {
   createEmptyMetadataFile,
   mergeNoteMetadataWithFileInfo,
@@ -174,6 +175,7 @@ export function createFeatureMetadataActions({
     path: string,
     updates: Partial<NoteMetadataEntry>
   ) => {
+    flushCurrentPendingEditorMarkdown();
     const state = get();
     const notesRootPathAtStart = state.notesPath;
     const isDraftMetadataTarget = isDraftNotePath(path);

@@ -14,11 +14,13 @@ type CollapseTogglePositionSample = {
   toggleLeft: number;
   toggleRight: number;
   textLeft: number;
+  itemLeft: number;
   guardLeft: number;
   isTask: boolean;
   collapsed: boolean;
   computedLeft: string;
   computedPosition: string;
+  fontSize: number;
   headingPosVar?: string;
   listPosVar: string;
   parentTag: string;
@@ -128,6 +130,8 @@ async function collectCollapseTogglePositionSamples(page: Page): Promise<Collaps
 
         const toggleRect = toggle.getBoundingClientRect();
         const toggleStyle = window.getComputedStyle(toggle);
+        const blockStyle = window.getComputedStyle(heading);
+        const headingRect = heading.getBoundingClientRect();
         const textLeft = findFirstTextLeftInBrowser(heading);
         return {
           kind: 'heading' as const,
@@ -135,11 +139,13 @@ async function collectCollapseTogglePositionSamples(page: Page): Promise<Collaps
           toggleLeft: toggleRect.left,
           toggleRight: toggleRect.right,
           textLeft,
+          itemLeft: headingRect.left,
           guardLeft: textLeft,
           isTask: false,
           collapsed: toggle.dataset.collapsed === 'true',
           computedLeft: toggleStyle.left,
           computedPosition: toggleStyle.position,
+          fontSize: Number.parseFloat(blockStyle.fontSize || '0') || 0,
           headingPosVar: toggleStyle.getPropertyValue('--vlaina-editor-collapse-pos-heading').trim(),
           listPosVar: toggleStyle.getPropertyValue('--vlaina-editor-collapse-pos-list').trim(),
           parentTag: toggle.parentElement?.tagName ?? '',
@@ -156,6 +162,8 @@ async function collectCollapseTogglePositionSamples(page: Page): Promise<Collaps
 
         const toggleRect = toggle.getBoundingClientRect();
         const toggleStyle = window.getComputedStyle(toggle);
+        const blockStyle = window.getComputedStyle(textBlock);
+        const itemRect = item.getBoundingClientRect();
         const textLeft = findFirstTextLeftInBrowser(textBlock);
         const guardLeft = resolveGuardLeft(item, textLeft);
         return {
@@ -164,11 +172,13 @@ async function collectCollapseTogglePositionSamples(page: Page): Promise<Collaps
           toggleLeft: toggleRect.left,
           toggleRight: toggleRect.right,
           textLeft,
+          itemLeft: itemRect.left,
           guardLeft,
           isTask: item.dataset.itemType === 'task',
           collapsed: toggle.dataset.collapsed === 'true',
           computedLeft: toggleStyle.left,
           computedPosition: toggleStyle.position,
+          fontSize: Number.parseFloat(blockStyle.fontSize || '0') || 0,
           headingPosVar: toggleStyle.getPropertyValue('--vlaina-editor-collapse-pos-heading').trim(),
           listPosVar: toggleStyle.getPropertyValue('--vlaina-editor-collapse-pos-list').trim(),
           parentTag: toggle.parentElement?.tagName ?? '',
@@ -187,6 +197,30 @@ async function expectCollapseTogglesBeforeText(page: Page): Promise<void> {
   expect(samples.filter((sample) => sample.kind === 'list').length).toBeGreaterThanOrEqual(8);
 
   const violations = samples.filter((sample) => sample.toggleRight > sample.guardLeft - 4);
+  expect(violations, JSON.stringify(samples, null, 2)).toEqual([]);
+}
+
+async function expectHeadingCollapseTogglesKeepLargeFontGap(page: Page): Promise<void> {
+  const samples = (await collectCollapseTogglePositionSamples(page))
+    .filter((sample) => sample.kind === 'heading');
+  expect(samples.length).toBeGreaterThanOrEqual(6);
+
+  const violations = samples.filter((sample) => {
+    const requiredTextGap = Math.max(4, sample.fontSize * 0.2);
+    return sample.textLeft - sample.toggleRight < requiredTextGap;
+  });
+  expect(violations, JSON.stringify(samples, null, 2)).toEqual([]);
+}
+
+async function expectListCollapseTogglesKeepLargeFontGap(page: Page): Promise<void> {
+  const samples = (await collectCollapseTogglePositionSamples(page))
+    .filter((sample) => sample.kind === 'list');
+  expect(samples.length).toBeGreaterThanOrEqual(8);
+
+  const violations = samples.filter((sample) => {
+    const requiredMarkerReserve = Math.max(28, sample.fontSize * 0.7);
+    return sample.itemLeft - sample.toggleRight < requiredMarkerReserve;
+  });
   expect(violations, JSON.stringify(samples, null, 2)).toEqual([]);
 }
 
@@ -217,6 +251,20 @@ test.describe('notes collapse controls', () => {
       if (!themeInstall.skipped) {
         await expectCollapseTogglesBeforeText(page);
       }
+
+      await page.evaluate(() => (window as any).__vlainaE2E.setUIPreferences({ fontSize: 120 }));
+      await expect.poll(async () =>
+        page.evaluate(() => {
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          return editor ? Number.parseFloat(window.getComputedStyle(editor).fontSize || '0') : 0;
+        })
+      ).toBeGreaterThan(100);
+      await expectHeadingCollapseTogglesKeepLargeFontGap(page);
+      await expectListCollapseTogglesKeepLargeFontGap(page);
+      await page.locator(`${EDITOR_SELECTOR} .heading-toggle-btn[data-has-content="true"]`).first().click();
+      await expect(page.locator(`${EDITOR_SELECTOR} .heading-toggle-btn[data-collapsed="true"]`)).toHaveCount(1);
+      await page.locator(`${EDITOR_SELECTOR} .editor-collapse-btn[data-has-content="true"]`).first().click();
+      await expect(page.locator(`${EDITOR_SELECTOR} .editor-collapse-btn[data-collapsed="true"]`)).toHaveCount(0);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

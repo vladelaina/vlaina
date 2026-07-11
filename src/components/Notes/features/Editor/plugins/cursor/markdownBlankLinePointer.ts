@@ -9,9 +9,9 @@ import {
 } from '../shared/boundedProseNodeScan';
 import {
   EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+  isEditableBlankLinePlaceholderNode,
   MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY,
   MARKDOWN_BLANK_LINE_SELECTOR,
-  MARKDOWN_BLANK_LINE_VALUE,
 } from './markdownBlankLineShared';
 
 export const MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
@@ -123,8 +123,7 @@ export function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTM
     const directPos = view.posAtDOM(blankLine, 0);
     const directNode = view.state.doc.nodeAt(directPos);
     if (
-      directNode?.type.name === 'html_block' &&
-      directNode.attrs.value === MARKDOWN_BLANK_LINE_VALUE &&
+      isEditableBlankLinePlaceholderNode(directNode) &&
       view.nodeDOM(directPos) === blankLine
     ) {
       return directPos;
@@ -134,7 +133,7 @@ export function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTM
 
   let found: number | null = null;
   scanProseDescendants(view.state.doc, (node, pos) => {
-    if (node.type?.name !== 'html_block' || node.attrs?.value !== MARKDOWN_BLANK_LINE_VALUE) return true;
+    if (!isEditableBlankLinePlaceholderNode(node)) return true;
     if (view.nodeDOM(pos) === blankLine) {
       found = pos;
       return STOP_PROSE_SCAN;

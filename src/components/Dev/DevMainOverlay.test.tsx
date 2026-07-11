@@ -14,6 +14,11 @@ const mocks = vi.hoisted(() => ({
   setMarkdownImportedThemeId: vi.fn(),
   listImportedMarkdownThemesFromDirectory: vi.fn(),
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
+  writeTextToClipboard: vi.fn(),
+  getDiagnosticsLogText: vi.fn(),
+  getDiagnosticsEntryCount: vi.fn(),
+  clearDiagnosticsLog: vi.fn(),
+  subscribeDiagnostics: vi.fn(),
 }));
 
 vi.mock('@/components/ui/tooltip', () => ({
@@ -93,6 +98,17 @@ vi.mock('@/lib/markdown/theme-compatibility/importedThemeStorage', () => ({
     mocks.syncImportedMarkdownThemesFromDirectory(...args),
 }));
 
+vi.mock('@/lib/clipboard', () => ({
+  writeTextToClipboard: (...args: unknown[]) => mocks.writeTextToClipboard(...args),
+}));
+
+vi.mock('@/lib/diagnostics/diagnosticsLog', () => ({
+  clearDiagnosticsLog: (...args: unknown[]) => mocks.clearDiagnosticsLog(...args),
+  getDiagnosticsEntryCount: () => mocks.getDiagnosticsEntryCount(),
+  getDiagnosticsLogText: () => mocks.getDiagnosticsLogText(),
+  subscribeDiagnostics: (...args: unknown[]) => mocks.subscribeDiagnostics(...args),
+}));
+
 const themes = [
   {
     id: 'clean-light',
@@ -112,12 +128,20 @@ const themes = [
   },
 ];
 
+function expandDevelopmentTools() {
+  fireEvent.click(screen.getByRole('button', { name: 'Expand development tools' }));
+}
+
 describe('DevMainOverlay', () => {
   beforeEach(() => {
     mocks.appViewMode = 'notes';
     mocks.devPlatformPreview = 'system';
     mocks.colorMode = 'system';
     mocks.importedMarkdownThemeId = null;
+    mocks.writeTextToClipboard.mockResolvedValue(true);
+    mocks.getDiagnosticsLogText.mockReturnValue('diagnostics-log');
+    mocks.getDiagnosticsEntryCount.mockReturnValue(2);
+    mocks.subscribeDiagnostics.mockReturnValue(() => undefined);
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue(themes);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
       directoryPath: '/app/.vlaina/app/themes',
@@ -134,6 +158,7 @@ describe('DevMainOverlay', () => {
 
   it('cycles from the default markdown theme to the first imported theme', async () => {
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
 
     fireEvent.click(screen.getByRole('button', {
       name: 'Switch Markdown theme (default)',
@@ -148,6 +173,7 @@ describe('DevMainOverlay', () => {
   it('cycles imported markdown themes and returns to the default theme', async () => {
     mocks.importedMarkdownThemeId = 'clean-light';
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
 
     fireEvent.click(screen.getByRole('button', {
       name: 'Switch Markdown theme (clean-light)',
@@ -161,6 +187,7 @@ describe('DevMainOverlay', () => {
     mocks.setMarkdownImportedThemeId.mockClear();
     mocks.importedMarkdownThemeId = 'minimal';
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
 
     fireEvent.click(screen.getByRole('button', {
       name: 'Switch Markdown theme (minimal)',
@@ -175,6 +202,7 @@ describe('DevMainOverlay', () => {
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([]);
 
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
     fireEvent.click(screen.getByRole('button', {
       name: 'Switch Markdown theme (default)',
     }));
@@ -185,9 +213,67 @@ describe('DevMainOverlay', () => {
     });
   });
 
+  it('collapses the dev action column behind one expand button', () => {
+    render(<DevMainOverlay effectiveAppViewMode="notes" />);
+
+    expect(screen.getByRole('button', { name: 'Expand development tools' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Preview error screen' })).not.toBeInTheDocument();
+
+    expandDevelopmentTools();
+
+    expect(screen.getByRole('button', { name: 'Collapse development tools' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Preview error screen' })).toBeInTheDocument();
+  });
+
+  it('puts copy logs above the simulated update download action', async () => {
+    render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
+
+    const copyLogsButton = screen.getByRole('button', { name: 'Copy logs' });
+    expect(screen.getByLabelText('2 diagnostics entries')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear logs' })).toBeInTheDocument();
+    const downloadButton = screen.getByRole('button', { name: 'Simulate update available' });
+    expect(Boolean(copyLogsButton.compareDocumentPosition(downloadButton) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+
+    fireEvent.click(copyLogsButton);
+
+    await waitFor(() => {
+      expect(mocks.writeTextToClipboard).toHaveBeenCalledWith('diagnostics-log');
+    });
+  });
+
+  it('clears logs from the expanded diagnostics pill', () => {
+    render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear logs' }));
+
+    expect(mocks.clearDiagnosticsLog).toHaveBeenCalledTimes(1);
+  });
+
+  it('puts the retry test first and toggles it for chat requests', () => {
+    render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
+
+    const retryButton = screen.getByRole('button', { name: 'Test retry' });
+    const copyLogsButton = screen.getByRole('button', { name: 'Copy logs' });
+    expect(Boolean(retryButton.compareDocumentPosition(copyLogsButton) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+
+    fireEvent.click(retryButton);
+
+    expect(window.localStorage.getItem('vlaina_dev_retry_simulation')).toBe('true');
+    const enabledButton = screen.getByRole('button', { name: 'Test retry enabled' });
+
+    fireEvent.click(enabledButton);
+
+    expect(window.localStorage.getItem('vlaina_dev_retry_simulation')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Test retry' })).toBeInTheDocument();
+  });
+
   it('keeps the existing dev color mode and Lab shortcuts working', () => {
     mocks.colorMode = 'dark';
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
 
     expect(screen.getByRole('button', { name: 'Preview error screen' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Switch to light mode' }));
@@ -199,6 +285,7 @@ describe('DevMainOverlay', () => {
 
   it('toggles the macOS titlebar platform preview', () => {
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
 
     fireEvent.click(screen.getByRole('button', { name: 'Preview macOS titlebar' }));
 
@@ -207,6 +294,7 @@ describe('DevMainOverlay', () => {
 
   it('toggles the simulated desktop update cache', () => {
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
+    expandDevelopmentTools();
 
     fireEvent.click(screen.getByRole('button', { name: 'Simulate update available' }));
 
@@ -223,6 +311,7 @@ describe('DevMainOverlay', () => {
 
   it('hides the Lab shortcut while already in the Lab view', () => {
     render(<DevMainOverlay effectiveAppViewMode="lab" />);
+    expandDevelopmentTools();
 
     expect(screen.queryByRole('button', { name: 'Open Design Lab' })).not.toBeInTheDocument();
   });

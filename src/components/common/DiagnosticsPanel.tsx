@@ -43,7 +43,7 @@ export function DiagnosticsPanel() {
     <div
       data-diagnostics-panel="true"
       className={cn(
-        'pointer-events-none fixed bottom-4 right-4 z-[var(--vlaina-z-max)] flex max-w-[calc(100vw_-_var(--vlaina-size-32px))] items-center gap-1.5 rounded-full border border-[var(--vlaina-color-subtle-border)] bg-[var(--vlaina-color-setting-panel)] px-2 py-1.5 text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-lg)]',
+        'pointer-events-none fixed right-[var(--vlaina-size-16px)] top-[var(--vlaina-size-56px)] z-[var(--vlaina-z-max)] flex max-w-[calc(100vw_-_var(--vlaina-size-32px))] items-center gap-1.5 rounded-full border border-[var(--vlaina-color-subtle-border)] bg-[var(--vlaina-color-setting-panel)] px-2 py-1.5 text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-lg)]',
       )}
     >
       <span

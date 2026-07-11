@@ -14,6 +14,7 @@ import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
 import { convertToBase64, deleteAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 import { ACCOUNT_LOGIN_REQUESTED_EVENT } from '@/lib/account/sessionEvent';
+import { useUIStore } from '@/stores/uiSlice';
 
 const TEMPORARY_IMAGE_DATA_URL = 'data:image/png;base64,VEVNUE9SQVJZ';
 
@@ -260,6 +261,7 @@ describe('useChatService session context isolation', () => {
     mocked.managedAIState.refreshBudget.mockClear();
     mocked.convertToBase64.mockResolvedValue(TEMPORARY_IMAGE_DATA_URL);
     mocked.deleteAttachment.mockResolvedValue(undefined);
+    useUIStore.setState({ languagePreference: 'en' });
     useNotesStore.setState({ notesPath: '/notesRoot', starredEntries: [] });
     seedChatState();
   });
@@ -283,6 +285,91 @@ describe('useChatService session context isolation', () => {
       'session two visible answer',
     ]);
     expect(JSON.stringify(request?.history)).not.toContain('session one private');
+  });
+
+  it('shows retry countdown status on the pending assistant message', async () => {
+    let resolveProvider!: (value: string) => void;
+    const pendingProviderResponse = new Promise<string>((resolve) => {
+      resolveProvider = resolve;
+    });
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async ({
+      options,
+    }: {
+      onChunk: (chunk: string) => void;
+      options?: ChatSendOptions;
+    }) => {
+      options?.onRetryStatus?.('Service unavailable\n10秒后重试 - 第1次重试');
+      return await pendingProviderResponse;
+    });
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      const accepted = await result.current.sendMessage('retry after upstream failure', [], []);
+      expect(accepted).toBe(true);
+    });
+
+    await waitFor(() => {
+      const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+      expect(messages.at(-1)?.content).toBe('Service unavailable\n10秒后重试 - 第1次重试');
+    });
+
+    resolveProvider('assistant answer');
+    await waitFor(() => {
+      const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+      expect(messages.at(-1)?.content).toBe('assistant answer');
+    });
+  });
+
+  it('recalls the composer text when stopped during retry status', async () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    let resolveProvider!: (value: string) => void;
+    const pendingProviderResponse = new Promise<string>((resolve) => {
+      resolveProvider = resolve;
+    });
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async ({
+      options,
+    }: {
+      onChunk: (chunk: string) => void;
+      options?: ChatSendOptions;
+    }) => {
+      options?.onRetryStatus?.('Service unavailable\n10秒后重试 - 第1次重试');
+      return await pendingProviderResponse;
+    });
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('retrying prompt', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+      expect(messages.map((message) => message.content)).toEqual([
+        'session two visible prompt',
+        'session two visible answer',
+        'retrying prompt',
+        'Service unavailable\n10秒后重试 - 第1次重试',
+      ]);
+    });
+
+    let recalled: ReturnType<typeof result.current.stopAndRecallLastUserMessage> = null;
+    act(() => {
+      recalled = result.current.stopAndRecallLastUserMessage('retrying prompt');
+    });
+
+    expect(recalled).toEqual({
+      message: 'retrying prompt',
+      attachments: [],
+      noteMentions: [],
+    });
+    expect((useUnifiedStore.getState().data.ai?.messages['session-2'] || []).map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+
+    await act(async () => {
+      resolveProvider('late answer');
+      await pendingProviderResponse;
+    });
   });
 
   it('limits programmatic send text before storing and requesting', async () => {

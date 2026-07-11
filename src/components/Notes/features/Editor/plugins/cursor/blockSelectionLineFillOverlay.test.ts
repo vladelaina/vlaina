@@ -12,6 +12,7 @@ import {
   MAX_BLOCK_SELECTION_LINE_FILL_DOM_RECTS,
   MAX_BLOCK_SELECTION_LINE_FILL_RANGES,
 } from './blockSelectionLineFillOverlay';
+import { resolveLineFillEdges } from './blockSelectionLineFillMetrics';
 import { LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD } from './blockSelectionUtils';
 
 async function createEditor(markdown: string) {
@@ -180,6 +181,22 @@ describe('blockSelectionLineFillOverlay', () => {
     } finally {
       await editor.destroy();
     }
+  });
+
+  it('uses selected line fill inset variables for adjacent hard-break rows', () => {
+    const paragraph = document.createElement('p');
+    const selectedLine = document.createElement('span');
+    selectedLine.className = 'editor-block-selected editor-block-selected-inline-line';
+    selectedLine.style.setProperty('--vlaina-block-selection-bleed-y', '2px');
+    selectedLine.style.setProperty('--vlaina-block-selection-fill-top', '3px');
+    selectedLine.style.setProperty('--vlaina-block-selection-fill-bottom', '4px');
+    paragraph.appendChild(selectedLine);
+    document.body.appendChild(paragraph);
+
+    expect(resolveLineFillEdges(paragraph)).toEqual({
+      top: 3,
+      bottom: 4,
+    });
   });
 
   it('collects disjoint selected hard-break paragraphs', async () => {

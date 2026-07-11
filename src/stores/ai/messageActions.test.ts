@@ -11,6 +11,7 @@ import {
   scheduleSessionJsonSave,
 } from '@/lib/storage/chatStorage';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
+import { useUIStore } from '@/stores/uiSlice';
 
 vi.mock('@/lib/storage/chatStorage', () => ({
   cancelSessionJsonSave: vi.fn(),
@@ -99,6 +100,7 @@ describe('message actions API transcript handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearSessionIdAliases();
+    useUIStore.setState({ languagePreference: 'en' });
   });
 
   it('clears the active top-level transcript when adding a regeneration version', () => {
@@ -665,6 +667,34 @@ describe('message actions API transcript handling', () => {
         apiTranscript: undefined,
         versions: [{
           content: '<web-search-status>{"phase":"searching"}</web-search-status><think>planning',
+          createdAt: 1,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        }],
+      },
+    ]);
+
+    const recalled = createMessageActions().retractPendingUserRequest(
+      'session-1',
+      'prompt-1',
+      'assistant-1',
+    );
+
+    expect(recalled).toBe('pending prompt');
+    expect(useUnifiedStore.getState().data.ai!.messages['session-1']).toEqual([]);
+  });
+
+  it('retracts a pending composer request while the assistant only has retry status content', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    seedMessages([
+      createUserMessage('prompt-1', 'pending prompt'),
+      {
+        ...createAssistantMessage(),
+        id: 'assistant-1',
+        content: 'Service unavailable\n10秒后重试 - 第1次重试',
+        apiTranscript: undefined,
+        versions: [{
+          content: 'Service unavailable\n10秒后重试 - 第1次重试',
           createdAt: 1,
           kind: 'original' as const,
           subsequentMessages: [],

@@ -17,6 +17,7 @@ import {
 import {
   pruneCachedNoteContents,
   remapCachedNoteContents,
+  setCachedNoteContent,
 } from '../document/noteContentCache';
 import { markExternalPathRename } from '../document/externalPathMutationRegistry';
 import { remapRecentlyClosedTabsForExternalRename } from '../document/recentlyClosedTabState';
@@ -118,9 +119,28 @@ export async function applyExternalPathRenameAction(
     oldPath,
     newPath,
   );
-  const nextCache = remapCachedNoteContents(cacheForRename, (path) => {
+  let nextCache = remapCachedNoteContents(cacheForRename, (path) => {
     return remapPathForExternalRename(path, oldPath, newPath);
   });
+  const dirtyRenameTargetTab = openTabs.find((tab) =>
+    tab.isDirty && isSameExternalPath(tab.path, newPath)
+  );
+  const dirtyRenameTargetCacheEntry = dirtyRenameTargetTab
+    ? Array.from(noteContentsCache.entries()).find(([path]) => isSameExternalPath(path, newPath))?.[1]
+    : undefined;
+  const dirtyRenameTargetContent =
+    dirtyRenameTargetTab && currentNote && isSameExternalPath(currentNote.path, newPath)
+      ? currentNote.content
+      : dirtyRenameTargetCacheEntry?.content;
+  if (dirtyRenameTargetTab && dirtyRenameTargetContent !== undefined) {
+    nextCache = setCachedNoteContent(
+      nextCache,
+      dirtyRenameTargetTab.path,
+      dirtyRenameTargetContent,
+      dirtyRenameTargetCacheEntry?.modifiedAt ?? null,
+      dirtyRenameTargetCacheEntry?.size !== undefined ? { size: dirtyRenameTargetCacheEntry.size } : {},
+    );
+  }
 
   const nextMetadata = remapMetadataEntries(metadataForRename, (path) => {
     return remapPathForExternalRename(path, oldPath, newPath);
@@ -175,7 +195,9 @@ export async function applyExternalPathRenameAction(
     starredEntries: starredResult.entries,
     starredNotes: starredPaths.notes,
     starredFolders: starredPaths.folders,
-    error: null,
+    error: dirtyRenameTargetTab && dirtyRenameTargetContent !== undefined
+      ? 'External rename landed on a note with unsaved changes. The unsaved content is preserved; save to restore it.'
+      : null,
   });
 
   persistWorkspaceSnapshot(notesPath, {

@@ -1260,6 +1260,32 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
     }
   });
 
+  it('replaces a selected rendered HTML boundary blank line when text input arrives', async () => {
+    const { editor, view } = await createBlockSelectionEditor([
+      'Alpha',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'Beta',
+    ].join('\n'));
+
+    try {
+      const blankLinePos = findNodePosition(
+        view,
+        'html_block',
+        (node) => node.attrs?.value === '<!--vlaina-rendered-html-boundary-blank-line-->',
+      );
+      view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, blankLinePos)));
+
+      typeText(view, 'X');
+
+      expect(view.state.selection.$from.parent.textContent).toBe('X');
+      expect(view.state.doc.textContent).toContain('Alpha');
+      expect(view.state.doc.textContent).toContain('X');
+      expect(view.state.doc.textContent).toContain('Beta');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('copies and cuts selected blocks directly from keyboard shortcuts', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {

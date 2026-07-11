@@ -325,6 +325,16 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     notes: 'AI menu usage ranking is a local convenience preference read when the menu builds.',
   },
   {
+    id: 'dev.retry-simulation',
+    owner: 'dev',
+    scope: 'window-preference',
+    persistence: ['localStorage'],
+    mergePolicy: 'last-writer-wins',
+    storageKeys: ['vlaina_dev_visible_retry_delay_1s', 'vlaina_dev_retry_simulation'],
+    crossWindow: false,
+    notes: 'Development-only retry simulation toggles persist for local reloads and are not shared app state.',
+  },
+  {
     id: 'e2e.sync-bridge',
     owner: 'test',
     scope: 'transport',
