@@ -7,6 +7,7 @@ const hoisted = vi.hoisted(() => ({
   deleteImage: vi.fn(async () => undefined),
   findImageFileReferences: vi.fn(async () => []),
   navigateToImageFileReference: vi.fn(async () => true),
+  renameImage: vi.fn(async () => 'images/renamed.png'),
   openNote: vi.fn(async () => undefined),
   loadImageAsBlob: vi.fn(async () => 'blob:image-preview'),
   resolveNotesRootRelativeFullPath: vi.fn(async () => ({
@@ -19,6 +20,7 @@ vi.mock('@/stores/useNotesStore', () => ({
   useNotesStore: Object.assign((selector: (state: Record<string, unknown>) => unknown) => selector({
     notesPath: '/notesRoot',
     deleteImage: hoisted.deleteImage,
+    renameImage: hoisted.renameImage,
     openNote: hoisted.openNote,
     getDisplayName: (path: string) => path,
   }), {
@@ -151,5 +153,29 @@ describe('ImageFileItem', () => {
       expect(screen.getByText('notes.imageReferences (0)')).toBeInTheDocument();
     });
     expect(hoisted.findImageFileReferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('renames an image from the inline sidebar editor', async () => {
+    render(
+      <ImageFileItem
+        node={{
+          id: 'images/cover.png',
+          name: 'cover.png',
+          path: 'images/cover.png',
+          isFolder: false,
+          kind: 'image',
+        }}
+        depth={1}
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByText('cover.png'));
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'renamed.png' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(hoisted.renameImage).toHaveBeenCalledWith('images/cover.png', 'renamed.png');
+    });
   });
 });

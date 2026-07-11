@@ -8,6 +8,8 @@ const hoisted = vi.hoisted(() => ({
     rename: vi.fn(async () => undefined),
   },
   saveStarredRegistry: vi.fn(),
+  collectImageReferenceContentUpdates: vi.fn(async () => [] as Array<{ path: string; content: string }>),
+  saveNoteDocument: vi.fn(),
 }));
 
 vi.mock('@/lib/storage/adapter', async (importOriginal) => {
@@ -30,6 +32,15 @@ vi.mock('../workspacePersistence', () => ({
   persistWorkspaceSnapshot: vi.fn(),
 }));
 
+vi.mock('../utils/fs/imageReferenceRewrite', () => ({
+  collectImageReferenceContentUpdates: hoisted.collectImageReferenceContentUpdates,
+}));
+
+vi.mock('../document/noteDocumentPersistence', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../document/noteDocumentPersistence')>(),
+  saveNoteDocument: hoisted.saveNoteDocument,
+}));
+
 function createSliceHarness() {
   let state: any;
 
@@ -50,6 +61,7 @@ function createSliceHarness() {
     recentNotes: [],
     openTabs: [],
     noteContentsCache: new Map(),
+    noteContentsCacheRevision: 0,
     draftNotes: {},
     starredEntries: [],
     starredNotes: [],
@@ -71,11 +83,126 @@ describe('fileSystemSlice rename actions', () => {
     hoisted.storageAdapter.rename.mockReset();
     hoisted.storageAdapter.rename.mockResolvedValue(undefined);
     hoisted.saveStarredRegistry.mockReset();
+    hoisted.collectImageReferenceContentUpdates.mockReset();
+    hoisted.collectImageReferenceContentUpdates.mockResolvedValue([]);
+    hoisted.saveNoteDocument.mockReset();
+    hoisted.saveNoteDocument.mockImplementation(async ({ currentNote, cache }) => ({
+      content: currentNote.content,
+      modifiedAt: 2,
+      size: currentNote.content.length,
+      metadata: { cover: { assetPath: 'assets/renamed.png' } },
+      nextCache: new Map(cache).set(currentNote.path, {
+        content: currentNote.content,
+        modifiedAt: 2,
+      }),
+    }));
     setPendingEditorMarkdownFlusher(null);
   });
 
   afterEach(() => {
     setPendingEditorMarkdownFlusher(null);
+  });
+
+  it('renames an image and saves rewritten note references', async () => {
+    const harness = createSliceHarness();
+    harness.getState().notesPath = '/notesRoot';
+    harness.getState().rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [{
+        id: 'assets/cover.png',
+        name: 'cover.png',
+        path: 'assets/cover.png',
+        isFolder: false,
+        kind: 'image',
+      }],
+    };
+    harness.getState().currentNote = {
+      path: 'docs/alpha.md',
+      content: '![cover](../assets/cover.png)',
+    };
+    harness.getState().currentNoteRevision = 3;
+    harness.getState().isDirty = true;
+    harness.getState().openTabs = [{ path: 'docs/alpha.md', name: 'alpha', isDirty: true }];
+    harness.getState().noteContentsCache = new Map([[
+      'docs/alpha.md',
+      { content: '![cover](../assets/cover.png)', modifiedAt: 1 },
+    ]]);
+    hoisted.collectImageReferenceContentUpdates.mockResolvedValue([{
+      path: 'docs/alpha.md',
+      content: '![cover](../assets/renamed.png)',
+    }]);
+
+    await expect(harness.getState().renameImage('assets/cover.png', 'renamed.png')).resolves.toBe(
+      'assets/renamed.png',
+    );
+
+    const state = harness.getState();
+    expect(hoisted.storageAdapter.rename).toHaveBeenCalledWith(
+      '/notesRoot/assets/cover.png',
+      '/notesRoot/assets/renamed.png',
+    );
+    expect(hoisted.collectImageReferenceContentUpdates).toHaveBeenCalledWith(expect.objectContaining({
+      oldImagePath: 'assets/cover.png',
+      newImagePath: 'assets/renamed.png',
+    }));
+    expect(hoisted.saveNoteDocument).toHaveBeenCalledTimes(1);
+    expect(state.currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '![cover](../assets/renamed.png)',
+    });
+    expect(state.currentNoteRevision).toBe(4);
+    expect(state.isDirty).toBe(false);
+    expect(state.openTabs[0]).toMatchObject({ path: 'docs/alpha.md', isDirty: false });
+    expect(state.rootFolder.children[0]).toMatchObject({
+      path: 'assets/renamed.png',
+      name: 'renamed.png',
+    });
+  });
+
+  it('rolls the image rename back when the first reference save fails', async () => {
+    const harness = createSliceHarness();
+    harness.getState().notesPath = '/notesRoot';
+    harness.getState().rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [{
+        id: 'assets/cover.png',
+        name: 'cover.png',
+        path: 'assets/cover.png',
+        isFolder: false,
+        kind: 'image',
+      }],
+    };
+    hoisted.collectImageReferenceContentUpdates.mockResolvedValue([{
+      path: 'docs/alpha.md',
+      content: '![cover](../assets/renamed.png)',
+    }]);
+    hoisted.saveNoteDocument.mockRejectedValueOnce(new Error('write failed'));
+
+    await expect(harness.getState().renameImage('assets/cover.png', 'renamed.png')).resolves.toBeNull();
+
+    expect(hoisted.storageAdapter.rename).toHaveBeenNthCalledWith(
+      1,
+      '/notesRoot/assets/cover.png',
+      '/notesRoot/assets/renamed.png',
+    );
+    expect(hoisted.storageAdapter.rename).toHaveBeenNthCalledWith(
+      2,
+      '/notesRoot/assets/renamed.png',
+      '/notesRoot/assets/cover.png',
+    );
+    expect(harness.getState().rootFolder.children[0]).toMatchObject({
+      path: 'assets/cover.png',
+      name: 'cover.png',
+    });
+    expect(harness.getState().error).toBe('write failed');
   });
 
   it('renames an absolute starred note and keeps the open editor state in sync', async () => {

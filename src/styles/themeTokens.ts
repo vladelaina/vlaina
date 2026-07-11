@@ -575,7 +575,7 @@ export const themeFileTreeTokens = {
   imageThumbnailDecodeEdgePx: 64,
   imageLibraryThumbnailDecodeEdgePx: 320,
   imageHoverPreviewDelayMs: 150,
-  imageLibraryRowHeightPx: 210,
+  imageLibraryRowHeightPx: 136,
   imageLibraryFallbackWidthPx: 400,
   imageLibraryFallbackHeightPx: 360,
   virtualRowHorizontalChromePx: 72,

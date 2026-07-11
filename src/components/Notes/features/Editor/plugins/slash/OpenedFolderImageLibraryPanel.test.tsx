@@ -79,11 +79,11 @@ describe('OpenedFolderImageLibraryPanel', () => {
     );
 
     fireEvent.change(searchInput, { target: { value: 'b6aaf' } });
-    expect(screen.getByText('b6aaf51dac026c53249b1b5cf4f77ca68c29b060.gif')).toHaveClass(
-      'break-all',
-      'whitespace-normal',
-      '[overflow-wrap:anywhere]',
-    );
+    expect(document.querySelector(
+      '[data-image-library-item="b6aaf51dac026c53249b1b5cf4f77ca68c29b060.gif"]',
+    )).toBeInTheDocument();
+    expect(document.querySelector('.slash-image-library-scroll')).toHaveClass('overflow-y-auto');
+    expect(screen.queryByText('b6aaf51dac026c53249b1b5cf4f77ca68c29b060.gif')).toBeNull();
     expect(screen.queryByText('cover.png')).toBeNull();
   });
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   resolveUniqueMovedPath,
   resolveUniquePath,
+  resolveUniqueRenamedAssetPath,
   resolveUniqueRenamedPath,
 } from './pathOperations';
 
@@ -46,6 +47,18 @@ describe('pathOperations internal paths', () => {
       .rejects.toThrow('Path must not be inside an internal notes folder.');
     await expect(resolveUniqueRenamedPath('/notesRoot', 'docs/.GIT/config.md', 'config', false))
       .rejects.toThrow('Path must not be inside an internal notes folder.');
+  });
+
+  it('renames image assets without adding a Markdown extension', async () => {
+    await expect(resolveUniqueRenamedAssetPath(
+      '/notesRoot',
+      'assets/cover.png',
+      'renamed.webp',
+    )).resolves.toEqual({
+      relativePath: 'assets/renamed.webp',
+      fullPath: '/notesRoot/assets/renamed.webp',
+      fileName: 'renamed.webp',
+    });
   });
 
   it('rejects moves from or into internal folders', async () => {

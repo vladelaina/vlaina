@@ -63,9 +63,6 @@ function LibraryImage({ notesPath, path, onSelect }: { notesPath: string; path: 
           <Icon name="file.image" size="lg" className="text-[var(--vlaina-text-tertiary)]" />
         )}
       </span>
-      <span className="block w-full min-w-0 whitespace-normal break-all [overflow-wrap:anywhere] px-2 py-1.5 text-[var(--vlaina-font-11)] leading-tight text-[var(--vlaina-sidebar-notes-text)]">
-        {name}
-      </span>
     </button>
   );
 }
@@ -165,7 +162,7 @@ export function OpenedFolderImageLibraryPanel({
         </button>
       </div>
 
-      <div ref={setScrollRoot} className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div ref={setScrollRoot} className="slash-image-library-scroll min-h-0 flex-1 overflow-y-auto pr-1">
           {visiblePaths.length > 0 ? (
             <div
               className="relative min-w-0"
