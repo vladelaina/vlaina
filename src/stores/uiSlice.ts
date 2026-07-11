@@ -157,13 +157,15 @@ export const useUIStore = create<UIStore>()((set) => ({
   universalPreviewColor: null,
   universalPreviewTone: null,
   universalPreviewIconSize: null,
+  universalPreviewCover: null,
 
-  setUniversalPreview: (targetId, { icon, color, tone, size }) => set((state) => ({
+  setUniversalPreview: (targetId, { icon, color, tone, size, cover }) => set((state) => ({
     universalPreviewTarget: targetId,
     universalPreviewIcon: icon !== undefined ? icon : state.universalPreviewIcon,
     universalPreviewColor: color !== undefined ? color : state.universalPreviewColor,
     universalPreviewTone: tone !== undefined ? tone : state.universalPreviewTone,
     universalPreviewIconSize: size !== undefined ? size : state.universalPreviewIconSize,
+    universalPreviewCover: cover !== undefined ? cover : state.universalPreviewCover,
   })),
 
   setImageStorageMode: (mode) => {

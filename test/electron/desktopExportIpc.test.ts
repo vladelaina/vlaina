@@ -151,7 +151,7 @@ describe('desktop export ipc', () => {
     },
   );
 
-  it('uses both freedesktop DBus reveal and a file manager selection command on Linux when available', async () => {
+  it('uses freedesktop DBus reveal once on Linux when available', async () => {
     const child = {
       once: vi.fn(),
       unref: vi.fn(),
@@ -171,9 +171,8 @@ describe('desktop export ipc', () => {
         candidatePath === '/usr/bin/gdbus' || candidatePath === '/usr/bin/nautilus',
     });
 
-    expect(spawnDetached).toHaveBeenCalledTimes(2);
-    expect(spawnDetached).toHaveBeenNthCalledWith(
-      1,
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(spawnDetached).toHaveBeenCalledWith(
       '/usr/bin/gdbus',
       [
         'call',
@@ -192,17 +191,46 @@ describe('desktop export ipc', () => {
         stdio: 'ignore',
       },
     );
+    expect(child.unref).toHaveBeenCalledTimes(1);
+    expect(shellImpl.showItemInFolder).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a file manager selection command when DBus reveal fails', async () => {
+    const firstHandlers = new Map<string, (...args: unknown[]) => void>();
+    const firstChild = {
+      once: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+        firstHandlers.set(event, handler);
+        return firstChild;
+      }),
+      unref: vi.fn(),
+    };
+    const secondChild = {
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    const spawnDetached = vi.fn()
+      .mockReturnValueOnce(firstChild)
+      .mockReturnValueOnce(secondChild);
+
+    await revealItemInFolder('/notesRoot/docs/readme.md', {
+      platform: 'linux',
+      shellImpl: { openPath: vi.fn(), showItemInFolder: vi.fn() },
+      spawnDetached,
+      envPath: '/usr/bin',
+      exists: (candidatePath: string) =>
+        candidatePath === '/usr/bin/gdbus' || candidatePath === '/usr/bin/nautilus',
+    });
+
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    firstHandlers.get('exit')?.(1);
+
+    expect(spawnDetached).toHaveBeenCalledTimes(2);
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
       '/usr/bin/nautilus',
       ['--select', '/notesRoot/docs/readme.md'],
-      {
-        detached: true,
-        stdio: 'ignore',
-      },
+      { detached: true, stdio: 'ignore' },
     );
-    expect(child.unref).toHaveBeenCalledTimes(2);
-    expect(shellImpl.showItemInFolder).not.toHaveBeenCalled();
   });
 
   it('reveals the selected file in a new file manager window on Linux', async () => {

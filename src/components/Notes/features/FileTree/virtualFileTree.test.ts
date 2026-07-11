@@ -58,6 +58,18 @@ describe('virtualFileTree', () => {
     expect(longHeight).toBeGreaterThan(VIRTUAL_FILE_TREE_ROW_HEIGHT);
   });
 
+  it('reduces wrapped row height when the sidebar is wider', () => {
+    const row = {
+      node: file('b6aaf51dac026c53249b1b5cf4f77ca68c29b060.gif'),
+      depth: 1,
+      parentFolderPath: '',
+    };
+
+    expect(estimateVirtualFileTreeRowHeight(row, 560)).toBeLessThan(
+      estimateVirtualFileTreeRowHeight(row, 270),
+    );
+  });
+
   it('uses variable row offsets for virtual windows', () => {
     const rowHeights = [38, 98, 38];
     const rowOffsets = buildVirtualFileTreeRowOffsets(rowHeights);

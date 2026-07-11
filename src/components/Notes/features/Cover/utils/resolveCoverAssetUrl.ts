@@ -19,7 +19,6 @@ interface ResolveCoverAssetUrlOptions {
 
 interface PendingCoverAssetUrlResolve {
   promise: Promise<string>;
-  startedAt: number;
 }
 
 interface CompletedCoverAssetUrlResolve {
@@ -30,7 +29,6 @@ interface CompletedCoverAssetUrlResolve {
 const pendingCoverAssetUrlResolves = new Map<string, PendingCoverAssetUrlResolve>();
 const completedCoverAssetUrlResolves = new Map<string, CompletedCoverAssetUrlResolve>();
 const displayedCoverAssetUrlResolves = new Map<string, string>();
-const COVER_RESOLVE_JOIN_WINDOW_MS = 50;
 const COVER_RESOLVE_REUSE_WINDOW_MS = 30_000;
 export const MAX_PENDING_COVER_ASSET_URL_RESOLVES = 100;
 const MAX_COMPLETED_COVER_ASSET_URL_RESOLVES = 500;
@@ -124,11 +122,8 @@ export async function resolveCoverAssetUrl({
     return displayedResolve;
   }
 
-  if (pendingResolve && now - pendingResolve.startedAt <= COVER_RESOLVE_JOIN_WINDOW_MS) {
-    return applyAnimatedReplayToken(await pendingResolve.promise, assetPath, replayAnimated);
-  }
   if (pendingResolve) {
-    pendingCoverAssetUrlResolves.delete(resolveKey);
+    return applyAnimatedReplayToken(await pendingResolve.promise, assetPath, replayAnimated);
   }
 
   const completedResolve = getCompletedCoverAssetUrlResolve(resolveKey, now);
@@ -147,10 +142,7 @@ export async function resolveCoverAssetUrl({
     thumbnail,
     thumbnailMaxEdgePx,
   });
-  pendingCoverAssetUrlResolves.set(resolveKey, {
-    promise: resolvePromise,
-    startedAt: now,
-  });
+  pendingCoverAssetUrlResolves.set(resolveKey, { promise: resolvePromise });
   try {
     const resolvedUrl = await resolvePromise;
     setCompletedCoverAssetUrlResolve(resolveKey, resolvedUrl, getNowMs());

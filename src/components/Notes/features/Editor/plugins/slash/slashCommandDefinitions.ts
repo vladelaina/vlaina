@@ -4,7 +4,8 @@ import { insertHrCommand } from '@milkdown/kit/preset/commonmark';
 import { insertTableCommand } from '@milkdown/kit/preset/gfm';
 import type { IconName } from '@/components/ui/icons';
 import type { MessageKey } from '@/lib/i18n';
-import { insertImageFromFilePicker, insertFrontmatter } from './slashFileCommands';
+import { insertFrontmatter } from './slashFrontmatterCommand';
+import { openImageLibrary } from './slashImageCommand';
 import { insertFootnoteDef, insertFootnoteRef } from './slashFootnoteCommands';
 import { insertHtmlBlockNodeAndOpenEditor } from './slashHtmlCommands';
 import {
@@ -163,7 +164,7 @@ export const slashCommandDefinitions = [
     icon: 'file.image',
     searchTerms: ['img', 'picture', 'photo', 'figure', 'upload', '图片', '图像', '照片', 'tupian', 'zhaopian', ...localizedSearchTerms.image],
     commandId: 'image',
-    run: insertImageFromFilePicker,
+    run: openImageLibrary,
   },
   {
     id: 'emoji',

@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE } from '../../../../utils/coverConstants';
 import { loadImageWithDimensions } from '../../../../utils/coverDimensionCache';
 import { getCoverResolveOptions, useCoverSource } from '../../../../hooks/useCoverSource';
 import { resolveCoverAssetUrl } from '../../../../utils/resolveCoverAssetUrl';
 import { resolveCoverFlowPhase } from './coverSelectionPhase';
+import { useUIStore } from '@/stores/uiSlice';
 
 interface UseCoverSelectionFlowOptions {
   url: string | null;
@@ -33,6 +34,7 @@ export function useCoverSelectionFlow({
   onUpdate,
   setShowPicker,
 }: UseCoverSelectionFlowOptions) {
+  const setUniversalPreview = useUIStore((state) => state.setUniversalPreview);
   const {
     resolvedSrc,
     previewSrc,
@@ -75,6 +77,7 @@ export function useCoverSelectionFlow({
       setPreviewSrc(null);
       endSelectionCommit();
       commitCoverUpdate(assetPath);
+      setUniversalPreview(null, { cover: null });
       setShowPicker(false);
       return;
     }
@@ -88,6 +91,7 @@ export function useCoverSelectionFlow({
     }
     beginSelectionCommit();
     commitCoverUpdate(assetPath);
+    setUniversalPreview(null, { cover: null });
     setShowPicker(false);
   }, [
     beginSelectionCommit,
@@ -97,6 +101,7 @@ export function useCoverSelectionFlow({
     previewSrc,
     setPreviewSrc,
     setShowPicker,
+    setUniversalPreview,
     url,
   ]);
 
@@ -105,9 +110,12 @@ export function useCoverSelectionFlow({
 
     if (!assetPath) {
       lastPreviewIdentityRef.current = null;
+      setUniversalPreview(null, { cover: null });
       if (!isSelectionCommitting) setPreviewSrc(null);
       return;
     }
+
+    setUniversalPreview(currentNotePath ?? null, { cover: assetPath, icon: null });
 
     const previewIdentity = buildPreviewIdentity(previewScope, assetPath);
     lastPreviewIdentityRef.current = previewIdentity;
@@ -163,15 +171,24 @@ export function useCoverSelectionFlow({
         && previewIdentity === lastPreviewIdentityRef.current
       ) setPreviewSrc(null);
     }
-  }, [currentNotePath, endSelectionCommit, isSelectionCommitting, notesRootPath, previewScope, resolvedSrc, setPreviewSrc, url]);
+  }, [currentNotePath, endSelectionCommit, isSelectionCommitting, notesRootPath, previewScope, resolvedSrc, setPreviewSrc, setUniversalPreview, url]);
 
   const handlePickerClose = useCallback(() => {
     lastPreviewIdentityRef.current = null;
+    setUniversalPreview(null, { cover: null });
     if (!isSelectionCommitting) {
       setPreviewSrc(null);
     }
     setShowPicker(false);
-  }, [isSelectionCommitting, setPreviewSrc, setShowPicker, url]);
+  }, [isSelectionCommitting, setPreviewSrc, setShowPicker, setUniversalPreview, url]);
+
+  useEffect(() => {
+    return () => {
+      if (useUIStore.getState().universalPreviewTarget === currentNotePath) {
+        setUniversalPreview(null, { cover: null });
+      }
+    };
+  }, [currentNotePath, setUniversalPreview]);
 
   return {
     resolvedSrc,

@@ -13,6 +13,7 @@ import type { NotesChatFloatingSize } from '@/stores/uiSlice';
 import type { useI18n } from '@/lib/i18n';
 import { EmbeddedChatView } from './notesViewLazyComponents';
 import { NotesSplitDiagnosticsButton } from './features/Split/NotesSplitDiagnosticsButton';
+import { ImageFileHoverPreview } from './features/FileTree/ImageFileHoverPreview';
 
 export function NotesViewLayout({
   active,
@@ -101,6 +102,7 @@ export function NotesViewLayout({
           data-notes-split-drop-root="true"
         >
           {children}
+          <ImageFileHoverPreview />
         </div>
 
         {active && !chatPanelCollapsed && (

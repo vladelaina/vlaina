@@ -4,6 +4,10 @@ import { ImageFileItem } from './ImageFileItem';
 
 const hoisted = vi.hoisted(() => ({
   addToast: vi.fn(),
+  deleteImage: vi.fn(async () => undefined),
+  findImageFileReferences: vi.fn(async () => []),
+  navigateToImageFileReference: vi.fn(async () => true),
+  openNote: vi.fn(async () => undefined),
   loadImageAsBlob: vi.fn(async () => 'blob:image-preview'),
   resolveNotesRootRelativeFullPath: vi.fn(async () => ({
     fullPath: '/notesRoot/images/cover.png',
@@ -12,9 +16,26 @@ const hoisted = vi.hoisted(() => ({
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: (selector: (state: { notesPath: string }) => unknown) => selector({
+  useNotesStore: Object.assign((selector: (state: Record<string, unknown>) => unknown) => selector({
     notesPath: '/notesRoot',
+    deleteImage: hoisted.deleteImage,
+    openNote: hoisted.openNote,
+    getDisplayName: (path: string) => path,
+  }), {
+    getState: () => ({
+      notesPath: '/notesRoot',
+      rootFolder: null,
+      currentNote: null,
+      noteContentsCache: new Map(),
+      noteMetadata: null,
+    }),
   }),
+}));
+
+vi.mock('../Sidebar/SidebarNoteFileIcon', () => ({
+  SidebarLiveNoteFileIcon: ({ notePath }: { notePath: string }) => (
+    <span data-testid={`note-icon-${notePath}`} />
+  ),
 }));
 
 vi.mock('@/stores/useToastStore', () => ({
@@ -32,6 +53,18 @@ vi.mock('@/lib/assets/io/reader', () => ({
   loadImageAsBlob: hoisted.loadImageAsBlob,
 }));
 
+vi.mock('./ImageFileNameBackground', () => ({
+  ImageFileNameBackground: () => <span data-testid="image-background" />,
+}));
+
+vi.mock('./imageFileReferences', () => ({
+  findImageFileReferences: hoisted.findImageFileReferences,
+}));
+
+vi.mock('./imageFileReferenceNavigation', () => ({
+  navigateToImageFileReference: hoisted.navigateToImageFileReference,
+}));
+
 vi.mock('@/stores/notes/utils/fs/notesRootPathContainment', () => ({
   resolveNotesRootRelativeFullPath: hoisted.resolveNotesRootRelativeFullPath,
 }));
@@ -46,6 +79,7 @@ describe('ImageFileItem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.loadImageAsBlob.mockResolvedValue('blob:image-preview');
+    hoisted.findImageFileReferences.mockResolvedValue([]);
   });
 
   it('loads and opens a notesRoot image without opening it as a note', async () => {
@@ -95,5 +129,27 @@ describe('ImageFileItem', () => {
       expect(hoisted.addToast).toHaveBeenCalledWith('editor.imageFailedToLoad', 'error');
     });
     expect(screen.queryByTestId('image-viewer')).not.toBeInTheDocument();
+  });
+
+  it('replaces the reference loading state when the scan completes', async () => {
+    render(
+      <ImageFileItem
+        node={{
+          id: 'cover.webp',
+          name: 'cover.webp',
+          path: 'cover.webp',
+          isFolder: false,
+          kind: 'image',
+        }}
+        depth={0}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'sidebar.openFileMenu' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('notes.imageReferences (0)')).toBeInTheDocument();
+    });
+    expect(hoisted.findImageFileReferences).toHaveBeenCalledTimes(1);
   });
 });

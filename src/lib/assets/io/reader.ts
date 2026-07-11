@@ -29,6 +29,7 @@ import {
 } from './readerThumbnails';
 
 const MAX_CACHE_SIZE = 500;
+const MAX_CACHE_BYTES = 256 * 1024 * 1024;
 export const MAX_PENDING_BLOB_URL_LOADS = 100;
 export { MAX_PENDING_THUMBNAIL_BLOB_URL_LOADS } from './readerThumbnails';
 
@@ -76,18 +77,26 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
     const blobUrl = URL.createObjectURL(blob);
     revokeLoadedUrlIfInvalidated(fullPath, loadGeneration, loadPathGeneration, blobUrl);
 
-    if (blobUrlCache.size >= MAX_CACHE_SIZE) {
+    let cachedBytes = Array.from(blobUrlCache.values()).reduce(
+      (total, entry) => total + (entry.size ?? 0),
+      0,
+    );
+    while (
+      blobUrlCache.size >= MAX_CACHE_SIZE
+      || cachedBytes + bytes.byteLength > MAX_CACHE_BYTES
+    ) {
       const oldestKey = blobUrlCache.keys().next().value;
-      if (oldestKey) {
-        revokeBlobUrlCacheEntry(blobUrlCache.get(oldestKey));
-        blobUrlCache.delete(oldestKey);
-      }
+      if (!oldestKey) break;
+      const oldestEntry = blobUrlCache.get(oldestKey);
+      cachedBytes -= oldestEntry?.size ?? 0;
+      revokeBlobUrlCacheEntry(oldestEntry);
+      blobUrlCache.delete(oldestKey);
     }
 
     blobUrlCache.set(fullPath, {
       url: blobUrl,
       modifiedAt,
-      size,
+      size: size ?? bytes.byteLength,
     });
 
     return blobUrl;

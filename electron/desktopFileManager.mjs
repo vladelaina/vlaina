@@ -129,6 +129,15 @@ function openItemWithLinuxFileManager(filePath, options = {}) {
       return;
     }
 
+    if (options.fallbackOpener) {
+      openItemWithLinuxFileManager(filePath, {
+        ...options,
+        opener: options.fallbackOpener,
+        fallbackOpener: null,
+      });
+      return;
+    }
+
     if (target === 'folder') {
       if (path.basename(command) === 'xdg-open') {
         void fallbackShell.openPath?.(folderPath);
@@ -199,8 +208,9 @@ export async function revealItemInFolder(filePath, options = {}) {
         ...options,
         fallbackShell: shellImpl,
         opener: dbusOpener,
-        disableFallback: true,
+        fallbackOpener: getLinuxCommandItemRevealer(options),
       });
+      return;
     }
 
     openItemWithLinuxFileManager(filePath, {

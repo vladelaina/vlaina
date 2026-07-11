@@ -113,6 +113,12 @@
   background: transparent;
 }
 
+.slash-menu.slash-image-library {
+  width: min(var(--vlaina-size-420px), calc(100vw - var(--vlaina-size-24px)));
+  max-width: none;
+  overflow: hidden;
+}
+
 .slash-emoji-inline-preview {
   display: inline-block;
   width: 0;

@@ -15,6 +15,14 @@ const hoisted = vi.hoisted(() => ({
   writeBinaryFile: vi.fn<(path: string, bytes: Uint8Array, options?: { recursive?: boolean }) => Promise<void>>(async () => undefined),
   exists: vi.fn<(path: string) => Promise<boolean>>(async () => false),
   getBasePath: vi.fn(async () => '/app-data'),
+  listDir: vi.fn<() => Promise<Array<{
+    path: string;
+    isFile: boolean;
+    isDirectory: boolean;
+    size: number;
+    modifiedAt: number;
+  }>>>(async () => []),
+  deleteFile: vi.fn(async () => undefined),
   stat: vi.fn(async (): Promise<{ modifiedAt?: number; size?: number } | null> => null),
   platform: 'web' as 'electron' | 'web',
 }));
@@ -25,12 +33,15 @@ function encodeTextBytes(value: string): Uint8Array<ArrayBuffer> {
 
 vi.mock('@/lib/storage/adapter', () => ({
   joinPath: async (...segments: string[]) => segments.join('/'),
+  getParentPath: (path: string) => path.slice(0, path.lastIndexOf('/')),
   getStorageAdapter: () => ({
     platform: hoisted.platform,
     readBinaryFile: hoisted.readBinaryFile,
     writeBinaryFile: hoisted.writeBinaryFile,
     exists: hoisted.exists,
     getBasePath: hoisted.getBasePath,
+    listDir: hoisted.listDir,
+    deleteFile: hoisted.deleteFile,
     stat: hoisted.stat,
   }),
 }));
@@ -45,6 +56,10 @@ describe('asset image reader cache', () => {
     hoisted.exists.mockResolvedValue(false);
     hoisted.getBasePath.mockReset();
     hoisted.getBasePath.mockResolvedValue('/app-data');
+    hoisted.listDir.mockReset();
+    hoisted.listDir.mockResolvedValue([]);
+    hoisted.deleteFile.mockReset();
+    hoisted.deleteFile.mockResolvedValue(undefined);
     hoisted.stat.mockReset();
     hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
     hoisted.platform = 'web';
@@ -374,6 +389,13 @@ describe('asset image reader cache', () => {
     hoisted.platform = 'electron';
     hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
     hoisted.exists.mockResolvedValue(false);
+    hoisted.listDir.mockResolvedValue(Array.from({ length: 2001 }, (_value, index) => ({
+      path: `/app-data/.vlaina/app/cache/thumbnails/${index}.webp`,
+      isFile: true,
+      isDirectory: false,
+      size: 1024,
+      modifiedAt: index,
+    })));
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:worker-thumb-url');
     const terminate = vi.fn();
     const postMessage = vi.fn(function (
@@ -417,6 +439,12 @@ describe('asset image reader cache', () => {
     const writeOptions = hoisted.writeBinaryFile.mock.calls[0]?.[2] as { recursive?: boolean };
     expect(writePath).toContain('/app-data/.vlaina/app/cache/thumbnails/');
     expect(writeOptions).toEqual({ recursive: true });
+    await vi.waitFor(() => {
+      expect(hoisted.deleteFile).toHaveBeenCalledTimes(1);
+    });
+    expect(hoisted.deleteFile).toHaveBeenCalledWith(
+      '/app-data/.vlaina/app/cache/thumbnails/0.webp',
+    );
   });
 
   it('does not persist oversized generated electron thumbnails', async () => {

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { calculateCropPixels, getBaseDimensions } from '../../../utils/coverGeometry';
@@ -29,6 +30,7 @@ export function CoverPlaceholderLayer({
   forceVisible = false,
 }: CoverPlaceholderLayerProps) {
   const { t } = useI18n();
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const hasDisplaySrc = Boolean(displaySrc);
 
   const hasPreciseGeometry = Boolean(mediaSize && effectiveContainerSize);
@@ -52,6 +54,7 @@ export function CoverPlaceholderLayer({
       ? { width: themeCoverLayerTokens.sizeAuto, height: themeCoverLayerTokens.sizeFull }
       : { width: themeCoverLayerTokens.sizeFull, height: themeCoverLayerTokens.sizeAuto };
   const isVisible = forceVisible || !isImageReady;
+  const isLoaded = loadedSrc === displaySrc;
   const style = {
     ...(baseDimensions && crop
       ? {
@@ -82,10 +85,14 @@ export function CoverPlaceholderLayer({
       key={displaySrc}
       src={displaySrc}
       alt={t('cover.imageAlt')}
+      onLoad={() => setLoadedSrc(displaySrc)}
+      onError={() => setLoadedSrc((current) => current === displaySrc ? null : current)}
       className={cn(
         'absolute max-w-none pointer-events-none select-none',
         baseDimensions ? 'object-none' : 'object-none',
-        isVisible ? 'opacity-[var(--vlaina-opacity-100)] placeholder-active' : 'opacity-[var(--vlaina-opacity-0)]'
+        isVisible && isLoaded
+          ? 'opacity-[var(--vlaina-opacity-100)] placeholder-active'
+          : 'opacity-[var(--vlaina-opacity-0)]'
       )}
       style={style}
     />

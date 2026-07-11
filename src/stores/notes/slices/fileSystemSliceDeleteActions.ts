@@ -1,4 +1,10 @@
 import { removeNodeFromTree } from '../fileTreeUtils';
+import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
+import { isImageFilename } from '@/lib/assets/core/naming';
+import { revokeImageBlob } from '@/lib/assets/io/reader';
+import { markExpectedExternalChange } from '../document/externalChangeRegistry';
+import { assertNonInternalNotePath } from '../utils/fs/internalNotePaths';
+import { resolveNotesRootRelativeFullPath } from '../utils/fs/notesRootPathContainment';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { deleteFolderImpl } from '../utils/fs/deleteOperations';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
@@ -35,9 +41,47 @@ import { createRestoreLastDeletedItemAction } from './fileSystemSliceRestoreDele
 export function createFileSystemDeleteActions(
   set: FileSystemSliceSet,
   get: FileSystemSliceGet,
-): Pick<FileSystemSlice, 'deleteNote' | 'deleteFolder' | 'restoreLastDeletedItem'> {
+): Pick<FileSystemSlice, 'deleteNote' | 'deleteImage' | 'deleteFolder' | 'restoreLastDeletedItem'> {
   return {
     deleteNote: createDeleteNoteAction(set, get),
+
+    deleteImage: async (path: string) => {
+      const notesPath = get().notesPath;
+      try {
+        if (!isImageFilename(path)) {
+          throw new Error('Only image files can be deleted with this action.');
+        }
+        const { relativePath, fullPath } = await resolveNotesRootRelativeFullPath(notesPath, path);
+        assertNonInternalNotePath(relativePath);
+        markExpectedExternalChange(fullPath);
+        await moveDesktopItemToTrash(fullPath);
+        if (!isActiveNotesPath(get, notesPath)) {
+          return;
+        }
+
+        revokeImageBlob(fullPath);
+        const state = get();
+        const nextRootFolder = state.rootFolder
+          ? buildSortedRootFolder(
+              state.rootFolder,
+              removeNodeFromTree(state.rootFolder.children, relativePath),
+              state.fileTreeSortMode,
+              state.noteMetadata,
+            )
+          : null;
+        set({ rootFolder: nextRootFolder ?? state.rootFolder, error: null });
+        persistWorkspaceSnapshot(notesPath, {
+          rootFolder: nextRootFolder ?? state.rootFolder,
+          currentNotePath: state.currentNote?.path ?? null,
+          fileTreeSortMode: state.fileTreeSortMode,
+        });
+      } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          return;
+        }
+        set({ error: error instanceof Error ? error.message : 'Failed to delete image' });
+      }
+    },
 
     deleteFolder: async (path: string) => {
       let operationNotesPath = get().notesPath;

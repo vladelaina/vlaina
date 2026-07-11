@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDefaultSidebarWidth, SIDEBAR_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
+import {
+  getDefaultSidebarWidth,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+} from '@/lib/layout/sidebarWidth';
 import { DEFAULT_SETTINGS } from '@/lib/config';
 import {
   NOTES_CHAT_FLOATING_DEFAULT_SIZE,
@@ -276,6 +280,13 @@ describe('uiSlice', () => {
     expect(useUIStore.getState().sidebarWidth).toBe(SIDEBAR_MIN_WIDTH);
   });
 
+  it('clamps the sidebar width to the supported maximum', () => {
+    useUIStore.getState().setSidebarWidth(SIDEBAR_MAX_WIDTH + 1);
+
+    expect(useUIStore.getState().sidebarWidth).toBe(SIDEBAR_MAX_WIDTH);
+    expect(localStorage.getItem('vlaina_sidebar_width')).toBe(String(SIDEBAR_MAX_WIDTH));
+  });
+
   it('does not persist unchanged sidebar width values', () => {
     const setItemSpy = vi.spyOn(localStorage, 'setItem');
     const listener = vi.fn();
@@ -368,6 +379,7 @@ describe('uiSlice', () => {
 
     useUIStore.getState().setUniversalPreview('note-1', {
       size: 20,
+      cover: 'covers/preview.webp',
     });
 
     expect(useUIStore.getState()).toMatchObject({
@@ -376,6 +388,7 @@ describe('uiSlice', () => {
       universalPreviewColor: 'blue',
       universalPreviewTone: 2,
       universalPreviewIconSize: 20,
+      universalPreviewCover: 'covers/preview.webp',
     });
   });
 

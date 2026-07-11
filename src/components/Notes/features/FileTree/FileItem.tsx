@@ -19,11 +19,13 @@ import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { scrollSidebarItemIntoView } from '../common/sidebarScrollIntoView';
 import { SidebarLiveNoteFileIcon } from '../Sidebar/SidebarNoteFileIcon';
 import { TreeItemShell } from './components/TreeItemShell';
+import { createTreeItemOpenLocationEntry } from './components/treeItemMenuEntries';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { useI18n } from '@/lib/i18n';
 import { areFileItemPropsEqual, type FileItemProps } from './FileItemProps';
 import { canDeleteDraftWithoutConfirmation } from './draftDeleteConfirmation';
+import { NoteFileNameBackground } from './NoteFileNameBackground';
 
 const TreeItemMenu = lazy(async () => {
   const mod = await import('./components/TreeItemMenu');
@@ -149,6 +151,11 @@ export const FileItem = memo(function FileItem({
             setShowMenu(false);
           },
         },
+        createTreeItemOpenLocationEntry({
+          label: t('sidebar.openFileLocation'),
+          onClose: () => setShowMenu(false),
+          onOpenLocation: handleOpenLocation,
+        }),
         {
           kind: 'submenu',
           key: 'more',
@@ -180,15 +187,6 @@ export const FileItem = memo(function FileItem({
               onClick: async () => {
                 setShowMenu(false);
                 await handleOpenInNewWindow('file');
-              },
-            },
-            {
-              key: 'open-location',
-              icon: <Icon name="file.folderOpenArrow" size="md" />,
-              label: t('sidebar.openFileLocation'),
-              onClick: async () => {
-                setShowMenu(false);
-                await handleOpenLocation();
               },
             },
           ],
@@ -258,11 +256,12 @@ export const FileItem = memo(function FileItem({
             )}
           />
         ) : (
-          <div className={cn('relative min-w-0', showStarBadge && 'pr-5')}>
+          <div className={cn('relative min-w-0 overflow-hidden rounded-lg', showStarBadge && 'pr-5')}>
+            <NoteFileNameBackground notePath={node.path} notesPath={notesPath} />
             <NoteDisambiguatedTitle
               path={node.path}
               fallbackName={displayName}
-              className={getSidebarTextClass('notes')}
+              className={cn('relative z-[var(--vlaina-z-10)]', getSidebarTextClass('notes'))}
               titleClassName={getSidebarLabelClass('notes', { selected: isActive || showMenu })}
               hintClassName="text-[var(--vlaina-sidebar-notes-text-soft)]"
             />

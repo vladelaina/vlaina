@@ -1,7 +1,6 @@
-import { Plugin } from '@milkdown/kit/prose/state';
+import { Plugin, type EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
-import { SlashEmojiPickerSession } from './slashEmojiPickerSession';
 import {
   createSlashEmojiPreviewDecorations,
   EMPTY_SLASH_EMOJI_PREVIEW_STATE,
@@ -11,7 +10,13 @@ import {
 
 export { shouldUpdateSlashEmojiPreview };
 
-let activeSlashEmojiPicker: SlashEmojiPickerSession | null = null;
+interface ActiveSlashEmojiPicker {
+  destroy: () => void;
+  handleEditorUpdate: (view: EditorView, previousState: EditorState | undefined) => void;
+}
+
+let activeSlashEmojiPicker: ActiveSlashEmojiPicker | null = null;
+let pickerLoadGeneration = 0;
 
 export const slashEmojiPreviewPlugin = $prose(() => new Plugin({
   key: slashEmojiPreviewPluginKey,
@@ -43,12 +48,17 @@ export const slashEmojiPreviewPlugin = $prose(() => new Plugin({
   },
 }));
 
-export function openSlashEmojiPicker(view: EditorView) {
+export async function openSlashEmojiPicker(view: EditorView) {
+  const loadGeneration = ++pickerLoadGeneration;
   activeSlashEmojiPicker?.destroy();
-  activeSlashEmojiPicker = new SlashEmojiPickerSession(view, (session) => {
-    if (activeSlashEmojiPicker === session) {
+  activeSlashEmojiPicker = null;
+  const { SlashEmojiPickerSession } = await import('./slashEmojiPickerSession');
+  if (loadGeneration !== pickerLoadGeneration) return;
+  const session = new SlashEmojiPickerSession(view, (destroyedSession) => {
+    if (activeSlashEmojiPicker === destroyedSession) {
       activeSlashEmojiPicker = null;
     }
   });
-  activeSlashEmojiPicker.open();
+  activeSlashEmojiPicker = session;
+  session.open();
 }

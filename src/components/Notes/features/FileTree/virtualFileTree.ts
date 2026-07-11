@@ -1,4 +1,5 @@
 import type { FileTreeNode } from '@/stores/useNotesStore';
+import { themeFileTreeTokens } from '@/styles/themeTokens';
 
 export interface VirtualFileTreeRow {
   node: FileTreeNode;
@@ -17,11 +18,22 @@ function getVisibleCharacterCount(value: string): number {
   return Array.from(value).length;
 }
 
-export function estimateVirtualFileTreeRowHeight(row: VirtualFileTreeRow): number {
-  const availableCharactersPerLine = Math.max(
-    4,
-    VIRTUAL_FILE_TREE_ROW_BASE_VISIBLE_CHARS - row.depth * 2,
-  );
+export function estimateVirtualFileTreeRowHeight(
+  row: VirtualFileTreeRow,
+  availableWidth?: number,
+): number {
+  const availableCharactersPerLine = availableWidth && availableWidth > 0
+    ? Math.max(
+        4,
+        Math.floor(
+          (
+            availableWidth
+            - themeFileTreeTokens.virtualRowHorizontalChromePx
+            - row.depth * themeFileTreeTokens.virtualRowDepthIndentPx
+          ) / themeFileTreeTokens.virtualRowAverageCharacterWidthPx,
+        ),
+      )
+    : Math.max(4, VIRTUAL_FILE_TREE_ROW_BASE_VISIBLE_CHARS - row.depth * 2);
   const lineCount = Math.max(
     1,
     Math.ceil(getVisibleCharacterCount(row.node.name) / availableCharactersPerLine),

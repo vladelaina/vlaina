@@ -571,6 +571,18 @@ export const themeUiFeedbackTokens = {
   urlRailValidationErrorDurationMs: 500,
 } as const;
 
+export const themeFileTreeTokens = {
+  imageThumbnailDecodeEdgePx: 64,
+  imageLibraryThumbnailDecodeEdgePx: 320,
+  imageHoverPreviewDelayMs: 150,
+  imageLibraryRowHeightPx: 210,
+  imageLibraryFallbackWidthPx: 400,
+  imageLibraryFallbackHeightPx: 360,
+  virtualRowHorizontalChromePx: 72,
+  virtualRowDepthIndentPx: 12,
+  virtualRowAverageCharacterWidthPx: 8,
+} as const;
+
 export const themeChatStreamTokens = {
   baseCharDelayMs: 20,
   minCharDelayMs: 20,

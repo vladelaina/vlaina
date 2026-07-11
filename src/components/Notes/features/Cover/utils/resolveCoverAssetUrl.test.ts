@@ -423,6 +423,34 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps coalescing the same cover while a slow resolve is pending', async () => {
+    vi.useFakeTimers();
+    let resolveBlob: ((url: string) => void) | undefined;
+    try {
+      hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/slow.webp');
+      hoisted.loadImageAsBlob.mockImplementation(() => new Promise<string>((resolve) => {
+        resolveBlob = resolve;
+      }));
+
+      const first = resolveCoverAssetUrl({
+        assetPath: 'assets/slow.webp',
+        notesRootPath: '/notes-root-a',
+      });
+      await vi.advanceTimersByTimeAsync(250);
+      const second = resolveCoverAssetUrl({
+        assetPath: 'assets/slow.webp',
+        notesRootPath: '/notes-root-a',
+      });
+
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+      resolveBlob?.('blob:slow');
+      await expect(Promise.all([first, second])).resolves.toEqual(['blob:slow', 'blob:slow']);
+      expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('bounds concurrent resolves for different covers', async () => {
     const pendingBlobResolves: Array<(url: string) => void> = [];
     hoisted.resolveExistingNotesRootAssetPath.mockImplementation(

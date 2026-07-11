@@ -8,7 +8,7 @@ export type { SlashCommandId } from './slashCommandDefinitions';
 
 export function applySlashCommand(ctx: Ctx, commandId: SlashCommandId) {
   const command = slashCommandDefinitions.find((definition) => definition.commandId === commandId);
-  const result = command?.run(ctx);
+  const result: unknown = command?.run(ctx);
   if (result instanceof Promise) {
     void result.catch((_error) => {
     });

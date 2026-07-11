@@ -298,6 +298,25 @@ html, body, #root {
   caret-color: transparent;
 }
 
+html[data-image-file-hover-preview-active='true'] :is(
+  .ProseMirror,
+  [data-note-source-editor='true'],
+  .cm-content,
+  textarea,
+  input
+) {
+  caret-color: transparent !important;
+}
+
+html[data-image-file-hover-preview-active='true'] :is(
+  .native-caret-overlay,
+  .editor-textblock-caret-overlay,
+  .cm-cursor,
+  .cm-dropCursor
+) {
+  visibility: hidden !important;
+}
+
 .appearance-font-size-slider::-webkit-slider-runnable-track {
   height: var(--vlaina-size-6px);
   background: transparent;

@@ -149,24 +149,33 @@ vi.mock('@/components/ui/overlay-scroll-area', async () => {
 vi.mock('./EditorTopRightToolbar', () => ({
   EditorTopRightToolbar: ({
     currentNotePath,
+    isSourceMode,
+    onToggleSourceMode,
     starred,
     toggleStarred,
   }: {
     currentNotePath?: string | null;
+    isSourceMode?: boolean;
+    onToggleSourceMode?: () => void;
     starred: boolean;
     toggleStarred: (path: string) => void;
   }) => (
-    <button
-      type="button"
-      aria-label={starred ? 'Unfavorite' : 'Add to Starred'}
-      onClick={() => {
-        if (currentNotePath) {
-          toggleStarred(currentNotePath);
-        }
-      }}
-    >
-      {starred ? 'Unfavorite' : 'Add to Starred'}
-    </button>
+    <>
+      <button
+        type="button"
+        aria-label={starred ? 'Unfavorite' : 'Add to Starred'}
+        onClick={() => {
+          if (currentNotePath) {
+            toggleStarred(currentNotePath);
+          }
+        }}
+      >
+        {starred ? 'Unfavorite' : 'Add to Starred'}
+      </button>
+      <button type="button" onClick={onToggleSourceMode}>
+        {isSourceMode ? 'Switch to rendered mode' : 'Switch to source mode'}
+      </button>
+    </>
   ),
 }));
 
@@ -269,6 +278,21 @@ describe('MarkdownEditor source fallback', () => {
     await waitFor(() => {
       expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ explicit: false });
     });
+  });
+
+  it('can leave source mode and retry the rendered editor after a startup fallback', async () => {
+    render(<MarkdownEditor />);
+
+    const fallbackEditor = await screen.findByLabelText('Markdown source editor');
+    expect(fallbackEditor.closest('[data-note-source-fallback="true"]')).toBeInstanceOf(HTMLElement);
+    mocks.milkdownRuntimeMode.value = 'live-dom-never-ready';
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to source mode' }));
+    expect(screen.getByRole('button', { name: 'Switch to rendered mode' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to rendered mode' }));
+
+    expect(await screen.findByTestId('milkdown-live-dom')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Markdown source editor')).toBeNull();
   });
 
   it('keeps markdown editable when the Milkdown runtime mounts but never becomes ready', async () => {

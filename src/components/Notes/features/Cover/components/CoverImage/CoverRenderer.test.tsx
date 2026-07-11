@@ -38,11 +38,15 @@ describe('CoverRenderer', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders placeholder and cropper when not resizing', () => {
+  it('reveals the placeholder only after its image loads', () => {
     const { container } = render(<CoverRenderer {...buildProps()} />);
 
-    const placeholder = container.querySelector('img[alt="Cover"]');
+    const placeholder = container.querySelector('img[alt="Cover"]') as HTMLImageElement | null;
     expect(placeholder).not.toBeNull();
+    expect(placeholder?.className.includes('opacity-[var(--vlaina-opacity-0)]')).toBe(true);
+
+    if (placeholder) fireEvent.load(placeholder);
+
     expect(placeholder?.className.includes('opacity-[var(--vlaina-opacity-100)]')).toBe(true);
     expect(placeholder?.className.includes('placeholder-active')).toBe(true);
 
@@ -52,6 +56,17 @@ describe('CoverRenderer', () => {
     expect(cropper?.className.includes('cursor-move')).toBe(true);
     expect(cropper?.getAttribute('style')).toContain('overscroll-behavior: none');
     expect(cropper?.getAttribute('style')).toContain('overflow-anchor: none');
+  });
+
+  it('keeps a failed placeholder image hidden', () => {
+    const { container } = render(<CoverRenderer {...buildProps()} />);
+    const placeholder = container.querySelector('img[alt="Cover"]') as HTMLImageElement | null;
+
+    expect(placeholder).not.toBeNull();
+    if (placeholder) fireEvent.error(placeholder);
+
+    expect(placeholder?.className.includes('opacity-[var(--vlaina-opacity-0)]')).toBe(true);
+    expect(placeholder?.className.includes('placeholder-active')).toBe(false);
   });
 
   it('hides cropper and shows frozen layer during resize', () => {

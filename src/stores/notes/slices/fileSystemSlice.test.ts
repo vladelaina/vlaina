@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   persistWorkspaceSnapshot: vi.fn(),
   flushCurrentPendingEditorMarkdown: vi.fn(),
+  moveDesktopItemToTrash: vi.fn(async () => undefined),
+  revokeImageBlob: vi.fn(),
   storageAdapter: {
     exists: vi.fn(),
     mkdir: vi.fn(),
@@ -10,6 +12,14 @@ const hoisted = vi.hoisted(() => ({
     stat: vi.fn(),
     readFile: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/desktop/trash', () => ({
+  moveDesktopItemToTrash: hoisted.moveDesktopItemToTrash,
+}));
+
+vi.mock('@/lib/assets/io/reader', () => ({
+  revokeImageBlob: hoisted.revokeImageBlob,
 }));
 
 vi.mock('../workspacePersistence', () => ({
@@ -109,6 +119,34 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.openTabs).toEqual([]);
     expect(state.draftNotes).toEqual({});
     expect(state.displayNames.size).toBe(0);
+  });
+
+  it('moves an image to system trash and removes it from the file tree', async () => {
+    const harness = createSliceHarness({
+      notesPath: '/notesRoot',
+      rootFolderPath: '/notesRoot',
+      fileTreeSortMode: 'name-asc',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{
+          id: 'assets/cover.png',
+          name: 'cover.png',
+          path: 'assets/cover.png',
+          isFolder: false,
+          kind: 'image',
+        }],
+      },
+    });
+
+    await harness.getState().deleteImage('assets/cover.png');
+
+    expect(hoisted.moveDesktopItemToTrash).toHaveBeenCalledWith('/notesRoot/assets/cover.png');
+    expect(hoisted.revokeImageBlob).toHaveBeenCalledWith('/notesRoot/assets/cover.png');
+    expect(harness.getState().rootFolder.children).toEqual([]);
   });
 
   it('does not surface a notes error when loading the file tree without a selected folder', async () => {

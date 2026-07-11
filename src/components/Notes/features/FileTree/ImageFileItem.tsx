@@ -1,4 +1,5 @@
-import { lazy, memo, Suspense, useCallback, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useState } from 'react';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { useI18n } from '@/lib/i18n';
@@ -6,11 +7,21 @@ import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { resolveNotesRootRelativeFullPath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { useNotesStore, type ImageFile } from '@/stores/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
-import { themeIconTokens } from '@/styles/themeTokens';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
+import { ImageFileDeleteDialog } from './ImageFileDeleteDialog';
+import { ImageFileNameBackground } from './ImageFileNameBackground';
+import { findImageFileReferences, type ImageFileReference } from './imageFileReferences';
+import { navigateToImageFileReference } from './imageFileReferenceNavigation';
+import { SidebarLiveNoteFileIcon } from '../Sidebar/SidebarNoteFileIcon';
+import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { TreeItemShell } from './components/TreeItemShell';
+import { createTreeItemOpenLocationEntry } from './components/treeItemMenuEntries';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import { useTreeItemUiState } from './hooks/useTreeItemUiState';
+import {
+  hideImageFileHoverPreview,
+  showImageFileHoverPreview,
+} from './imageFileHoverPreviewState';
 
 const TreeItemMenu = lazy(async () => {
   const mod = await import('./components/TreeItemMenu');
@@ -37,10 +48,17 @@ export const ImageFileItem = memo(function ImageFileItem({
 }: ImageFileItemProps) {
   const { t } = useI18n();
   const notesPath = useNotesStore((state) => state.notesPath);
+  const deleteImage = useNotesStore((state) => state.deleteImage);
+  const openNote = useNotesStore((state) => state.openNote);
+  const currentNotePath = useNotesStore((state) => state.currentNote?.path);
+  const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const addToast = useToastStore((state) => state.addToast);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [references, setReferences] = useState<ImageFileReference[]>([]);
+  const [referencesState, setReferencesState] = useState<'idle' | 'loading' | 'loaded'>('idle');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const {
     showMenu,
     setShowMenu,
@@ -56,6 +74,33 @@ export const ImageFileItem = memo(function ImageFileItem({
     notesPath,
     itemPath: node.path,
   });
+
+  useEffect(() => {
+    return () => hideImageFileHoverPreview(node.path);
+  }, [node.path]);
+
+  useEffect(() => {
+    if (!showMenu || referencesState !== 'idle') {
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    setReferencesState('loading');
+    void findImageFileReferences({
+      ...useNotesStore.getState(),
+      imagePath: node.path,
+    }, { signal: controller.signal }).then((nextReferences) => {
+      if (!active) return;
+      setReferences(nextReferences);
+      setReferencesState('loaded');
+    }).catch(() => {
+      if (active) setReferencesState('loaded');
+    });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [node.path, showMenu]);
 
   const openPreview = useCallback(async () => {
     if (isLoadingPreview) {
@@ -84,6 +129,31 @@ export const ImageFileItem = memo(function ImageFileItem({
       onClick: openPreview,
     },
     {
+      kind: 'submenu',
+      key: 'references',
+      icon: <Icon name="file.text" size="md" />,
+      label: `${t('notes.imageReferences')} (${referencesState === 'loaded' ? references.length : '…'})`,
+      children: referencesState !== 'loaded'
+        ? [{ key: 'references-loading', icon: <Icon name="common.refresh" size="md" />, label: t('notes.imageReferencesLoading'), onClick: () => undefined, disabled: true }]
+        : references.length === 0
+          ? [{ key: 'references-empty', icon: <Icon name="file.text" size="md" />, label: t('notes.imageNoReferences'), onClick: () => undefined, disabled: true }]
+          : references.map((reference) => ({
+              key: `reference-${reference.path}`,
+              icon: (
+                <SidebarLiveNoteFileIcon
+                  notePath={reference.path}
+                  notesRootPath={notesPath}
+                  size={NOTES_SIDEBAR_ICON_SIZE}
+                />
+              ),
+              label: getDisplayName(reference.path) || reference.name,
+              onClick: async () => {
+                setShowMenu(false);
+                await navigateToImageFileReference(reference, currentNotePath, openNote);
+              },
+            })),
+    },
+    {
       key: 'copy-path',
       icon: <Icon name="common.copy" size="md" />,
       label: t('sidebar.copyPath'),
@@ -92,13 +162,20 @@ export const ImageFileItem = memo(function ImageFileItem({
         await handleCopyPath();
       },
     },
-    {
-      key: 'open-location',
-      icon: <Icon name="file.folderOpenArrow" size="md" />,
+    createTreeItemOpenLocationEntry({
       label: t('sidebar.openFileLocation'),
-      onClick: async () => {
+      onClose: () => setShowMenu(false),
+      onOpenLocation: handleOpenLocation,
+    }),
+    { kind: 'divider', key: 'delete-divider' },
+    {
+      key: 'delete',
+      icon: <DeleteIcon />,
+      label: t('sidebar.moveToTrash'),
+      danger: true,
+      onClick: () => {
         setShowMenu(false);
-        await handleOpenLocation();
+        setShowDeleteDialog(true);
       },
     },
   ];
@@ -110,16 +187,14 @@ export const ImageFileItem = memo(function ImageFileItem({
         itemKind="image"
         parentFolderPath={parentFolderPath}
         depth={depth}
-        leading={
-          <Icon
-            name={isLoadingPreview ? 'common.refresh' : 'file.image'}
-            size={themeIconTokens.sizeRow}
-            className={isLoadingPreview
-              ? 'animate-spin text-[var(--vlaina-sidebar-notes-file-icon)]'
-              : 'text-[var(--vlaina-sidebar-notes-file-icon)]'}
-          />
-        }
+        leading={null}
         isHighlighted={showMenu}
+        onMouseEnter={() => {
+          showImageFileHoverPreview({ imagePath: node.path, notesPath });
+        }}
+        onMouseLeave={() => {
+          hideImageFileHoverPreview(node.path);
+        }}
         onClick={(event) => {
           event.stopPropagation();
           void openPreview();
@@ -130,8 +205,14 @@ export const ImageFileItem = memo(function ImageFileItem({
         menuButtonLabel={t('sidebar.openFileMenu')}
         onMenuClick={handleMenuTrigger}
         main={
-          <span className={getSidebarLabelClass('notes', { selected: showMenu })}>
-            {node.name}
+          <span className="relative -mx-1 block min-h-[var(--vlaina-size-28px)] w-full min-w-0 overflow-hidden rounded-lg px-2 py-1">
+            <ImageFileNameBackground notesPath={notesPath} imagePath={node.path} />
+            <span
+              className={`relative z-[var(--vlaina-z-10)] block min-w-0 whitespace-normal break-all [overflow-wrap:anywhere] ${getSidebarLabelClass('notes', { selected: showMenu })}`}
+              data-file-tree-image-name={node.path}
+            >
+              {node.name}
+            </span>
           </span>
         }
       >
@@ -157,6 +238,14 @@ export const ImageFileItem = memo(function ImageFileItem({
           />
         </Suspense>
       ) : null}
+
+      <ImageFileDeleteDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        imageName={node.name}
+        references={references}
+        onConfirm={() => deleteImage(node.path)}
+      />
     </>
   );
 }, (previous, next) => (

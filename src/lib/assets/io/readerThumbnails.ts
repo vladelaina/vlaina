@@ -1,4 +1,4 @@
-import { getStorageAdapter, joinPath, type StorageAdapter } from '@/lib/storage/adapter';
+import { getParentPath, getStorageAdapter, joinPath, type StorageAdapter } from '@/lib/storage/adapter';
 import { getMimeType } from '../core/naming';
 import { computeBufferHash } from '../core/hashing';
 import { toBlobPart } from '@/lib/blobPart';
@@ -29,9 +29,58 @@ const THUMBNAIL_MAX_EDGE_PX = 160;
 const MAX_THUMBNAIL_MAX_EDGE_PX = 2048;
 const DEFAULT_THUMBNAIL_MAX_EDGE_PX = THUMBNAIL_MAX_EDGE_PX;
 const PERSISTENT_THUMBNAIL_CACHE_VERSION = 'v1';
+const MAX_PERSISTENT_THUMBNAIL_CACHE_ENTRIES = 2000;
+const MAX_PERSISTENT_THUMBNAIL_CACHE_BYTES = 256 * 1024 * 1024;
+const PERSISTENT_THUMBNAIL_CLEANUP_WRITE_INTERVAL = 100;
 
 const thumbnailBlobUrlCache = new Map<string, BlobUrlCacheEntry>();
 const thumbnailBlobUrlLoadPromises = new Map<string, Promise<string>>();
+let persistentThumbnailWritesSinceCleanup = PERSISTENT_THUMBNAIL_CLEANUP_WRITE_INTERVAL;
+let persistentThumbnailCleanup: Promise<void> | null = null;
+
+function schedulePersistentThumbnailCleanup(
+  storage: StorageAdapter,
+  persistentCachePath: string,
+): void {
+  persistentThumbnailWritesSinceCleanup += 1;
+  if (
+    persistentThumbnailWritesSinceCleanup < PERSISTENT_THUMBNAIL_CLEANUP_WRITE_INTERVAL
+    || persistentThumbnailCleanup
+  ) {
+    return;
+  }
+
+  const cacheDirectory = getParentPath(persistentCachePath);
+  if (!cacheDirectory) return;
+  persistentThumbnailWritesSinceCleanup = 0;
+  persistentThumbnailCleanup = (async () => {
+    const entries = await storage.listDir(cacheDirectory).catch(() => []);
+    const files = entries
+      .filter((entry) => entry.isFile)
+      .sort((first, second) => (
+        (second.modifiedAt ?? second.createdAt ?? 0) -
+        (first.modifiedAt ?? first.createdAt ?? 0)
+      ));
+    let totalBytes = files.reduce((total, entry) => total + (entry.size ?? 0), 0);
+    for (let index = files.length - 1; index >= 0; index -= 1) {
+      if (
+        index < MAX_PERSISTENT_THUMBNAIL_CACHE_ENTRIES
+        && totalBytes <= MAX_PERSISTENT_THUMBNAIL_CACHE_BYTES
+      ) {
+        break;
+      }
+      const entry = files[index];
+      if (!entry) continue;
+      try {
+        await storage.deleteFile(entry.path);
+        totalBytes -= entry.size ?? 0;
+      } catch {
+      }
+    }
+  })().finally(() => {
+    persistentThumbnailCleanup = null;
+  });
+}
 
 function normalizeThumbnailMaxEdgePx(value: number | undefined): number {
   const rounded = Math.round(value ?? DEFAULT_THUMBNAIL_MAX_EDGE_PX);
@@ -95,6 +144,7 @@ function persistThumbnailBlobInBackground(
       assertPreviewableImageSize(bytes.byteLength);
       return storage.writeBinaryFile(persistentCachePath, bytes, { recursive: true });
     })
+    .then(() => schedulePersistentThumbnailCleanup(storage, persistentCachePath))
     .catch(() => {});
 }
 
@@ -222,4 +272,5 @@ export function clearThumbnailImageCache(): void {
   }
   thumbnailBlobUrlCache.clear();
   thumbnailBlobUrlLoadPromises.clear();
+  persistentThumbnailWritesSinceCleanup = PERSISTENT_THUMBNAIL_CLEANUP_WRITE_INTERVAL;
 }

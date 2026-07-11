@@ -114,6 +114,16 @@ describe('caret styles', () => {
     expect(css).not.toContain('--vlaina-editor-caret-width');
   });
 
+  it('hides native and custom carets during sidebar image hover previews', () => {
+    const css = readIndexStyles();
+
+    expect(css).toContain("html[data-image-file-hover-preview-active='true']");
+    expect(css).toContain('.native-caret-overlay');
+    expect(css).toContain('.editor-textblock-caret-overlay');
+    expect(css).toContain('.cm-cursor');
+    expect(css).toContain('visibility: hidden !important;');
+  });
+
   it('keeps embedded code block carets sourced from the shared caret token', () => {
     const source = readCodeBlockEditorTheme();
 

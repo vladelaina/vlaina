@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useUIStore } from '@/stores/uiSlice';
 import {
   MAX_PENDING_COVER_PREVIEW_REQUESTS,
   useCoverSelectionFlow,
@@ -33,6 +34,7 @@ vi.mock('../../../../utils/coverDimensionCache', () => ({
 
 describe('useCoverSelectionFlow', () => {
   beforeEach(() => {
+    useUIStore.setState(useUIStore.getInitialState(), true);
     hoisted.loadImageAsBlob.mockReset();
     hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveNotesRootAssetPath.mockReset();
@@ -53,6 +55,7 @@ describe('useCoverSelectionFlow', () => {
         url: null,
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
+        currentNotePath: 'demo.md',
         onUpdate,
         setShowPicker,
       })
@@ -68,6 +71,10 @@ describe('useCoverSelectionFlow', () => {
       expect(result.current.phase).toBe('previewing');
     });
     expect(result.current.previewSrc).toBe('thumb:monet-4.png');
+    expect(useUIStore.getState()).toMatchObject({
+      universalPreviewTarget: 'demo.md',
+      universalPreviewCover: 'covers/monet-4.png',
+    });
 
     act(() => {
       result.current.handleCoverSelect('covers/monet-5.png');
@@ -78,6 +85,10 @@ describe('useCoverSelectionFlow', () => {
     expect(result.current.phase).toBe('committing');
     expect(onUpdate).toHaveBeenCalledWith('covers/monet-5.png', 50, 50, 240, 1);
     expect(setShowPicker).toHaveBeenCalledWith(false);
+    expect(useUIStore.getState()).toMatchObject({
+      universalPreviewTarget: null,
+      universalPreviewCover: null,
+    });
   });
 
   it('keeps newly selected covers on automatic height', () => {
@@ -247,6 +258,7 @@ describe('useCoverSelectionFlow', () => {
         url: null,
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
+        currentNotePath: 'demo.md',
         onUpdate,
         setShowPicker,
       })
