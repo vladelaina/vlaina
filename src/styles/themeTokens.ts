@@ -423,6 +423,7 @@ export const themeMotionTokens = {
   noteFindReplaceExpandedHeight: 'auto',
   settingsSegmentedControlBounce: 0.15,
   settingsSegmentedControlDuration: 0.25,
+  appViewSwitchCollapsedWidth: 32,
   toastInitialY: 50,
   toastVisibleY: 0,
   toastInitialScale: 0.3,
