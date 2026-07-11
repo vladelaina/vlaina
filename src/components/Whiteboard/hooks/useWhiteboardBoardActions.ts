@@ -95,13 +95,17 @@ export function useWhiteboardBoardActions(options: WhiteboardBoardActionsOptions
     options.setViewport(fitViewportToContent(options.elements, options.strokes, viewportSize));
   }, [options]);
 
+  const resetView = useCallback(() => {
+    options.setViewport(WHITEBOARD_INITIAL_VIEWPORT);
+  }, [options]);
+
   return {
     clearBoard,
     handleRedo,
     handleUndo,
     handleWheel,
     fitView,
-    resetView: () => options.setViewport(WHITEBOARD_INITIAL_VIEWPORT),
+    resetView,
     updateZoom,
   };
 }

@@ -31,7 +31,7 @@ export const WhiteboardRulerOverlay = memo(function WhiteboardRulerOverlay({
 
   return (
     <div
-      className="absolute select-none rounded-[var(--vlaina-radius-8px)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-whiteboard-ruler-bg)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-blur-sm)]"
+      className="absolute select-none overflow-hidden rounded-[var(--vlaina-radius-8px)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-whiteboard-ruler-bg)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-blur-sm)]"
       onPointerDown={interactive ? (event) => onPointerDown(event, 'move') : undefined}
       style={{
         cursor: interactive ? 'move' : 'default',
@@ -44,40 +44,67 @@ export const WhiteboardRulerOverlay = memo(function WhiteboardRulerOverlay({
         width: themeWhiteboardTokens.rulerWidthPx,
       }}
     >
-      <div className="absolute inset-x-0 top-0 flex h-full justify-between px-3">
+      <div className="absolute inset-x-0 top-0 h-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-30)]" />
+      <div className="absolute inset-x-0 bottom-0 h-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-45)]" />
+      <div className="absolute left-0 top-0 h-full w-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-30)]" />
+      <div className="absolute right-0 top-0 h-full w-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-30)]" />
+      <div
+        className="absolute inset-x-0 top-0 flex h-full justify-between"
+        style={{ paddingInline: themeWhiteboardTokens.rulerTickInsetPx }}
+      >
         {ticks.map((tick) => (
           <div
             key={tick}
             className="w-px bg-[var(--vlaina-color-whiteboard-ruler-mark)]"
             style={{
-              height: tick % themeWhiteboardTokens.rulerMajorTickEvery === 0
-                ? themeWhiteboardTokens.rulerMajorTickHeightPx
-                : themeWhiteboardTokens.rulerMinorTickHeightPx,
+              height: getRulerTickHeight(tick),
             }}
           />
         ))}
       </div>
-      <div className="absolute inset-x-0 bottom-0 flex h-full items-end justify-between px-3">
+      <div
+        className="absolute inset-x-0 bottom-0 flex h-full items-end justify-between"
+        style={{ paddingInline: themeWhiteboardTokens.rulerTickInsetPx }}
+      >
         {ticks.map((tick) => (
           <div
             key={tick}
             className="w-px bg-[var(--vlaina-color-whiteboard-ruler-mark)]"
             style={{
-              height: tick % themeWhiteboardTokens.rulerMajorTickEvery === 0
-                ? themeWhiteboardTokens.rulerMajorTickHeightPx
-                : themeWhiteboardTokens.rulerMinorTickHeightPx,
+              height: getRulerTickHeight(tick),
             }}
           />
         ))}
       </div>
-      <div className="absolute inset-x-6 top-1/2 flex -translate-y-1/2 justify-between text-[var(--vlaina-font-10)] font-medium text-[var(--vlaina-color-whiteboard-ruler-mark)]">
+      <div
+        className="absolute top-1/2 flex -translate-y-1/2 justify-between text-[var(--vlaina-font-10)] font-medium text-[var(--vlaina-color-whiteboard-ruler-mark)]"
+        style={{
+          left: themeWhiteboardTokens.rulerLabelInsetPx,
+          right: themeWhiteboardTokens.rulerLabelInsetPx,
+        }}
+      >
         {majorTicks.map((tick, index) => (
           <span key={tick}>{index}</span>
         ))}
       </div>
-      <div className="absolute inset-x-0 top-0 h-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-45)]" />
-      <div className="absolute inset-x-0 bottom-0 h-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-45)]" />
-      <div className="absolute inset-x-3 top-1/2 h-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-45)]" />
+      <div
+        className="absolute top-1/2 h-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-45)]"
+        style={{
+          left: themeWhiteboardTokens.rulerCenterLineInsetPx,
+          right: themeWhiteboardTokens.rulerCenterLineInsetPx,
+        }}
+      />
+      <div
+        className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-between rounded-[var(--vlaina-radius-pill)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-floating-surface)] px-2 opacity-[var(--vlaina-opacity-70)]"
+        style={{
+          height: themeWhiteboardTokens.rulerGripHeightPx,
+          width: themeWhiteboardTokens.rulerGripWidthPx,
+        }}
+      >
+        {Array.from({ length: themeWhiteboardTokens.rulerGripTickCount }, (_, index) => (
+          <span key={index} className="h-1 w-px bg-[var(--vlaina-color-whiteboard-ruler-mark)] opacity-[var(--vlaina-opacity-45)]" />
+        ))}
+      </div>
       <button
         type="button"
         aria-label={closeLabel}
@@ -100,3 +127,9 @@ export const WhiteboardRulerOverlay = memo(function WhiteboardRulerOverlay({
     </div>
   );
 });
+
+function getRulerTickHeight(tick: number): number {
+  if (tick % themeWhiteboardTokens.rulerMajorTickEvery === 0) return themeWhiteboardTokens.rulerMajorTickHeightPx;
+  if (tick % themeWhiteboardTokens.rulerHalfTickEvery === 0) return themeWhiteboardTokens.rulerHalfTickHeightPx;
+  return themeWhiteboardTokens.rulerMinorTickHeightPx;
+}

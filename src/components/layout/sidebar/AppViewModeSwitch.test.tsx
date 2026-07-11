@@ -38,22 +38,20 @@ describe('AppViewModeSwitch', () => {
     cleanup();
   });
 
-  it('optimistically syncs the Notes text color with the selected thumb while switching', () => {
+  it('optimistically expands only the selected view while switching', () => {
     const { container } = render(<AppViewModeSwitch />);
     const notesTab = screen.getByRole('tab', { name: 'Notes' });
     const boardTab = screen.getByRole('tab', { name: 'Board' });
     const chatTab = screen.getByRole('tab', { name: 'Chat' });
-    const tablist = screen.getByRole('tablist', { name: 'Switch app view' });
-    const thumb = container.querySelector('[aria-hidden="true"]');
 
     expect(chatTab).toHaveAttribute('aria-selected', 'true');
     expect(boardTab).toHaveAttribute('aria-selected', 'false');
-    expect(tablist).toHaveStyle({
-      '--vlaina-app-view-mode-option-count': '3',
-      '--vlaina-width-view-mode-thumb': 'calc((100% - var(--vlaina-space-075rem)) / var(--vlaina-app-view-mode-option-count))',
-    });
-    expect(thumb?.className).toContain('bg-[var(--vlaina-sidebar-row-selected-bg)]');
-    expect(thumb).toHaveStyle({ transform: 'translateX(200%)' });
+    expect(chatTab).toHaveStyle({ flexGrow: 1 });
+    const activeBackground = container.querySelector('[aria-hidden="true"]');
+    expect(activeBackground).toHaveClass('bg-[var(--vlaina-sidebar-row-selected-bg)]');
+    expect(screen.getByText('Chat')).toHaveClass('opacity-100');
+    expect(screen.getByText('Notes')).toHaveClass('opacity-0');
+    expect(screen.getByText('Board')).toHaveClass('opacity-0');
 
     fireEvent.click(notesTab);
 
@@ -62,7 +60,10 @@ describe('AppViewModeSwitch', () => {
     expect(notesTab.className).toContain('text-[length:var(--vlaina-font-15)]');
     expect(notesTab.className).not.toContain('transition-colors');
     expect(notesTab).toHaveStyle({ color: 'var(--vlaina-sidebar-row-selected-text)' });
+    expect(notesTab).toHaveStyle({ flexGrow: 1 });
+    expect(screen.getByText('Notes')).toHaveClass('opacity-100');
     expect(chatTab).toHaveAttribute('aria-selected', 'false');
-    expect(thumb).toHaveStyle({ transform: 'translateX(0%)' });
+    expect(chatTab).toHaveStyle({ flexGrow: 0 });
+    expect(container.querySelector('[aria-hidden="true"]')).toBe(activeBackground);
   });
 });

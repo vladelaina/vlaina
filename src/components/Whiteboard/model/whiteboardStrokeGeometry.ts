@@ -21,6 +21,20 @@ export interface WhiteboardEraserPoint {
 }
 
 const eraserBoundsCache = new WeakMap<WhiteboardStroke, EraserBounds | null>();
+const strokeRenderGeometryCache = new WeakMap<WhiteboardStrokePoint[], StrokeRenderGeometryCacheEntry>();
+
+export interface StrokeRenderGeometry {
+  centerPath: string;
+  pressurePath: string;
+  renderWidth: number;
+}
+
+interface StrokeRenderGeometryCacheEntry {
+  geometry: StrokeRenderGeometry;
+  pointCount: number;
+  size: number;
+  tool: WhiteboardStroke['tool'];
+}
 
 export function appendStrokePoints(
   currentPoints: WhiteboardStrokePoint[],
@@ -34,13 +48,18 @@ export function appendStrokePoints(
 export function appendStrokePointsInPlace(
   points: WhiteboardStrokePoint[],
   nextPoints: WhiteboardStrokePoint[],
+  minDistance: number = themeWhiteboardTokens.strokePointMinDistancePx,
 ): void {
   for (const point of nextPoints) {
     const previous = points.at(-1);
-    if (point.breakBefore || !previous || distance(previous, point) >= themeWhiteboardTokens.strokePointMinDistancePx) {
+    if (point.breakBefore || !previous || distance(previous, point) >= minDistance) {
       points.push(point);
     }
   }
+}
+
+export function getStrokePointMinDistance(zoom: number): number {
+  return themeWhiteboardTokens.strokePointMinDistancePx / Math.max(zoom, 0.1);
 }
 
 export function getStrokeRenderWidth(stroke: WhiteboardStroke): number {
@@ -49,11 +68,39 @@ export function getStrokeRenderWidth(stroke: WhiteboardStroke): number {
   return getStrokeWidth(stroke.tool, pressure, stroke.size);
 }
 
+export function getStrokeRenderGeometry(stroke: WhiteboardStroke): StrokeRenderGeometry {
+  const cached = strokeRenderGeometryCache.get(stroke.points);
+  if (cached && cached.pointCount === stroke.points.length && cached.tool === stroke.tool && cached.size === stroke.size) {
+    return cached.geometry;
+  }
+  const segments = getStrokePointSegments(stroke.points);
+  const geometry = {
+    centerPath: segments.map(getOpenEdgePath).join(' '),
+    pressurePath: segments.map((segment) => getPressureSegmentPath(stroke, segment)).join(' '),
+    renderWidth: getStrokeRenderWidth(stroke),
+  };
+  strokeRenderGeometryCache.set(stroke.points, {
+    geometry,
+    pointCount: stroke.points.length,
+    size: stroke.size,
+    tool: stroke.tool,
+  });
+  return geometry;
+}
+
 export function getPressureStrokePath(stroke: WhiteboardStroke): string {
+  const cached = strokeRenderGeometryCache.get(stroke.points);
+  if (cached && cached.pointCount === stroke.points.length && cached.tool === stroke.tool && cached.size === stroke.size) {
+    return cached.geometry.pressurePath;
+  }
   return getStrokePointSegments(stroke.points).map((segment) => getPressureSegmentPath(stroke, segment)).join(' ');
 }
 
 export function getCenterStrokePath(stroke: WhiteboardStroke): string {
+  const cached = strokeRenderGeometryCache.get(stroke.points);
+  if (cached && cached.pointCount === stroke.points.length && cached.tool === stroke.tool && cached.size === stroke.size) {
+    return cached.geometry.centerPath;
+  }
   return getStrokePointSegments(stroke.points).map(getOpenEdgePath).join(' ');
 }
 
@@ -140,10 +187,38 @@ export function eraseStrokesAtPoints(
   strokes: WhiteboardStroke[],
   points: WhiteboardEraserPoint[],
 ): WhiteboardStroke[] {
-  return points.reduce(
-    (current, eraserPoint) => current.flatMap((stroke) => eraseStrokeAtPoint(stroke, eraserPoint.point, eraserPoint.size)),
-    strokes,
-  );
+  if (points.length === 0) return strokes;
+  const eraserBounds = getEraserPointsBounds(points);
+  return strokes.flatMap((stroke) => {
+    if (!canEraserBoundsTouchStroke(stroke, eraserBounds)) return [stroke];
+    return points.reduce(
+      (current, eraserPoint) => current.flatMap((item) => eraseStrokeAtPoint(item, eraserPoint.point, eraserPoint.size)),
+      [stroke],
+    );
+  });
+}
+
+function getEraserPointsBounds(points: WhiteboardEraserPoint[]): EraserBounds {
+  return points.reduce<EraserBounds>((current, eraserPoint) => {
+    const radius = getEraserRadius(eraserPoint.size);
+    return {
+      maxWidth: Math.max(current.maxWidth, radius * 2),
+      maxX: Math.max(current.maxX, eraserPoint.point.x + radius),
+      maxY: Math.max(current.maxY, eraserPoint.point.y + radius),
+      minX: Math.min(current.minX, eraserPoint.point.x - radius),
+      minY: Math.min(current.minY, eraserPoint.point.y - radius),
+    };
+  }, { maxWidth: 0, maxX: -Infinity, maxY: -Infinity, minX: Infinity, minY: Infinity });
+}
+
+function canEraserBoundsTouchStroke(stroke: WhiteboardStroke, eraserBounds: EraserBounds): boolean {
+  const bounds = getEraserBounds(stroke);
+  if (!bounds) return false;
+  const padding = bounds.maxWidth / 2;
+  return eraserBounds.maxX >= bounds.minX - padding
+    && eraserBounds.minX <= bounds.maxX + padding
+    && eraserBounds.maxY >= bounds.minY - padding
+    && eraserBounds.minY <= bounds.maxY + padding;
 }
 
 function canEraserTouchStroke(stroke: WhiteboardStroke, point: WhiteboardPoint, radius: number): boolean {
