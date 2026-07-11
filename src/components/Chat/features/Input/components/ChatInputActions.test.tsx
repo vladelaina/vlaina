@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ChatInputActions } from './ChatInputActions';
 
@@ -12,6 +12,7 @@ function renderActions(overrides: Partial<Parameters<typeof ChatInputActions>[0]
     <ChatInputActions
       onTriggerFileSelect={noop}
       onTriggerMentionSelect={noop}
+      hasMentionCandidates={true}
       isLoading={false}
       canSend={false}
       canSubmit={false}
@@ -64,5 +65,22 @@ describe('ChatInputActions', () => {
     expect(sendButton).toBeDisabled();
     expect(sendButton.className).toContain('opacity-[var(--vlaina-opacity-45)]');
     expect(sendButton.className).not.toContain('opacity-[var(--vlaina-opacity-60)]');
+  });
+
+  it('hides the mention action when there are no mention candidates', () => {
+    renderActions({ hasMentionCandidates: false });
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
+
+    expect(screen.queryByRole('button', { name: '@chat.mentionFileOrFolder' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'chat.uploadFile' })).toBeInTheDocument();
+  });
+
+  it('shows the mention action when a mention candidate is available', () => {
+    renderActions({ hasMentionCandidates: true });
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
+
+    expect(screen.getByRole('button', { name: '@chat.mentionFileOrFolder' })).toBeInTheDocument();
   });
 });

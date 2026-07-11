@@ -157,6 +157,7 @@ export function createDesktopAccountJsonClient(options = {}) {
   const logDesktopAuth = typeof options.logDesktopAuth === 'function'
     ? options.logDesktopAuth
     : null;
+  const fetchImpl = typeof options.fetchImpl === 'function' ? options.fetchImpl : fetch;
   async function readJsonResponse(response, fallbackMessage, signal) {
     throwIfAborted(signal);
     let text = '';
@@ -188,7 +189,7 @@ export function createDesktopAccountJsonClient(options = {}) {
 
   async function fetchJson(url, init = {}) {
     throwIfAborted(init.signal);
-    const response = await raceWithAbort(fetch(url, init), init.signal);
+    const response = await raceWithAbort(fetchImpl(url, init), init.signal);
     throwIfAborted(init.signal);
     const text = await readResponseText(response, init.signal);
     throwIfAborted(init.signal);
@@ -232,7 +233,7 @@ export function createDesktopAccountJsonClient(options = {}) {
     let data;
     try {
       throwIfAborted(init.signal);
-      response = await raceWithAbort(fetch(url, init), init.signal);
+      response = await raceWithAbort(fetchImpl(url, init), init.signal);
       throwIfAborted(init.signal);
       data = await readJsonResponse(response, `Request failed: HTTP ${response.status}`, init.signal);
       throwIfAborted(init.signal);

@@ -577,6 +577,26 @@ describe('managed ipc stream bridge', () => {
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-final:done', { content: 'final' });
   });
 
+  it('coalesces rapid managed stream chunks before crossing the IPC boundary', async () => {
+    const deltas = Array.from({ length: 20 }, (_, index) =>
+      `data: {"choices":[{"delta":{"content":"${index}"}}]}\n\n`
+    );
+    const fetchWithStoredSession = vi.fn(async () => streamResponse(deltas));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-coalesced', {});
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-coalesced:done'
+    );
+
+    const chunkCalls = sender.send.mock.calls.filter(([channel]) =>
+      channel === 'desktop:managed:stream:managed-coalesced:chunk'
+    );
+    expect(chunkCalls.length).toBeLessThan(deltas.length);
+    expect(chunkCalls.at(-1)?.[1]).toBe(Array.from({ length: 20 }, (_, index) => String(index)).join(''));
+  });
+
   it('rejects managed stream buffers that grow too large before a newline arrives', async () => {
     const fetchWithStoredSession = vi.fn(async () => streamResponse([
       'x'.repeat(MAX_MANAGED_STREAM_LINE_CHARS),

@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent, type ReactNode } from 'react';
+import { memo, useRef, type ChangeEvent, type ReactNode } from 'react';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -91,7 +91,7 @@ function ToolbarGroup({ children, className }: { children: ReactNode; className?
   );
 }
 
-export function WhiteboardToolbar({
+export const WhiteboardToolbar = memo(function WhiteboardToolbar({
   canRedo,
   canUndo,
   brushColors,
@@ -237,4 +237,4 @@ export function WhiteboardToolbar({
       </div>
     </div>
   );
-}
+});

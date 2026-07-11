@@ -27,12 +27,13 @@ const desktopSessionActivationGracePeriodMs = 60_000;
 
 export function createDesktopAccountSessionClient({
   apiBaseUrl,
+  fetchImpl = fetch,
   readStoredAccountCredentials,
   clearStoredAccountCredentials,
   rotateStoredSessionToken,
   writeStoredAccountCredentials,
 }) {
-  const { fetchDesktopJson, fetchJson, readJsonResponse } = createDesktopAccountJsonClient();
+  const { fetchDesktopJson, fetchJson, readJsonResponse } = createDesktopAccountJsonClient({ fetchImpl });
 
   function shouldGraceDesktopSession(credentials) {
     return isDesktopSessionWithinGracePeriod(
@@ -44,7 +45,7 @@ export function createDesktopAccountSessionClient({
 
   async function performStoredSessionRequest(credentials, url, init = {}) {
     throwIfAborted(init.signal);
-    const response = await raceWithAbort(fetch(url, {
+    const response = await raceWithAbort(fetchImpl(url, {
       ...init,
       headers: {
         Accept: 'application/json',
@@ -105,7 +106,7 @@ export function createDesktopAccountSessionClient({
       return await fetchWithStoredSession(url, init);
     }
 
-    const response = await raceWithAbort(fetch(url, {
+    const response = await raceWithAbort(fetchImpl(url, {
       ...init,
       headers: {
         Accept: 'application/json',

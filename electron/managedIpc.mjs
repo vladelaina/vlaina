@@ -16,6 +16,7 @@ import {
   readManagedErrorPayload,
 } from './managedIpcErrors.mjs';
 import {
+  createManagedStreamChunkScheduler,
   createManagedStreamAccumulator,
   normalizeManagedBinaryPayload,
   sanitizeManagedChatCompletionBody,
@@ -169,12 +170,15 @@ export function registerManagedIpc({
         const decoder = new TextDecoder();
         let buffer = '';
 
-        const accumulator = createManagedStreamAccumulator((fullContent) => {
+        const chunkScheduler = createManagedStreamChunkScheduler((fullContent) => {
           if (!sendStreamEvent('chunk', fullContent)) {
             controller.abort();
             return false;
           }
           return true;
+        });
+        const accumulator = createManagedStreamAccumulator((fullContent) => {
+          return chunkScheduler.push(fullContent);
         });
 
         const consumeLine = (line) => {
@@ -236,11 +240,16 @@ export function registerManagedIpc({
             }
           }
 
-          sendStreamEvent('done', { content: accumulator.finish() });
+          const finalContent = accumulator.finish();
+          if (!chunkScheduler.flushNow(finalContent)) {
+            throw new Error('Aborted');
+          }
+          sendStreamEvent('done', { content: finalContent });
         } catch (error) {
           void reader.cancel(createAbortError()).catch(() => {});
           throw error;
         } finally {
+          chunkScheduler.cancel();
           controller.signal.removeEventListener('abort', cancelReader);
           reader.releaseLock();
         }

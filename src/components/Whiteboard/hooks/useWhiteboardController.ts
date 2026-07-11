@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react';
+import { useCallback, useMemo, useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react';
 import { useWhiteboardBoardActions } from './useWhiteboardBoardActions';
 import { useWhiteboardBrushCursor } from './useWhiteboardBrushCursor';
 import { useWhiteboardBrushSizes } from './useWhiteboardBrushSizes';
@@ -31,6 +31,7 @@ import {
   type WhiteboardStroke, type WhiteboardTool,
 } from '../model/whiteboardModel';
 import { getItemsInLasso, getRectFromPoints, translateStrokesFromOriginals } from '../model/whiteboardSelection';
+import { getStrokePointMinDistance } from '../model/whiteboardStrokeGeometry';
 
 interface WhiteboardControllerOptions {
   active: boolean; onPrimaryContentReady?: () => void; onStartupReady?: () => void;
@@ -75,23 +76,38 @@ export function useWhiteboardController({
     active, pushHistory, selectedElementIds, selectedStrokeIds, setConnectors, setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes,
   });
   useWhiteboardEscapeKey({ active, clearDraftStroke, setConnectorSourceId, setDragState, setSelectedElementId, setSelectedStrokeIds, setTool });
+  const getViewportPointFromRect = useCallback((clientX: number, clientY: number, rect: DOMRectReadOnly): WhiteboardPoint => (
+    { x: clientX - rect.left, y: clientY - rect.top }
+  ), []);
+  const getBoardPointFromRect = useCallback((clientX: number, clientY: number, rect: DOMRectReadOnly): WhiteboardPoint => (
+    screenPointToBoardPoint(getViewportPointFromRect(clientX, clientY, rect), viewport)
+  ), [getViewportPointFromRect, viewport]);
   const getViewportPoint = useCallback((clientX: number, clientY: number): WhiteboardPoint => {
     const rect = viewportRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  }, []);
-  const getBoardPoint = useCallback((clientX: number, clientY: number): WhiteboardPoint => (
-    screenPointToBoardPoint(getViewportPoint(clientX, clientY), viewport)), [getViewportPoint, viewport]);
+    return getViewportPointFromRect(clientX, clientY, rect);
+  }, [getViewportPointFromRect]);
+  const getBoardPoint = useCallback((clientX: number, clientY: number): WhiteboardPoint => {
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return getBoardPointFromRect(clientX, clientY, rect);
+  }, [getBoardPointFromRect]);
   const { deletePointer, getPinchMetrics, setPointer } = useWhiteboardTouchPointers(getViewportPoint);
   const { flushResizeDrags, handleElementPointerDown, handleResizePointerDown, handleSelectionResizePointerDown, moveOrResizeElement, resizeSelection, scheduleElementResize, selectElement, setElementText } = useWhiteboardElementControls({
     elements, getBoardPoint, pushHistory, selectedElementIds, selectedStrokeIds, setDragState, setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes, strokes, tool,
   });
   const handleSurfaceDoubleClick = useCallback(() => undefined, []);
-  const boardActions = useWhiteboardBoardActions({
+  const boardActionOptions = useMemo(() => ({
     clearDraftStroke, connectors, elements, getViewportPoint, pushHistory, redo, resizeBrush,
     scheduleViewport, setConnectors, setConnectorSourceId, setDragState, setDraftStroke, setElements,
     setSelectedElementId, setSelectedStrokeIds, setStrokes, setViewport, spacePressedRef, strokes, tool, undo, viewportRef,
-  });
+  }), [
+    clearDraftStroke, connectors, elements, getViewportPoint, pushHistory, redo, resizeBrush,
+    scheduleViewport, setConnectors, setConnectorSourceId, setDragState, setDraftStroke, setElements,
+    setSelectedElementId, setSelectedStrokeIds, setStrokes, setViewport, spacePressedRef, strokes, tool, undo,
+    viewportRef,
+  ]);
+  const boardActions = useWhiteboardBoardActions(boardActionOptions);
   const { copyBoardToClipboard, exportBoard } = useWhiteboardExport({ connectors, elements, strokes, viewportRef });
   const importImage = useWhiteboardImageImport({ pushHistory, setElements, setSelectedElementId, setSelectedStrokeIds, setTool, viewport, viewportRef });
   const clipboard = useWhiteboardClipboard({
@@ -110,12 +126,16 @@ export function useWhiteboardController({
   const handleRulerPointerDown = useCallback((event: PointerEvent<HTMLDivElement | HTMLButtonElement>, mode: 'move' | 'rotate') => {
     startRulerDrag(event, getBoardPoint(event.clientX, event.clientY), mode);
   }, [getBoardPoint, startRulerDrag]);
-  const collectStrokePoints = useCallback((event: PointerEvent) => (
+  const collectStrokePoints = useCallback((event: PointerEvent, rect?: DOMRectReadOnly) => {
+    const viewportRect = rect ?? viewportRef.current?.getBoundingClientRect();
+    if (!viewportRect) return [];
+    return (
     snapStrokePointsToRuler(getCoalescedPointerEvents(event).map((coalescedEvent) => createStrokePoint(
-      getBoardPoint(coalescedEvent.clientX, coalescedEvent.clientY),
+      getBoardPointFromRect(coalescedEvent.clientX, coalescedEvent.clientY, viewportRect),
       coalescedEvent.pressure,
     )), viewport.zoom)
-  ), [getBoardPoint, snapStrokePointsToRuler, viewport.zoom]);
+    );
+  }, [getBoardPointFromRect, snapStrokePointsToRuler, viewport.zoom]);
   const startPan = useCallback((event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({
@@ -137,12 +157,14 @@ export function useWhiteboardController({
     });
     return true;
   }, [clearDraftStroke, getPinchMetrics, viewport]);
-  const eraseAtEvent = useCallback((event: PointerEvent) => {
+  const eraseAtEvent = useCallback((event: PointerEvent, rect?: DOMRectReadOnly) => {
+    const viewportRect = rect ?? viewportRef.current?.getBoundingClientRect();
+    if (!viewportRect) return;
     scheduleEraserPoints(getCoalescedPointerEvents(event).map((coalescedEvent) => ({
-      point: getBoardPoint(coalescedEvent.clientX, coalescedEvent.clientY),
+      point: getBoardPointFromRect(coalescedEvent.clientX, coalescedEvent.clientY, viewportRect),
       size: brushSizes.eraser,
     })));
-  }, [brushSizes.eraser, getBoardPoint, scheduleEraserPoints]);
+  }, [brushSizes.eraser, getBoardPointFromRect, scheduleEraserPoints]);
   const handleConnectorTarget = useCallback((id: string) => {
     setSelectedElementId(id);
     setSelectedStrokeIds([]);
@@ -171,7 +193,8 @@ export function useWhiteboardController({
       startPan(event);
       return;
     }
-    const point = getBoardPoint(event.clientX, event.clientY);
+    const rect = viewportRef.current?.getBoundingClientRect();
+    const point = rect ? getBoardPointFromRect(event.clientX, event.clientY, rect) : { x: 0, y: 0 };
     if (tool === 'ruler' && event.button === 0) {
       setSelectedElementId(null);
       setSelectedStrokeIds([]);
@@ -181,7 +204,7 @@ export function useWhiteboardController({
     if (isDrawingTool(tool) && event.button === 0) {
       setSelectedElementId(null);
       setSelectedStrokeIds([]);
-      beginRulerStroke(); setDraftStroke({ color: brushColors[tool], id: `wb-stroke-${strokeIdRef.current}`, tool, size: brushSizes[tool], points: collectStrokePoints(event) });
+      beginRulerStroke(); setDraftStroke({ color: brushColors[tool], id: `wb-stroke-${strokeIdRef.current}`, tool, size: brushSizes[tool], points: collectStrokePoints(event, rect ?? undefined) });
       setDragState({ kind: 'draw' });
       return;
     }
@@ -189,7 +212,7 @@ export function useWhiteboardController({
       setSelectedStrokeIds([]);
       setSelectedElementId(null);
       pushHistory();
-      eraseAtEvent(event);
+      eraseAtEvent(event, rect ?? undefined);
       setDragState({ kind: 'draw' });
       return;
     }
@@ -206,7 +229,8 @@ export function useWhiteboardController({
 
   const handlePointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     setPointer(event.pointerId, event.clientX, event.clientY);
-    const point = getBoardPoint(event.clientX, event.clientY);
+    const rect = viewportRef.current?.getBoundingClientRect();
+    const point = rect ? getBoardPointFromRect(event.clientX, event.clientY, rect) : { x: 0, y: 0 };
     if (!dragState || dragState.kind === 'draw') setBrushCursorPoint(point);
     if (updateRulerDrag(point)) return;
     if (!dragState) return;
@@ -232,10 +256,10 @@ export function useWhiteboardController({
     }
     if (dragState.kind === 'draw') {
       if (tool === 'eraser') {
-        eraseAtEvent(event);
+        eraseAtEvent(event, rect ?? undefined);
         return;
       }
-      if (isDrawingTool(tool)) appendDraftPoints(tool, collectStrokePoints(event));
+      if (isDrawingTool(tool)) appendDraftPoints(tool, collectStrokePoints(event, rect ?? undefined), getStrokePointMinDistance(viewport.zoom));
       return;
     }
     if (dragState.kind === 'marquee') {

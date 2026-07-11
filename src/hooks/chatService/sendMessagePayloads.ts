@@ -70,13 +70,13 @@ export async function buildSendMessageApiContent({
   signal,
 }: SendMessageApiContentOptions): Promise<ChatMessageContent> {
   throwIfChatRequestAborted(signal);
-  const mentionedNotes = await loadMentionedNotes(noteMentions);
-  throwIfChatRequestAborted(signal);
-  const mentionedFolderImages = await loadMentionedFolderImageAttachments(noteMentions);
+  const [mentionedNotes, mentionedFolderImages, fileAttachmentContext] = await Promise.all([
+    loadMentionedNotes(noteMentions),
+    loadMentionedFolderImageAttachments(noteMentions),
+    buildMessageFileAttachmentContext(requestAttachments),
+  ]);
   throwIfChatRequestAborted(signal);
   const notesContext = buildMentionedNotesContext(mentionedNotes);
-  const fileAttachmentContext = await buildMessageFileAttachmentContext(requestAttachments);
-  throwIfChatRequestAborted(signal);
   const requestText = [
     fileAttachmentContext,
     userMessageText,

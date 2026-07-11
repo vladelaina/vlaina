@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { memo, useRef, type ReactNode } from 'react';
 import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
 import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/shared';
 import {
@@ -35,7 +35,7 @@ const moreButtonClassName = cn(
   'hover:text-[var(--vlaina-sidebar-row-selected-text)]',
 );
 
-export function WhiteboardMoreMenu({ onCopyImage, onExport }: WhiteboardMoreMenuProps) {
+export const WhiteboardMoreMenu = memo(function WhiteboardMoreMenu({ onCopyImage, onExport }: WhiteboardMoreMenuProps) {
   const { t } = useI18n();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -82,7 +82,7 @@ export function WhiteboardMoreMenu({ onCopyImage, onExport }: WhiteboardMoreMenu
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});
 
 function WhiteboardMenuSeparator() {
   return <div role="separator" className="-mx-1 my-1 h-px bg-[var(--muted)]" />;

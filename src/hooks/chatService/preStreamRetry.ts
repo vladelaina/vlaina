@@ -10,9 +10,8 @@ export const DEV_RETRY_SIMULATION_STORAGE_KEY = 'vlaina_dev_retry_simulation';
 export const DEV_RETRY_SIMULATION_CHANGED_EVENT = 'vlaina-dev-retry-simulation-changed';
 
 const PRE_STREAM_QUICK_RETRY_COUNT = 3;
+const PRE_STREAM_MAX_ATTEMPTS = 6;
 const PRE_STREAM_RETRY_STATUS_INTERVAL_MS = 1_000;
-const PRE_STREAM_FAST_VISIBLE_RETRY_COUNT = 6;
-const PRE_STREAM_VISIBLE_RETRY_MAX_DELAY_MS = 30_000;
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
@@ -96,14 +95,12 @@ export function setDevRetrySimulationEnabled(enabled: boolean): void {
   window.dispatchEvent(new Event(DEV_RETRY_SIMULATION_CHANGED_EVENT));
 }
 
-function getVisibleRetryDelayMs(visibleRetryNumber: number): number {
+function getVisibleRetryDelayMs(): number {
   if (isDevVisibleRetryDelayFastEnabled() || isDevRetrySimulationEnabled()) {
     return PRE_STREAM_DEV_VISIBLE_RETRY_DELAY_MS;
   }
 
-  return visibleRetryNumber <= PRE_STREAM_FAST_VISIBLE_RETRY_COUNT
-    ? PRE_STREAM_VISIBLE_RETRY_DELAY_MS
-    : PRE_STREAM_VISIBLE_RETRY_MAX_DELAY_MS;
+  return PRE_STREAM_VISIBLE_RETRY_DELAY_MS;
 }
 
 async function waitForVisibleRetry(
@@ -113,7 +110,7 @@ async function waitForVisibleRetry(
   onRetryStatus: ((message: string) => void) | undefined,
 ): Promise<void> {
   const startedAt = Date.now();
-  const delayMs = getVisibleRetryDelayMs(visibleRetryNumber);
+  const delayMs = getVisibleRetryDelayMs();
   let remainingMs = delayMs;
 
   onRetryStatus?.(formatRetryStatusMessage(error, remainingMs, visibleRetryNumber));
@@ -154,6 +151,9 @@ export async function sendWithPreStreamRetry(
       }
 
       const nextRetryNumber = retryCount + 1;
+      if (nextRetryNumber >= PRE_STREAM_MAX_ATTEMPTS) {
+        throw error;
+      }
       if (nextRetryNumber <= PRE_STREAM_QUICK_RETRY_COUNT) {
         await waitForRetry(delayMs, signal);
       } else {

@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { WhiteboardSurface } from './components/WhiteboardSurface';
 import { WhiteboardMoreMenu } from './components/WhiteboardMoreMenu';
@@ -17,6 +18,7 @@ export function WhiteboardView({
 }: WhiteboardViewProps) {
   const { t } = useI18n();
   const board = useWhiteboardController({ active, onPrimaryContentReady, onStartupReady });
+  const exportPng = useCallback(() => board.exportBoard('png'), [board.exportBoard]);
 
   return (
     <section
@@ -94,7 +96,7 @@ export function WhiteboardView({
         onClear={board.clearBoard}
         onCopy={board.onCopy}
         onDuplicate={board.onDuplicate}
-        onExport={() => board.exportBoard('png')}
+        onExport={exportPng}
         onFitView={board.fitView}
         onImageAdd={board.importImage}
         onPaste={board.onPaste}

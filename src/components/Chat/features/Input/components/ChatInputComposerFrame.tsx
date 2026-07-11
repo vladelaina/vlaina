@@ -41,6 +41,7 @@ interface ChatInputComposerFrameProps {
   handleTextareaPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   handleTriggerFileSelect: () => void;
   handleTriggerMentionSelect: () => void;
+  hasMentionCandidates: boolean;
   hasSelectedModel: boolean;
   isBlockDropActive: boolean;
   isDragging: boolean;
@@ -89,6 +90,7 @@ export function ChatInputComposerFrame({
   handleTextareaPaste,
   handleTriggerFileSelect,
   handleTriggerMentionSelect,
+  hasMentionCandidates,
   hasSelectedModel,
   isBlockDropActive,
   isDragging,
@@ -217,6 +219,7 @@ export function ChatInputComposerFrame({
             <ChatInputActions
               onTriggerFileSelect={handleTriggerFileSelect}
               onTriggerMentionSelect={handleTriggerMentionSelect}
+              hasMentionCandidates={hasMentionCandidates}
               isLoading={isLoading}
               canSend={canSend}
               canSubmit={canSubmit}
