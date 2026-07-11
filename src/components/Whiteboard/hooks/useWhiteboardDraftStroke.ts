@@ -20,10 +20,10 @@ export function useWhiteboardDraftStroke() {
     setDraftStrokeState(stroke);
   }, []);
 
-  const appendDraftPoints = useCallback((tool: WhiteboardDrawingTool, points: WhiteboardStrokePoint[]) => {
+  const appendDraftPoints = useCallback((tool: WhiteboardDrawingTool, points: WhiteboardStrokePoint[], minDistance?: number) => {
     const current = draftStrokeRef.current;
     if (!current || current.tool !== tool) return;
-    appendStrokePointsInPlace(current.points, points);
+    appendStrokePointsInPlace(current.points, points, minDistance);
     if (frameRef.current !== null) return;
     frameRef.current = window.requestAnimationFrame(publishDraftStroke);
   }, [publishDraftStroke]);
