@@ -95,6 +95,12 @@ describe('TitleInput', () => {
     vi.useRealTimers();
   });
 
+  it('keeps system spelling assistance available for note titles', () => {
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
+
+    expect(screen.getByRole('textbox')).toHaveAttribute('spellcheck', 'true');
+  });
+
   it('does not lock a bogus title height when first measured before layout has width', () => {
     render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 

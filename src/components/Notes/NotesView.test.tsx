@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { NOTE_SOURCE_MODE_TOGGLE_EVENT } from '@/components/Notes/features/Editor/sourceMode/sourceModeEvents';
+import { EDITOR_FIND_OPEN_EVENT } from '@/components/Notes/features/Editor/find/editorFindEvents';
 import { dispatchNotesTabSplitDrag } from '@/components/Notes/features/Split/notesSplitDragEvents';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { messageDialog } from '@/lib/storage/dialog';
@@ -2364,6 +2365,112 @@ describe('NotesView', () => {
     } finally {
       titleInput.remove();
       window.removeEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+    }
+  });
+
+  it('toggles source mode from the editable note body', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleNoteSourceMode' && event.key === '/' && event.ctrlKey
+    ));
+    const sourceModeListener = vi.fn();
+    window.addEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+
+    render(<NotesView />);
+    await waitForNotesRootInitializationEffects();
+
+    const editorRoot = document.createElement('div');
+    editorRoot.setAttribute('data-note-content-root', 'true');
+    const editor = document.createElement('div');
+    editor.className = 'ProseMirror';
+    editor.setAttribute('contenteditable', 'true');
+    editorRoot.appendChild(editor);
+    document.body.appendChild(editorRoot);
+
+    try {
+      const event = new KeyboardEvent('keydown', {
+        key: '/',
+        code: 'Slash',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      editor.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(sourceModeListener).toHaveBeenCalledTimes(1);
+    } finally {
+      editorRoot.remove();
+      window.removeEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+    }
+  });
+
+  it('opens note find from the editable note body', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'editorFind' && event.key.toLowerCase() === 'f' && event.ctrlKey
+    ));
+    const editorFindListener = vi.fn();
+    window.addEventListener(EDITOR_FIND_OPEN_EVENT, editorFindListener);
+
+    render(<NotesView />);
+    await waitForNotesRootInitializationEffects();
+
+    const editorRoot = document.createElement('div');
+    editorRoot.setAttribute('data-note-content-root', 'true');
+    const sourceEditor = document.createElement('textarea');
+    sourceEditor.setAttribute('data-note-source-editor', 'true');
+    editorRoot.appendChild(sourceEditor);
+    document.body.appendChild(editorRoot);
+
+    try {
+      const event = new KeyboardEvent('keydown', {
+        key: 'f',
+        code: 'KeyF',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      sourceEditor.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(editorFindListener).toHaveBeenCalledTimes(1);
+    } finally {
+      editorRoot.remove();
+      window.removeEventListener(EDITOR_FIND_OPEN_EVENT, editorFindListener);
+    }
+  });
+
+  it('saves from the editable note body without stealing native editing shortcuts', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'saveNote' && event.key.toLowerCase() === 's' && event.ctrlKey
+    ));
+    notesState.saveNote.mockResolvedValue(undefined);
+
+    render(<NotesView />);
+    await waitForNotesRootInitializationEffects();
+
+    const editorRoot = document.createElement('div');
+    editorRoot.setAttribute('data-note-content-root', 'true');
+    const sourceEditor = document.createElement('textarea');
+    editorRoot.appendChild(sourceEditor);
+    document.body.appendChild(editorRoot);
+
+    try {
+      const event = new KeyboardEvent('keydown', {
+        key: 's',
+        code: 'KeyS',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      sourceEditor.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(notesState.saveNote).toHaveBeenCalledWith({ explicit: true });
+    } finally {
+      editorRoot.remove();
     }
   });
 

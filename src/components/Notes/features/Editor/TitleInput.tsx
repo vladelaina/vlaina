@@ -242,7 +242,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
       {...titleInputDataAttrs}
       rows={1}
       wrap="soft"
-      spellCheck={false}
+      spellCheck
       value={title}
       onChange={handleChange}
       onCompositionStart={() => {

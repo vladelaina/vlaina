@@ -207,7 +207,7 @@ function createMockActiveEditor() {
   const action = vi.fn((callback: (ctx: unknown) => unknown) => callback(ctx));
   const editor = { action, ctx, status: 'Created' };
   mocks.editorState.activeEditor = editor;
-  return { action, dispatch, parser, replace };
+  return { action, dispatch, parser, replace, view };
 }
 
 beforeEach(() => {
@@ -758,6 +758,18 @@ describe('MilkdownEditorInner shell focus', () => {
 });
 
 describe('MilkdownEditorInner external content sync', () => {
+  it('labels the rich-text surface as a multiline note body editor without changing shortcut semantics', async () => {
+    const { view } = createMockActiveEditor();
+
+    render(<MilkdownEditorInner />);
+
+    await waitFor(() => {
+      expect(view.dom).not.toHaveAttribute('role');
+      expect(view.dom).toHaveAttribute('aria-label', 'Note body editor');
+      expect(view.dom).toHaveAttribute('aria-multiline', 'true');
+    });
+  });
+
   it('reports ready when an already-created editor is available before the status callback is observed', async () => {
     createMockActiveEditor();
     const onEditorViewReady = vi.fn();

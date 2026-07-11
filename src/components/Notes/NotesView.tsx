@@ -224,6 +224,7 @@ export function NotesView({
     openFloatingChat,
     focusNotesChatComposer,
     focusSidebarPath,
+    saveNote,
   });
 
   return (
