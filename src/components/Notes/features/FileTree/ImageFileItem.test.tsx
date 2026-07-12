@@ -159,9 +159,9 @@ describe('ImageFileItem', () => {
     render(
       <ImageFileItem
         node={{
-          id: 'images/cover.png',
-          name: 'cover.png',
-          path: 'images/cover.png',
+          id: 'images/cover.gif',
+          name: 'cover.gif',
+          path: 'images/cover.gif',
           isFolder: false,
           kind: 'image',
         }}
@@ -169,13 +169,38 @@ describe('ImageFileItem', () => {
       />
     );
 
-    fireEvent.doubleClick(screen.getByText('cover.png'));
+    fireEvent.doubleClick(screen.getByText('cover.gif'));
     const input = screen.getByRole('textbox');
-    fireEvent.change(input, { target: { value: 'renamed.png' } });
+    expect(input).toHaveValue('cover');
+    fireEvent.change(input, { target: { value: 'renamed' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(hoisted.renameImage).toHaveBeenCalledWith('images/cover.png', 'renamed.png');
+      expect(hoisted.renameImage).toHaveBeenCalledWith('images/cover.gif', 'renamed.gif');
+    });
+  });
+
+  it('does not duplicate an explicitly entered image extension', async () => {
+    render(
+      <ImageFileItem
+        node={{
+          id: 'images/cover.svg',
+          name: 'cover.svg',
+          path: 'images/cover.svg',
+          isFolder: false,
+          kind: 'image',
+        }}
+        depth={1}
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByText('cover.svg'));
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'renamed.svg' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(hoisted.renameImage).toHaveBeenCalledWith('images/cover.svg', 'renamed.svg');
     });
   });
 });

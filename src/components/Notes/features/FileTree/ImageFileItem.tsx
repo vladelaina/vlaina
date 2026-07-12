@@ -65,6 +65,9 @@ export const ImageFileItem = memo(function ImageFileItem({
   const [references, setReferences] = useState<ImageFileReference[]>([]);
   const [referencesState, setReferencesState] = useState<'idle' | 'loading' | 'loaded'>('idle');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const extensionIndex = node.name.lastIndexOf('.');
+  const imageExtension = extensionIndex > 0 ? node.name.slice(extensionIndex) : '';
+  const imageNameStem = extensionIndex > 0 ? node.name.slice(0, extensionIndex) : node.name;
   const {
     showMenu,
     setShowMenu,
@@ -77,7 +80,7 @@ export const ImageFileItem = memo(function ImageFileItem({
     handleMenuTrigger,
   } = useTreeItemUiState({
     path: node.path,
-    name: node.name,
+    name: imageNameStem,
   });
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
@@ -132,11 +135,15 @@ export const ImageFileItem = memo(function ImageFileItem({
 
   const handleRenameSubmit = useCallback(async () => {
     const trimmedValue = renameValue.trim();
-    if (trimmedValue && trimmedValue !== node.name) {
-      await renameImage(node.path, trimmedValue);
+    let nextName = trimmedValue;
+    if (nextName && !nextName.toLowerCase().endsWith(imageExtension.toLowerCase())) {
+      nextName += imageExtension;
+    }
+    if (nextName && nextName !== node.name) {
+      await renameImage(node.path, nextName);
     }
     setIsRenaming(false);
-  }, [node.name, node.path, renameImage, renameValue, setIsRenaming]);
+  }, [imageExtension, node.name, node.path, renameImage, renameValue, setIsRenaming]);
 
   const handleRenameFromDoubleClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
