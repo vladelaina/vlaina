@@ -1189,6 +1189,20 @@ describe('shouldUseLazyBlockVisibility', () => {
     expect(shouldUseLazyBlockVisibility(markdown)).toBe(false);
   });
 
+  it('enables lazy block visibility for dense medium-size markdown', () => {
+    const markdown = [
+      '# Dense Manual',
+      '',
+      ...Array.from({ length: 800 }, (_, index) => (
+        `Section ${index} with **mixed** syntax and enough prose to create a rendered block.`
+      )),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(60_000);
+    expect(markdown.length).toBeLessThan(100_000);
+    expect(shouldUseLazyBlockVisibility(markdown)).toBe(true);
+  });
+
   it('enables lazy block visibility for large multi-line mixed manuals', () => {
     const markdown = [
       '# Large Manual',
