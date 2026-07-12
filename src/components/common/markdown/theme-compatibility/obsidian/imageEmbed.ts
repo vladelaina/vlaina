@@ -1,4 +1,4 @@
-import { canTransformMarkdownAst } from './markdownAstBudget';
+import { canTransformMarkdownAst } from '../../markdownAstBudget';
 import { sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
 type MarkdownAstNode = {

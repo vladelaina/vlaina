@@ -2,7 +2,7 @@ import {
   type CssLines,
   cssRule,
   important,
-} from './shared';
+} from './postBridgeSelectors';
 
 function widthFragmentRule(write: string, fragment: string, width: string): CssLines {
   return cssRule(

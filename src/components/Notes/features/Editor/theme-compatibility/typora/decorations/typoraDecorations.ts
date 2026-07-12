@@ -2,7 +2,7 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import {
   STOP_PROSE_SCAN,
   scanProseDescendants,
-} from '../plugins/shared/boundedProseNodeScan';
+} from '../../../plugins/shared/boundedProseNodeScan';
 import {
   getBlockquoteAttrs,
   getFirstBlockAttrs,

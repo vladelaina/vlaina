@@ -8,6 +8,7 @@ import {
 import { Node } from '@milkdown/kit/prose/model';
 import { EditorView, NodeView } from '@milkdown/kit/prose/view';
 import { createRoot, Root } from 'react-dom/client';
+import { OBSIDIAN_CODE_BLOCK_EDITOR_CLASS_NAME } from '../../theme-compatibility/obsidian/runtimeClasses';
 import { installCodeBlockNodeViewInitializationMethods } from './CodeBlockNodeViewInitializationMethods';
 import { installCodeBlockNodeViewKeyboardMethods } from './CodeBlockNodeViewKeyboardMethods';
 import { installCodeBlockNodeViewLifecycleMethods } from './CodeBlockNodeViewLifecycleMethods';
@@ -162,7 +163,7 @@ export class CodeBlockNodeView implements NodeView {
     this.dom.appendChild(this.headerDOM);
 
     this.editorDOM = document.createElement('div');
-    this.editorDOM.className = 'code-block-editable CodeMirror cm-s-inner cm-s-obsidian';
+    this.editorDOM.className = OBSIDIAN_CODE_BLOCK_EDITOR_CLASS_NAME;
     this.dom.appendChild(this.editorDOM);
 
     this.root = createRoot(this.headerDOM);

@@ -2,7 +2,7 @@ import {
   type CssLines,
   cssRule,
   important,
-} from './shared';
+} from './postBridgeSelectors';
 
 export function buildTyporaMediaBridge(write: string): CssLines {
   const embeddedPlayerSources = [

@@ -1,4 +1,4 @@
-import { buildTyporaPostBridgeCss } from './postBridge/typoraBridge';
+import { buildTyporaPostBridgeCss } from './typora/postBridge';
 import type { MarkdownThemePlatform } from './types';
 
 export function buildImportedMarkdownThemePostBridgeCss(

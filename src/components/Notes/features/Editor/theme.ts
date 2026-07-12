@@ -1,18 +1,13 @@
 import { rootCtx } from '@milkdown/kit/core';
 import type { Ctx } from '@milkdown/kit/ctx';
 import { applySchemaThemeOverrides } from './themeSchemaOverrides';
+import { OBSIDIAN_EDITOR_ROOT_CLASSES } from './theme-compatibility/obsidian/runtimeClasses';
 
 const MARKDOWN_EDITOR_ROOT_CLASS = [
     'markdown-surface',
     'done',
     'max',
-    'markdown-preview-view',
-    'markdown-rendered',
-    'markdown-reading-view',
-    'markdown-preview-section',
-    'markdown-source-view',
-    'cm-s-obsidian',
-    'mod-cm6',
+    ...OBSIDIAN_EDITOR_ROOT_CLASSES,
     'is-live-preview',
     'is-readable-line-width',
     'mx-auto',

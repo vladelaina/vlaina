@@ -1,6 +1,6 @@
 import { collectThemeCustomProperties } from './collector';
-import { TYPORA_FIXED_LIGHT_APP_EFFECT_DECLARATIONS } from './effects';
-import { TYPORA_FIXED_LIGHT_APP_FALLBACK_DECLARATIONS } from './fixedLightFallbacks';
+import { TYPORA_FIXED_LIGHT_APP_EFFECT_DECLARATIONS } from '../typora/appTheme/effects';
+import { TYPORA_FIXED_LIGHT_APP_FALLBACK_DECLARATIONS } from '../typora/appTheme/fixedLightFallbacks';
 import { escapeCssString, renderRule } from './render';
 import type { MarkdownThemePlatform } from '../types';
 

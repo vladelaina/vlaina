@@ -3,24 +3,24 @@ import {
   getTyporaRootSelector,
   getTyporaWriteSelector,
   important,
-} from './shared';
+} from './postBridgeSelectors';
 import {
   buildTyporaCaptionBridge,
   buildTyporaMediaBridge,
   buildTyporaTableBridge,
-} from './typoraContentBridge';
+} from './postBridgeContent';
 import {
   buildTyporaRootBridge,
   buildTyporaWriteBridge,
-} from './typoraCoreBridge';
+} from './postBridgeCore';
 import {
   buildTyporaCardBridge,
   buildTyporaImageBridge,
-} from './typoraImageBridge';
+} from './postBridgeImage';
 import {
   buildTyporaCheckboxBridge,
   buildTyporaColumnBridge,
-} from './typoraSemanticBridge';
+} from './postBridgeSemantic';
 
 export function buildTyporaPostBridgeCss(importedThemeId: string): string {
   const root = getTyporaRootSelector(importedThemeId);

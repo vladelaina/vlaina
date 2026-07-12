@@ -26,7 +26,7 @@ import { codePlugin } from '../plugins/code/codePlugin';
 import { codeBlockPlugins } from '../plugins/code/codeKeymap';
 import { frontmatterPlugin } from '../plugins/frontmatter/frontmatterPlugin';
 import { videoPlugin } from '../plugins/video/videoPlugin';
-import { obsidianImageEmbedPlugin } from '../plugins/obsidian-embed/obsidianImageEmbedPlugin';
+import { obsidianImageEmbedPlugin } from '../theme-compatibility/obsidian/imageEmbedPlugin';
 import { abbrPlugin } from '../plugins/abbr/abbrPlugin';
 import { taskListClickPlugin } from '../plugins/task-list/taskListClickPlugin';
 import { taskListCursorPlugin } from '../plugins/task-list/taskListCursorPlugin';
@@ -54,8 +54,8 @@ import { typewriterModePlugin } from '../plugins/typewriter-mode';
 import { editorShortcutsPlugin } from '../plugins/editorShortcutsPlugin';
 import { tagTokenPlugin } from '../plugins/tags/tagTokenPlugin';
 import { structuralStyleDecorationsPlugin } from '../plugins/structural/structuralStyleDecorations';
-import { typoraCompatibilityDomClassesPlugin } from '../plugins/structural/typoraCompatibilityDomClasses';
-import { themeCompatibilityDecorationsPlugin } from '../themeCompatibilityDecorations';
+import { typoraCompatibilityDomClassesPlugin } from '../theme-compatibility/typora/domClassesPlugin';
+import { themeCompatibilityDecorationsPlugin } from '../theme-compatibility/typora/decorationsPlugin';
 
 export const customPluginGroups = [
   {

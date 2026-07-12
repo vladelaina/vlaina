@@ -1,5 +1,6 @@
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { cn } from '@/lib/utils';
+import { TYPORA_DOCUMENT_CLASSES } from './theme-compatibility/typora/runtimeClasses';
 
 export function getMilkdownEditorClassName(args: {
   importedMarkdownThemeId: string | null | undefined;
@@ -25,7 +26,7 @@ export function getMilkdownEditorClassName(args: {
     showBodyLineNumbers && 'markdown-body-line-numbers',
     !importedMarkdownThemeId && 'theme-vlaina',
     importedMarkdownThemeId && 'theme-external-markdown',
-    importedMarkdownThemePlatform === 'typora' && 'theme-typora typora-export typora-export-content typora-node',
+    importedMarkdownThemePlatform === 'typora' && `theme-typora ${TYPORA_DOCUMENT_CLASSES.join(' ')}`,
     typoraRuntimePlatformClasses,
     importedMarkdownThemePlatform === 'obsidian' && 'theme-obsidian',
     markdownThemeColorScheme === 'dark' && 'theme-dark',

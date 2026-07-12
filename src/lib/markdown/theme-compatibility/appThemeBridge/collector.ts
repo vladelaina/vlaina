@@ -7,6 +7,10 @@ import {
   isShellOnlyBackgroundValue,
 } from './backgroundValueSafety';
 import type { CollectedThemeCustomProperties, ThemeColorSchemeBucket } from './types';
+import {
+  isTyporaDocumentBackgroundImageProperty,
+  isTyporaDocumentBackgroundRule,
+} from '../typora/appTheme/selectors';
 
 const IMPORTED_APP_BACKGROUND_PROPERTY = '--vlaina-imported-app-background';
 const IMPORTED_APP_BACKGROUND_ATTACHMENT_PROPERTY = '--vlaina-imported-app-background-attachment';
@@ -26,15 +30,6 @@ function isThemeShellRule(selector: string): boolean {
 
   return /^(?::root|html|body)(?=$|[.#:[)])/i.test(normalized)
     || /^\.(?:theme-(?:dark|light)|dark|light)(?=$|[.#:[)])/i.test(normalized);
-}
-
-function isTyporaDocumentBackgroundRule(selector: string): boolean {
-  const normalized = selector.trim().replace(/\s+/g, ' ');
-  if (!normalized) return false;
-
-  return /^(?:body\.typora-export|\.typora-export(?:\s+|>)#write|content\s*>\s*#write)(?=$|[.#:[\s>+~])/i.test(normalized)
-    || /^(?:\.typora-export\s+)?#write(?::not\([^)]*\))?(?:::before|::after|:before|:after)$/i.test(normalized)
-    || /^\.v-welcome-page(?=$|[.#:[\s>+~])/i.test(normalized);
 }
 
 function isDarkThemeRule(selector: string): boolean {
@@ -100,10 +95,6 @@ function getRuleBuckets(
   }
 
   return Array.from(buckets);
-}
-
-function isTyporaDocumentBackgroundImageProperty(property: string): boolean {
-  return /^--d-bi(?:-(?:lg|dk))?$/i.test(property);
 }
 
 function getBackgroundLonghandBridgeProperty(property: string): string | null {

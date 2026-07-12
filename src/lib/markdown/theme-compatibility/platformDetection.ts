@@ -1,33 +1,7 @@
 import postcss from 'postcss';
 import type { MarkdownThemePlatform } from './types';
-
-const OBSIDIAN_PATTERNS = [
-  /\.markdown-preview-view\b/i,
-  /\.markdown-rendered\b/i,
-  /\.markdown-reading-view\b/i,
-  /\.markdown-source-view\b/i,
-  /\.cm-s-obsidian\b/i,
-  /\.mod-cm6\b/i,
-  /--background-primary\b/i,
-  /--text-normal\b/i,
-  /--interactive-accent\b/i,
-  /--accent-h\b/i,
-  /--accent-s\b/i,
-  /--accent-l\b/i,
-];
-
-const TYPORA_PATTERNS = [
-  /#write\b/i,
-  /\.md-fences\b/i,
-  /\.md-toc\b/i,
-  /\.md-diagram\b/i,
-  /\.typora-sourceview-on\b/i,
-  /\.typora-export\b/i,
-  /--bg-color\b/i,
-  /--text-color\b/i,
-  /--md-char-color\b/i,
-  /--active-file-bg-color\b/i,
-];
+import { OBSIDIAN_THEME_PATTERNS } from './obsidian/detection';
+import { TYPORA_THEME_PATTERNS } from './typora/detection';
 
 function scoreThemePlatform(css: string, patterns: RegExp[]): number {
   return patterns.reduce((score, pattern) => score + (pattern.test(css) ? 1 : 0), 0);
@@ -38,8 +12,8 @@ export function scoreMarkdownThemePlatforms(css: string): {
   typoraScore: number;
 } {
   return {
-    obsidianScore: scoreThemePlatform(css, OBSIDIAN_PATTERNS),
-    typoraScore: scoreThemePlatform(css, TYPORA_PATTERNS),
+    obsidianScore: scoreThemePlatform(css, OBSIDIAN_THEME_PATTERNS),
+    typoraScore: scoreThemePlatform(css, TYPORA_THEME_PATTERNS),
   };
 }
 

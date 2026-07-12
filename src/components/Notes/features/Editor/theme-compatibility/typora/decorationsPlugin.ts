@@ -3,17 +3,17 @@ import { Plugin, PluginKey, type Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
-import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from './plugins/shared/boundedProseNodeScan';
-import { getTransactionChangedRanges } from './plugins/shared/transactionStepText';
-import { listContainsTaskItems } from './themeCompatibilityDecorations/typoraBlockAttrs';
-import { buildTyporaCompatibilityDecorations } from './themeCompatibilityDecorations/typoraDecorations';
-import { createThemeCompatibilityDecorationRebuildController } from './themeCompatibilityDecorations/rebuildController';
+import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from '../../plugins/shared/boundedProseNodeScan';
+import { getTransactionChangedRanges } from '../../plugins/shared/transactionStepText';
+import { listContainsTaskItems } from './decorations/typoraBlockAttrs';
+import { buildTyporaCompatibilityDecorations } from './decorations/typoraDecorations';
+import { createThemeCompatibilityDecorationRebuildController } from './decorations/rebuildController';
 
 export { listContainsTaskItems };
 export {
   DEFAULT_THEME_COMPATIBILITY_DECORATION_DEBOUNCE_MS,
   createThemeCompatibilityDecorationRebuildController,
-} from './themeCompatibilityDecorations/rebuildController';
+} from './decorations/rebuildController';
 
 export const MAX_THEME_COMPATIBILITY_DECORATIONS = 2500;
 export const MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS = 800;

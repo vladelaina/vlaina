@@ -3,7 +3,7 @@ import {
   cssRule,
   important,
   varValue,
-} from './shared';
+} from './postBridgeSelectors';
 
 export function buildTyporaColumnBridge(write: string): CssLines {
   return [

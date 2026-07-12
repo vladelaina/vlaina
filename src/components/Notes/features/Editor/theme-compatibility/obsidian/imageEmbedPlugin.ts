@@ -1,6 +1,6 @@
 import { remarkPluginsCtx, schemaTimerCtx } from '@milkdown/core';
 import { createTimer, type MilkdownPlugin } from '@milkdown/ctx';
-import { remarkObsidianImageEmbeds } from '@/components/common/markdown/obsidianImageEmbed';
+import { remarkObsidianImageEmbeds } from '@/components/common/markdown/theme-compatibility/obsidian/imageEmbed';
 
 const obsidianImageEmbedsRemarkReady = createTimer('obsidianImageEmbedsRemarkReady');
 

@@ -9,11 +9,11 @@ import {
   docChangeMayAffectThemeCompatibilityDecorations,
   listContainsTaskItems,
   transactionMayAffectThemeCompatibilityDecorations,
-} from './themeCompatibilityDecorations';
+} from './decorationsPlugin';
 import {
   MAX_THEME_COMPAT_TEXT_CONTENT_CHARS,
   getTextContent,
-} from './themeCompatibilityDecorations/typoraTextSemantics/runs';
+} from './decorations/typoraTextSemantics/runs';
 
 const SchemaCtor = (ProseModel as any).Schema;
 const schema = new SchemaCtor({

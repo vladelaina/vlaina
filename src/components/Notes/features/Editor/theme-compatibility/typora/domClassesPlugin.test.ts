@@ -3,7 +3,7 @@ import {
   TYPORA_BUTTON_GROUP_HAS_SELECTED_CLASS,
   TYPORA_TABLE_FIGURE_WITHOUT_CAPTION_CLASS,
   syncTyporaCompatibilityDomClasses,
-} from './typoraCompatibilityDomClasses';
+} from './domClassesPlugin';
 
 describe('typoraCompatibilityDomClasses', () => {
   it('marks Typora button groups that contain selected controls without CSS :has selectors', () => {

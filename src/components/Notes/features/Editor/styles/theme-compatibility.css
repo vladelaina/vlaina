@@ -3,8 +3,8 @@
    exposes common content-area aliases and keeps the app shell native Vlaina. */
 
 @import './theme-compatibility/base.css';
-@import './theme-compatibility/typora.css';
-@import './theme-compatibility/typora-extensions.css';
+@import './theme-compatibility/typora/base.css';
+@import './theme-compatibility/typora/extensions.css';
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {
   white-space: normal;
