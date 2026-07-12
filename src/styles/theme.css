@@ -442,6 +442,7 @@
   --vlaina-width-footnote-tooltip-max: min(var(--vlaina-size-16rem), var(--vlaina-size-60vw));
   --vlaina-width-task-align-max: calc(100% - var(--vlaina-size-24px));
   --vlaina-height-markdown-blank-line: calc(1em + var(--vlaina-size-8px));
+  --vlaina-height-block-intrinsic: var(--vlaina-size-56px);
   --vlaina-height-mermaid-intrinsic: auto var(--vlaina-size-180px);
   --vlaina-height-video-intrinsic: auto var(--vlaina-size-315px);
   --vlaina-height-editor-min: calc(100vh - var(--vlaina-size-200px));

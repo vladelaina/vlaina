@@ -181,7 +181,7 @@ describe("editor block drag interaction styles", () => {
     expect(lazyRule).toContain("[data-type='math-block'],");
     expect(lazyRule).toContain("[data-type='toc']");
     expect(lazyRule).toContain('content-visibility: auto;');
-    expect(lazyRule).toContain('contain-intrinsic-size: auto var(--vlaina-height-block-intrinsic, 96px);');
+    expect(lazyRule).toContain('contain-intrinsic-size: auto var(--vlaina-height-block-intrinsic);');
   });
 
   it('suppresses editor icon hover affordances while dragging a block selection', () => {
