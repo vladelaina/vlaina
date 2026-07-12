@@ -774,6 +774,7 @@
   --vlaina-color-panel-muted: rgb(0 0 0 / 0.05);
   --vlaina-color-row-soft: rgb(244 244 245 / 0.4);
   --vlaina-color-whiteboard-canvas: var(--vlaina-color-surface-main);
+  --vlaina-color-whiteboard-grid-dot: rgb(39 39 42 / 0.13);
   --vlaina-color-whiteboard-pen: #27272a;
   --vlaina-color-whiteboard-pencil: #52525b;
   --vlaina-color-whiteboard-marker: #f59e0b;
@@ -781,6 +782,12 @@
   --vlaina-color-whiteboard-crayon: #ef4444;
   --vlaina-color-whiteboard-element: rgb(255 255 255 / 0.92);
   --vlaina-color-whiteboard-note: #fff7d6;
+  --vlaina-color-whiteboard-note-yellow: #fff3b8;
+  --vlaina-color-whiteboard-note-blue: #dceeff;
+  --vlaina-color-whiteboard-note-green: #dff5df;
+  --vlaina-color-whiteboard-note-pink: #ffe0ea;
+  --vlaina-color-whiteboard-note-purple: #eee3ff;
+  --vlaina-color-whiteboard-note-gray: #ececef;
   --vlaina-color-whiteboard-note-border: #e7c76f;
   --vlaina-color-whiteboard-shape: rgb(232 244 255 / 0.9);
   --vlaina-color-whiteboard-shape-border: rgb(30 150 235 / 0.45);
@@ -1174,6 +1181,7 @@
   --vlaina-color-panel-muted: rgb(255 255 255 / 0.055);
   --vlaina-color-row-soft: rgb(255 255 255 / 0.055);
   --vlaina-color-whiteboard-canvas: var(--vlaina-color-surface-main);
+  --vlaina-color-whiteboard-grid-dot: rgb(255 255 255 / 0.12);
   --vlaina-color-whiteboard-pen: #ededee;
   --vlaina-color-whiteboard-pencil: #c7c7cc;
   --vlaina-color-whiteboard-marker: #fbbf24;
@@ -1181,6 +1189,12 @@
   --vlaina-color-whiteboard-crayon: #f87171;
   --vlaina-color-whiteboard-element: rgb(21 21 23 / 0.94);
   --vlaina-color-whiteboard-note: #302a18;
+  --vlaina-color-whiteboard-note-yellow: #3a321b;
+  --vlaina-color-whiteboard-note-blue: #172f43;
+  --vlaina-color-whiteboard-note-green: #193522;
+  --vlaina-color-whiteboard-note-pink: #422330;
+  --vlaina-color-whiteboard-note-purple: #322643;
+  --vlaina-color-whiteboard-note-gray: #2c2c31;
   --vlaina-color-whiteboard-note-border: #8a6d24;
   --vlaina-color-whiteboard-shape: rgb(15 35 52 / 0.94);
   --vlaina-color-whiteboard-shape-border: rgb(65 168 234 / 0.46);

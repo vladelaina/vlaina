@@ -5,6 +5,7 @@ import { useNotesRootStore } from './useNotesRootStore';
 const hoisted = vi.hoisted(() => ({
   saveStarredRegistry: vi.fn(),
   moveNotesRootSystemStore: vi.fn(async () => undefined),
+  moveWhiteboardNotesRootStore: vi.fn(async () => undefined),
   flushCurrentPendingEditorMarkdown: vi.fn(),
 }));
 
@@ -18,6 +19,10 @@ vi.mock('@/stores/notes/starred', async () => {
 
 vi.mock('@/stores/notes/systemStoragePaths', () => ({
   moveNotesRootSystemStore: hoisted.moveNotesRootSystemStore,
+}));
+
+vi.mock('@/lib/storage/whiteboardStoragePaths', () => ({
+  moveWhiteboardNotesRootStore: hoisted.moveWhiteboardNotesRootStore,
 }));
 
 vi.mock('@/stores/notes/pendingEditorMarkdownFlusher', () => ({
@@ -118,6 +123,7 @@ describe('useNotesRootStore external sync', () => {
       ])
     );
     expect(hoisted.moveNotesRootSystemStore).toHaveBeenCalledWith('C:/notes-root-old', 'C:/notes-root-new');
+    expect(hoisted.moveWhiteboardNotesRootStore).toHaveBeenCalledWith('C:/notes-root-old', 'C:/notes-root-new');
     expect(useNotesStore.getState().clearAssetUrlCache).toHaveBeenCalledTimes(1);
   });
 

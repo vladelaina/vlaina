@@ -15,6 +15,7 @@ const snapshot: WhiteboardSnapshot = {
     {
       height: 120,
       id: 'note-1',
+      noteColor: 'blue',
       text: 'Plan',
       type: 'note',
       width: 180,
@@ -31,6 +32,7 @@ const snapshot: WhiteboardSnapshot = {
       y: 140,
     },
   ],
+  paper: 'ruled',
   ruler: { angle: 12, visible: true, x: 50, y: 60 },
   strokes: [
     {
@@ -76,16 +78,16 @@ describe('whiteboard document format', () => {
     expect(deserializeWhiteboardSnapshot(serializeWhiteboardSnapshot(snapshot))).toEqual(snapshot);
   });
 
-  it('migrates legacy raw snapshots', () => {
-    expect(deserializeWhiteboardSnapshot(JSON.stringify(snapshot))).toEqual(snapshot);
+  it('rejects raw snapshots without the current document envelope', () => {
+    expect(deserializeWhiteboardSnapshot(JSON.stringify(snapshot))).toBeNull();
   });
 
-  it('deserializes earlier versioned documents with object stroke points', () => {
+  it('does not decode object-based stroke points', () => {
     expect(deserializeWhiteboardSnapshot(JSON.stringify({
       content: snapshot,
       format: WHITEBOARD_DOCUMENT_FORMAT,
       version: WHITEBOARD_DOCUMENT_VERSION,
-    }))).toEqual(snapshot);
+    }))?.strokes).toEqual([]);
   });
 
   it('stores whiteboard asset image references without duplicating preview data URLs', () => {
@@ -124,7 +126,7 @@ describe('whiteboard document format', () => {
           { height: 20, id: 'bad-element', text: 'Bad', type: 'unknown', width: 20, x: 0, y: 0 },
         ],
         strokes: [
-          snapshot.strokes[0],
+          serializedContent.strokes[0],
           { color: '#222222', id: 'bad-stroke', points: [], size: 1, tool: 'pen' },
         ],
         viewport: { x: 0, y: 0, zoom: 999 },

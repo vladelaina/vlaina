@@ -9,6 +9,8 @@ import {
   type WhiteboardDrawingTool,
   type WhiteboardElement,
   type WhiteboardElementType,
+  type WhiteboardNoteColor,
+  type WhiteboardPaperStyle,
   type WhiteboardStroke,
   type WhiteboardStrokePoint,
   type WhiteboardViewport,
@@ -31,6 +33,7 @@ export interface WhiteboardSnapshot {
   strokes: WhiteboardStroke[];
   viewport: WhiteboardViewport;
   ruler?: WhiteboardRulerSnapshot;
+  paper?: WhiteboardPaperStyle;
 }
 
 type WhiteboardDocumentStrokePoint = [number, number, number] | [number, number, number, true];
@@ -52,6 +55,8 @@ export interface WhiteboardDocumentV1 {
 type JsonRecord = Record<string, unknown>;
 
 const elementTypes = new Set<WhiteboardElementType>(['note', 'rect', 'ellipse', 'image']);
+const noteColors = new Set<WhiteboardNoteColor>(['yellow', 'blue', 'green', 'pink', 'purple', 'gray']);
+const paperStyles = new Set<WhiteboardPaperStyle>(['blank', 'dots', 'grid', 'ruled']);
 const drawingTools = new Set<WhiteboardDrawingTool>(['pen', 'pencil', 'marker', 'fountain', 'watercolor', 'crayon']);
 
 export function createWhiteboardDocument(snapshot: WhiteboardSnapshot): WhiteboardDocumentV1 {
@@ -73,14 +78,17 @@ export function serializeWhiteboardSnapshot(snapshot: WhiteboardSnapshot): strin
 
 export function deserializeWhiteboardSnapshot(serialized: string): WhiteboardSnapshot | null {
   try {
-    const parsed = JSON.parse(serialized);
-    return readWhiteboardDocument(parsed) ?? readLegacyWhiteboardSnapshot(parsed);
+    return readWhiteboardDocument(JSON.parse(serialized));
   } catch {
     return null;
   }
 }
 
 export function normalizeWhiteboardSnapshot(value: unknown): WhiteboardSnapshot {
+  return normalizeWhiteboardSnapshotValue(value, true);
+}
+
+function normalizeWhiteboardSnapshotValue(value: unknown, allowRuntimeStrokePoints: boolean): WhiteboardSnapshot {
   if (!isRecord(value)) return emptySnapshot();
   const elements = readElements(value.elements);
   const elementIds = new Set(elements.map((element) => element.id));
@@ -88,7 +96,10 @@ export function normalizeWhiteboardSnapshot(value: unknown): WhiteboardSnapshot 
     connectors: readConnectors(value.connectors, elementIds),
     elements,
     ruler: readRuler(value.ruler),
-    strokes: readStrokes(value.strokes),
+    ...(typeof value.paper === 'string' && paperStyles.has(value.paper as WhiteboardPaperStyle)
+      ? { paper: value.paper as WhiteboardPaperStyle }
+      : {}),
+    strokes: readStrokes(value.strokes, allowRuntimeStrokePoints),
     viewport: readViewport(value.viewport) ?? { ...WHITEBOARD_INITIAL_VIEWPORT },
   };
 }
@@ -101,15 +112,7 @@ function readWhiteboardDocument(value: unknown): WhiteboardSnapshot | null {
   ) {
     return null;
   }
-  return normalizeWhiteboardSnapshot(value.content);
-}
-
-function readLegacyWhiteboardSnapshot(value: unknown): WhiteboardSnapshot | null {
-  if (!isRecord(value)) return null;
-  if (!('elements' in value) && !('strokes' in value) && !('connectors' in value) && !('viewport' in value)) {
-    return null;
-  }
-  return normalizeWhiteboardSnapshot(value);
+  return normalizeWhiteboardSnapshotValue(value.content, false);
 }
 
 function emptySnapshot(): WhiteboardSnapshot {
@@ -140,6 +143,14 @@ function readElement(value: unknown): WhiteboardElement | null {
   const text = typeof value.text === 'string' ? value.text : '';
   if (!id || !type || x === null || y === null || width === null || height === null) return null;
   const element = resizeWhiteboardElement({ height, id, text, type, width, x, y }, width, height);
+  if (type === 'note') {
+    return {
+      ...element,
+      ...(typeof value.noteColor === 'string' && noteColors.has(value.noteColor as WhiteboardNoteColor)
+        ? { noteColor: value.noteColor as WhiteboardNoteColor }
+        : {}),
+    };
+  }
   if (type !== 'image') return element;
   return {
     ...element,
@@ -160,22 +171,22 @@ function readConnectors(value: unknown, elementIds: Set<string>): WhiteboardConn
   });
 }
 
-function readStrokes(value: unknown): WhiteboardStroke[] {
+function readStrokes(value: unknown, allowRuntimeStrokePoints: boolean): WhiteboardStroke[] {
   if (!Array.isArray(value)) return [...WHITEBOARD_SEED_STROKES];
   return value.flatMap((item) => {
-    const stroke = readStroke(item);
+    const stroke = readStroke(item, allowRuntimeStrokePoints);
     return stroke ? [stroke] : [];
   });
 }
 
-function readStroke(value: unknown): WhiteboardStroke | null {
+function readStroke(value: unknown, allowRuntimeStrokePoints: boolean): WhiteboardStroke | null {
   if (!isRecord(value)) return null;
   const id = readString(value.id);
   const tool = readDrawingTool(value.tool);
   const color = readString(value.color);
-  const size = readPositiveNumber(value.size) ?? 1;
-  const points = readStrokePoints(value.points);
-  if (!id || !tool || !color || points.length === 0) return null;
+  const size = readPositiveNumber(value.size);
+  const points = readStrokePoints(value.points, allowRuntimeStrokePoints);
+  if (!id || !tool || !color || size === null || points.length === 0) return null;
   return { color, id, points, size, tool };
 }
 
@@ -203,19 +214,20 @@ function isSafeImageAssetPath(value: unknown): value is string {
   return fileName.length > 0 && !fileName.includes('/') && !fileName.includes('\\') && fileName !== '.' && fileName !== '..';
 }
 
-function readStrokePoints(value: unknown): WhiteboardStrokePoint[] {
+function readStrokePoints(value: unknown, allowRuntimePoints: boolean): WhiteboardStrokePoint[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
-    const x = Array.isArray(item) ? readFiniteNumber(item[0]) : isRecord(item) ? readFiniteNumber(item.x) : null;
-    const y = Array.isArray(item) ? readFiniteNumber(item[1]) : isRecord(item) ? readFiniteNumber(item.y) : null;
-    const pressure = Array.isArray(item) ? readFiniteNumber(item[2]) : isRecord(item) ? readFiniteNumber(item.pressure) : null;
+    if (!Array.isArray(item) && (!allowRuntimePoints || !isRecord(item))) return [];
+    const x = Array.isArray(item) ? readFiniteNumber(item[0]) : readFiniteNumber(item.x);
+    const y = Array.isArray(item) ? readFiniteNumber(item[1]) : readFiniteNumber(item.y);
+    const pressure = Array.isArray(item) ? readFiniteNumber(item[2]) : readFiniteNumber(item.pressure);
     if (x === null || y === null || pressure === null) return [];
     const point = {
       pressure: Math.min(1, Math.max(0, pressure)),
       x,
       y,
     };
-    const breakBefore = Array.isArray(item) ? item[3] === true : isRecord(item) && item.breakBefore === true;
+    const breakBefore = Array.isArray(item) ? item[3] === true : item.breakBefore === true;
     return breakBefore ? [{ ...point, breakBefore: true }] : [point];
   });
 }

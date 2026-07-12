@@ -21,9 +21,9 @@ vi.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-function renderToolbar() {
-  const noop = vi.fn();
-  return render(
+function renderToolbar(selectedNoteColor: 'yellow' | 'blue' | null = null) {
+  const onNoteColorChange = vi.fn();
+  const rendered = render(
     <WhiteboardToolbar
       canRedo={false}
       canUndo={false}
@@ -31,25 +31,37 @@ function renderToolbar() {
       brushSizes={WHITEBOARD_DEFAULT_BRUSH_SIZES}
       tool="select"
       viewport={{ x: 0, y: 0, zoom: 1 }}
-      onBrushColorChange={noop}
-      onBrushSizeChange={noop}
-      onClear={noop}
-      onCopy={noop}
-      onDuplicate={noop}
-      onExport={noop}
-      onFitView={noop}
-      onImageAdd={noop}
-      onPaste={noop}
-      onRedo={noop}
-      onResetView={noop}
-      onToolChange={noop}
-      onUndo={noop}
-      onZoomChange={noop}
+      selectedNoteColor={selectedNoteColor}
+      onBrushColorChange={vi.fn()}
+      onBrushSizeChange={vi.fn()}
+      onClear={vi.fn()}
+      onCopy={vi.fn()}
+      onDuplicate={vi.fn()}
+      onExport={vi.fn()}
+      onFitView={vi.fn()}
+      onImageAdd={vi.fn()}
+      onNoteColorChange={onNoteColorChange}
+      onPaste={vi.fn()}
+      onRedo={vi.fn()}
+      onResetView={vi.fn()}
+      onToolChange={vi.fn()}
+      onUndo={vi.fn()}
+      onZoomChange={vi.fn()}
     />,
   );
+  return { onNoteColorChange, ...rendered };
 }
 
 describe('WhiteboardToolbar', () => {
+  it('exposes the editable object tools', () => {
+    renderToolbar();
+
+    expect(screen.getByRole('button', { name: 'whiteboard.tool.note' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'whiteboard.tool.rect' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'whiteboard.tool.ellipse' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'whiteboard.tool.connector' })).toBeInTheDocument();
+  });
+
   it('opens the native image picker from the add image action', () => {
     const originalShowPicker = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'showPicker');
     const showPicker = vi.fn();
@@ -71,5 +83,14 @@ describe('WhiteboardToolbar', () => {
         Reflect.deleteProperty(HTMLInputElement.prototype, 'showPicker');
       }
     }
+  });
+
+  it('shows and applies note colors for a selected note', () => {
+    const { onNoteColorChange } = renderToolbar('yellow');
+
+    expect(screen.getByRole('button', { name: 'yellow' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'blue' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'blue' }));
+    expect(onNoteColorChange).toHaveBeenCalledWith('blue');
   });
 });

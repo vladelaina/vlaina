@@ -6,6 +6,7 @@ import { findStrokeAtPoint } from '../model/whiteboardSelection';
 interface WhiteboardStrokeSelectionOptions {
   pushHistory: () => void;
   selectedStrokeIds: string[];
+  setSelectedConnectorIds: Dispatch<SetStateAction<string[]>>;
   setDragState: Dispatch<SetStateAction<WhiteboardDragState | null>>;
   setSelectedElementId: Dispatch<SetStateAction<string | null>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
@@ -16,6 +17,7 @@ interface WhiteboardStrokeSelectionOptions {
 export function useWhiteboardStrokeSelection({
   pushHistory,
   selectedStrokeIds,
+  setSelectedConnectorIds,
   setDragState,
   setSelectedElementId,
   setSelectedStrokeIds,
@@ -24,6 +26,7 @@ export function useWhiteboardStrokeSelection({
 }: WhiteboardStrokeSelectionOptions) {
   return useCallback((point: WhiteboardPoint, event: PointerEvent<HTMLDivElement>) => {
     const hitStroke = findStrokeAtPoint(strokes, point, zoom);
+    setSelectedConnectorIds([]);
     setSelectedElementId(null);
     if (!hitStroke) {
       setSelectedStrokeIds([]);
@@ -45,5 +48,5 @@ export function useWhiteboardStrokeSelection({
       startPoint: point,
       strokeIds: nextIds,
     });
-  }, [pushHistory, selectedStrokeIds, setDragState, setSelectedElementId, setSelectedStrokeIds, strokes, zoom]);
+  }, [pushHistory, selectedStrokeIds, setDragState, setSelectedConnectorIds, setSelectedElementId, setSelectedStrokeIds, strokes, zoom]);
 }

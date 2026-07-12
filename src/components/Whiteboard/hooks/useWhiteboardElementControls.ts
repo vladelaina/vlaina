@@ -23,6 +23,7 @@ interface WhiteboardElementControlsOptions {
   selectedStrokeIds: string[];
   setDragState: Dispatch<SetStateAction<WhiteboardDragState | null>>;
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
+  setSelectedConnectorIds: Dispatch<SetStateAction<string[]>>;
   setSelectedElementIds: Dispatch<SetStateAction<string[]>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
@@ -38,6 +39,7 @@ export function useWhiteboardElementControls({
   selectedStrokeIds,
   setDragState,
   setElements,
+  setSelectedConnectorIds,
   setSelectedElementIds,
   setSelectedStrokeIds,
   setStrokes,
@@ -45,18 +47,30 @@ export function useWhiteboardElementControls({
   tool,
 }: WhiteboardElementControlsOptions) {
   const elementResizeFrameRef = useRef<number | null>(null);
+  const editingElementIdRef = useRef<string | null>(null);
   const selectionResizeFrameRef = useRef<number | null>(null);
   const pendingElementResizeRef = useRef<{ point: WhiteboardPoint; state: WhiteboardDragState } | null>(null);
   const pendingSelectionResizeRef = useRef<{ point: WhiteboardPoint; state: Extract<WhiteboardDragState, { kind: 'resize-selection' }> } | null>(null);
 
   const selectElement = useCallback((id: string) => {
+    setSelectedConnectorIds([]);
     setSelectedElementIds([id]);
     setSelectedStrokeIds([]);
-  }, [setSelectedElementIds, setSelectedStrokeIds]);
+  }, [setSelectedConnectorIds, setSelectedElementIds, setSelectedStrokeIds]);
 
   const setElementText = useCallback((id: string, text: string) => {
     setElements((current) => current.map((item) => (item.id === id ? { ...item, text } : item)));
   }, [setElements]);
+
+  const beginElementTextEdit = useCallback((id: string) => {
+    if (editingElementIdRef.current === id) return;
+    pushHistory();
+    editingElementIdRef.current = id;
+  }, [pushHistory]);
+
+  const endElementTextEdit = useCallback((id: string) => {
+    if (editingElementIdRef.current === id) editingElementIdRef.current = null;
+  }, []);
 
   const handleElementPointerDown = useCallback((event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => {
     event.stopPropagation();
@@ -66,6 +80,7 @@ export function useWhiteboardElementControls({
     event.currentTarget.setPointerCapture(event.pointerId);
     const keepStrokeSelection = event.shiftKey || selectedElementIds.includes(element.id);
     const nextIds = getNextElementSelection(selectedElementIds, element.id, event.shiftKey);
+    setSelectedConnectorIds([]);
     setSelectedElementIds(nextIds);
     if (!keepStrokeSelection) setSelectedStrokeIds([]);
     if (event.shiftKey) return;
@@ -83,7 +98,7 @@ export function useWhiteboardElementControls({
       startPoint: point,
       strokeIds: movingStrokeIds,
     });
-  }, [elements, getBoardPoint, pushHistory, selectedElementIds, selectedStrokeIds, setDragState, setSelectedElementIds, setSelectedStrokeIds, strokes, tool]);
+  }, [elements, getBoardPoint, pushHistory, selectedElementIds, selectedStrokeIds, setDragState, setSelectedConnectorIds, setSelectedElementIds, setSelectedStrokeIds, strokes, tool]);
 
   const handleResizePointerDown = useCallback((event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => {
     event.stopPropagation();
@@ -192,6 +207,8 @@ export function useWhiteboardElementControls({
   }, []);
 
   return {
+    beginElementTextEdit,
+    endElementTextEdit,
     flushResizeDrags,
     handleElementPointerDown,
     handleResizePointerDown,

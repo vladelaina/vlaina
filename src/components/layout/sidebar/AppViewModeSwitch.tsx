@@ -38,11 +38,11 @@ export function AppViewModeSwitch() {
       label: t('app.viewChat'),
       icon: <Icon name="common.shootingStar" size={themeIconTokens.sizeCompact} />,
     },
-    ...(import.meta.env.DEV ? [{
+    {
       key: 'whiteboard' as const,
       label: t('app.viewWhiteboard'),
       icon: <Icon name="editor.diagram" size={themeIconTokens.sizeCompact} />,
-    }] : []),
+    },
   ];
   if (!options.some((option) => option.key === appViewMode)) return null;
   const selectedIndex = Math.max(0, options.findIndex((option) => option.key === visualAppViewMode));

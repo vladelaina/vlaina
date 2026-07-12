@@ -219,10 +219,10 @@ function loadNotesChatFloatingSize(): NotesChatFloatingSize {
     ?? NOTES_CHAT_FLOATING_DEFAULT_SIZE;
 }
 
-function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat'> {
+function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard'> {
   try {
     const saved = loadScalarString(STORAGE_KEY_LAST_APP_VIEW_MODE);
-    if (saved === 'notes' || saved === 'chat') {
+    if (saved === 'notes' || saved === 'chat' || saved === 'whiteboard') {
       return saved;
     }
   } catch {
@@ -231,9 +231,9 @@ function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat'> {
 }
 
 export function saveLastAppViewMode(mode: AppViewMode): void {
-  if (mode !== 'notes' && mode !== 'chat') return;
+  if (mode !== 'notes' && mode !== 'chat' && mode !== 'whiteboard') return;
   saveString(STORAGE_KEY_LAST_APP_VIEW_MODE, mode);
-  useUnifiedStore.getState().setLastAppViewMode(mode, true);
+  if (mode === 'notes' || mode === 'chat') useUnifiedStore.getState().setLastAppViewMode(mode, true);
 }
 
 function loadLanguagePreference(): AppLanguagePreference {
@@ -250,14 +250,14 @@ function loadLanguagePreference(): AppLanguagePreference {
 
 export function getInitialAppViewMode(): AppViewMode {
   const launchViewMode = readWindowLaunchContext().viewMode;
-  if (!import.meta.env.DEV && (launchViewMode === 'lab' || launchViewMode === 'whiteboard')) {
+  if (!import.meta.env.DEV && launchViewMode === 'lab') {
     return 'notes';
   }
   return launchViewMode ?? loadLastAppViewMode();
 }
 
 export function normalizeAppViewMode(mode: AppViewMode): AppViewMode {
-  if (!import.meta.env.DEV && (mode === 'lab' || mode === 'whiteboard')) {
+  if (!import.meta.env.DEV && mode === 'lab') {
     return 'notes';
   }
   return mode;

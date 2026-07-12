@@ -18,7 +18,7 @@ type RulerSnapEdge = 'top' | 'bottom';
 interface RulerSnapResult { blocked: boolean; breakBefore?: boolean; edge: RulerSnapEdge | null; point: WhiteboardPoint }
 interface RulerSnapOptions { hasPreviousPoint?: boolean }
 
-const DEFAULT_RULER: WhiteboardRulerState = {
+export const WHITEBOARD_DEFAULT_RULER_STATE: WhiteboardRulerState = {
   angle: -8,
   visible: false,
   x: 360,
@@ -26,7 +26,7 @@ const DEFAULT_RULER: WhiteboardRulerState = {
 };
 
 export function useWhiteboardRuler(initialRuler?: Partial<WhiteboardRulerState>) {
-  const [ruler, setRuler] = useState<WhiteboardRulerState>({ ...DEFAULT_RULER, ...initialRuler });
+  const [ruler, setRuler] = useState<WhiteboardRulerState>({ ...WHITEBOARD_DEFAULT_RULER_STATE, ...initialRuler });
   const dragRef = useRef<RulerDragState | null>(null);
   const snapEdgeRef = useRef<RulerSnapEdge | null>(null);
   const hasStrokePointRef = useRef(false);

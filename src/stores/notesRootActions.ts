@@ -1,4 +1,5 @@
 import { moveNotesRootSystemStore } from '@/stores/notes/systemStoragePaths';
+import { moveWhiteboardNotesRootStore } from '@/lib/storage/whiteboardStoragePaths';
 import {
   getNotesRootStarredPaths,
   normalizeStarredNotesRootPath,
@@ -30,7 +31,10 @@ export function syncCurrentNotesRootExternalPathAction({
   const normalizedCurrentNotesRoot = normalizeNotesRootInfo(currentNotesRoot);
   const normalizedCurrentNotesRootPath = normalizeNotesRootPath(normalizedCurrentNotesRoot.path);
   if (!normalizedPath || normalizedPath === normalizedCurrentNotesRootPath) return;
-  void Promise.resolve(moveNotesRootSystemStore(normalizedCurrentNotesRootPath, normalizedPath))
+  void Promise.all([
+    moveNotesRootSystemStore(normalizedCurrentNotesRootPath, normalizedPath),
+    moveWhiteboardNotesRootStore(normalizedCurrentNotesRootPath, normalizedPath),
+  ])
     .catch(() => undefined);
 
   const nextNotesRoot = normalizeNotesRootInfo({
