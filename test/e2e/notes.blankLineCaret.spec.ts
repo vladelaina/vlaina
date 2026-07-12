@@ -272,8 +272,8 @@ test.describe('notes blank line caret interaction', () => {
         (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
         opened.notePath,
       );
-      expect(saved, { saved, after }).toBe(['hi', '# #', '1'].join('\n'));
-      expect(saved, { saved }).not.toContain('hi\n\n# #');
+      expect(saved, { saved, after }).toBe(['hi', '#', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\n\n#');
       expect(saved, { saved }).not.toContain('hi\\');
       expect(saved, { saved }).not.toContain('/h\\');
     } finally {

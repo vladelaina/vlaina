@@ -1,7 +1,6 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import React from 'react';
-import { flushSync } from 'react-dom';
 import type { Root } from 'react-dom/client';
 import { SlashMenuPanel } from './SlashMenuPanel';
 import { applySlashCommand } from './slashCommands';
@@ -97,18 +96,16 @@ export class SlashMenuView {
 
     this.ensureMenu();
 
-    flushSync(() => {
-      this.root?.render(
-        React.createElement(SlashMenuPanel, {
-          items: this.filtered,
-          selectedIndex: state.selectedIndex,
-          onHoverItem: this.handleHoverItem,
-          onSelectItem: this.applySelectedItem.bind(this),
-        })
-      );
-    });
+    this.root?.render(
+      React.createElement(SlashMenuPanel, {
+        items: this.filtered,
+        selectedIndex: state.selectedIndex,
+        onHoverItem: this.handleHoverItem,
+        onSelectItem: this.applySelectedItem.bind(this),
+      })
+    );
 
-    this.syncPosition();
+    this.scheduleViewportChange();
     if (this.skipNextSelectedScroll) {
       this.skipNextSelectedScroll = false;
     } else {

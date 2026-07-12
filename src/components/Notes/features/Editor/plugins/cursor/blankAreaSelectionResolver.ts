@@ -141,7 +141,6 @@ export function createBlankAreaSelectionResolver(args: {
 
     selectedBlocksKey = nextKey;
     args.onSelectionChange(expandedBlocks);
-    invalidateGeometryCache();
   };
 
   const applyDragRectSelectionIfNeeded = (viewportDragRect: RectBounds): void => {

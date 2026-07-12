@@ -67,6 +67,11 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       return;
     }
 
+    if (updatedView.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS)) {
+      scheduleDeferredGeometryUpdateAfterDrag();
+      return;
+    }
+
     if (lastDoc === updatedView.state.doc && lastSelectedBlocks === selectedBlocks) {
       return;
     }
