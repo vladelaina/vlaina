@@ -1,6 +1,7 @@
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { processFilename } from '@/lib/assets/core/naming';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getWhiteboardNotesRootPath } from '@/lib/storage/whiteboardStoragePaths';
 import {
   createWhiteboardDocument,
   deserializeWhiteboardSnapshot,
@@ -25,25 +26,27 @@ export interface WhiteboardIndex {
 const WHITEBOARD_INDEX_MAX_BYTES = 256 * 1024;
 const WHITEBOARD_BOARD_MAX_BYTES = 16 * 1024 * 1024;
 const WHITEBOARD_ASSET_MAX_BYTES = 50 * 1024 * 1024;
-const WHITEBOARD_SYSTEM_DIR = '.vlaina';
-const WHITEBOARD_DIR = 'whiteboards';
+const WHITEBOARD_CONFIG_MAX_BYTES = 64 * 1024;
 const WHITEBOARD_BOARDS_DIR = 'boards';
 const WHITEBOARD_INDEX_FILE = 'index.json';
+const WHITEBOARD_CONFIG_FILE = 'config.json';
 const WHITEBOARD_BOARD_FILE = 'board.vlwb.json';
 const WHITEBOARD_ASSETS_DIR = 'assets';
 const DEFAULT_BOARD_ID = 'default';
 const DEFAULT_BOARD_TITLE = 'Board';
 
 export async function getWhiteboardStorageTree(notesRootPath: string) {
-  const rootPath = await joinPath(notesRootPath, WHITEBOARD_SYSTEM_DIR, WHITEBOARD_DIR);
+  const rootPath = await getWhiteboardNotesRootPath(notesRootPath);
   const boardsPath = await joinPath(rootPath, WHITEBOARD_BOARDS_DIR);
   const indexPath = await joinPath(rootPath, WHITEBOARD_INDEX_FILE);
-  return { boardsPath, indexPath, rootPath };
+  const configPath = await joinPath(rootPath, WHITEBOARD_CONFIG_FILE);
+  return { boardsPath, configPath, indexPath, rootPath };
 }
 
 export async function loadWhiteboardIndex(notesRootPath: string): Promise<WhiteboardIndex> {
   const storage = getStorageAdapter();
-  const { indexPath } = await getWhiteboardStorageTree(notesRootPath);
+  const { configPath, indexPath } = await getWhiteboardStorageTree(notesRootPath);
+  await ensureWhiteboardConfig(notesRootPath, configPath);
   if (!await storage.exists(indexPath)) {
     return createDefaultWhiteboardIndex();
   }
@@ -56,7 +59,8 @@ export async function loadWhiteboardIndex(notesRootPath: string): Promise<Whiteb
 
 export async function writeWhiteboardIndex(notesRootPath: string, index: WhiteboardIndex): Promise<void> {
   const storage = getStorageAdapter();
-  const { indexPath } = await getWhiteboardStorageTree(notesRootPath);
+  const { configPath, indexPath } = await getWhiteboardStorageTree(notesRootPath);
+  await ensureWhiteboardConfig(notesRootPath, configPath);
   await storage.writeFile(indexPath, JSON.stringify(normalizeWhiteboardIndex(index), null, 2), { recursive: true });
 }
 
@@ -77,6 +81,8 @@ export async function writeWhiteboardBoard(
   snapshot: WhiteboardSnapshot,
 ): Promise<void> {
   const storage = getStorageAdapter();
+  const { configPath } = await getWhiteboardStorageTree(notesRootPath);
+  await ensureWhiteboardConfig(notesRootPath, configPath);
   const boardPath = await getWhiteboardBoardPath(notesRootPath, board);
   await storage.mkdir(await getWhiteboardAssetsPath(notesRootPath, board), true);
   await storage.writeFile(boardPath, JSON.stringify(createWhiteboardDocument(snapshot), null, 2), { recursive: true });
@@ -103,6 +109,15 @@ export async function createWhiteboardEntry(
   await writeWhiteboardBoard(notesRootPath, entry, normalizeWhiteboardSnapshot({}));
   await writeWhiteboardIndex(notesRootPath, nextIndex);
   return { entry, index: nextIndex };
+}
+
+export async function deleteWhiteboardEntry(
+  notesRootPath: string,
+  board: WhiteboardIndexEntry,
+): Promise<void> {
+  const storage = getStorageAdapter();
+  const { boardsPath } = await getWhiteboardStorageTree(notesRootPath);
+  await storage.deleteDir(await joinPath(boardsPath, board.folder), true);
 }
 
 export async function writeWhiteboardAsset(
@@ -142,7 +157,7 @@ export function createDefaultWhiteboardIndex(now = new Date().toISOString()): Wh
 }
 
 export function normalizeWhiteboardIndex(value: unknown): WhiteboardIndex {
-  if (!isRecord(value)) return createDefaultWhiteboardIndex();
+  if (!isRecord(value) || value.version !== 1) return createDefaultWhiteboardIndex();
   const boards = Array.isArray(value.boards)
     ? value.boards.flatMap((item) => {
       const board = normalizeBoardEntry(item);
@@ -238,4 +253,20 @@ function readString(value: unknown): string | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function ensureWhiteboardConfig(notesRootPath: string, configPath: string): Promise<void> {
+  const storage = getStorageAdapter();
+  const nextConfig = { createdAt: new Date().toISOString(), notesRootPath, version: 1 };
+  if (!await storage.exists(configPath)) {
+    await storage.writeFile(configPath, JSON.stringify(nextConfig, null, 2), { recursive: true });
+    return;
+  }
+  try {
+    const parsed = JSON.parse(await storage.readFile(configPath, WHITEBOARD_CONFIG_MAX_BYTES));
+    if (isRecord(parsed) && parsed.notesRootPath === notesRootPath && parsed.version === 1) return;
+    await storage.writeFile(configPath, JSON.stringify(nextConfig, null, 2), { recursive: true });
+  } catch {
+    await storage.writeFile(configPath, JSON.stringify(nextConfig, null, 2), { recursive: true });
+  }
 }

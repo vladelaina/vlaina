@@ -6,12 +6,15 @@ import { translateStroke } from '../model/whiteboardSelection';
 interface WhiteboardKeyboardShortcutsOptions {
   active: boolean;
   elements: WhiteboardElement[];
+  connectors: { id: string }[];
   pushHistory: () => void;
   resizeBrush: (tool: WhiteboardBrushTool, deltaY: number) => void;
   selectedBrushTool: WhiteboardBrushTool | null;
+  selectedConnectorIds: string[];
   selectedElementIds: string[];
   selectedStrokeIds: string[];
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
+  setSelectedConnectorIds: (ids: string[]) => void;
   setSelectedElementIds: (ids: string[]) => void;
   setSelectedStrokeIds: (ids: string[]) => void;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
@@ -31,6 +34,7 @@ const TOOL_KEYS: Partial<Record<string, WhiteboardTool>> = {
   e: 'eraser',
   h: 'hand',
   m: 'marker',
+  n: 'note',
   p: 'pen',
   r: 'ruler',
   v: 'select',
@@ -38,13 +42,16 @@ const TOOL_KEYS: Partial<Record<string, WhiteboardTool>> = {
 
 export function useWhiteboardKeyboardShortcuts({
   active,
+  connectors,
   elements,
   pushHistory,
   resizeBrush,
   selectedBrushTool,
+  selectedConnectorIds,
   selectedElementIds,
   selectedStrokeIds,
   setElements,
+  setSelectedConnectorIds,
   setSelectedElementIds,
   setSelectedStrokeIds,
   setStrokes,
@@ -66,6 +73,7 @@ export function useWhiteboardKeyboardShortcuts({
       }
       if ((event.ctrlKey || event.metaKey) && key === 'a') {
         event.preventDefault();
+        setSelectedConnectorIds(connectors.map((connector) => connector.id));
         setSelectedElementIds(elements.map((element) => element.id));
         setSelectedStrokeIds(strokes.map((stroke) => stroke.id));
         setTool('select');
@@ -87,8 +95,9 @@ export function useWhiteboardKeyboardShortcuts({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
-    active, elements, pushHistory, resizeBrush, selectedBrushTool, selectedElementIds, selectedStrokeIds,
-    setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes, setTool, strokes, viewportZoom,
+    active, connectors, elements, pushHistory, resizeBrush, selectedBrushTool, selectedConnectorIds,
+    selectedElementIds, selectedStrokeIds, setElements, setSelectedConnectorIds, setSelectedElementIds,
+    setSelectedStrokeIds, setStrokes, setTool, strokes, viewportZoom,
   ]);
 }
 

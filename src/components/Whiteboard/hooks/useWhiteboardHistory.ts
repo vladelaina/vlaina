@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { isEditableTarget } from '../model/whiteboardInteractions';
-import type { WhiteboardConnector, WhiteboardElement, WhiteboardStroke } from '../model/whiteboardModel';
+import type { WhiteboardConnector, WhiteboardElement, WhiteboardPaperStyle, WhiteboardStroke } from '../model/whiteboardModel';
 
 interface WhiteboardSnapshot {
   connectors: WhiteboardConnector[];
   elements: WhiteboardElement[];
+  paper: WhiteboardPaperStyle;
   strokes: WhiteboardStroke[];
 }
 
 interface WhiteboardHistoryOptions extends WhiteboardSnapshot {
   active: boolean;
+  historyKey: string | null;
+  setPaper: Dispatch<SetStateAction<WhiteboardPaperStyle>>;
   setConnectors: Dispatch<SetStateAction<WhiteboardConnector[]>>;
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
@@ -19,26 +22,40 @@ export function useWhiteboardHistory({
   active,
   connectors,
   elements,
+  historyKey,
+  paper,
   setConnectors,
   setElements,
+  setPaper,
   setStrokes,
   strokes,
 }: WhiteboardHistoryOptions) {
   const undoStackRef = useRef<WhiteboardSnapshot[]>([]);
   const redoStackRef = useRef<WhiteboardSnapshot[]>([]);
   const [version, setVersion] = useState(0);
+  const historyKeyRef = useRef(historyKey);
+
+  useEffect(() => {
+    if (historyKeyRef.current === historyKey) return;
+    historyKeyRef.current = historyKey;
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    setVersion((current) => current + 1);
+  }, [historyKey]);
 
   const getSnapshot = useCallback(() => ({
     connectors: [...connectors],
     elements: [...elements],
+    paper,
     strokes: [...strokes],
-  }), [connectors, elements, strokes]);
+  }), [connectors, elements, paper, strokes]);
 
   const applySnapshot = useCallback((snapshot: WhiteboardSnapshot) => {
     setConnectors(snapshot.connectors);
     setElements(snapshot.elements);
+    setPaper(snapshot.paper);
     setStrokes(snapshot.strokes);
-  }, [setConnectors, setElements, setStrokes]);
+  }, [setConnectors, setElements, setPaper, setStrokes]);
 
   const pushHistory = useCallback(() => {
     undoStackRef.current = [...undoStackRef.current.slice(-99), getSnapshot()];

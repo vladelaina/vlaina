@@ -3,11 +3,12 @@ import { writeImageBlobToClipboard } from '@/lib/clipboard';
 import {
   WHITEBOARD_BRUSHES,
   getStrokeWidth,
-  getWhiteboardElementCenter,
   type WhiteboardConnector,
   type WhiteboardElement,
+  type WhiteboardPaperStyle,
   type WhiteboardStroke,
 } from './whiteboardModel';
+import { getWhiteboardConnectorEndpoints } from './whiteboardConnectorGeometry';
 import { getStrokeBounds } from './whiteboardSelection';
 import { getPressureStrokePath, getStrokeRenderWidth } from './whiteboardStrokeGeometry';
 
@@ -16,6 +17,7 @@ export type WhiteboardExportFormat = 'jpeg' | 'png' | 'svg' | 'webp';
 interface WhiteboardExportOptions {
   connectors: WhiteboardConnector[];
   elements: WhiteboardElement[];
+  paper: WhiteboardPaperStyle;
   root: HTMLElement | null;
   strokes: WhiteboardStroke[];
 }
@@ -23,10 +25,11 @@ interface WhiteboardExportOptions {
 export async function exportWhiteboard({
   connectors,
   elements,
+  paper,
   root,
   strokes,
 }: WhiteboardExportOptions, format: WhiteboardExportFormat) {
-  const blob = await createWhiteboardExportBlob({ connectors, elements, root, strokes }, format);
+  const blob = await createWhiteboardExportBlob({ connectors, elements, paper, root, strokes }, format);
   if (!blob) return false;
   downloadBlob(blob, `whiteboard-${new Date().toISOString().slice(0, 10)}.${format === 'jpeg' ? 'jpg' : format}`);
   return true;
@@ -40,12 +43,13 @@ export async function copyWhiteboardImageToClipboard(options: WhiteboardExportOp
 export async function createWhiteboardExportBlob({
   connectors,
   elements,
+  paper,
   root,
   strokes,
 }: WhiteboardExportOptions, format: WhiteboardExportFormat): Promise<Blob | null> {
   const styles = root ? window.getComputedStyle(root) : document.documentElement.style;
   const bounds = getExportBounds(elements, strokes);
-  const svg = buildExportSvg({ bounds, connectors, elements, strokes, styles });
+  const svg = buildExportSvg({ bounds, connectors, elements, paper, strokes, styles });
   if (format === 'svg') {
     return new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
   }
@@ -80,6 +84,7 @@ interface BuildExportSvgOptions {
   bounds: ExportBounds;
   connectors: WhiteboardConnector[];
   elements: WhiteboardElement[];
+  paper: WhiteboardPaperStyle;
   strokes: WhiteboardStroke[];
   styles: CSSStyleDeclaration;
 }
@@ -88,6 +93,7 @@ function buildExportSvg({
   bounds,
   connectors,
   elements,
+  paper,
   strokes,
   styles,
 }: BuildExportSvgOptions) {
@@ -96,11 +102,24 @@ function buildExportSvg({
   const elementColor = css(styles, '--vlaina-color-whiteboard-shape');
   const elementBorder = css(styles, '--vlaina-color-whiteboard-shape-border');
   const noteColor = css(styles, '--vlaina-color-whiteboard-note');
-  const noteBorder = css(styles, '--vlaina-color-whiteboard-note-border');
+  const noteBorder = css(styles, '--vlaina-color-subtle-border-strong');
+  const noteColors = {
+    yellow: css(styles, '--vlaina-color-whiteboard-note-yellow') || noteColor,
+    blue: css(styles, '--vlaina-color-whiteboard-note-blue') || noteColor,
+    green: css(styles, '--vlaina-color-whiteboard-note-green') || noteColor,
+    pink: css(styles, '--vlaina-color-whiteboard-note-pink') || noteColor,
+    purple: css(styles, '--vlaina-color-whiteboard-note-purple') || noteColor,
+    gray: css(styles, '--vlaina-color-whiteboard-note-gray') || noteColor,
+  };
   const textColor = css(styles, '--vlaina-color-text-primary');
+  const paperColor = css(styles, '--vlaina-color-whiteboard-grid-dot');
   const elementsById = new Map(elements.map((element) => [element.id, element]));
+  const paperPattern = renderPaperPattern(paper, paperColor);
   const content = [
     `<rect width="100%" height="100%" fill="${escapeAttr(background)}"/>`,
+    paperPattern.defs,
+    paperPattern.fill,
+    `<defs><marker id="whiteboard-export-arrow" markerWidth="${themeWhiteboardTokens.connectorArrowWidthPx}" markerHeight="${themeWhiteboardTokens.connectorArrowHeightPx}" refX="${themeWhiteboardTokens.connectorArrowWidthPx}" refY="${themeWhiteboardTokens.connectorArrowHeightPx / 2}" orient="auto" markerUnits="userSpaceOnUse" viewBox="0 0 ${themeWhiteboardTokens.connectorArrowWidthPx} ${themeWhiteboardTokens.connectorArrowHeightPx}"><path d="M 0 0 L ${themeWhiteboardTokens.connectorArrowWidthPx} ${themeWhiteboardTokens.connectorArrowHeightPx / 2} L 0 ${themeWhiteboardTokens.connectorArrowHeightPx} z" fill="${escapeAttr(connectorColor)}"/></marker></defs>`,
     `<g transform="translate(${-bounds.x} ${-bounds.y})">${strokes.map((stroke) => renderStroke(stroke)).join('')}</g>`,
     ...connectors.flatMap((connector) => {
       const from = elementsById.get(connector.fromId);
@@ -109,10 +128,24 @@ function buildExportSvg({
       return [renderConnector(from, to, bounds, connectorColor)];
     }),
     ...elements.map((element) => renderElement(element, bounds, {
-      elementBorder, elementColor, noteBorder, noteColor, textColor,
+      elementBorder, elementColor, noteBorder, noteColor, noteColors, textColor,
     })),
   ].join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="0 0 ${bounds.width} ${bounds.height}">${content}</svg>`;
+}
+
+function renderPaperPattern(paper: WhiteboardPaperStyle, color: string): { defs: string; fill: string } {
+  if (paper === 'blank') return { defs: '', fill: '' };
+  const size = themeWhiteboardTokens.gridSizePx;
+  const mark = paper === 'dots'
+    ? `<circle cx="1" cy="1" r="1" fill="${escapeAttr(color)}"/>`
+    : paper === 'grid'
+      ? `<path d="M ${size} 0 L 0 0 0 ${size}" fill="none" stroke="${escapeAttr(color)}" stroke-width="1"/>`
+      : `<path d="M 0 ${size - 1} H ${size}" fill="none" stroke="${escapeAttr(color)}" stroke-width="1"/>`;
+  return {
+    defs: `<defs><pattern id="whiteboard-paper-pattern" width="${size}" height="${size}" patternUnits="userSpaceOnUse">${mark}</pattern></defs>`,
+    fill: '<rect width="100%" height="100%" fill="url(#whiteboard-paper-pattern)"/>',
+  };
 }
 
 function renderStroke(stroke: WhiteboardStroke): string {
@@ -129,18 +162,26 @@ function renderStroke(stroke: WhiteboardStroke): string {
 }
 
 function renderConnector(from: WhiteboardElement, to: WhiteboardElement, bounds: ExportBounds, color: string): string {
-  const start = getWhiteboardElementCenter(from);
-  const end = getWhiteboardElementCenter(to);
-  return `<line x1="${start.x - bounds.x}" y1="${start.y - bounds.y}" x2="${end.x - bounds.x}" y2="${end.y - bounds.y}" stroke="${escapeAttr(color)}" stroke-linecap="round" stroke-width="${themeWhiteboardTokens.connectorStrokeWidthPx}"/>`;
+  const { from: start, to: end } = getWhiteboardConnectorEndpoints(from, to);
+  return `<line x1="${start.x - bounds.x}" y1="${start.y - bounds.y}" x2="${end.x - bounds.x}" y2="${end.y - bounds.y}" stroke="${escapeAttr(color)}" stroke-linecap="round" stroke-width="${themeWhiteboardTokens.connectorStrokeWidthPx}" marker-end="url(#whiteboard-export-arrow)"/>`;
 }
 
-function renderElement(element: WhiteboardElement, bounds: ExportBounds, colors: Record<string, string>): string {
+function renderElement(element: WhiteboardElement, bounds: ExportBounds, colors: {
+  elementBorder: string;
+  elementColor: string;
+  noteBorder: string;
+  noteColor: string;
+  noteColors: Record<NonNullable<WhiteboardElement['noteColor']>, string>;
+  textColor: string;
+}): string {
   const x = element.x - bounds.x;
   const y = element.y - bounds.y;
   if (element.type === 'image' && element.imageSrc) {
     return `<image href="${escapeAttr(element.imageSrc)}" x="${x}" y="${y}" width="${element.width}" height="${element.height}" preserveAspectRatio="xMidYMid slice"/>`;
   }
-  const fill = element.type === 'note' ? colors.noteColor : colors.elementColor;
+  const fill = element.type === 'note'
+    ? colors.noteColors[element.noteColor ?? 'yellow'] || colors.noteColor
+    : colors.elementColor;
   const stroke = element.type === 'note' ? colors.noteBorder : colors.elementBorder;
   const shape = element.type === 'ellipse'
     ? `<ellipse cx="${x + element.width / 2}" cy="${y + element.height / 2}" rx="${element.width / 2}" ry="${element.height / 2}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}"/>`

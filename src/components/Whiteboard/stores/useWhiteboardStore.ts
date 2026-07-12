@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   createWhiteboardEntry,
+  deleteWhiteboardEntry,
   loadWhiteboardIndex,
   readWhiteboardBoard,
   writeWhiteboardAsset,
@@ -22,7 +23,9 @@ interface WhiteboardStore {
   loadedNotesRootPath: string | null;
   loading: boolean;
   createBoard: (title?: string) => Promise<void>;
+  deleteBoard: (id: string) => Promise<void>;
   loadForNotesRoot: (notesRootPath: string | null) => Promise<void>;
+  renameBoard: (id: string, title: string) => Promise<void>;
   saveActiveSnapshot: (snapshot: WhiteboardSnapshot, boardId?: string | null) => Promise<WhiteboardSaveResult | null>;
   selectBoard: (id: string) => Promise<void>;
   setActiveSnapshotDraft: (snapshot: WhiteboardSnapshot) => void;
@@ -65,6 +68,47 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
     }
   },
 
+  deleteBoard: async (id) => {
+    const { activeBoardId, boards, loadedNotesRootPath } = get();
+    const board = boards.find((item) => item.id === id);
+    if (!loadedNotesRootPath || !board) return;
+    whiteboardMutationSequence += 1;
+    whiteboardLoadSequence += 1;
+    set({ loading: true });
+    try {
+      await flushActiveSnapshot(get);
+      let nextBoards = boards.filter((item) => item.id !== id);
+      if (nextBoards.length === 0) {
+        const created = await createWhiteboardEntry(loadedNotesRootPath);
+        nextBoards = created.index.boards.filter((item) => item.id !== id);
+      }
+      const deletedIndex = boards.findIndex((item) => item.id === id);
+      const nextActiveId = activeBoardId === id
+        ? nextBoards[Math.min(deletedIndex, nextBoards.length - 1)]?.id ?? nextBoards[0].id
+        : activeBoardId ?? nextBoards[0].id;
+      const nextActiveBoard = nextBoards.find((item) => item.id === nextActiveId) ?? nextBoards[0];
+      await deleteWhiteboardEntry(loadedNotesRootPath, board);
+      await writeWhiteboardIndex(loadedNotesRootPath, {
+        activeBoardId: nextActiveBoard.id,
+        boards: nextBoards,
+        version: 1,
+      });
+      const snapshot = activeBoardId === id
+        ? await readWhiteboardBoard(loadedNotesRootPath, nextActiveBoard) ?? normalizeWhiteboardSnapshot({})
+        : get().activeSnapshot ?? normalizeWhiteboardSnapshot({});
+      activeSnapshotDraft = { boardId: nextActiveBoard.id, snapshot };
+      set({
+        activeBoardId: nextActiveBoard.id,
+        activeSnapshot: snapshot,
+        boards: nextBoards,
+        error: null,
+        loading: false,
+      });
+    } catch (error) {
+      set({ error: getErrorMessage(error), loading: false });
+    }
+  },
+
   loadForNotesRoot: async (notesRootPath) => {
     if (!notesRootPath) {
       set({ activeBoardId: null, activeSnapshot: null, boards: [], loadedNotesRootPath: null, loading: false });
@@ -97,6 +141,29 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
       });
     } catch (error) {
       set({ error: getErrorMessage(error), loading: false });
+    }
+  },
+
+  renameBoard: async (id, title) => {
+    const { activeBoardId, boards, loadedNotesRootPath } = get();
+    const nextTitle = title.trim().slice(0, 120);
+    if (!loadedNotesRootPath || !nextTitle) return;
+    const board = boards.find((item) => item.id === id);
+    if (!board || board.title === nextTitle) return;
+    const nextBoards = boards.map((item) => (
+      item.id === id ? { ...item, title: nextTitle, updatedAt: new Date().toISOString() } : item
+    ));
+    try {
+      await writeWhiteboardIndex(loadedNotesRootPath, {
+        activeBoardId: activeBoardId && nextBoards.some((item) => item.id === activeBoardId)
+          ? activeBoardId
+          : nextBoards[0].id,
+        boards: nextBoards,
+        version: 1,
+      });
+      set({ boards: nextBoards, error: null });
+    } catch (error) {
+      set({ error: getErrorMessage(error) });
     }
   },
 

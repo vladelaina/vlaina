@@ -1,20 +1,8 @@
-import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getNotesRootStorageKey } from '@/lib/storage/notesRootStorageKey';
 import { getPaths } from '@/lib/storage/paths';
 
-function hashNotesRootPath(path: string): string {
-  let hash = 2166136261;
-  for (let index = 0; index < path.length; index += 1) {
-    hash ^= path.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
-
-export function getNotesRootStorageKey(notesRootPath: string): string {
-  const normalized = normalizeNotePathKey(notesRootPath) ?? notesRootPath.replace(/\\/g, '/');
-  return `notes-root-${hashNotesRootPath(normalized)}`;
-}
+export { getNotesRootStorageKey } from '@/lib/storage/notesRootStorageKey';
 
 export async function getNotesSystemStorePath(...segments: string[]): Promise<string> {
   const { notes } = await getPaths();

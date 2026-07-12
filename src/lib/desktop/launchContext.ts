@@ -27,7 +27,7 @@ function normalizeLaunchViewMode(value: string | null | undefined): WindowLaunch
     return value;
   }
 
-  if (import.meta.env.DEV && (value === 'whiteboard' || value === 'lab')) {
+  if (value === 'whiteboard' || (import.meta.env.DEV && value === 'lab')) {
     return value;
   }
 

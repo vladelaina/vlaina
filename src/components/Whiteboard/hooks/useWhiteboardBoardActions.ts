@@ -28,6 +28,7 @@ interface WhiteboardBoardActionsOptions {
   setDragState: Dispatch<SetStateAction<WhiteboardDragState | null>>;
   setDraftStroke: (stroke: WhiteboardStroke | null) => void;
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
+  setSelectedConnectorIds: Dispatch<SetStateAction<string[]>>;
   setSelectedElementId: Dispatch<SetStateAction<string | null>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
@@ -43,6 +44,7 @@ interface WhiteboardBoardActionsOptions {
 
 export function useWhiteboardBoardActions(options: WhiteboardBoardActionsOptions) {
   const resetSelection = useCallback(() => {
+    options.setSelectedConnectorIds([]);
     options.setSelectedStrokeIds([]);
     options.setSelectedElementId(null);
   }, [options]);

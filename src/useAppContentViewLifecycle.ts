@@ -21,7 +21,7 @@ type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard'>;
 const PREWARMED_APP_VIEW_MODES = [
   'notes',
   'chat',
-  ...(import.meta.env.DEV ? ['whiteboard' as const] : []),
+  'whiteboard',
 ] satisfies readonly ReadyAppViewMode[];
 
 interface UseAppContentViewLifecycleOptions {
@@ -52,7 +52,7 @@ function preloadActiveViewModule(viewMode: AppViewMode) {
     return;
   }
 
-  if (import.meta.env.DEV && viewMode === 'whiteboard') {
+  if (viewMode === 'whiteboard') {
     void preloadWhiteboardViewModule();
   }
 }
@@ -60,9 +60,7 @@ function preloadActiveViewModule(viewMode: AppViewMode) {
 function preloadPrewarmedViewModules() {
   void preloadNotesViewModule();
   void preloadChatViewModule();
-  if (import.meta.env.DEV) {
-    void preloadWhiteboardViewModule();
-  }
+  void preloadWhiteboardViewModule();
 }
 
 export function useAppContentViewLifecycle({

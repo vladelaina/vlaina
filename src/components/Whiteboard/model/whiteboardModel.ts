@@ -19,6 +19,8 @@ export type WhiteboardTool =
   | 'image'
   | 'connector';
 export type WhiteboardElementType = 'note' | 'rect' | 'ellipse' | 'image';
+export type WhiteboardNoteColor = 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'gray';
+export type WhiteboardPaperStyle = 'blank' | 'dots' | 'grid' | 'ruled';
 export type WhiteboardDrawingTool = Extract<WhiteboardTool, 'pen' | 'pencil' | 'marker' | 'fountain' | 'watercolor' | 'crayon'>;
 export type WhiteboardBrushTool = WhiteboardDrawingTool | 'eraser';
 export type WhiteboardBrushColors = Record<WhiteboardDrawingTool, string>;
@@ -49,6 +51,7 @@ export interface WhiteboardElement {
   height: number;
   imageAssetPath?: string;
   imageSrc?: string;
+  noteColor?: WhiteboardNoteColor;
   text: string;
 }
 
@@ -99,6 +102,12 @@ export const WHITEBOARD_TOOL_GROUPS: WhiteboardToolConfig[][] = [
     { id: 'crayon', labelKey: 'whiteboard.tool.crayon', icon: 'whiteboard.crayon' },
     { id: 'eraser', labelKey: 'whiteboard.tool.eraser', icon: 'whiteboard.eraser' },
     { id: 'ruler', labelKey: 'whiteboard.tool.ruler', icon: 'whiteboard.ruler' },
+  ],
+  [
+    { id: 'note', labelKey: 'whiteboard.tool.note', icon: 'whiteboard.note' },
+    { id: 'rect', labelKey: 'whiteboard.tool.rect', icon: 'whiteboard.rect' },
+    { id: 'ellipse', labelKey: 'whiteboard.tool.ellipse', icon: 'whiteboard.ellipse' },
+    { id: 'connector', labelKey: 'whiteboard.tool.connector', icon: 'whiteboard.connector' },
   ],
 ];
 
@@ -162,6 +171,9 @@ export const WHITEBOARD_DEFAULT_BRUSH_COLORS: WhiteboardBrushColors = {
   crayon: themeWhiteboardTokens.brushColorSwatches[2],
 };
 
+export const WHITEBOARD_DEFAULT_NOTE_COLOR: WhiteboardNoteColor = 'yellow';
+export const WHITEBOARD_DEFAULT_PAPER_STYLE: WhiteboardPaperStyle = 'dots';
+
 export function clampWhiteboardZoom(zoom: number): number {
   return Math.min(
     themeWhiteboardTokens.maxZoom,
@@ -209,6 +221,25 @@ export function resizeWhiteboardElement(
     ...element,
     width: Math.max(themeWhiteboardTokens.minElementWidthPx, Math.round(width)),
     height: Math.max(themeWhiteboardTokens.minElementHeightPx, Math.round(height)),
+  };
+}
+
+export function createWhiteboardElement(
+  id: string,
+  type: Exclude<WhiteboardElementType, 'image'>,
+  point: WhiteboardPoint,
+): WhiteboardElement {
+  const isNote = type === 'note';
+  const width = isNote ? themeWhiteboardTokens.noteWidthPx : themeWhiteboardTokens.shapeWidthPx;
+  const height = isNote ? themeWhiteboardTokens.noteHeightPx : themeWhiteboardTokens.shapeHeightPx;
+  return {
+    id,
+    type,
+    x: Math.round(point.x - width / 2),
+    y: Math.round(point.y - height / 2),
+    width,
+    height,
+    text: '',
   };
 }
 

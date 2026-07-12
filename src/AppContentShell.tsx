@@ -117,16 +117,16 @@ export function AppContentShell({
   const shouldRenderSidebar =
     effectiveAppViewMode === 'chat' ||
     effectiveAppViewMode === 'notes' ||
-    (import.meta.env.DEV && effectiveAppViewMode === 'whiteboard');
+    effectiveAppViewMode === 'whiteboard';
   const shouldMountNotes = mountedAppViews.has('notes');
   const shouldMountChat = mountedAppViews.has('chat');
-  const shouldMountWhiteboard = import.meta.env.DEV && mountedAppViews.has('whiteboard');
+  const shouldMountWhiteboard = mountedAppViews.has('whiteboard');
   const shouldRenderNotesSidebar = renderedSidebarAppViews.has('notes');
   const shouldRenderChatSidebar = renderedSidebarAppViews.has('chat');
-  const shouldRenderWhiteboardSidebar = import.meta.env.DEV && renderedSidebarAppViews.has('whiteboard');
+  const shouldRenderWhiteboardSidebar = renderedSidebarAppViews.has('whiteboard');
   const shouldShowNotesSidebar = effectiveAppViewMode === 'notes';
   const shouldShowChatSidebar = effectiveAppViewMode === 'chat';
-  const shouldShowWhiteboardSidebar = import.meta.env.DEV && effectiveAppViewMode === 'whiteboard';
+  const shouldShowWhiteboardSidebar = effectiveAppViewMode === 'whiteboard';
 
   const renderSidebarContent = (isPeeking: boolean) => shouldRenderSidebar ? (
     <div className="grid h-full min-h-0 min-w-0 overflow-hidden">
@@ -147,7 +147,7 @@ export function AppContentShell({
       {shouldRenderWhiteboardSidebar ? (
         <SidebarPane visible={shouldShowWhiteboardSidebar}>
           <Suspense fallback={null}>
-            {WhiteboardSidebar ? <WhiteboardSidebar /> : null}
+            <WhiteboardSidebar />
           </Suspense>
         </SidebarPane>
       ) : null}
@@ -205,13 +205,11 @@ export function AppContentShell({
       {shouldMountWhiteboard ? (
         <div className={cn('h-full', effectiveAppViewMode !== 'whiteboard' && 'hidden')} aria-hidden={effectiveAppViewMode !== 'whiteboard'}>
           <Suspense fallback={<StartupViewFallback onReady={onStartupFallbackReady} />}>
-            {WhiteboardView ? (
-              <WhiteboardView
-                active={effectiveAppViewMode === 'whiteboard'}
-                onStartupReady={() => onActiveViewReady('whiteboard')}
-                onPrimaryContentReady={() => onPrimaryContentReady('whiteboard')}
-              />
-            ) : null}
+            <WhiteboardView
+              active={effectiveAppViewMode === 'whiteboard'}
+              onStartupReady={() => onActiveViewReady('whiteboard')}
+              onPrimaryContentReady={() => onPrimaryContentReady('whiteboard')}
+            />
           </Suspense>
         </div>
       ) : null}

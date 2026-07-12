@@ -1,5 +1,5 @@
 import type { PointerEvent } from 'react';
-import type { WhiteboardElement, WhiteboardPoint, WhiteboardStroke, WhiteboardViewport } from './whiteboardModel';
+import type { WhiteboardElement, WhiteboardElementType, WhiteboardPoint, WhiteboardStroke, WhiteboardViewport } from './whiteboardModel';
 import type { WhiteboardResizeHandle, WhiteboardSelectionRect } from './whiteboardSelection';
 
 export type WhiteboardDragState =
@@ -66,6 +66,12 @@ export type WhiteboardDragState =
   }
   | {
     kind: 'draw';
+  }
+  | {
+    currentPoint: WhiteboardPoint;
+    kind: 'create-element';
+    startPoint: WhiteboardPoint;
+    type: Exclude<WhiteboardElementType, 'image'>;
   };
 
 export interface WhiteboardMovePreview {

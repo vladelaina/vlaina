@@ -33,15 +33,18 @@ export function WhiteboardView({
         brushCursorTool={board.brushCursorTool}
         connectorSourceId={board.connectorSourceId}
         connectors={board.connectors}
+        draftElement={board.draftElement}
         draftStroke={board.draftStroke}
         elementTextLabel={t('whiteboard.elementText')}
         elements={board.elements}
         isPanning={board.isPanning}
         movePreview={board.movePreview}
+        paperStyle={board.paperStyle}
         resizeLabel={t('whiteboard.resizeElement')}
         ruler={board.ruler}
         rulerCloseLabel={t('common.close')}
         rulerRotateLabel={t('whiteboard.rotateRuler')}
+        selectedConnectorIds={board.selectedConnectorIds}
         selectedElementIds={board.selectedElementIds}
         selectedStrokeIds={board.selectedStrokeIds}
         selectionPath={board.selectionPath}
@@ -52,8 +55,11 @@ export function WhiteboardView({
         viewport={board.viewport}
         viewportRef={board.viewportRef}
         onConnectorTarget={board.handleConnectorTarget}
+        onSelectConnector={board.selectConnector}
         onDoubleClick={board.handleSurfaceDoubleClick}
         onElementPointerDown={board.handleElementPointerDown}
+        onElementTextEditEnd={board.endElementTextEdit}
+        onElementTextEditStart={board.beginElementTextEdit}
         onElementTextChange={board.setElementText}
         onImageDrop={board.importImage}
         onPointerCancel={board.finishPointerAction}
@@ -73,15 +79,17 @@ export function WhiteboardView({
         <div
           role="status"
           aria-live="polite"
-          className="pointer-events-none absolute right-3 top-14 z-[var(--vlaina-z-20)] rounded-[var(--vlaina-radius-pill)] border border-[var(--vlaina-color-status-danger-border)] bg-[var(--vlaina-color-status-danger-bg)] px-3 py-1.5 text-[var(--vlaina-font-12)] font-medium text-[var(--vlaina-color-status-danger-fg)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]"
+          className="pointer-events-none absolute right-3 top-14 z-[var(--vlaina-z-20)] rounded-[var(--vlaina-radius-pill)] border border-[var(--vlaina-color-status-danger-border)] bg-[var(--vlaina-color-status-danger-bg)] px-3 py-1.5 text-[var(--vlaina-font-125)] font-medium text-[var(--vlaina-color-status-danger-fg)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]"
         >
           {t('app.closeSaveFailedTitle')}
         </div>
       ) : null}
 
       <WhiteboardMoreMenu
+        paperStyle={board.paperStyle}
         onCopyImage={board.copyBoardToClipboard}
         onExport={board.exportBoard}
+        onPaperStyleChange={board.setPaperStyle}
       />
 
       <WhiteboardToolbar
@@ -89,6 +97,7 @@ export function WhiteboardView({
         brushSizes={board.brushSizes}
         canRedo={board.canRedo}
         canUndo={board.canUndo}
+        selectedNoteColor={board.selectedNoteColor}
         tool={board.tool}
         viewport={board.viewport}
         onBrushColorChange={board.setBrushColor}
@@ -103,6 +112,7 @@ export function WhiteboardView({
         onRedo={board.handleRedo}
         onResetView={board.resetView}
         onToolChange={board.setTool}
+        onNoteColorChange={board.setSelectedNoteColor}
         onUndo={board.handleUndo}
         onZoomChange={board.updateZoom}
       />

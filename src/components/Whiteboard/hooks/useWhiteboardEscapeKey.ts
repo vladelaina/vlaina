@@ -7,6 +7,7 @@ interface WhiteboardEscapeKeyOptions {
   clearDraftStroke: () => void;
   setConnectorSourceId: Dispatch<SetStateAction<string | null>>;
   setDragState: Dispatch<SetStateAction<WhiteboardDragState | null>>;
+  setSelectedConnectorIds: Dispatch<SetStateAction<string[]>>;
   setSelectedElementId: Dispatch<SetStateAction<string | null>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
   setTool: Dispatch<SetStateAction<WhiteboardTool>>;
@@ -17,6 +18,7 @@ export function useWhiteboardEscapeKey({
   clearDraftStroke,
   setConnectorSourceId,
   setDragState,
+  setSelectedConnectorIds,
   setSelectedElementId,
   setSelectedStrokeIds,
   setTool,
@@ -28,6 +30,7 @@ export function useWhiteboardEscapeKey({
       clearDraftStroke();
       setConnectorSourceId(null);
       setDragState(null);
+      setSelectedConnectorIds([]);
       setSelectedElementId(null);
       setSelectedStrokeIds([]);
       setTool('select');
@@ -36,6 +39,6 @@ export function useWhiteboardEscapeKey({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     active, clearDraftStroke, setConnectorSourceId, setDragState,
-    setSelectedElementId, setSelectedStrokeIds, setTool,
+    setSelectedConnectorIds, setSelectedElementId, setSelectedStrokeIds, setTool,
   ]);
 }

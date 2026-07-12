@@ -6,6 +6,7 @@ import {
   saveStarredRegistry,
 } from '@/stores/notes/starred';
 import { moveNotesRootSystemStore } from '@/stores/notes/systemStoragePaths';
+import { moveWhiteboardNotesRootStore } from '@/lib/storage/whiteboardStoragePaths';
 import { setCurrentNotesRootPath, useNotesStore } from './useNotesStore';
 import { ensureNotesRootConfig, normalizeNotesRootPath } from './notesRootConfig';
 import { prepareNotesForNotesRootExit } from './notesRootExitGuards';
@@ -171,6 +172,7 @@ export function createNotesRootMutationActions(
           markExpectedExternalChange(nextPath, true);
           await storage.rename(normalizedCurrentNotesRoot.path, nextPath);
           await moveNotesRootSystemStore(normalizedCurrentNotesRoot.path, nextPath);
+          await moveWhiteboardNotesRootStore(normalizedCurrentNotesRoot.path, nextPath);
 
           const nextNotesRoot = normalizeNotesRootInfo({
             ...normalizedCurrentNotesRoot,

@@ -13,6 +13,7 @@ import {
   type WhiteboardBrushSizes,
   type WhiteboardBrushTool,
   type WhiteboardDrawingTool,
+  type WhiteboardNoteColor,
   type WhiteboardTool,
   type WhiteboardViewport,
 } from '../model/whiteboardModel';
@@ -24,6 +25,7 @@ interface WhiteboardToolbarProps {
   brushSizes: WhiteboardBrushSizes;
   tool: WhiteboardTool;
   viewport: WhiteboardViewport;
+  selectedNoteColor: WhiteboardNoteColor | null;
   onBrushColorChange: (tool: WhiteboardDrawingTool, color: string) => void;
   onBrushSizeChange: (tool: WhiteboardBrushTool, deltaY: number) => void;
   onClear: () => void;
@@ -32,6 +34,7 @@ interface WhiteboardToolbarProps {
   onExport: () => void;
   onFitView: () => void;
   onImageAdd: (file: File) => void;
+  onNoteColorChange: (color: WhiteboardNoteColor) => void;
   onPaste: () => void;
   onRedo: () => void;
   onResetView: () => void;
@@ -40,17 +43,21 @@ interface WhiteboardToolbarProps {
   onZoomChange: (delta: number) => void;
 }
 
-function ToolButton({
-  active,
+function ToolbarButton({
+  active = false,
   disabled = false,
   icon,
+  indicatorColor,
   label,
+  large = false,
   onClick,
 }: {
-  active: boolean;
+  active?: boolean;
   disabled?: boolean;
   icon: IconName;
+  indicatorColor?: string;
   label: string;
+  large?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -63,13 +70,23 @@ function ToolButton({
           disabled={disabled}
           onClick={onClick}
           className={cn(
-            'inline-flex size-[var(--vlaina-size-36px)] shrink-0 cursor-pointer items-center justify-center rounded-[var(--vlaina-radius-circle)] border border-transparent text-[var(--vlaina-color-text-secondary)] transition-[background-color,border-color,color,transform] duration-[var(--vlaina-duration-150)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]',
+            'relative inline-flex shrink-0 cursor-pointer items-center justify-center border border-transparent text-[var(--vlaina-color-text-secondary)] transition-[background-color,border-color,color,transform,box-shadow] duration-[var(--vlaina-duration-150)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]',
+            large
+              ? 'size-[var(--vlaina-size-44px)] rounded-[var(--vlaina-radius-12px)]'
+              : 'size-[var(--vlaina-size-36px)] rounded-[var(--vlaina-radius-circle)]',
             active
               ? 'border-[var(--vlaina-color-accent-border-muted)] bg-[var(--vlaina-accent-light)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-selection-soft)]'
               : 'hover:bg-[var(--vlaina-color-control-hover-bg)] hover:text-[var(--vlaina-color-control-hover-fg)] active:scale-[var(--vlaina-scale-95)]',
           )}
         >
-          <Icon name={icon} size={themeIconTokens.sizeMd} />
+          <Icon name={icon} size={large ? themeIconTokens.sizeLg : themeIconTokens.sizeMd} />
+          {indicatorColor ? (
+            <span
+              aria-hidden="true"
+              className="absolute bottom-1 h-[var(--vlaina-size-2px)] w-5 rounded-[var(--vlaina-radius-pill)]"
+              style={{ backgroundColor: indicatorColor }}
+            />
+          ) : null}
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" sideOffset={8}>{label}</TooltipContent>
@@ -78,54 +95,27 @@ function ToolButton({
 }
 
 function ToolbarGroup({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div
-      className={cn(
-        'flex h-11 shrink-0 items-center gap-1 rounded-[var(--vlaina-radius-pill)] px-1.5',
-        chatComposerPillSurfaceClass,
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn('flex shrink-0 items-center gap-1', className)}>{children}</div>;
 }
 
-export const WhiteboardToolbar = memo(function WhiteboardToolbar({
-  canRedo,
-  canUndo,
-  brushColors,
-  brushSizes,
-  tool,
-  viewport,
-  onBrushColorChange,
-  onBrushSizeChange,
-  onClear,
-  onCopy,
-  onDuplicate,
-  onExport,
-  onFitView,
-  onImageAdd,
-  onPaste,
-  onRedo,
-  onResetView,
-  onToolChange,
-  onUndo,
-  onZoomChange,
-}: WhiteboardToolbarProps) {
+const floatingPanelClassName = cn(
+  'pointer-events-auto border border-[var(--vlaina-color-toolbar-border)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]',
+  chatComposerPillSurfaceClass,
+);
+
+export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: WhiteboardToolbarProps) {
   const { t } = useI18n();
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const colorTool = isDrawingTool(tool) ? tool : null;
-  const sizeTool = isBrushTool(tool) ? tool : null;
+  const colorTool = isDrawingTool(props.tool) ? props.tool : null;
+  const sizeTool = isBrushTool(props.tool) ? props.tool : null;
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (file) onImageAdd(file);
+    if (file) props.onImageAdd(file);
   };
   const handleImageSelect = () => {
     const input = imageInputRef.current;
     if (!input) return;
-
     input.value = '';
     if (typeof input.showPicker === 'function') {
       try {
@@ -140,101 +130,112 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar({
   };
 
   return (
-    <div className="pointer-events-none absolute inset-x-3 bottom-4 z-[var(--vlaina-z-20)] flex justify-center">
-      <div
-        className={cn(
-          'pointer-events-auto flex max-w-full items-center gap-1.5 overflow-x-auto rounded-[var(--vlaina-radius-pill)] p-1.5 shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]',
-          chatComposerPillSurfaceClass,
-        )}
-      >
-        {WHITEBOARD_TOOL_GROUPS.map((group, groupIndex) => (
-          <ToolbarGroup key={groupIndex}>
-            {group.map((item) => (
-              <ToolButton
-                key={item.id}
-                active={tool === item.id}
-                icon={item.icon}
-                label={t(item.labelKey)}
-                onClick={() => onToolChange(item.id)}
-              />
-            ))}
-          </ToolbarGroup>
-        ))}
-        {colorTool ? (
-          <ToolbarGroup>
-            {themeWhiteboardTokens.brushColorSwatches.map((color) => (
-              <button
-                key={color}
-                type="button"
-                aria-label={color}
-                aria-pressed={brushColors[colorTool] === color}
-                onClick={() => onBrushColorChange(colorTool, color)}
-                className={cn(
-                  'size-[var(--vlaina-size-24px)] rounded-[var(--vlaina-radius-circle)] border transition-transform',
-                  brushColors[colorTool] === color
-                    ? 'border-[var(--vlaina-color-whiteboard-selected)] scale-[var(--vlaina-scale-110)]'
-                    : 'border-[var(--vlaina-color-subtle-border-strong)] hover:scale-[var(--vlaina-scale-105)]',
-                )}
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </ToolbarGroup>
-        ) : null}
-        {sizeTool ? (
-          <ToolbarGroup>
-            <ToolButton
-              active={false}
-              icon="common.remove"
-              label={t('whiteboard.decreaseBrushSize')}
-              onClick={() => onBrushSizeChange(sizeTool, themeWhiteboardTokens.brushWheelButtonDelta)}
-            />
-            <div
-              aria-label={t('whiteboard.brushSize')}
-              className="min-w-[var(--vlaina-size-48px)] rounded-[var(--vlaina-radius-circle)] px-3 py-1 text-center text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-color-text-secondary)]"
-            >
-              {Math.round(brushSizes[sizeTool] * 100)}%
-            </div>
-            <ToolButton
-              active={false}
-              icon="common.add"
-              label={t('whiteboard.increaseBrushSize')}
-              onClick={() => onBrushSizeChange(sizeTool, -themeWhiteboardTokens.brushWheelButtonDelta)}
-            />
-          </ToolbarGroup>
-        ) : null}
-        <ToolbarGroup>
-          <ToolButton active={false} disabled={!canUndo} icon="common.undo" label={t('whiteboard.undo')} onClick={onUndo} />
-          <ToolButton active={false} disabled={!canRedo} icon="common.redo" label={t('whiteboard.redo')} onClick={onRedo} />
-          <ToolButton active={false} icon="common.copy" label={t('whiteboard.copy')} onClick={onCopy} />
-          <ToolButton active={false} icon="common.add" label={t('whiteboard.duplicate')} onClick={onDuplicate} />
-          <ToolButton active={false} icon="common.upload" label={t('whiteboard.paste')} onClick={onPaste} />
+    <>
+      <div className="pointer-events-none absolute left-3 top-3 z-[var(--vlaina-z-20)] flex max-w-[calc(100%-var(--vlaina-size-56px))] items-center gap-2">
+        <ToolbarGroup className={cn('rounded-[var(--vlaina-radius-pill)] p-1', floatingPanelClassName)}>
+          <ToolbarButton disabled={!props.canUndo} icon="common.undo" label={t('whiteboard.undo')} onClick={props.onUndo} />
+          <ToolbarButton disabled={!props.canRedo} icon="common.redo" label={t('whiteboard.redo')} onClick={props.onRedo} />
         </ToolbarGroup>
-        <ToolbarGroup>
-          <ToolButton
-            active={false}
-            icon="common.remove"
-            label={t('whiteboard.zoomOut')}
-            onClick={() => onZoomChange(-themeWhiteboardTokens.zoomStep)}
-          />
-          <span className="min-w-[var(--vlaina-size-56px)] shrink-0 text-center text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-color-text-secondary)]">
-            {Math.round(viewport.zoom * 100)}%
-          </span>
-          <ToolButton
-            active={false}
-            icon="common.add"
-            label={t('whiteboard.zoomIn')}
-            onClick={() => onZoomChange(themeWhiteboardTokens.zoomStep)}
-          />
-          <ToolButton active={false} icon="common.refresh" label={t('whiteboard.resetView')} onClick={onResetView} />
-          <ToolButton active={false} icon="nav.fullscreen" label={t('whiteboard.fitView')} onClick={onFitView} />
-        </ToolbarGroup>
-        <input ref={imageInputRef} type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
-        <ToolbarGroup>
-          <ToolButton active={false} icon="common.download" label={t('whiteboard.exportPng')} onClick={onExport} />
-          <ToolButton active={false} icon="whiteboard.image" label={t('whiteboard.addImage')} onClick={handleImageSelect} />
-          <ToolButton active={false} icon="common.delete" label={t('whiteboard.clear')} onClick={onClear} />
+        <ToolbarGroup className={cn('hidden rounded-[var(--vlaina-radius-pill)] p-1 sm:flex', floatingPanelClassName)}>
+          <ToolbarButton icon="common.copy" label={t('whiteboard.copy')} onClick={props.onCopy} />
+          <ToolbarButton icon="common.add" label={t('whiteboard.duplicate')} onClick={props.onDuplicate} />
+          <ToolbarButton icon="common.upload" label={t('whiteboard.paste')} onClick={props.onPaste} />
+          <ToolbarButton icon="whiteboard.image" label={t('whiteboard.addImage')} onClick={handleImageSelect} />
+          <ToolbarButton icon="common.download" label={t('whiteboard.exportPng')} onClick={props.onExport} />
+          <ToolbarButton icon="common.delete" label={t('whiteboard.clear')} onClick={props.onClear} />
         </ToolbarGroup>
       </div>
-    </div>
+
+      <div className={cn('pointer-events-auto absolute left-3 top-16 z-[var(--vlaina-z-20)] flex items-center rounded-[var(--vlaina-radius-pill)] p-1 xl:bottom-4 xl:top-auto', floatingPanelClassName)}>
+        <ToolbarButton icon="common.remove" label={t('whiteboard.zoomOut')} onClick={() => props.onZoomChange(-themeWhiteboardTokens.zoomStep)} />
+        <button
+          type="button"
+          aria-label={`${Math.round(props.viewport.zoom * 100)}%`}
+          onClick={props.onResetView}
+          className="min-w-[var(--vlaina-size-56px)] cursor-pointer px-1 text-center text-[var(--vlaina-font-125)] font-semibold tabular-nums text-[var(--vlaina-color-text-secondary)]"
+        >
+          {Math.round(props.viewport.zoom * 100)}%
+        </button>
+        <ToolbarButton icon="common.add" label={t('whiteboard.zoomIn')} onClick={() => props.onZoomChange(themeWhiteboardTokens.zoomStep)} />
+        <ToolbarButton icon="nav.fullscreen" label={t('whiteboard.fitView')} onClick={props.onFitView} />
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-3 bottom-4 z-[var(--vlaina-z-20)] flex flex-col items-center gap-2">
+        {colorTool || sizeTool || props.selectedNoteColor ? (
+          <div className={cn('pointer-events-auto flex max-w-full items-center gap-3 overflow-x-auto rounded-[var(--vlaina-radius-pill)] px-2 py-1.5', floatingPanelClassName)}>
+            {colorTool ? (
+              <ToolbarGroup>
+                {themeWhiteboardTokens.brushColorSwatches.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    aria-label={color}
+                    aria-pressed={props.brushColors[colorTool] === color}
+                    onClick={() => props.onBrushColorChange(colorTool, color)}
+                    className={cn(
+                      'size-[var(--vlaina-size-24px)] shrink-0 rounded-[var(--vlaina-radius-circle)] border transition-transform',
+                      props.brushColors[colorTool] === color
+                        ? 'border-[var(--vlaina-color-whiteboard-selected)] scale-[var(--vlaina-scale-110)] shadow-[var(--vlaina-shadow-selection-soft)]'
+                        : 'border-[var(--vlaina-color-subtle-border-strong)] hover:scale-[var(--vlaina-scale-105)]',
+                    )}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </ToolbarGroup>
+            ) : null}
+            {colorTool && sizeTool ? <span className="h-5 w-px bg-[var(--vlaina-color-toolbar-border)]" /> : null}
+            {sizeTool ? (
+              <ToolbarGroup>
+                <ToolbarButton icon="common.remove" label={t('whiteboard.decreaseBrushSize')} onClick={() => props.onBrushSizeChange(sizeTool, themeWhiteboardTokens.brushWheelButtonDelta)} />
+                <span className="min-w-[var(--vlaina-size-48px)] text-center text-[var(--vlaina-font-125)] font-semibold tabular-nums text-[var(--vlaina-color-text-secondary)]">
+                  {Math.round(props.brushSizes[sizeTool] * 100)}%
+                </span>
+                <ToolbarButton icon="common.add" label={t('whiteboard.increaseBrushSize')} onClick={() => props.onBrushSizeChange(sizeTool, -themeWhiteboardTokens.brushWheelButtonDelta)} />
+              </ToolbarGroup>
+            ) : null}
+            {props.selectedNoteColor ? (
+              <ToolbarGroup>
+                {themeWhiteboardTokens.noteColorSwatches.map((swatch) => (
+                  <button
+                    key={swatch.id}
+                    type="button"
+                    aria-label={swatch.id}
+                    aria-pressed={props.selectedNoteColor === swatch.id}
+                    onClick={() => props.onNoteColorChange(swatch.id)}
+                    className={cn(
+                      'size-[var(--vlaina-size-24px)] shrink-0 rounded-[var(--vlaina-radius-8px)] border transition-transform',
+                      props.selectedNoteColor === swatch.id
+                        ? 'border-[var(--vlaina-color-whiteboard-selected)] scale-[var(--vlaina-scale-110)] shadow-[var(--vlaina-shadow-selection-soft)]'
+                        : 'border-[var(--vlaina-color-subtle-border-strong)] hover:scale-[var(--vlaina-scale-105)]',
+                    )}
+                    style={{ backgroundColor: swatch.color }}
+                  />
+                ))}
+              </ToolbarGroup>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className={cn('pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-[var(--vlaina-radius-16px)] p-1.5', floatingPanelClassName)}>
+          {WHITEBOARD_TOOL_GROUPS.map((group, groupIndex) => (
+            <ToolbarGroup key={groupIndex} className={cn(groupIndex > 0 && 'border-l border-[var(--vlaina-color-toolbar-border)] pl-1')}>
+              {group.map((item) => (
+                <ToolbarButton
+                  key={item.id}
+                  active={props.tool === item.id}
+                  icon={item.icon}
+                  indicatorColor={isDrawingTool(item.id) ? props.brushColors[item.id] : undefined}
+                  label={t(item.labelKey)}
+                  large
+                  onClick={() => props.onToolChange(item.id)}
+                />
+              ))}
+            </ToolbarGroup>
+          ))}
+        </div>
+      </div>
+
+      <input ref={imageInputRef} type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
+    </>
   );
 });

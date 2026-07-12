@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { isImageFileLike } from '@/lib/assets/core/naming';
+import { writeTextToClipboard } from '@/lib/clipboard';
 import { isEditableTarget } from '../model/whiteboardInteractions';
 import type { WhiteboardConnector, WhiteboardElement, WhiteboardStroke, WhiteboardTool } from '../model/whiteboardModel';
 import { cloneConnectorsForElements, cloneElements, cloneStrokes } from '../model/whiteboardTransform';
@@ -13,6 +14,7 @@ interface WhiteboardClipboardPayload {
 interface WhiteboardClipboardOptions {
   active: boolean;
   connectors: WhiteboardConnector[];
+  createTextNote: (text: string) => void;
   elements: WhiteboardElement[];
   importImage: (file: File) => void;
   pushHistory: () => void;
@@ -30,6 +32,7 @@ interface WhiteboardClipboardOptions {
 export function useWhiteboardClipboard({
   active,
   connectors,
+  createTextNote,
   elements,
   importImage,
   pushHistory,
@@ -58,6 +61,8 @@ export function useWhiteboardClipboard({
       elements: selectedElements,
       strokes: selectedStrokes,
     };
+    const copiedText = selectedElements.map((element) => element.text.trim()).filter(Boolean).join('\n\n');
+    if (copiedText) void writeTextToClipboard(copiedText);
     return true;
   }, [connectors, elements, selectedElementIds, selectedStrokeIds, strokes]);
 
@@ -108,13 +113,20 @@ export function useWhiteboardClipboard({
     const handlePaste = (event: ClipboardEvent) => {
       if (isEditableTarget(event.target)) return;
       const imageFile = Array.from(event.clipboardData?.files ?? []).find(isImageFileLike);
-      if (!imageFile) return;
+      if (imageFile) {
+        event.preventDefault();
+        importImage(imageFile);
+        return;
+      }
+      if (clipboardRef.current) return;
+      const text = event.clipboardData?.getData('text/plain').trim();
+      if (!text) return;
       event.preventDefault();
-      importImage(imageFile);
+      createTextNote(text);
     };
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [active, importImage]);
+  }, [active, createTextNote, importImage]);
 
   return { copySelection, duplicateSelection, pasteSelection };
 }
