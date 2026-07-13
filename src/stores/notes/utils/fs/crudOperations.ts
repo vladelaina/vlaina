@@ -8,7 +8,10 @@ import {
 import { addNodeToTree } from '../../fileTreeUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getStorageAdapter } from '@/lib/storage/adapter';
-import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
+import {
+    clearExpectedExternalChange,
+    markExpectedExternalChange,
+} from '../../document/externalChangeRegistry';
 import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../../frontmatter';
 import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { resolveNotesRootRelativeFullPath } from './notesRootPathContainment';
@@ -54,7 +57,19 @@ export async function createNoteImpl(
         updateNoteMetadataInMarkdown(normalizedContent, initialMetadata);
 
     markExpectedExternalChange(fullPath);
-    await safeWriteTextFile(fullPath, initialContent);
+    try {
+        if (adapter.writeFileIfUnchanged) {
+            const didCreate = await adapter.writeFileIfUnchanged(fullPath, null, initialContent);
+            if (!didCreate) {
+                throw new Error('Another vlaina window created this note first. Your draft is preserved; save it again.');
+            }
+        } else {
+            await safeWriteTextFile(fullPath, initialContent);
+        }
+    } catch (error) {
+        clearExpectedExternalChange(fullPath);
+        throw error;
+    }
     const fileInfo = await adapter.stat?.(fullPath);
     const metadata = mergeNoteMetadataWithFileInfo(frontmatterMetadata, fileInfo);
 

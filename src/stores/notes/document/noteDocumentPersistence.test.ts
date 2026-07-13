@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadNoteDocument, NoteWriteConflictError, saveNoteDocument } from './noteDocumentPersistence';
-import { markExpectedExternalChange } from './externalChangeRegistry';
+import { clearExpectedExternalChange, markExpectedExternalChange } from './externalChangeRegistry';
 import { setCachedNoteContent } from './noteContentCache';
 
 const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
 const adapter = {
+  platform: undefined as 'electron' | 'web' | undefined,
   readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
+  writeFileIfUnchanged: vi.fn<(
+    path: string,
+    expectedContent: string | null,
+    content: string,
+  ) => Promise<boolean>>(),
   stat: vi.fn<
     (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>
   >(),
@@ -33,12 +39,86 @@ vi.mock('@/lib/storage/adapter', () => ({
 }));
 
 vi.mock('./externalChangeRegistry', () => ({
+  clearExpectedExternalChange: vi.fn(),
   markExpectedExternalChange: vi.fn(),
 }));
 
 describe('saveNoteDocument', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    adapter.platform = undefined;
+    adapter.writeFileIfUnchanged.mockResolvedValue(true);
+  });
+
+  it('rejects a save when another window writes after the disk check', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 1, size: 4 });
+    adapter.readFile.mockResolvedValue('ab');
+    adapter.writeFileIfUnchanged.mockResolvedValue(false);
+    const cache = setCachedNoteContent(new Map(), 'alpha.md', 'ab', 1, {
+      updateBaseline: true,
+      size: 2,
+    });
+
+    await expect(saveNoteDocument({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'alpha.md', content: 'abcd啦啦啦' },
+      cache,
+    })).rejects.toBeInstanceOf(NoteWriteConflictError);
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+    expect(clearExpectedExternalChange).toHaveBeenCalledWith('/notesRoot/alpha.md');
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledWith(
+      '/notesRoot/alpha.md',
+      'ab',
+      'abcd啦啦啦',
+    );
+  });
+
+  it('creates a new note only while the target path is still absent', async () => {
+    adapter.stat
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ modifiedAt: 2, size: 13 });
+
+    await saveNoteDocument({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'alpha.md', content: 'abcd啦啦啦' },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledWith(
+      '/notesRoot/alpha.md',
+      null,
+      'abcd啦啦啦',
+    );
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('clears the expected change marker when a conditional write throws', async () => {
+    adapter.stat.mockResolvedValue(null);
+    adapter.writeFileIfUnchanged.mockRejectedValue(new Error('disk unavailable'));
+
+    await expect(saveNoteDocument({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'alpha.md', content: 'local content' },
+      cache: new Map(),
+    })).rejects.toThrow('disk unavailable');
+
+    expect(clearExpectedExternalChange).toHaveBeenCalledWith('/notesRoot/alpha.md');
+  });
+
+  it('refuses to overwrite an existing desktop note when its cache baseline is missing', async () => {
+    adapter.platform = 'electron';
+    adapter.stat.mockResolvedValue({ modifiedAt: 1, size: 2 });
+    adapter.readFile.mockResolvedValue('disk content');
+
+    await expect(saveNoteDocument({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'alpha.md', content: 'local content' },
+      cache: new Map(),
+    })).rejects.toBeInstanceOf(NoteWriteConflictError);
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+    expect(adapter.writeFileIfUnchanged).not.toHaveBeenCalled();
   });
 
   it('cleans managed timestamp frontmatter before saving markdown', async () => {
@@ -1086,7 +1166,17 @@ describe('saveNoteDocument', () => {
       '',
       'Local ending',
     ].join('\n');
-    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/alpha.md', expectedContent);
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledWith(
+      '/notesRoot/alpha.md',
+      [
+        '# Title',
+        '',
+        'Disk edit',
+        '',
+        'Shared ending',
+      ].join('\n'),
+      expectedContent,
+    );
     expect(result.content).toBe(expectedContent);
     expect(result.modifiedAt).toBe(201);
 
@@ -1171,8 +1261,9 @@ describe('saveNoteDocument', () => {
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
     });
 
-    expect(adapter.writeFile).toHaveBeenCalledWith(
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledWith(
       '/notesRoot/alpha.md',
+      '# Loaded',
       '# Local edit'
     );
     expect(result.modifiedAt).toBe(201);
@@ -1226,8 +1317,15 @@ describe('saveNoteDocument', () => {
       ]]),
     });
 
-    expect(adapter.writeFile).toHaveBeenCalledWith(
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledWith(
       '/notesRoot/alpha.md',
+      [
+        '---',
+        'vlaina_updated: 2026-04-16 18:00:00 +08:00',
+        '---',
+        '',
+        '# Loaded',
+      ].join('\n'),
       '# Local edit'
     );
     expect(result.modifiedAt).toBe(201);
@@ -1260,7 +1358,17 @@ describe('saveNoteDocument', () => {
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
     });
 
-    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/alpha.md', '# Loaded');
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledWith(
+      '/notesRoot/alpha.md',
+      [
+        '---',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+        '---',
+        '',
+        '# Loaded',
+      ].join('\n'),
+      '# Loaded',
+    );
     expect(result.modifiedAt).toBe(200);
     expect(result.content).toBe('# Loaded');
     expect(result.nextCache.get('alpha.md')).toEqual({
