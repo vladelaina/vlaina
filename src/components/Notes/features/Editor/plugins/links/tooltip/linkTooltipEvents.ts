@@ -8,8 +8,10 @@ import {
     resolveLinkTextRootFromMouseEvent,
     startLinkTextSelectionSession,
 } from './linkTextSelectionSession';
+import { resolveBlankAreaDragStartZone } from '../../cursor/blankAreaDragTargets';
 
 const LINK_DRAG_CLICK_SUPPRESSION_MS = 500;
+const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 
 function isPlainMouseClick(event: MouseEvent): boolean {
     return event.detail > 0 &&
@@ -142,6 +144,13 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         if (!link) {
             setKeyboardInteraction(false);
             if (!dom.classList.contains('hidden')) {
+                const isPlainPrimaryMouseDown = event.button === 0 &&
+                    !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
+                const blockStartZone = isPlainPrimaryMouseDown ? resolveBlankAreaDragStartZone(view, event) : null;
+                if (blockStartZone !== null) {
+                    hide(true);
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
                 event.stopImmediatePropagation();
@@ -188,6 +197,13 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
     };
 
     const updateHoveredLinkFromMouseEvent = (event: MouseEvent) => {
+        if (view.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS)) {
+            hoveredLink = null;
+            clearShowTimer();
+            if (hasActiveLink()) hide(true);
+            return;
+        }
+
         const link = resolveTooltipEligibleLink(view, event);
         if (!link) {
             if (hoveredLink === null && !hasActiveLink()) return;

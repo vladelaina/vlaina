@@ -240,6 +240,60 @@ describe('installLinkTooltipEvents', () => {
         cleanup();
     });
 
+    it('does not open or keep a link tooltip while block drag selection is pending', () => {
+        const { editorDom, handlers } = createHandlers();
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        editorDom.appendChild(link);
+        editorDom.classList.add('editor-block-selection-pending');
+        handlers.hasActiveLink.mockReturnValue(true);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        link.dispatchEvent(new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            buttons: 1,
+            clientX: 12,
+            clientY: 12,
+        }));
+
+        expect(handlers.clearShowTimer).toHaveBeenCalled();
+        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(handlers.showLinkWithDelay).not.toHaveBeenCalled();
+
+        cleanup();
+    });
+
+    it('lets an editor blank-area block selection start while the link tooltip is visible', () => {
+        const { editorDom, handlers } = createHandlers();
+        editorDom.setAttribute('data-note-scroll-root', 'true');
+        document.body.appendChild(editorDom);
+        handlers.hasActiveLink.mockReturnValue(true);
+        handlers.hide.mockImplementation(() => handlers.dom.classList.add('hidden'));
+        const blockSelectionStart = vi.fn();
+        editorDom.addEventListener('mousedown', blockSelectionStart);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        const mouseDown = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: 12,
+            clientY: 12,
+        });
+
+        editorDom.dispatchEvent(mouseDown);
+
+        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(mouseDown.defaultPrevented).toBe(false);
+        expect(blockSelectionStart).toHaveBeenCalledTimes(1);
+
+        cleanup();
+        editorDom.remove();
+    });
+
     it('shows editor link tooltips when the pointer moves onto a link inside the same list item', () => {
         const { editorDom, handlers } = createHandlers();
         const listItem = document.createElement('li');
