@@ -85,6 +85,7 @@ export interface ElectronMediaApi {
 export interface ElectronAppApi {
   getVersion(): Promise<string>;
   setLanguage?(language: string): Promise<boolean>;
+  findMarkdownGitRoot?(filePath: string): Promise<string | null>;
   onOpenMarkdownFile?(callback: (filePath: string) => void): () => void;
   reportStartupReady?(): void;
   getErrorLogInfo?(): Promise<{

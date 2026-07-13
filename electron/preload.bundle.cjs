@@ -271,6 +271,9 @@
           setLanguage(language) {
             return ipcRenderer.invoke('desktop:app:set-language', language);
           },
+          findMarkdownGitRoot(filePath) {
+            return ipcRenderer.invoke('desktop:app:find-markdown-git-root', filePath);
+          },
           onOpenMarkdownFile(callback) {
             return onOpenMarkdownFile(callback, callIpcCallback);
           },

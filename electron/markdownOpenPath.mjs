@@ -66,3 +66,23 @@ export function normalizeMarkdownOpenPath(value, {
 
   return absolutePath;
 }
+
+export function findMarkdownGitRoot(filePath, {
+  fsImpl = fs,
+  pathImpl = path,
+} = {}) {
+  let directoryPath = pathImpl.dirname(filePath);
+
+  while (true) {
+    try {
+      fsImpl.statSync(pathImpl.join(directoryPath, '.git'));
+      return directoryPath;
+    } catch {
+      const parentPath = pathImpl.dirname(directoryPath);
+      if (parentPath === directoryPath) {
+        return null;
+      }
+      directoryPath = parentPath;
+    }
+  }
+}

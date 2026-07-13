@@ -9,6 +9,7 @@ import { openPathInFileManager, revealItemInFolder } from './desktopFileManager.
 import { registerDesktopFsIpc } from './desktopFsIpc.mjs';
 import { renderHtmlToPdf } from './desktopPdfExport.mjs';
 import { registerDesktopWatchIpc } from './desktopWatchIpc.mjs';
+import { findMarkdownGitRoot } from './markdownOpenPath.mjs';
 import {
   assertAuthorizedFsPath,
   assertAuthorizedFsWatchPath,
@@ -100,6 +101,22 @@ export function registerDesktopIpc({
       createdAt: info.birthtimeMs,
       modifiedAt: info.mtimeMs,
     };
+  });
+
+  handleIpc('desktop:app:find-markdown-git-root', async (_event, filePath) => {
+    const resolvedPath = await assertAuthorizedFsPath(filePath);
+    const info = await stat(resolvedPath);
+    if (!info.isFile()) {
+      throw new Error('Markdown open target must be a file.');
+    }
+
+    const notesRootPath = findMarkdownGitRoot(resolvedPath);
+    if (!notesRootPath) {
+      return null;
+    }
+    await authorizeFsPath(notesRootPath, 'root');
+    await authorizeFsPath(path.dirname(notesRootPath), 'watch-root');
+    return notesRootPath;
   });
 
   registerDesktopDialogIpc({
