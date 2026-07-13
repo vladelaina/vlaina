@@ -872,8 +872,20 @@ test.describe('notes blank line caret interaction', () => {
 
       const intro = page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Intro before fresh blank' }).first();
       await expect(intro).toBeVisible({ timeout: 30_000 });
-      await intro.click();
-      await page.keyboard.press('End');
+      const selectedIntro = await page.evaluate(() =>
+        (window as any).__vlainaE2E.selectEditorTextByText(
+          'Intro before fresh blank',
+          'Intro before fresh blank',
+        )
+      );
+      expect(selectedIntro).toMatchObject({
+        selected: true,
+        selectedText: 'Intro before fresh blank',
+      });
+      expect(typeof selectedIntro.to).toBe('number');
+      await page.evaluate((position) =>
+        (window as any).__vlainaE2E.setEditorSelectionRange(position), selectedIntro.to
+      );
       await page.keyboard.press('Enter');
       await waitForEditorAnimationFrame(page);
       await page.keyboard.press('Delete');

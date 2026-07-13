@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
+  customInputRules,
   textBeforeMayTriggerInputRule,
   textMayTriggerInputRule,
   whitespaceMayCompleteInputRule,
@@ -103,4 +104,22 @@ describe('whitespaceMayCompleteInputRule', () => {
       expect(whitespaceMayCompleteInputRule(createParentText(text), text.length)).toBe(true)
     }
   })
+})
+
+it('does not flush composition input rules after the editor disconnects', () => {
+  vi.useFakeTimers()
+  try {
+    const plugin = customInputRules({ rules: [] })
+    const view = {
+      dom: { isConnected: false },
+      get state() {
+        throw new Error('Disconnected editor state should not be read')
+      },
+    }
+
+    plugin.props.handleDOMEvents?.compositionend?.(view as never, new CompositionEvent('compositionend'))
+    expect(() => vi.runAllTimers()).not.toThrow()
+  } finally {
+    vi.useRealTimers()
+  }
 })
