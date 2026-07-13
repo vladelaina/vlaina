@@ -43,6 +43,23 @@ describe('WhiteboardElementNode', () => {
     expect(props.onTextEditStart).toHaveBeenCalledWith(note.id);
   });
 
+  it('keeps text editing active when the application window loses focus', () => {
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    const { props } = renderNode({ element: { ...note, text: 'Draft' } });
+    const textArea = screen.getByRole('textbox', { name: 'Note text' });
+
+    textArea.focus();
+    hasFocus.mockReturnValue(false);
+    fireEvent.blur(textArea);
+
+    expect(props.onTextEditEnd).not.toHaveBeenCalled();
+
+    hasFocus.mockReturnValue(true);
+    fireEvent.focus(window);
+
+    expect(textArea).toHaveFocus();
+  });
+
   it('ends text editing with the keyboard without inserting another line', () => {
     const { props } = renderNode();
     const textArea = screen.getByRole('textbox', { name: 'Note text' });

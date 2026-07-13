@@ -31,6 +31,18 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     const rootRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
+    const restoreFocusOnWindowFocusRef = useRef(false);
+
+    useEffect(() => {
+        const handleWindowFocus = () => {
+            if (!restoreFocusOnWindowFocusRef.current) return;
+            restoreFocusOnWindowFocusRef.current = false;
+            inputRef.current?.focus();
+        };
+
+        window.addEventListener('focus', handleWindowFocus);
+        return () => window.removeEventListener('focus', handleWindowFocus);
+    }, []);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -120,6 +132,10 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     }}
                     onBlur={() => {
                         if (isComposingRef.current) {
+                            return;
+                        }
+                        if (!document.hasFocus()) {
+                            restoreFocusOnWindowFocusRef.current = true;
                             return;
                         }
                         onSubmit();

@@ -46,6 +46,18 @@ export const WhiteboardElementNode = memo(function WhiteboardElementNode({
   const isEllipse = element.type === 'ellipse';
   const isImage = element.type === 'image';
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const restoreFocusOnWindowFocusRef = useRef(false);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (!restoreFocusOnWindowFocusRef.current) return;
+      restoreFocusOnWindowFocusRef.current = false;
+      textAreaRef.current?.focus();
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, []);
 
   useEffect(() => {
     if (isNote && selected && element.text.length === 0) textAreaRef.current?.focus();
@@ -102,7 +114,13 @@ export const WhiteboardElementNode = memo(function WhiteboardElementNode({
           spellCheck={false}
           value={element.text}
           onChange={(event) => onTextChange(element.id, event.target.value)}
-          onBlur={() => onTextEditEnd(element.id)}
+          onBlur={() => {
+            if (!document.hasFocus()) {
+              restoreFocusOnWindowFocusRef.current = true;
+              return;
+            }
+            onTextEditEnd(element.id);
+          }}
           onFocus={() => {
             onSelect(element.id);
             onTextEditStart(element.id);
