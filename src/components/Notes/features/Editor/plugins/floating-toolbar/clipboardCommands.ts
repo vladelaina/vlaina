@@ -45,7 +45,10 @@ export async function copySelectionToClipboard(
   const selectedBlocks = getBlockSelectionPluginState(view.state).selectedBlocks;
   const shouldCopySelectedBlocks = selectedBlocks.length > 0;
   const text = shouldCopySelectedBlocks
-    ? serializeSelectedBlocksToText(view.state, selectedBlocks, { markdownSerializer })
+    ? serializeSelectedBlocksToText(view.state, selectedBlocks, {
+        compactPlainParagraphs: true,
+        markdownSerializer,
+      })
     : serializeTextSelectionForClipboard(view.state, markdownSerializer);
   if (text.length === 0) {
     return false;

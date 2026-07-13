@@ -7,6 +7,7 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { DOMParser, DOMSerializer } from '@milkdown/kit/prose/model';
 import { Selection as ProseSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm, remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
@@ -254,6 +255,43 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
     expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(reopened))).toBe(
       ['1', '', '2', '', '3'].join('\n')
     );
+
+    await editor.destroy();
+  });
+
+  it('renders a persisted URL and token on separate lines after reopen', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, 'https://api.example.test/\nsk-test-placeholder');
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(view.dom.querySelector('br[data-is-inline="true"]')).not.toBeNull();
+    expect(view.dom.textContent).toContain('https://api.example.test/sk-test-placeholder');
+
+    await editor.destroy();
+  });
+
+  it('keeps ordinary and explicit hard breaks distinct through a DOM round trip', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['alpha', 'beta\\', 'gamma'].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const container = document.createElement('div');
+    container.appendChild(DOMSerializer.fromSchema(view.state.schema).serializeFragment(view.state.doc.content));
+    const reparsed = DOMParser.fromSchema(view.state.schema).parse(container);
+
+    expect(serializer(reparsed).trimEnd()).toBe(['alpha', 'beta\\', 'gamma'].join('\n'));
 
     await editor.destroy();
   });
