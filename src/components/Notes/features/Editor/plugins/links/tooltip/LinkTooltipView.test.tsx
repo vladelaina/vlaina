@@ -72,6 +72,7 @@ describe('LinkTooltipView', () => {
     });
 
     afterEach(() => {
+        document.documentElement.removeAttribute('data-link-tooltip-hover-active');
         document.body.innerHTML = '';
         vi.unstubAllGlobals();
         vi.restoreAllMocks();
@@ -148,5 +149,25 @@ describe('LinkTooltipView', () => {
         view.destroy();
         requestAnimationFrameSpy.mockRestore();
         cancelAnimationFrameSpy.mockRestore();
+    });
+
+    it('hides editor carets only while a pointer-triggered link tooltip is visible', () => {
+        const view = new LinkTooltipView(createView());
+        const link = document.createElement('a');
+        link.href = 'https://example.test';
+        view.view.dom.append(link);
+
+        view.show(link, true);
+
+        expect(document.documentElement).toHaveAttribute('data-link-tooltip-hover-active', 'true');
+
+        view.hide(true);
+
+        expect(document.documentElement).not.toHaveAttribute('data-link-tooltip-hover-active');
+
+        view.show(link);
+
+        expect(document.documentElement).not.toHaveAttribute('data-link-tooltip-hover-active');
+        view.destroy();
     });
 });

@@ -62,6 +62,7 @@ export function useCoverImageController({
     coverHeight: initialHeight,
     notesRootPath,
     currentNotePath,
+    pickerOpen: showPicker,
     onUpdate,
     setShowPicker,
   });

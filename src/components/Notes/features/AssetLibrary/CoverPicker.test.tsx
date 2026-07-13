@@ -186,6 +186,27 @@ describe('CoverPicker', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('clears the preview before closing on Escape', () => {
+    const onClose = vi.fn();
+    const onPreview = vi.fn();
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={onClose}
+        onSelect={vi.fn()}
+        onPreview={onPreview}
+        notesRootPath="/notesRoot"
+        currentNotePath="note.md"
+      />,
+    );
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(onPreview).toHaveBeenCalledWith(null);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('debounces cover previews while moving across library items', async () => {
     hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [{ filename: 'a.png' }];

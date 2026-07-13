@@ -124,6 +124,15 @@ describe('caret styles', () => {
     expect(css).toContain('visibility: hidden !important;');
   });
 
+  it('hides native and custom editor carets during pointer link tooltips', () => {
+    const css = readIndexStyles();
+
+    expect(css).toContain("html[data-link-tooltip-hover-active='true'] .ProseMirror");
+    expect(css).toContain('.editor-textblock-caret-overlay');
+    expect(css).toContain('.editor-forced-line-end-caret');
+    expect(css).toContain('visibility: hidden !important;');
+  });
+
   it('keeps embedded code block carets sourced from the shared caret token', () => {
     const source = readCodeBlockEditorTheme();
 
