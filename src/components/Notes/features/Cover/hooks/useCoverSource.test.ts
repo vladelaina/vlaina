@@ -74,6 +74,7 @@ describe('useCoverSource', () => {
       notesRootPath: '/notes-root-a',
       currentNotePath: 'notes/today.md',
     });
+    expect(options.animatedPlaybackKey).toBe('notes/today.md');
     hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
     hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
 

@@ -331,6 +331,47 @@ describe('resolveCoverAssetUrl', () => {
     }
   });
 
+  it('keeps one animated playback url for the same note cover and header icon', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    try {
+      hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.gif');
+      hoisted.loadImageAsBlob.mockResolvedValue('blob:animated');
+
+      const headerIcon = await resolveCoverAssetUrl({
+        assetPath: 'assets/a.gif',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+        replayAnimated: true,
+        animatedPlaybackKey: 'notes/today.md',
+      });
+
+      vi.advanceTimersByTime(501);
+
+      const cover = await resolveCoverAssetUrl({
+        assetPath: './assets/a.gif',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+        replayAnimated: true,
+        animatedPlaybackKey: 'notes/today.md',
+      });
+
+      expect(headerIcon).toMatch(/^blob:animated#vlaina-replay=/);
+      expect(cover).toBe(headerIcon);
+
+      const otherNoteCover = await resolveCoverAssetUrl({
+        assetPath: 'assets/a.gif',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/other.md',
+        replayAnimated: true,
+        animatedPlaybackKey: 'notes/other.md',
+      });
+      expect(otherNoteCover).not.toBe(headerIcon);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not add replay tokens to non-animated image assets', async () => {
     hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:static');

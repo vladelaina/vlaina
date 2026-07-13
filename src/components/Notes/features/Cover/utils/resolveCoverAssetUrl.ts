@@ -15,6 +15,7 @@ interface ResolveCoverAssetUrlOptions {
   thumbnail?: boolean;
   thumbnailMaxEdgePx?: number;
   replayAnimated?: boolean;
+  animatedPlaybackKey?: string;
 }
 
 interface PendingCoverAssetUrlResolve {
@@ -107,6 +108,7 @@ export async function resolveCoverAssetUrl({
   thumbnail,
   thumbnailMaxEdgePx,
   replayAnimated,
+  animatedPlaybackKey,
 }: ResolveCoverAssetUrlOptions): Promise<string> {
   const resolveKey = getCoverResolveKey({
     assetPath,
@@ -123,12 +125,17 @@ export async function resolveCoverAssetUrl({
   }
 
   if (pendingResolve) {
-    return applyAnimatedReplayToken(await pendingResolve.promise, assetPath, replayAnimated);
+    return applyAnimatedReplayToken(
+      await pendingResolve.promise,
+      assetPath,
+      replayAnimated,
+      animatedPlaybackKey,
+    );
   }
 
   const completedResolve = getCompletedCoverAssetUrlResolve(resolveKey, now);
   if (completedResolve) {
-    return applyAnimatedReplayToken(completedResolve, assetPath, replayAnimated);
+    return applyAnimatedReplayToken(completedResolve, assetPath, replayAnimated, animatedPlaybackKey);
   }
 
   if (pendingCoverAssetUrlResolves.size >= MAX_PENDING_COVER_ASSET_URL_RESOLVES) {
@@ -146,7 +153,7 @@ export async function resolveCoverAssetUrl({
   try {
     const resolvedUrl = await resolvePromise;
     setCompletedCoverAssetUrlResolve(resolveKey, resolvedUrl, getNowMs());
-    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated);
+    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated, animatedPlaybackKey);
   } finally {
     if (pendingCoverAssetUrlResolves.get(resolveKey)?.promise === resolvePromise) {
       pendingCoverAssetUrlResolves.delete(resolveKey);
@@ -161,6 +168,7 @@ export function getCachedResolvedCoverAssetUrl({
   thumbnail,
   thumbnailMaxEdgePx,
   replayAnimated,
+  animatedPlaybackKey,
 }: ResolveCoverAssetUrlOptions): string | null {
   const resolveKey = getCoverResolveKey({
     assetPath,
@@ -176,7 +184,7 @@ export function getCachedResolvedCoverAssetUrl({
 
   const resolvedUrl = getCompletedCoverAssetUrlResolve(resolveKey, getNowMs());
   if (resolvedUrl) {
-    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated);
+    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated, animatedPlaybackKey);
   }
 
   return null;

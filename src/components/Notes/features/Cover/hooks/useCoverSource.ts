@@ -28,6 +28,7 @@ export function getCoverResolveOptions({
         thumbnail: !preserveAnimation,
         thumbnailMaxEdgePx: preserveAnimation ? undefined : COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX,
         replayAnimated: preserveAnimation,
+        animatedPlaybackKey: currentNotePath,
     };
 }
 

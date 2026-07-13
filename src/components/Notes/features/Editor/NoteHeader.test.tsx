@@ -107,6 +107,7 @@ describe('NoteHeader', () => {
       notesRootPath: '/notesRoot',
       currentNotePath: 'notes/demo.md',
       replayAnimated: true,
+      animatedPlaybackKey: 'notes/demo.md',
     });
   });
 
