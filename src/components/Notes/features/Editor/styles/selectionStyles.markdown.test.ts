@@ -128,6 +128,14 @@ describe("editor markdown presentation styles", () => {
     expect(css).not.toContain('text-underline-offset: 4px;');
   });
 
+  it('keeps link color for both block-selection decoration nesting orders', () => {
+    const css = readStyleFile('block-selection-list.css');
+
+    expect(css).toContain(') :is(a, .external-link, .internal-link),');
+    expect(css).toContain('.milkdown .ProseMirror :is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) :is(');
+    expect(css).toContain('):is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) {');
+  });
+
   it('uses explicit tag token run classes instead of sibling :has selectors', () => {
     const css = readStyleFile('extended.css');
 

@@ -178,7 +178,7 @@ export const markdownLinkPlugin = $prose(() => {
                 if (!oldState.selection.eq(newState.selection)) {
                     const selFrom = newState.selection.from;
                     const selTo = newState.selection.to;
-                    const isOutside = selTo < rawMarkdownLink.from || selFrom > rawMarkdownLink.to;
+                    const isOutside = selTo <= rawMarkdownLink.from || selFrom >= rawMarkdownLink.to;
 
                     if (isOutside) {
                         const safeLinkUrl = sanitizeExplicitMarkdownLinkHref(getMarkdownLinkHref(rawMarkdownLink.linkUrl));
@@ -186,6 +186,7 @@ export const markdownLinkPlugin = $prose(() => {
                         tr = tr
                             .delete(mappedStart, mappedEnd)
                             .insert(mappedStart, schema.text(rawMarkdownLink.linkText, marks));
+                        tr.removeStoredMark(linkMarkType);
 
                         hasChanges = true;
                     }
