@@ -52,6 +52,14 @@ export class ElectronAdapter implements StorageAdapter {
     await getFs().writeTextFile(path, content, options);
   }
 
+  async writeFileIfUnchanged(path: string, expectedContent: string | null, content: string): Promise<boolean> {
+    if (expectedContent !== null) {
+      assertElectronTextWriteBytes(expectedContent);
+    }
+    assertElectronTextWriteBytes(content);
+    return getFs().writeTextFileIfUnchanged(path, expectedContent, content);
+  }
+
   async writeBinaryFile(path: string, content: Uint8Array, options?: WriteOptions): Promise<void> {
     assertElectronWriteBytes(content.byteLength);
     if (options?.recursive) {
