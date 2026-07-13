@@ -1,4 +1,4 @@
-import type { ReactNode, Ref } from 'react';
+import { useRef, type FocusEvent, type ReactNode, type Ref } from 'react';
 import { cn } from '@/lib/utils';
 import { useShellSidebarResize } from './useShellSidebarResize';
 import { RESIZE_HANDLE_HALF_WIDTH } from './ResizeDividerVisual';
@@ -29,12 +29,36 @@ export function UnifiedSidebarContainer({
   widthScopeRef,
   backgroundColor = 'transparent',
 }: UnifiedSidebarContainerProps) {
+  const sidebarRef = useRef<HTMLElement>(null);
   const { isDragging, handleDragStart } = useShellSidebarResize({
     width,
     onWidthChange: onLiveWidthChange ?? onWidthChange,
     onWidthCommit: onLiveWidthChange ? onWidthChange : undefined,
     onDragStateChange,
   });
+
+  const handleMouseLeave = () => {
+    if (!document.hasFocus()) return;
+
+    const activeElement = document.activeElement;
+    if (
+      activeElement instanceof HTMLElement
+      && sidebarRef.current?.contains(activeElement)
+      && activeElement.matches('input, textarea, select, [contenteditable="true"]')
+    ) {
+      return;
+    }
+
+    onPeekChange?.(false);
+  };
+
+  const handleFocusOut = (event: FocusEvent<HTMLElement>) => {
+    if (!document.hasFocus()) return;
+
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+    onPeekChange?.(false);
+  };
 
   return (
     <div
@@ -43,6 +67,7 @@ export function UnifiedSidebarContainer({
       style={{ display: 'contents' }}
     >
       <aside
+        ref={sidebarRef}
         data-shell-sidebar-peek={collapsed ? 'true' : undefined}
         data-open={collapsed ? (peeking ? 'true' : 'false') : undefined}
         aria-hidden={collapsed ? !peeking : undefined}
@@ -64,7 +89,8 @@ export function UnifiedSidebarContainer({
           width: 'var(--vlaina-shell-sidebar-width)',
         }}
         onMouseEnter={collapsed ? () => onPeekChange?.(true) : undefined}
-        onMouseLeave={collapsed ? () => onPeekChange?.(false) : undefined}
+        onMouseLeave={collapsed ? handleMouseLeave : undefined}
+        onBlur={collapsed ? handleFocusOut : undefined}
       >
         {children}
       </aside>

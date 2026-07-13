@@ -237,6 +237,27 @@ describe('TitleInput', () => {
     expect(notesState.renameAbsoluteNote).not.toHaveBeenCalled();
   });
 
+  it('does not commit the title when the application window loses focus', async () => {
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+    input.focus();
+    fireEvent.change(input, { target: { value: 'Renamed' } });
+
+    hasFocus.mockReturnValue(false);
+    await act(async () => {
+      fireEvent.blur(input);
+    });
+
+    expect(notesState.renameNote).not.toHaveBeenCalled();
+
+    hasFocus.mockReturnValue(true);
+    fireEvent.focus(window);
+
+    expect(input).toHaveFocus();
+  });
+
   it('does not save a composing draft title on blur', async () => {
     render(<TitleInput notePath="draft:test" initialTitle="Draft title" />);
 

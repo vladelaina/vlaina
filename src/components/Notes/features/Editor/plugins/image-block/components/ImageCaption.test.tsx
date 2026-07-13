@@ -1,0 +1,40 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { ImageCaption } from './ImageCaption';
+
+vi.mock('@/lib/i18n', () => ({
+    useI18n: () => ({ t: (key: string) => key }),
+}));
+
+describe('ImageCaption', () => {
+    it('keeps caption editing active when the application window loses focus', async () => {
+        const onSubmit = vi.fn();
+        const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+
+        render(
+            <ImageCaption
+                originalAlt="Caption"
+                value="Draft caption"
+                isEditing
+                isVisible
+                onChange={() => {}}
+                onSubmit={onSubmit}
+                onCancel={() => {}}
+                onEditStart={() => {}}
+            />,
+        );
+
+        const input = screen.getByRole('textbox');
+        await waitFor(() => expect(input).toHaveFocus());
+
+        hasFocus.mockReturnValue(false);
+        fireEvent.blur(input);
+
+        expect(onSubmit).not.toHaveBeenCalled();
+
+        hasFocus.mockReturnValue(true);
+        fireEvent.focus(window);
+
+        expect(input).toHaveFocus();
+    });
+});
