@@ -6,6 +6,7 @@ import {
   isSupportedMarkdownPath,
   maxOpenMarkdownFilePathChars,
   normalizeMarkdownOpenPath,
+  findMarkdownGitRoot,
 } from '../../electron/markdownOpenPath.mjs';
 
 function createFsImpl(isFile = true) {
@@ -60,5 +61,39 @@ describe('markdownOpenPath', () => {
 
     expect(result).toBeNull();
     expect(fsImpl.statSync).not.toHaveBeenCalled();
+  });
+
+  it('uses the nearest ancestor with a .git directory as the open root', () => {
+    const fsImpl = {
+      statSync: vi.fn((candidatePath) => {
+        if (candidatePath === '/projects/app/.git') return {};
+        throw new Error('not found');
+      }),
+    };
+
+    expect(findMarkdownGitRoot('/projects/app/docs/guide/setup.md', { fsImpl })).toBe('/projects/app');
+  });
+
+  it('recognizes worktree .git files as repository markers', () => {
+    const fsImpl = {
+      statSync: vi.fn((candidatePath) => {
+        if (candidatePath === '/projects/worktree/.git') {
+          return { isFile: () => true };
+        }
+        throw new Error('not found');
+      }),
+    };
+
+    expect(findMarkdownGitRoot('/projects/worktree/docs/setup.md', { fsImpl })).toBe('/projects/worktree');
+  });
+
+  it('returns null when no Git repository is found', () => {
+    const fsImpl = {
+      statSync: vi.fn(() => {
+        throw new Error('not found');
+      }),
+    };
+
+    expect(findMarkdownGitRoot('/notes/docs/setup.md', { fsImpl })).toBeNull();
   });
 });

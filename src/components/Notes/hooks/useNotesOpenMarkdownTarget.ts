@@ -13,6 +13,7 @@ import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitReg
 import { useNotesOpenTargetPicker } from './useNotesOpenTargetPicker';
 import { useI18n } from '@/lib/i18n';
 import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
+import { getElectronBridge } from '@/lib/electron/bridge';
 import { toNotesRootRelativePath } from './notesExternalSyncUtils';
 
 export function useNotesOpenMarkdownTarget({
@@ -121,9 +122,9 @@ export function useNotesOpenMarkdownTarget({
       return false;
     }
 
-    let target: ReturnType<typeof resolveOpenNoteTarget>;
+    let baseTarget: ReturnType<typeof resolveOpenNoteTarget>;
     try {
-      target = resolveOpenNoteTarget(selected);
+      baseTarget = resolveOpenNoteTarget(selected);
     } catch (error) {
       await messageDialog(normalizeUserFacingErrorMessage(error, 'notes.openMarkdownFileFailed'), {
         title: t('notes.openFailed'),
@@ -141,6 +142,20 @@ export function useNotesOpenMarkdownTarget({
         return false;
       }
 
+      let target = baseTarget;
+      const desktopGitRootPath = await getElectronBridge()?.app?.findMarkdownGitRoot?.(selected);
+      if (desktopGitRootPath) {
+        const normalizedDesktopNotesRootPath = normalizeNotesRootPath(desktopGitRootPath);
+        const desktopNotePath = toNotesRootRelativePath(normalizedDesktopNotesRootPath, selected);
+        if (!desktopNotePath || !isSupportedMarkdownSelection(desktopNotePath)) {
+          throw new Error('Resolved Markdown root does not contain the selected file.');
+        }
+        target = {
+          notesRootPath: normalizedDesktopNotesRootPath,
+          notePath: desktopNotePath,
+        };
+      }
+
       const targetNotePath = target.notePath;
       const normalizedTargetNotesRootPath = normalizeNotesRootPath(target.notesRootPath);
       const normalizedCurrentNotesRootPath = currentNotesRootPath ? normalizeNotesRootPath(currentNotesRootPath) : null;
@@ -149,7 +164,7 @@ export function useNotesOpenMarkdownTarget({
         ? toNotesRootRelativePath(normalizedNotesPath, selected)
         : null;
 
-      if (currentNotesRootRelativePath && isSupportedMarkdownSelection(currentNotesRootRelativePath)) {
+      if (!desktopGitRootPath && currentNotesRootRelativePath && isSupportedMarkdownSelection(currentNotesRootRelativePath)) {
         const currentNotesRootPathForTarget = normalizedCurrentNotesRootPath;
         if (!currentNotesRootPathForTarget) return false;
         const opened = await openShortcutNoteTarget({
