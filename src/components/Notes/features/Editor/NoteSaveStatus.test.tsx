@@ -15,7 +15,6 @@ vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({
     t: (key: string) => ({
       'common.saved': 'Saved',
-      'common.saving': 'Saving...',
       'storage.saveFailed': 'Save failed',
     })[key] ?? key,
   }),
@@ -32,14 +31,13 @@ describe('NoteSaveStatus', () => {
     vi.useRealTimers();
   });
 
-  it('shows saving, then briefly shows saved after persistence finishes', () => {
+  it('stays hidden while saving, then briefly shows saved after persistence finishes', () => {
     const { rerender } = render(<NoteSaveStatus notePath="alpha.md" />);
     expect(screen.queryByRole('status')).toBeNull();
 
     notesState.isDirty = true;
     rerender(<NoteSaveStatus notePath="alpha.md" />);
-    expect(screen.getByRole('status')).toHaveTextContent('Saving...');
-    expect(screen.getByRole('status')).toHaveAttribute('data-note-save-status', 'saving');
+    expect(screen.queryByRole('status')).toBeNull();
 
     notesState.isDirty = false;
     rerender(<NoteSaveStatus notePath="alpha.md" />);

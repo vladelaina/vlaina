@@ -65,7 +65,10 @@ async function copyAllSelectableBlocks(markdown: string, plugins: readonly any[]
     const serializer = editor.ctx.get(serializerCtx);
     const view = editor.ctx.get(editorViewCtx);
     const blocks = collectSelectableBlockRanges(view.state.doc);
-    return serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer });
+    return serializeSelectedBlocksToText(view.state, blocks, {
+      compactPlainParagraphs: true,
+      markdownSerializer: serializer,
+    });
   } finally {
     await editor.destroy();
   }
@@ -88,7 +91,7 @@ async function copyAllSelectableBlocksWithoutMarkdownSerializer(markdown: string
   try {
     const view = editor.ctx.get(editorViewCtx);
     const blocks = collectSelectableBlockRanges(view.state.doc);
-    return serializeSelectedBlocksToText(view.state, blocks);
+    return serializeSelectedBlocksToText(view.state, blocks, { compactPlainParagraphs: true });
   } finally {
     await editor.destroy();
   }
@@ -272,7 +275,7 @@ describe('serializeSelectedBlocksToText', () => {
     expect(result).toBe('---\ntitle: demo\n---\nBody');
   });
 
-  it('keeps a single blank line gap when copying actual paragraph blocks', async () => {
+  it('copies adjacent plain paragraph blocks as consecutive lines', async () => {
     const editor = Editor.make()
       .config((ctx) => {
         ctx.set(defaultValueCtx, '1\n\n2');
@@ -290,6 +293,31 @@ describe('serializeSelectedBlocksToText', () => {
     const view = editor.ctx.get(editorViewCtx);
     const blocks = collectSelectableBlockRanges(view.state.doc);
 
+    expect(serializeSelectedBlocksToText(view.state, blocks, {
+      compactPlainParagraphs: true,
+      markdownSerializer: serializer,
+    })).toBe(
+      '1\n2'
+    );
+
+    await editor.destroy();
+  });
+
+  it('preserves paragraph boundaries for non-clipboard block serialization', async () => {
+    await expect(copyAllSelectableBlocks('1\n\n2')).resolves.toBe('1\n2');
+
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '1\n\n2');
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
     expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
       '1\n\n2'
     );
@@ -297,8 +325,14 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
-  it('keeps a single blank line gap in fallback block serialization', async () => {
-    await expect(copyAllSelectableBlocksWithoutMarkdownSerializer('1\n\n2')).resolves.toBe('1\n\n2');
+  it('copies adjacent plain paragraph blocks as consecutive lines in fallback serialization', async () => {
+    await expect(copyAllSelectableBlocksWithoutMarkdownSerializer('1\n\n2')).resolves.toBe('1\n2');
+  });
+
+  it('copies adjacent URL and token blocks without an extra blank line', async () => {
+    await expect(copyAllSelectableBlocks('https://api.example.test/\n\nsk-test-placeholder')).resolves.toBe(
+      'https://api.example.test/\nsk-test-placeholder'
+    );
   });
 
   it('copies selected plain paragraph blocks as visible text without markdown escape artifacts', async () => {
@@ -322,9 +356,12 @@ describe('serializeSelectedBlocksToText', () => {
     const serializer = editor.ctx.get(serializerCtx);
     const view = editor.ctx.get(editorViewCtx);
     const blocks = collectSelectableBlockRanges(view.state.doc);
-    const copied = serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer });
+    const copied = serializeSelectedBlocksToText(view.state, blocks, {
+      compactPlainParagraphs: true,
+      markdownSerializer: serializer,
+    });
 
-    expect(copied).toBe('Pro:   $76.80 / year\n\nExample $5 and < tag');
+    expect(copied).toBe('Pro:   $76.80 / year\nExample $5 and < tag');
     expect(copied).not.toContain('&#x20;');
     expect(copied).not.toContain('\\$');
     expect(copied).not.toContain('&lt;');

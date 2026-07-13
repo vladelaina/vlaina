@@ -50,6 +50,13 @@ export function markExpectedExternalChange(path: string, recursive = false): voi
   }
 }
 
+export function clearExpectedExternalChange(path: string, recursive = false): void {
+  const normalizedPath = normalizeNotePathKey(path);
+  expectedChanges = expectedChanges.filter((entry) =>
+    entry.path !== normalizedPath || entry.recursive !== recursive
+  );
+}
+
 export function shouldIgnoreExpectedExternalChange(path: string): boolean {
   const normalizedPath = normalizeNotePathKey(path);
   if (!normalizedPath) {

@@ -69,7 +69,8 @@ describe("editor block selection styles", () => {
     expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-textlike.editor-tag-token,');
     expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-tag-token,');
     expect(tagRule).toContain('.milkdown .ProseMirror .editor-native-selected-textlike.editor-tag-token,');
-    expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-large-textlike.editor-tag-token {');
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-large-textlike.editor-tag-token,');
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-tag-token :is(');
     expect(tagRule).toContain('color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
     expect(tagRule).toContain('-webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
   });

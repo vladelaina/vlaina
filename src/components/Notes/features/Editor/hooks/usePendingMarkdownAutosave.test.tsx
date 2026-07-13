@@ -84,6 +84,156 @@ describe('usePendingMarkdownAutosave', () => {
     }
   });
 
+  it('does not duplicate an ASCII IME commit after a link during delayed finalization', async () => {
+    const editor = createEditor('[target](https://example.com)');
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '[target](https://example.com)',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const linkEnd = findTextEndPos(view, 'target');
+      const markUserInput = result.current.createUserInputMarker(view, null);
+
+      act(() => {
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, linkEnd)));
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', {
+          inputType: 'insertCompositionText',
+          data: 'v',
+        }));
+        view.dispatch(view.state.tr.insertText('v1', linkEnd));
+        markUserInput(new CompositionEvent('compositionend', { data: 'v1' }));
+        vi.advanceTimersByTime(100);
+      });
+
+      expect(getDocText(view)).toBe('targetv1');
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('repairs an incomplete ASCII IME commit once', async () => {
+    const editor = createEditor('[target](https://example.com)v');
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const textEnd = findTextEndPos(view, 'v');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textEnd)));
+
+      expect(replaceRecentCompositionText(view, 'v', 'v1')).toBe(true);
+      expect(replaceRecentCompositionText(view, 'v', 'v1')).toBe(false);
+      expect(getDocText(view)).toBe('targetv1');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('does not repair oversized composition text', async () => {
+    const editor = createEditor('a');
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const textEnd = findTextEndPos(view, 'a');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textEnd)));
+
+      expect(replaceRecentCompositionText(view, 'a', '中'.repeat(129))).toBe(false);
+      expect(getDocText(view)).toBe('a');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('does not repair an earlier identical residue during duplicate or delayed finalization', async () => {
+    const editor = createEditor('ha ha');
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: 'ha ha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const textEnd = findTextEndPos(view, 'ha ha');
+      const markUserInput = result.current.createUserInputMarker(view, null);
+
+      act(() => {
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textEnd)));
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', {
+          inputType: 'insertCompositionText',
+          data: 'ha',
+        }));
+        markUserInput(new CompositionEvent('compositionend', { data: '好' }));
+        markUserInput(new CompositionEvent('compositionend', { data: '好' }));
+        vi.advanceTimersByTime(100);
+      });
+
+      expect(getDocText(view)).toBe('ha 好');
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('invalidates delayed finalization when the next composition starts', async () => {
+    const editor = createEditor('啊');
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '啊',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const textEnd = findTextEndPos(view, '啊');
+      const markUserInput = result.current.createUserInputMarker(view, null);
+
+      act(() => {
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textEnd)));
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', {
+          inputType: 'insertCompositionText',
+          data: 'a',
+        }));
+        markUserInput(new CompositionEvent('compositionend', { data: '啊' }));
+
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', {
+          inputType: 'insertCompositionText',
+          data: 'a',
+        }));
+        view.dispatch(view.state.tr.insertText('a', textEnd));
+        vi.advanceTimersByTime(100);
+      });
+
+      expect(getDocText(view)).toBe('啊a');
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
   it('repairs pinyin residue split around committed composition text', async () => {
     const editor = createEditor(['# alpha', '', 'h好a'].join('\n'));
     await editor.create();

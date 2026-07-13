@@ -36,6 +36,12 @@ function isPointInsideMarkdownBlankLineRect(
   if (rect.height <= 0) return false;
 
   const verticalSlack = Math.max(1, Math.min(4, rect.height / 4));
+  const previousRect = blankLine.previousElementSibling instanceof HTMLElement
+    ? blankLine.previousElementSibling.getBoundingClientRect()
+    : null;
+  const hitTop = previousRect && previousRect.bottom < rect.top - verticalSlack
+    ? previousRect.bottom
+    : rect.top - verticalSlack;
   const horizontalSlack = 4;
   const horizontalRect = horizontalBounds && horizontalBounds.width > 0
     ? horizontalBounds
@@ -44,7 +50,7 @@ function isPointInsideMarkdownBlankLineRect(
   return (
     clientX >= horizontalRect.left - horizontalSlack &&
     clientX <= horizontalRect.right + horizontalSlack &&
-    clientY >= rect.top - verticalSlack &&
+    clientY >= hitTop &&
     clientY <= rect.bottom + verticalSlack
   );
 }

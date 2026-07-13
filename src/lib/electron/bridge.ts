@@ -238,6 +238,11 @@ export interface ElectronFsApi {
     content: string,
     options?: { recursive?: boolean; append?: boolean }
   ): Promise<void>;
+  writeTextFileIfUnchanged(
+    filePath: string,
+    expectedContent: string | null,
+    content: string
+  ): Promise<boolean>;
   exists(filePath: string): Promise<boolean>;
   mkdir(filePath: string, recursive?: boolean): Promise<void>;
   deleteFile(filePath: string): Promise<void>;

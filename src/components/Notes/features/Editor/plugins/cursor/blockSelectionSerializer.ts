@@ -39,6 +39,7 @@ import {
 } from './blockSelectionParagraphInlineSerialization';
 
 interface SerializeSelectedBlocksOptions {
+  compactPlainParagraphs?: boolean;
   markdownSerializer?: Serializer | null;
   preserveSingleListBlockMarker?: boolean;
 }
@@ -178,7 +179,12 @@ export function serializeSelectedBlocksToText(
           );
         });
       return serializeLeadingFrontmatterMarkdown(
-        joinSerializedBlockRanges(state.doc, pruned, markdownPieces)
+        joinSerializedBlockRanges(
+          state.doc,
+          pruned,
+          markdownPieces,
+          options.compactPlainParagraphs,
+        )
       );
     } catch {
     }
@@ -199,6 +205,6 @@ export function serializeSelectedBlocksToText(
     });
 
   return serializeLeadingFrontmatterMarkdown(
-    joinSerializedBlockRanges(state.doc, pruned, pieces)
+    joinSerializedBlockRanges(state.doc, pruned, pieces, options.compactPlainParagraphs)
   );
 }

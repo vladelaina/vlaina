@@ -84,7 +84,7 @@ describe('floating toolbar clipboard commands', () => {
     expect(serializeSelectedBlocksToText).toHaveBeenCalledWith(
       state,
       blockSelectionMocks.selectedBlocks,
-      { markdownSerializer },
+      { compactPlainParagraphs: true, markdownSerializer },
     );
     expect(serializeSelectionToClipboardText).not.toHaveBeenCalled();
     expect(writeTextToClipboard).toHaveBeenCalledWith('Stale block');
@@ -157,7 +157,7 @@ describe('floating toolbar clipboard commands', () => {
     expect(serializeSelectedBlocksToText).toHaveBeenCalledWith(
       state,
       selectedBlocks,
-      { markdownSerializer },
+      { compactPlainParagraphs: true, markdownSerializer },
     );
     expect(serializeSelectionToClipboardText).not.toHaveBeenCalled();
     expect(writeTextToClipboard).toHaveBeenCalledWith('Selected block');

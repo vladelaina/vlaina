@@ -2015,7 +2015,7 @@ describe('blankAreaDragBoxPlugin text selection plain clicks', () => {
     }
   });
 
-  it('clears a text selection when clicking unclaimed blank space in the note scroll root', async () => {
+  it('claims left blank space in the note scroll root for block selection', async () => {
     const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
     const originalCreateRange = document.createRange;
 
@@ -2037,16 +2037,16 @@ describe('blankAreaDragBoxPlugin text selection plain clicks', () => {
       expect(view.state.selection.empty).toBe(false);
 
       const mouseDown = createMouseEvent('mousedown', {
-        clientX: 84,
+        clientX: 60,
         clientY: 52,
       });
       scrollRoot.dispatchEvent(mouseDown);
 
-      expect(mouseDown.defaultPrevented).toBe(false);
-      expect(view.state.selection.empty).toBe(false);
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.state.selection.empty).toBe(true);
 
       document.dispatchEvent(createMouseEvent('mouseup', {
-        clientX: 84,
+        clientX: 60,
         clientY: 52,
       }));
       await waitForPointerClickSettled();

@@ -192,6 +192,7 @@ export function customInputRules({ rules }: { rules: InputRule[] }): Plugin {
       handleDOMEvents: {
         compositionend: (view) => {
           setTimeout(() => {
+            if (!view.dom.isConnected) return
             const { $cursor } = view.state.selection as TextSelection
             if ($cursor) run(view, $cursor.pos, $cursor.pos, '', rules, plugin)
           })

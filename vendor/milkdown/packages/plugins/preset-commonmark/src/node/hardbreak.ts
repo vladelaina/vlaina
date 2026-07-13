@@ -32,16 +32,18 @@ export const hardbreakSchema = $nodeSchema('hardbreak', (ctx) => ({
   },
   selectable: false,
   parseDOM: [
-    { tag: 'br' },
+    {
+      tag: 'br',
+      getAttrs: (dom) => ({
+        isInline: dom.getAttribute('data-is-inline') === 'true',
+      }),
+    },
     {
       tag: 'span[data-type="hardbreak"]',
       getAttrs: () => ({ isInline: true }),
     },
   ],
-  toDOM: (node) =>
-    node.attrs.isInline
-      ? ['span', ctx.get(hardbreakAttr.key)(node), ' ']
-      : ['br', ctx.get(hardbreakAttr.key)(node)],
+  toDOM: (node) => ['br', ctx.get(hardbreakAttr.key)(node)],
   parseMarkdown: {
     match: ({ type }) => type === 'break',
     runner: (state, node, type) => {

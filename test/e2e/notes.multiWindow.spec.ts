@@ -128,6 +128,101 @@ test.describe('multi-window note document sync', () => {
     }
   });
 
+  test('never drops characters when two windows save the same line concurrently', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-multi-window-simultaneous-save');
+
+    try {
+      await app.firstWindow();
+      const [main] = await getOpenBridgePages(app, 1);
+      const { notePath } = await main.evaluate(() =>
+        (window as any).__vlainaE2E.createNotesFixture({
+          filename: 'simultaneous.md',
+          content: 'ab',
+        })
+      );
+      await main.evaluate((path) => (window as any).__vlainaE2E.openAbsoluteNote(path), notePath);
+      await main.evaluate(() => (window as any).__vlainaE2E.createWindow({ viewMode: 'notes' }));
+      const pages = await getOpenBridgePages(app, 2);
+      const second = pages.find((page) => page !== main) ?? pages[1];
+      await second.evaluate((path) => (window as any).__vlainaE2E.openAbsoluteNote(path), notePath);
+
+      const mainContent = 'abcd啦啦啦';
+      const secondContent = 'ab窗口二完整内容';
+      await main.evaluate((content) => (window as any).__vlainaE2E.updateCurrentNoteContent(content), mainContent);
+      await second.evaluate((content) => (window as any).__vlainaE2E.updateCurrentNoteContent(content), secondContent);
+
+      await Promise.all([
+        main.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote()),
+        second.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote()),
+      ]);
+
+      const [mainState, secondState] = await Promise.all([getNotesState(main), getNotesState(second)]);
+      const diskContent = await main.evaluate((path) => (window as any).__vlainaE2E.readTextFile(path), notePath);
+      expect([mainContent, secondContent]).toContain(diskContent);
+      expect([mainState.isDirty, secondState.isDirty].filter(Boolean)).toHaveLength(1);
+
+      const losingState = mainState.isDirty ? mainState : secondState;
+      const losingContent = mainState.isDirty ? mainContent : secondContent;
+      expect(losingState.currentNote?.content).toBe(losingContent);
+      expect(losingState.error).toContain('Current note changed on disk');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('flushes live editor keystrokes before a competing window save', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-multi-window-live-editor-save');
+
+    try {
+      await app.firstWindow();
+      const [main] = await getOpenBridgePages(app, 1);
+      const { notePath } = await main.evaluate(() =>
+        (window as any).__vlainaE2E.createNotesFixture({
+          filename: 'live-editor.md',
+          content: 'ab',
+        })
+      );
+      await main.evaluate((path) => (window as any).__vlainaE2E.openAbsoluteNote(path), notePath);
+      await main.evaluate(() => (window as any).__vlainaE2E.createWindow({ viewMode: 'notes' }));
+      const pages = await getOpenBridgePages(app, 2);
+      const second = pages.find((page) => page !== main) ?? pages[1];
+      await second.evaluate((path) => (window as any).__vlainaE2E.openAbsoluteNote(path), notePath);
+
+      const mainContent = 'abcd啦啦啦';
+      const secondContent = 'ab窗口二键盘内容';
+      for (const page of [main, second]) {
+        const editor = page.locator('.milkdown .ProseMirror');
+        await expect(editor).toBeVisible();
+        await editor.click();
+        await page.keyboard.press('End');
+      }
+      await Promise.all([
+        main.keyboard.insertText('cd啦啦啦'),
+        second.keyboard.insertText('窗口二键盘内容'),
+      ]);
+      await Promise.all([
+        expect(main.locator('.milkdown .ProseMirror')).toContainText(mainContent),
+        expect(second.locator('.milkdown .ProseMirror')).toContainText(secondContent),
+      ]);
+
+      await Promise.all([
+        main.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote()),
+        second.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote()),
+      ]);
+
+      const [mainState, secondState] = await Promise.all([getNotesState(main), getNotesState(second)]);
+      const diskContent = await main.evaluate((path) => (window as any).__vlainaE2E.readTextFile(path), notePath);
+      const mainSavedContent = String(mainState.currentNote?.content ?? '');
+      const secondSavedContent = String(secondState.currentNote?.content ?? '');
+      expect([mainSavedContent, secondSavedContent]).toContain(diskContent);
+      expect([mainState.isDirty, secondState.isDirty].filter(Boolean)).toHaveLength(1);
+      expect(mainSavedContent).toContain('cd啦啦啦');
+      expect(secondSavedContent).toContain('窗口二键盘内容');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps many windows stable while merging sequential non-overlapping stale saves', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-multi-window-stale-merge-many');
 

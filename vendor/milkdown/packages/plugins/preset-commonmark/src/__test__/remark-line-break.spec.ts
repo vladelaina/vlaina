@@ -1,3 +1,5 @@
+import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/core'
+import { commonmark } from '@milkdown/preset-commonmark'
 import type { Node } from '@milkdown/transformer'
 
 import { expect, it } from 'vitest'
@@ -25,6 +27,17 @@ it('splits ordinary inline line breaks into break nodes', () => {
     { type: 'break', data: { isInline: true } },
     { type: 'text', value: 'beta' },
   ])
+})
+
+it('renders ordinary inline line breaks as visible line breaks', async () => {
+  const editor = Editor.make().config((ctx) => {
+    ctx.set(defaultValueCtx, 'alpha\nbeta')
+  }).use(commonmark)
+
+  await editor.create()
+  const view = editor.ctx.get(editorViewCtx)
+  expect(view.dom.querySelector('br[data-is-inline="true"]')).not.toBeNull()
+  await editor.destroy()
 })
 
 it('skips line break splitting when it would exceed the remark AST node budget', () => {

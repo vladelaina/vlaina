@@ -18,7 +18,7 @@ import {
   shouldSuppressCompositionSelectionRepair,
 } from './pendingMarkdownAutosaveEvents';
 import type { CompositionStartSelection, PendingMarkdownSnapshot } from './pendingMarkdownAutosaveTypes';
-import { finalizeCompositionCommit, scheduleCompositionCommitFinalization } from './pendingMarkdownCompositionCommit';
+import { scheduleCompositionCommitFinalization } from './pendingMarkdownCompositionCommit';
 import {
   collapseCommittedCompositionSelection,
 } from './pendingMarkdownCompositionRepair';
@@ -39,6 +39,7 @@ interface PendingMarkdownUserInputMarkerOptions {
   latestCompositionResidueDataRef: MutableRefObject<string | null>;
   hasCompositionEndedRef: MutableRefObject<boolean>;
   compositionStartSelectionRef: MutableRefObject<CompositionStartSelection | null>;
+  compositionSessionRef: MutableRefObject<number>;
   compositionAppendPositionRef: MutableRefObject<number | null>;
   lastCompositionAppendPositionRef: MutableRefObject<number | null>;
   lastCompositionAppendAtRef: MutableRefObject<number>;
@@ -64,6 +65,7 @@ export function usePendingMarkdownUserInputMarker({
   latestCompositionResidueDataRef,
   hasCompositionEndedRef,
   compositionStartSelectionRef,
+  compositionSessionRef,
   compositionAppendPositionRef,
   lastCompositionAppendPositionRef,
   lastCompositionAppendAtRef,
@@ -85,6 +87,7 @@ export function usePendingMarkdownUserInputMarker({
   ) => {
     return (event: Event) => {
       if (event.type === 'compositionstart') {
+        compositionSessionRef.current += 1;
         isCompositionActiveRef.current = true;
         if (compositionSettleTimeoutRef.current !== null) {
           clearTimeout(compositionSettleTimeoutRef.current);
@@ -106,6 +109,9 @@ export function usePendingMarkdownUserInputMarker({
       }
 
       if (event.type === 'compositionend') {
+        if (hasCompositionEndedRef.current) {
+          return;
+        }
         isCompositionActiveRef.current = true;
         hasCompositionEndedRef.current = true;
         isCompositionSelectionRepairSuppressedRef.current = false;
@@ -118,10 +124,16 @@ export function usePendingMarkdownUserInputMarker({
           const staleCompositionData = latestCompositionResidueDataRef.current ?? latestCompositionDataRef.current;
           const committedCompositionData = compositionEndData;
           const startSelection = compositionStartSelectionRef.current;
+          const compositionSession = compositionSessionRef.current;
           latestCompositionDataRef.current = committedCompositionData;
           lastCompositionCommitAtRef.current = getCompositionClockMs();
-          finalizeCompositionCommit(view, staleCompositionData, committedCompositionData, startSelection);
-          scheduleCompositionCommitFinalization(view, staleCompositionData, committedCompositionData, startSelection);
+          scheduleCompositionCommitFinalization(
+            view,
+            staleCompositionData,
+            committedCompositionData,
+            startSelection,
+            () => compositionSessionRef.current === compositionSession && view.dom.isConnected,
+          );
         }
       }
 

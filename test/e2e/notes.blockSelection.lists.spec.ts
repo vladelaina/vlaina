@@ -357,8 +357,11 @@ test.describe("notes block selection list handles", () => {
         anchorText: 'CodeGroupAlpha',
       });
       expectHandleCenteredOnTarget(codeGroupGeometry);
-      expect(codeGroupGeometry.targetGapX).toBeGreaterThan(24);
-      expect(codeGroupGeometry.targetGapX).toBeLessThan(72);
+      expect(codeGroupGeometry.anchorGapX).toBeGreaterThan(48);
+      expect(codeGroupGeometry.anchorGapX).toBeLessThan(88);
+      expect(codeGroupGeometry.targetIndentFromAnchorX).toBeGreaterThan(0);
+      expect(codeGroupGeometry.targetGapX).toBeGreaterThan(codeGroupGeometry.anchorGapX);
+      expect(codeGroupGeometry.targetGapX).toBeLessThan(codeGroupGeometry.anchorGapX + 16);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

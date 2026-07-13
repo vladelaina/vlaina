@@ -1367,7 +1367,7 @@ describe('floating toolbar commands', () => {
     expect(blockSelectionSerializerMocks.serializeSelectedBlocksToText).toHaveBeenCalledWith(
       view.state,
       selectedBlocks,
-      { markdownSerializer: null },
+      { compactPlainParagraphs: true, markdownSerializer: null },
     );
     expect(clipboardWrite).toHaveBeenCalledWith('1. one\n2. two');
     expect(blockSelectionMocks.clearBlockSelection).toHaveBeenCalledWith(view);

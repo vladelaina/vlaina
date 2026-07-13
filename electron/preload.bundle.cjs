@@ -346,6 +346,14 @@
           writeTextFile(filePath, content, options) {
             return ipcRenderer.invoke('desktop:fs:write-text', filePath, normalizeDesktopTextWritePayload(content), options);
           },
+          writeTextFileIfUnchanged(filePath, expectedContent, content) {
+            return ipcRenderer.invoke(
+              'desktop:fs:write-text-if-unchanged',
+              filePath,
+              expectedContent === null ? null : normalizeDesktopTextWritePayload(expectedContent),
+              normalizeDesktopTextWritePayload(content),
+            );
+          },
           exists(filePath) {
             return ipcRenderer.invoke('desktop:fs:exists', filePath);
           },

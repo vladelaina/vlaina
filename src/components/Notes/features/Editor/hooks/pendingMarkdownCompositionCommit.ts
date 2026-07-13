@@ -13,7 +13,7 @@ export function finalizeCompositionCommit(
   staleCompositionData: string | null,
   committedCompositionData: string,
   startSelection: CompositionStartSelection | null,
-): void {
+): boolean {
   const repaired = replaceRecentCompositionText(view, staleCompositionData, committedCompositionData);
   const replacedStartSelection = repaired
     ? false
@@ -21,9 +21,10 @@ export function finalizeCompositionCommit(
   const replacedSelection = repaired || replacedStartSelection
     ? false
     : replaceSelectedTextWithCommittedComposition(view, committedCompositionData);
-  if (!repaired && !replacedStartSelection && !replacedSelection) {
-    collapseCommittedCompositionSelection(view, committedCompositionData);
-  }
+  const collapsedSelection = !repaired && !replacedStartSelection && !replacedSelection
+    ? collapseCommittedCompositionSelection(view, committedCompositionData)
+    : false;
+  return repaired || replacedStartSelection || replacedSelection || collapsedSelection;
 }
 
 export function scheduleCompositionCommitFinalization(
@@ -31,11 +32,22 @@ export function scheduleCompositionCommitFinalization(
   staleCompositionData: string | null,
   committedCompositionData: string,
   startSelection: CompositionStartSelection | null,
+  isCurrentComposition: () => boolean,
 ): void {
+  let finalized = false;
   const finalize = () => {
-    finalizeCompositionCommit(view, staleCompositionData, committedCompositionData, startSelection);
+    if (finalized || !isCurrentComposition()) {
+      return;
+    }
+    finalized = finalizeCompositionCommit(
+      view,
+      staleCompositionData,
+      committedCompositionData,
+      startSelection,
+    );
   };
 
+  finalize();
   setTimeout(finalize, 0);
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => {

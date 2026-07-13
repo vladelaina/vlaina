@@ -276,6 +276,13 @@ describe('fileTreeUtils structural sharing', () => {
         path: 'gamma.mdown',
         isFolder: false,
       },
+      {
+        id: 'image.png',
+        name: 'image.png',
+        path: 'image.png',
+        isFolder: false,
+        kind: 'image',
+      },
     ]);
   });
 
@@ -363,14 +370,14 @@ describe('fileTreeUtils structural sharing', () => {
 
     const tree = await buildFileTree('/notesRoot');
 
-    expect(tree).toEqual([
-      {
-        id: 'late.md',
-        name: 'late',
-        path: 'late.md',
-        isFolder: false,
-      },
-    ]);
+    expect(tree).toHaveLength(5000);
+    expect(tree).toContainEqual({
+      id: 'late.md',
+      name: 'late',
+      path: 'late.md',
+      isFolder: false,
+    });
+    expect(tree.filter((node) => !node.isFolder && node.kind === 'image')).toHaveLength(4999);
   });
 
   it('ignores unsafe storage entry names while building the tree', async () => {

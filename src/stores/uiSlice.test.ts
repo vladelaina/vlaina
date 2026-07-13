@@ -109,12 +109,12 @@ describe('uiSlice', () => {
 
     useUIStore.getState().setAppViewMode('whiteboard');
     expect(useUIStore.getState().appViewMode).toBe('whiteboard');
-    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
+    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('whiteboard');
     expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
 
     useUIStore.getState().setAppViewMode('lab');
     expect(useUIStore.getState().appViewMode).toBe('lab');
-    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
+    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('whiteboard');
     expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
   });
 

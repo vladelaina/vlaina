@@ -107,6 +107,36 @@ async function dispatchSplitResidueImeCommit(page: Page): Promise<void> {
   await finishImeComposition(page, '好');
 }
 
+async function dispatchAsciiImeCommitAfterText(page: Page, anchorText: string): Promise<void> {
+  const range = await page.evaluate((text) =>
+    (window as any).__vlainaE2E.selectEditorTextByText(text), anchorText);
+  expect(range).toMatchObject({ selected: true });
+  expect(range.to).not.toBeNull();
+  await page.evaluate((position) =>
+    (window as any).__vlainaE2E.setEditorSelectionRange(position), range.to);
+
+  const started = await page.evaluate(({ editorSelector }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return false;
+    editor.dispatchEvent(new CompositionEvent('compositionstart', {
+      bubbles: true,
+      data: '',
+    }));
+    editor.dispatchEvent(new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      data: 'v',
+      inputType: 'insertCompositionText',
+      isComposing: true,
+    }));
+    return true;
+  }, { editorSelector: EDITOR_SELECTOR });
+  expect(started).toBe(true);
+
+  await page.keyboard.insertText('v1');
+  await finishImeComposition(page, 'v1');
+}
+
 function expectCommittedWithoutRomanized(content: string): void {
   expect(content).toContain('你好');
   expect(content).not.toContain('nihao');
@@ -196,6 +226,33 @@ test.describe('notes IME autosave persistence', () => {
       await expect.poll(async () => readDiskContent(page, opened.notePath), { timeout: 10_000 })
         .toContain('好');
       expect(await readDiskContent(page, opened.notePath)).not.toContain('h好a');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps an ASCII IME commit after a link singular and persistent', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-ime-link-ascii-commit');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'ime-link-ascii-commit.md',
+        content: '[target](https://example.com)',
+      });
+
+      await dispatchAsciiImeCommitAfterText(page, 'target');
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('targetv1');
+      await expect(page.locator(EDITOR_SELECTOR)).not.toContainText('targetv11');
+      await expect.poll(async () => readCurrentNoteContent(page), { timeout: 10_000 })
+        .toContain('[targetv1]');
+      await expect.poll(async () => readDiskContent(page, opened.notePath), { timeout: 10_000 })
+        .toContain('[targetv1]');
+      expect(await readDiskContent(page, opened.notePath)).not.toContain('targetv11');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

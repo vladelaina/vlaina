@@ -558,7 +558,30 @@ test.describe("notes block selection", () => {
           const tooltip = document.querySelector<HTMLElement>('.link-tooltip-container');
           return Boolean(tooltip && !tooltip.classList.contains('hidden'));
         });
-        expect(tooltipVisible).toBe(false);
+        expect(tooltipVisible).toBe(true);
+        await expect.poll(() => page.evaluate(() => ({
+          active: document.querySelector<HTMLElement>('.milkdown .ProseMirror')
+            ?.classList.contains('editor-block-selection-active') ?? false,
+          selected: document.querySelector<HTMLElement>('a[href="https://example.com/selected-link-color"]')
+            ?.closest('p')?.classList.contains('editor-block-selected') ?? false,
+        }))).toEqual({ active: true, selected: true });
+
+        const tooltipBox = await page.locator('.link-tooltip-container:not(.hidden)').boundingBox();
+        expect(tooltipBox, 'selected-link tooltip bounds').not.toBeNull();
+        if (tooltipBox) {
+          await page.mouse.move(
+            tooltipBox.x + tooltipBox.width / 2,
+            tooltipBox.y + tooltipBox.height / 2,
+          );
+          await page.waitForTimeout(250);
+          await expect(page.locator('.link-tooltip-container:not(.hidden)')).toHaveCount(1);
+          await expect.poll(() => page.evaluate(() => ({
+            active: document.querySelector<HTMLElement>('.milkdown .ProseMirror')
+              ?.classList.contains('editor-block-selection-active') ?? false,
+            selected: document.querySelector<HTMLElement>('a[href="https://example.com/selected-link-color"]')
+              ?.closest('p')?.classList.contains('editor-block-selected') ?? false,
+          }))).toEqual({ active: true, selected: true });
+        }
       }
 
       await page.evaluate(() => (window as any).__vlainaE2E.selectNoteBlocksByIndexes([]));
@@ -628,12 +651,12 @@ test.describe("notes block selection", () => {
       expect(focusedForRawLink).toBe(true);
       await page.keyboard.insertText('Raw [xs](ds)');
       await expect.poll(() => page.evaluate(() =>
-        document.querySelector<HTMLElement>('.editor-raw-markdown-link-text[data-href="ds"]')?.textContent ?? null
+        document.querySelector<HTMLElement>('a[href="ds"]')?.textContent ?? null
       ), { timeout: 10_000 }).toBe('xs');
 
       const rawLinkBlockIndex = await page.evaluate(() => {
         const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
-        return blocks.findIndex((block) => block.text.includes('Raw [xs](ds)'));
+        return blocks.findIndex((block) => block.text.includes('Raw xs'));
       });
       expect(rawLinkBlockIndex).toBeGreaterThanOrEqual(0);
 
@@ -645,7 +668,7 @@ test.describe("notes block selection", () => {
       expect(rawBridgeSelectedCount).toBe(1);
 
       const rawSelected = await page.evaluate(() => {
-        const rawLinkText = document.querySelector<HTMLElement>('.editor-raw-markdown-link-text[data-href="ds"]');
+        const rawLinkText = document.querySelector<HTMLElement>('a[href="ds"]');
         const rawParagraph = rawLinkText?.closest('p') as HTMLElement | null;
         if (!rawLinkText || !rawParagraph) return null;
 
@@ -678,6 +701,232 @@ test.describe("notes block selection", () => {
       expect(rawSelected!.rawParagraphTextFillColor, JSON.stringify({ baseline, rawSelected }, null, 2)).toBe(rawSelected!.selectionTextFillColor);
       expect(rawSelected!.rawLinkColor, JSON.stringify({ baseline, rawSelected }, null, 2)).toBe(baseline!.linkColor);
       expect(rawSelected!.rawLinkTextFillColor, JSON.stringify({ baseline, rawSelected }, null, 2)).toBe(baseline!.linkTextFillColor);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps link colors stable across adjacent-line ordering', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-link-order-matrix');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-link-order-matrix.md',
+        content: [
+          'https://first.example.test/path',
+          'sk-test-first',
+          '',
+          'https://middle.example.test/path',
+          '[Middle explicit](middle-target.md)',
+          'sk-test-middle',
+          '',
+          '[Leading explicit](leading-target.md)',
+          'https://last.example.test/path',
+          'sk-test-last',
+        ].join('\n'),
+      });
+      await installSyntheticTyporaLinkTheme(page);
+
+      const linkHrefs = [
+        'https://first.example.test/path',
+        'https://middle.example.test/path',
+        'middle-target.md',
+        'leading-target.md',
+        'https://last.example.test/path',
+      ];
+      const baseline = await page.evaluate((hrefs) => Object.fromEntries(hrefs.map((href) => {
+        const link = document.querySelector<HTMLElement>(`a[href="${href}"]`);
+        const style = link ? getComputedStyle(link) : null;
+        return [href, style ? {
+          color: style.color,
+          textFillColor: style.getPropertyValue('-webkit-text-fill-color'),
+        } : null];
+      })), linkHrefs);
+      expect(Object.values(baseline).every(Boolean), JSON.stringify(baseline, null, 2)).toBe(true);
+
+      for (const sample of [
+        {
+          startText: 'https://first.example.test/path',
+          endText: 'sk-test-first',
+          hrefs: ['https://first.example.test/path'],
+        },
+        {
+          startText: 'https://middle.example.test/path',
+          endText: 'sk-test-middle',
+          hrefs: ['https://middle.example.test/path', 'middle-target.md'],
+        },
+        {
+          startText: 'Leading explicit',
+          endText: 'sk-test-last',
+          hrefs: ['leading-target.md', 'https://last.example.test/path'],
+        },
+      ]) {
+        const selectedCount = await page.evaluate(async ({ startText, endText }) => {
+          const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
+          const start = blocks.findIndex((block) => block.text.includes(startText));
+          const end = blocks.findIndex((block, index) => index >= start && block.text.includes(endText));
+          if (start < 0 || end < start) return 0;
+          const indexes = Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+          const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(indexes);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          return count;
+        }, sample);
+        expect(selectedCount, JSON.stringify(sample)).toBeGreaterThan(0);
+
+        const selectedColors = await page.evaluate((hrefs) => Object.fromEntries(hrefs.map((href) => {
+          const link = document.querySelector<HTMLElement>(`a[href="${href}"]`);
+          const style = link ? getComputedStyle(link) : null;
+          return [href, style ? {
+            color: style.color,
+            textFillColor: style.getPropertyValue('-webkit-text-fill-color'),
+          } : null];
+        })), sample.hrefs);
+
+        for (const href of sample.hrefs) {
+          expect(selectedColors[href], JSON.stringify({ sample, selectedColors }, null, 2)).toEqual(baseline[href]);
+        }
+      }
+
+      await page.evaluate(() => (window as any).__vlainaE2E.selectNoteBlocksByIndexes([]));
+      const dragTarget = await getBlankAreaDragTarget(page, 'https://first.example.test/path');
+      expect(dragTarget, 'autolink pending drag target').not.toBeNull();
+      if (dragTarget) {
+        await page.mouse.move(dragTarget.startX, dragTarget.startY);
+        await page.mouse.down();
+        await page.mouse.move(dragTarget.endX, dragTarget.startY + 12, { steps: 8 });
+        await page.mouse.move(dragTarget.endX, dragTarget.endY, { steps: 8 });
+        await expect.poll(() => page.evaluate(() => ({
+          pending: document.querySelector<HTMLElement>('.milkdown .ProseMirror')
+            ?.classList.contains('editor-block-selection-pending') ?? false,
+          selected: (() => {
+            const link = document.querySelector<HTMLElement>('a[href="https://first.example.test/path"]');
+            return Boolean(link?.closest('.editor-block-selected') || link?.querySelector('.editor-block-selected'));
+          })(),
+        }))).toEqual({ pending: true, selected: true });
+
+        const pendingColor = await page.evaluate(() => {
+          const link = document.querySelector<HTMLElement>('a[href="https://first.example.test/path"]');
+          const style = link ? getComputedStyle(link) : null;
+          return style ? {
+            color: style.color,
+            textFillColor: style.getPropertyValue('-webkit-text-fill-color'),
+          } : null;
+        });
+        expect(pendingColor).toEqual(baseline['https://first.example.test/path']);
+        await page.mouse.up();
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps tag colors stable across adjacent-line ordering', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-tag-order-matrix');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-tag-order-matrix.md',
+        content: [
+          '#tag-first',
+          'sk-test-tag-first',
+          '',
+          'https://tag-order.example.test/path',
+          '#tag-middle',
+          'sk-test-tag-middle',
+        ].join('\n'),
+      });
+      await installSyntheticTyporaLinkTheme(page);
+
+      const readTagColors = () => page.evaluate(() => Object.fromEntries(
+        Array.from(document.querySelectorAll<HTMLElement>('.editor-tag-token')).map((tag) => {
+          const style = getComputedStyle(tag);
+          return [tag.textContent ?? '', {
+            color: style.color,
+            textFillColor: style.getPropertyValue('-webkit-text-fill-color'),
+          }];
+        })
+      ));
+      const baseline = await readTagColors();
+      expect(baseline['#tag-first'], JSON.stringify(baseline, null, 2)).toBeDefined();
+      expect(baseline['#tag-middle'], JSON.stringify(baseline, null, 2)).toBeDefined();
+
+      for (const sample of [
+        { startText: '#tag-first', endText: 'sk-test-tag-first', tag: '#tag-first' },
+        { startText: 'https://tag-order.example.test/path', endText: 'sk-test-tag-middle', tag: '#tag-middle' },
+      ]) {
+        const selectedCount = await page.evaluate(async ({ startText, endText }) => {
+          const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
+          const start = blocks.findIndex((block) => block.text.includes(startText));
+          const end = blocks.findIndex((block, index) => index >= start && block.text.includes(endText));
+          if (start < 0 || end < start) return 0;
+          const indexes = Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+          const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(indexes);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          return count;
+        }, sample);
+        expect(selectedCount, JSON.stringify(sample)).toBeGreaterThan(0);
+
+        const selected = await readTagColors();
+        expect(selected[sample.tag], JSON.stringify({ sample, selected }, null, 2)).toEqual(baseline[sample.tag]);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps link and tag colors in large block selections', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-large-block-selection-semantic-colors');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const paragraphs = Array.from({ length: 132 }, (_, index) => {
+        if (index === 12) return 'https://large-selection.example.test/path';
+        if (index === 84) return '#large-selection-tag';
+        return `Large semantic color row ${index}`;
+      });
+      await openMarkdownFixture(page, {
+        filename: 'large-block-selection-semantic-colors.md',
+        content: paragraphs.join('\n\n'),
+      });
+      await installSyntheticTyporaLinkTheme(page);
+
+      const readSemanticColors = () => page.evaluate(() => {
+        const link = document.querySelector<HTMLElement>('a[href="https://large-selection.example.test/path"]');
+        const tag = Array.from(document.querySelectorAll<HTMLElement>('.editor-tag-token'))
+          .find((element) => element.textContent === '#large-selection-tag') ?? null;
+        const read = (element: HTMLElement | null) => {
+          if (!element) return null;
+          const style = getComputedStyle(element);
+          return {
+            color: style.color,
+            textFillColor: style.getPropertyValue('-webkit-text-fill-color'),
+          };
+        };
+        return { link: read(link), tag: read(tag) };
+      });
+      const baseline = await readSemanticColors();
+      expect(baseline.link, JSON.stringify(baseline, null, 2)).not.toBeNull();
+      expect(baseline.tag, JSON.stringify(baseline, null, 2)).not.toBeNull();
+
+      const selectedCount = await page.evaluate(async () => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<unknown>;
+        const indexes = Array.from({ length: blocks.length }, (_, index) => index);
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(indexes);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return count;
+      });
+      expect(selectedCount).toBeGreaterThanOrEqual(128);
+      await expect.poll(() => page.evaluate(() =>
+        document.querySelector<HTMLElement>('.milkdown .ProseMirror')
+          ?.classList.contains('editor-block-selection-large') ?? false
+      )).toBe(true);
+
+      expect(await readSemanticColors()).toEqual(baseline);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

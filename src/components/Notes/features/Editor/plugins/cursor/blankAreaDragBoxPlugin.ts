@@ -73,6 +73,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
 
   const serializeSelectedBlocks = (state: EditorState, selectedBlocks: readonly BlockRange[]): string =>
     serializeSelectedBlocksToText(state, selectedBlocks, {
+      compactPlainParagraphs: true,
       markdownSerializer: resolveMarkdownSerializer(),
     });
 
