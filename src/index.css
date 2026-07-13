@@ -317,6 +317,18 @@ html[data-image-file-hover-preview-active='true'] :is(
   visibility: hidden !important;
 }
 
+html[data-link-tooltip-hover-active='true'] .ProseMirror {
+  caret-color: transparent !important;
+}
+
+html[data-link-tooltip-hover-active='true'] :is(
+  .native-caret-overlay,
+  .editor-textblock-caret-overlay,
+  .editor-forced-line-end-caret
+) {
+  visibility: hidden !important;
+}
+
 .appearance-font-size-slider::-webkit-slider-runnable-track {
   height: var(--vlaina-size-6px);
   background: transparent;

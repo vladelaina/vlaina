@@ -143,6 +143,64 @@ describe('CoverImageShell', () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it('reuses the cover collapse transition when closing an unsaved preview', () => {
+    const { container, rerender } = render(
+      <CoverImageShell
+        {...buildShellProps({
+          phase: 'previewing',
+          showPicker: true,
+          previewSrc: '/preview.webp',
+          displaySrc: '/preview.webp',
+        })}
+      />
+    );
+
+    rerender(<CoverImageShell {...buildShellProps()} />);
+
+    const coverRegion = container.querySelector<HTMLElement>('[data-note-cover-region="true"]');
+    expect(coverRegion).toHaveStyle({ height: '0px' });
+    expect(hoisted.coverRendererSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      displaySrc: '/preview.webp',
+    }));
+
+    fireEvent.transitionEnd(coverRegion!, { propertyName: 'height' });
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('cancels a pending collapse when another preview starts', () => {
+    const { container, rerender } = render(
+      <CoverImageShell
+        {...buildShellProps({
+          phase: 'previewing',
+          showPicker: true,
+          previewSrc: '/preview-a.webp',
+          displaySrc: '/preview-a.webp',
+        })}
+      />
+    );
+
+    rerender(<CoverImageShell {...buildShellProps()} />);
+    rerender(
+      <CoverImageShell
+        {...buildShellProps({
+          phase: 'previewing',
+          showPicker: true,
+          previewSrc: '/preview-b.webp',
+          displaySrc: '/preview-b.webp',
+        })}
+      />
+    );
+
+    const coverRegion = container.querySelector<HTMLElement>('[data-note-cover-region="true"]');
+    expect(coverRegion).toHaveStyle({ height: '320px' });
+    expect(hoisted.coverRendererSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      displaySrc: '/preview-b.webp',
+    }));
+
+    fireEvent.transitionEnd(coverRegion!, { propertyName: 'height' });
+    expect(container.firstChild).not.toBeNull();
+  });
+
   it('uses the normal cover height for pending previews before selection is saved', () => {
     const { rerender } = render(
       <CoverImageShell

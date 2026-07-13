@@ -56,6 +56,7 @@ describe('useCoverSelectionFlow', () => {
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
         currentNotePath: 'demo.md',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })
@@ -97,6 +98,7 @@ describe('useCoverSelectionFlow', () => {
       useCoverSelectionFlow({
         url: null,
         notesRootPath: '/notes-root-a',
+        pickerOpen: true,
         onUpdate,
         setShowPicker: vi.fn(),
       })
@@ -118,6 +120,7 @@ describe('useCoverSelectionFlow', () => {
         url: 'covers/monet-2.png',
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })
@@ -154,6 +157,7 @@ describe('useCoverSelectionFlow', () => {
         url: 'covers/monet-2.png',
         coverHeight: 320,
         notesRootPath: '/notes-root-a',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })
@@ -194,6 +198,7 @@ describe('useCoverSelectionFlow', () => {
         url: 'covers/monet-2.png',
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })
@@ -223,6 +228,7 @@ describe('useCoverSelectionFlow', () => {
         url: null,
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })
@@ -259,6 +265,7 @@ describe('useCoverSelectionFlow', () => {
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
         currentNotePath: 'demo.md',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })
@@ -302,6 +309,7 @@ describe('useCoverSelectionFlow', () => {
         url: 'covers/a.png',
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })
@@ -339,6 +347,7 @@ describe('useCoverSelectionFlow', () => {
         url: 'covers/a.png',
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })
@@ -358,6 +367,37 @@ describe('useCoverSelectionFlow', () => {
 
     expect(result.current.previewSrc).toBeNull();
     expect(setShowPicker).toHaveBeenCalledWith(false);
+  });
+
+  it('clears an active preview when the picker is closed externally', async () => {
+    const setShowPicker = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ pickerOpen }) => useCoverSelectionFlow({
+        url: null,
+        coverHeight: 240,
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'demo.md',
+        pickerOpen,
+        onUpdate: vi.fn(),
+        setShowPicker,
+      }),
+      { initialProps: { pickerOpen: true } },
+    );
+
+    await act(async () => {
+      await result.current.handlePreview('covers/preview.png');
+    });
+    expect(result.current.phase).toBe('previewing');
+
+    rerender({ pickerOpen: false });
+
+    expect(result.current.previewSrc).toBeNull();
+    expect(result.current.phase).toBe('idle');
+    expect(setShowPicker).not.toHaveBeenCalled();
+    expect(useUIStore.getState()).toMatchObject({
+      universalPreviewTarget: null,
+      universalPreviewCover: null,
+    });
   });
 
   it('does not let a preview from the previous note overwrite the current note', async () => {
@@ -383,6 +423,7 @@ describe('useCoverSelectionFlow', () => {
         url: null,
         notesRootPath: '/notes-root-a',
         currentNotePath,
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       }),
@@ -430,6 +471,7 @@ describe('useCoverSelectionFlow', () => {
         coverHeight: 240,
         notesRootPath: '/notes-root-a',
         currentNotePath: 'daily/2026-04-15.md',
+        pickerOpen: true,
         onUpdate,
         setShowPicker,
       })

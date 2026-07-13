@@ -28,7 +28,7 @@ export function CoverImageShell({
   rendererProps,
 }: CoverImageControllerModel) {
   const shouldAnimateExistingCover = Boolean(url) && !displaySrc;
-  const hadCoverRef = useRef(Boolean(url));
+  const hadCoverFrameRef = useRef(Boolean(url || previewSrc));
   const lastCoverFrameRef = useRef<{
     displaySrc: string;
     positionX: number;
@@ -37,21 +37,21 @@ export function CoverImageShell({
   } | null>(null);
   const [collapsePending, setCollapsePending] = useState(false);
 
-  if (url) {
-    hadCoverRef.current = true;
+  if (url || previewSrc) {
+    hadCoverFrameRef.current = true;
     lastCoverFrameRef.current = { displaySrc, positionX, positionY, rendererProps };
   }
 
-  const shouldStartCollapse = !url && hadCoverRef.current;
+  const shouldStartCollapse = !url && !previewSrc && hadCoverFrameRef.current;
   const shouldRenderCollapse = collapsePending || shouldStartCollapse;
   const finishCollapse = useCallback(() => {
-    hadCoverRef.current = false;
+    hadCoverFrameRef.current = false;
     lastCoverFrameRef.current = null;
     setCollapsePending(false);
   }, []);
 
   useLayoutEffect(() => {
-    if (url) {
+    if (url || previewSrc) {
       if (collapsePending) setCollapsePending(false);
       return;
     }
@@ -62,7 +62,7 @@ export function CoverImageShell({
 
     const frame = requestAnimationFrame(finishCollapse);
     return () => cancelAnimationFrame(frame);
-  }, [collapsePending, finishCollapse, shouldStartCollapse, url]);
+  }, [collapsePending, finishCollapse, previewSrc, shouldStartCollapse, url]);
 
   if (phase === 'idle' && !showPicker && !shouldRenderCollapse) {
     return null;
