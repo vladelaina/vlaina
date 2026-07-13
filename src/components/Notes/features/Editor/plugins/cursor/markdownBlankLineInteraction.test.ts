@@ -371,13 +371,14 @@ describe('markdownBlankLineInteraction', () => {
 
   it('resolves pointer-events-none markdown blank line targets by click coordinates', () => {
     const root = document.createElement('div');
+    const precedingBlock = document.createElement('ol');
     const firstBlankLine = document.createElement('div');
     firstBlankLine.setAttribute('data-type', 'html-block');
     firstBlankLine.setAttribute('data-value', MARKDOWN_BLANK_LINE_VALUE);
     const secondBlankLine = document.createElement('div');
     secondBlankLine.setAttribute('data-type', 'html-block');
     secondBlankLine.setAttribute('data-value', MARKDOWN_BLANK_LINE_VALUE);
-    root.append(firstBlankLine, secondBlankLine);
+    root.append(precedingBlock, firstBlankLine, secondBlankLine);
     const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getRect(this: HTMLElement) {
       if (this === root) {
         return {
@@ -402,6 +403,19 @@ describe('markdownBlankLineInteraction', () => {
           bottom: 44,
           width: 300,
           height: 24,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      if (this === precedingBlock) {
+        return {
+          x: 10,
+          y: 0,
+          top: 0,
+          left: 10,
+          right: 310,
+          bottom: 12,
+          width: 300,
+          height: 12,
           toJSON: () => ({}),
         } as DOMRect;
       }
@@ -432,6 +446,7 @@ describe('markdownBlankLineInteraction', () => {
     });
 
     try {
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 120, 14)).toBe(firstBlankLine);
       expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 120, 32)).toBe(firstBlankLine);
       expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 4, 32)).toBe(firstBlankLine);
       expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 496, 32)).toBe(firstBlankLine);

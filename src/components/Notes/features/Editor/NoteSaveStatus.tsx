@@ -40,11 +40,9 @@ export function NoteSaveStatus({ notePath }: { notePath: string | null | undefin
 
   const label = hasSaveError
     ? t('storage.saveFailed')
-    : isDirty
-      ? t('common.saving')
-      : showSaved
-        ? t('common.saved')
-        : null;
+    : showSaved
+      ? t('common.saved')
+      : null;
 
   if (!label || !notePath || isDraftNotePath(notePath)) {
     return null;
@@ -54,7 +52,7 @@ export function NoteSaveStatus({ notePath }: { notePath: string | null | undefin
     <span
       aria-live="polite"
       className="self-center whitespace-nowrap text-xs text-[var(--vlaina-text-tertiary)]"
-      data-note-save-status={hasSaveError ? 'error' : isDirty ? 'saving' : 'saved'}
+      data-note-save-status={hasSaveError ? 'error' : 'saved'}
       role="status"
     >
       {label}
