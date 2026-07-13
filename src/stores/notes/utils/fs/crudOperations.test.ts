@@ -13,6 +13,7 @@ const adapter = {
 
 const hoisted = vi.hoisted(() => ({
   resolveUniquePath: vi.fn(),
+  clearExpectedExternalChange: vi.fn(),
   markExpectedExternalChange: vi.fn(),
 }));
 
@@ -22,6 +23,7 @@ vi.mock('./pathOperations', () => ({
 }));
 
 vi.mock('../../document/externalChangeRegistry', () => ({
+  clearExpectedExternalChange: hoisted.clearExpectedExternalChange,
   markExpectedExternalChange: hoisted.markExpectedExternalChange,
 }));
 
@@ -34,8 +36,49 @@ vi.mock('@/lib/storage/adapter', () => ({
 describe('createNoteImpl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete (adapter as typeof adapter & { writeFileIfUnchanged?: unknown }).writeFileIfUnchanged;
     adapter.writeFile.mockResolvedValue();
     adapter.stat.mockResolvedValue({ createdAt: 122, modifiedAt: 123, size: 16 });
+  });
+
+  it('preserves a new note when another window claims the selected path first', async () => {
+    hoisted.resolveUniquePath.mockResolvedValue({
+      relativePath: 'alpha.md',
+      fullPath: '/notesRoot/alpha.md',
+      fileName: 'alpha.md',
+    });
+    const writeFileIfUnchanged = vi.fn().mockResolvedValue(false);
+    (adapter as typeof adapter & { writeFileIfUnchanged: typeof writeFileIfUnchanged }).writeFileIfUnchanged =
+      writeFileIfUnchanged;
+
+    await expect(createNoteImpl('/notesRoot', undefined, 'alpha', 'abcd啦啦啦', {
+      rootFolder: null,
+      recentNotes: [],
+      noteMetadata: null,
+    })).rejects.toThrow('Your draft is preserved');
+
+    expect(writeFileIfUnchanged).toHaveBeenCalledWith('/notesRoot/alpha.md', null, 'abcd啦啦啦');
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+    expect(hoisted.clearExpectedExternalChange).toHaveBeenCalledWith('/notesRoot/alpha.md');
+  });
+
+  it('clears the expected change marker when creating a note throws', async () => {
+    hoisted.resolveUniquePath.mockResolvedValue({
+      relativePath: 'alpha.md',
+      fullPath: '/notesRoot/alpha.md',
+      fileName: 'alpha.md',
+    });
+    const writeFileIfUnchanged = vi.fn().mockRejectedValue(new Error('disk unavailable'));
+    (adapter as typeof adapter & { writeFileIfUnchanged: typeof writeFileIfUnchanged }).writeFileIfUnchanged =
+      writeFileIfUnchanged;
+
+    await expect(createNoteImpl('/notesRoot', undefined, 'alpha', 'local content', {
+      rootFolder: null,
+      recentNotes: [],
+      noteMetadata: null,
+    })).rejects.toThrow('disk unavailable');
+
+    expect(hoisted.clearExpectedExternalChange).toHaveBeenCalledWith('/notesRoot/alpha.md');
   });
 
   it('preserves incoming managed frontmatter fields and derives timestamps from file stats', async () => {

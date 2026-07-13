@@ -6,7 +6,7 @@ import {
   updateAuthorizedRootRename,
 } from './fsAccess.mjs';
 import { notifyDesktopWatchRename } from './desktopWatchIpc.mjs';
-import { writeFileAtomically } from './desktopAtomicFile.mjs';
+import { writeFileAtomically, writeFileAtomicallyIfUnchanged } from './desktopAtomicFile.mjs';
 import {
   assertCopyableDesktopFile,
   assertWritableDesktopByteLength,
@@ -65,6 +65,15 @@ export function registerDesktopFsIpc({ handleIpc }) {
     }
 
     await writeFileAtomically(resolvedPath, text);
+  });
+
+  handleIpc('desktop:fs:write-text-if-unchanged', async (_event, filePath, expectedContent, content) => {
+    const resolvedPath = await assertAuthorizedFsPath(filePath);
+    const expectedText = expectedContent === null
+      ? null
+      : normalizeDesktopTextWriteContent(expectedContent);
+    const text = normalizeDesktopTextWriteContent(content);
+    return writeFileAtomicallyIfUnchanged(resolvedPath, expectedText, text);
   });
 
   handleIpc('desktop:fs:exists', async (_event, filePath) => {
