@@ -25,6 +25,7 @@ export function SidebarInlineRenameInput({
 }: SidebarInlineRenameInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
+  const restoreFocusOnWindowFocusRef = useRef(false);
 
   useLayoutEffect(() => {
     const input = inputRef.current;
@@ -38,6 +39,22 @@ export function SidebarInlineRenameInput({
       ? themeTextAreaTokens.overflowAuto
       : themeTextAreaTokens.overflowHidden;
   }, [value]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (!restoreFocusOnWindowFocusRef.current) {
+        return;
+      }
+
+      restoreFocusOnWindowFocusRef.current = false;
+      inputRef.current?.focus();
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectOnMount) {
@@ -76,6 +93,10 @@ export function SidebarInlineRenameInput({
       }}
       onBlur={() => {
         if (isComposingRef.current) {
+          return;
+        }
+        if (!document.hasFocus()) {
+          restoreFocusOnWindowFocusRef.current = true;
           return;
         }
         void Promise.resolve(onSubmit()).catch(() => undefined);

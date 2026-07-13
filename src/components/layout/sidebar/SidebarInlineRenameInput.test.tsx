@@ -47,6 +47,34 @@ describe('SidebarInlineRenameInput', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps renaming active when the application window loses focus', async () => {
+    const onSubmit = vi.fn();
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+
+    render(
+      <SidebarInlineRenameInput
+        value="Example"
+        onValueChange={() => {}}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        aria-label="Rename"
+      />,
+    );
+
+    const input = screen.getByLabelText('Rename');
+    await waitFor(() => expect(input).toHaveFocus());
+
+    hasFocus.mockReturnValue(false);
+    fireEvent.blur(input);
+
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    hasFocus.mockReturnValue(true);
+    fireEvent.focus(window);
+
+    expect(input).toHaveFocus();
+  });
+
   it('does not submit on blur or Enter while composing text', () => {
     const onSubmit = vi.fn();
 
