@@ -7,6 +7,23 @@ vi.mock('@/lib/i18n', () => ({
 }));
 
 describe('ImageCaption', () => {
+    it('keeps the displayed caption out of editor text selections', () => {
+        render(
+            <ImageCaption
+                originalAlt="Caption"
+                value="Caption"
+                isEditing={false}
+                isVisible
+                onChange={() => {}}
+                onSubmit={() => {}}
+                onCancel={() => {}}
+                onEditStart={() => {}}
+            />,
+        );
+
+        expect(screen.getByRole('button').closest('.image-caption-toolbar')).toHaveClass('select-none');
+    });
+
     it('keeps caption editing active when the application window loses focus', async () => {
         const onSubmit = vi.fn();
         const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
