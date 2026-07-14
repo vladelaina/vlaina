@@ -48,12 +48,12 @@ describe("editor markdown presentation styles", () => {
     expect(css).toContain('.toolbar-tooltip');
     expect(css).toContain('color: var(--vlaina-text-primary) !important;');
     expect(css).toContain('-webkit-text-fill-color: currentColor !important;');
-    expect(css).toContain(') .toolbar-btn.active {');
+    expect(css).toContain(') :is(.toolbar-btn:hover, .toolbar-btn:hover *) {');
+    expect(css).toContain(') :is(.toolbar-btn.active:not([data-action="color"]), .toolbar-btn.active:not([data-action="color"]) *) {');
     expect(css).toContain('color: var(--vlaina-accent) !important;');
-    expect(css).toContain(') .toolbar-btn:hover[class*="status-danger"] {');
+    expect(css).toContain('.toolbar-btn[data-action="color"].active *');
+    expect(css).toContain('.toolbar-btn:hover[class*="status-danger"] *');
     expect(css).toContain('color: var(--vlaina-color-status-danger-fg) !important;');
-    expect(css).toContain(') .toolbar-btn[data-action="copy"].active {');
-    expect(css).toContain('color: var(--vlaina-accent) !important;');
   });
 
   it('keeps raw HTML tables compact instead of using editable markdown table sizing', () => {

@@ -57,7 +57,7 @@ export const LinkViewer = ({
             <div className="toolbar-divider" />
 
             <div className="flex items-center gap-0.5">
-                <button onClick={onCopy} className={actionButtonClass}>
+                <button onClick={onCopy} className={cn(actionButtonClass, showCopied && 'active')}>
                     {showCopied
                         ? <Icon size="md" name="common.check" className="text-[var(--vlaina-accent)] scale-[var(--vlaina-scale-110)]" />
                         : <Icon size="md" name="common.copy" />}
