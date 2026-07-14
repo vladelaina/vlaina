@@ -74,6 +74,14 @@ function cacheParsedAssistantMarkdown(
 }
 
 export function extractThinkingSections(content: string): ThinkingSections {
+  if (!content.includes('<')) {
+    return {
+      body: '',
+      isComplete: true,
+      markdown: content,
+    };
+  }
+
   const parsed = parseThinkingContent(content);
 
   if (!parsed.hasThinking) {

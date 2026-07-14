@@ -20,6 +20,7 @@ import {
   getExternalPathMutationRevision,
   wasPathExternallyMutatedSince,
 } from '../document/externalPathMutationRegistry';
+import { isDraftNotePath } from '../draftNote';
 
 type WorkspaceDocumentActions = Pick<
   WorkspaceSlice,
@@ -258,12 +259,14 @@ export function createWorkspaceDocumentActions(
         currentNoteRevision: get().currentNoteRevision + 1,
         isDirty: true,
         openTabs: setNoteTabDirtyState(openTabs, currentNote.path, true),
-        noteContentsCache: setCachedNoteContent(
-          noteContentsCache,
-          currentNote.path,
-          content,
-          getCachedNoteModifiedAt(noteContentsCache, currentNote.path)
-        ),
+        noteContentsCache: isDraftNotePath(currentNote.path)
+          ? setCachedNoteContent(
+              noteContentsCache,
+              currentNote.path,
+              content,
+              getCachedNoteModifiedAt(noteContentsCache, currentNote.path)
+            )
+          : noteContentsCache,
       });
     },
   };

@@ -20,6 +20,7 @@ export interface NotesSidebarTagEntry {
 
 export interface NotesSidebarTagPathIndexEntry {
   contentSignature: string;
+  contentIdentity?: object;
   tags: Map<string, NotesSidebarTagPath>;
 }
 
@@ -62,6 +63,7 @@ export function buildNotesSidebarTags(
 export function buildNotesSidebarTagPathIndexEntry(
   path: string,
   content: string,
+  contentIdentity?: object,
 ): NotesSidebarTagPathIndexEntry {
   const tags = new Map<string, NotesSidebarTagPath>();
 
@@ -75,7 +77,11 @@ export function buildNotesSidebarTagPathIndexEntry(
     }
   }
 
-  return { contentSignature: createTagRelevantContentSignature(content), tags };
+  return {
+    contentSignature: createTagRelevantContentSignature(content),
+    ...(contentIdentity ? { contentIdentity } : {}),
+    tags,
+  };
 }
 
 export function reconcileNotesSidebarTagPathIndex(
@@ -156,6 +162,7 @@ export function reconcileNotesSidebarTagIndex(
   index: NotesSidebarTagIndex,
   entries: readonly NotesSidebarTagScopeEntry[],
   getNoteContent: (path: string) => string | undefined,
+  getNoteContentIdentity?: (path: string) => object | undefined,
 ): NotesSidebarTagIndex {
   const scopedPaths = new Set(entries.map((entry) => entry.path));
 
@@ -173,8 +180,15 @@ export function reconcileNotesSidebarTagIndex(
     }
 
     const indexed = index.paths.get(entry.path);
-    const contentSignature = createContentSignature(content);
+    const contentIdentity = getNoteContentIdentity?.(entry.path);
+    if (contentIdentity && indexed?.contentIdentity === contentIdentity) {
+      continue;
+    }
+    const contentSignature = createTagRelevantContentSignature(content);
     if (indexed?.contentSignature === contentSignature) {
+      if (contentIdentity && indexed.contentIdentity !== contentIdentity) {
+        indexed.contentIdentity = contentIdentity;
+      }
       continue;
     }
 
@@ -182,7 +196,7 @@ export function reconcileNotesSidebarTagIndex(
     addPathToTagIndex(
       index,
       entry.path,
-      buildNotesSidebarTagPathIndexEntry(entry.path, content),
+      buildNotesSidebarTagPathIndexEntry(entry.path, content, contentIdentity),
     );
   }
 

@@ -1,5 +1,5 @@
 import type { KeyboardEventHandler, ReactNode } from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarContent } from './SidebarContent';
 import type { NotesSidebarSearchEntry, NotesSidebarSearchResult } from './notesSidebarSearchResults';
@@ -36,25 +36,30 @@ const hoisted = vi.hoisted(() => ({
     sidebarCollapsed: false,
     notesPreviewTitle: null as { path: string; title: string } | null,
   },
+  currentNote: null as { path: string; content: string } | null,
   openNote: vi.fn(() => Promise.resolve()),
   openNoteByAbsolutePath: vi.fn(() => Promise.resolve()),
   openNotesRoot: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: (selector: (state: any) => unknown) => selector({
-    openNote: hoisted.openNote,
-    openNoteByAbsolutePath: hoisted.openNoteByAbsolutePath,
-    draftNotes: hoisted.draftNotes,
-    getDisplayName: vi.fn((path: string) => path),
-    noteContentsCache: hoisted.noteContentsCache,
-    notesPath: hoisted.notesPath,
-    cancelNoteContentScan: hoisted.cancelNoteContentScan,
-    pruneNoteContentsCacheToOpenNotes: hoisted.pruneNoteContentsCacheToOpenNotes,
-    revealFolder: hoisted.revealFolder,
-    scanAllNotes: hoisted.scanAllNotes,
-    starredEntries: [],
-  }),
+  useNotesStore: Object.assign(
+    (selector: (state: any) => unknown) => selector({
+      currentNote: hoisted.currentNote,
+      openNote: hoisted.openNote,
+      openNoteByAbsolutePath: hoisted.openNoteByAbsolutePath,
+      draftNotes: hoisted.draftNotes,
+      getDisplayName: vi.fn((path: string) => path),
+      noteContentsCache: hoisted.noteContentsCache,
+      notesPath: hoisted.notesPath,
+      cancelNoteContentScan: hoisted.cancelNoteContentScan,
+      pruneNoteContentsCacheToOpenNotes: hoisted.pruneNoteContentsCacheToOpenNotes,
+      revealFolder: hoisted.revealFolder,
+      scanAllNotes: hoisted.scanAllNotes,
+      starredEntries: [],
+    }),
+    { getState: () => ({ currentNote: hoisted.currentNote }) },
+  ),
 }));
 
 vi.mock('@/stores/useNotesRootStore', () => ({
@@ -293,6 +298,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.shouldShowSearchResults = false;
     hoisted.buildNotesSidebarSearchIndex.mockReturnValue([]);
     hoisted.countNotesSidebarSearchEntries.mockReturnValue(0);
+    hoisted.currentNote = null;
     hoisted.draftNotes = {};
     hoisted.noteContentsCache = new Map();
     hoisted.notesPath = '';
@@ -913,6 +919,43 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(hoisted.scanAllNotes).toHaveBeenCalledTimes(1);
+  });
+
+  it('debounces consecutive multi-character content queries', async () => {
+    vi.useFakeTimers();
+    hoisted.shouldShowSearchResults = true;
+    hoisted.buildNotesSidebarSearchIndex.mockReturnValue(createSearchEntries());
+
+    try {
+      const createProps = (searchQuery: string) => ({
+        rootFolder: null,
+        isLoading: false,
+        currentNotePath: 'docs/alpha.md',
+        createNote: vi.fn(async () => undefined),
+        createFolder: vi.fn(async () => null),
+        search: createSearchState({ isSearchOpen: true, searchQuery }),
+      });
+      const { rerender } = render(<SidebarContent {...createProps('alpha')} />);
+      hoisted.queryNotesSidebarStructuralSearch.mockClear();
+
+      rerender(<SidebarContent {...createProps('alphabet')} />);
+
+      expect(hoisted.queryNotesSidebarStructuralSearch).not.toHaveBeenCalledWith(
+        expect.anything(),
+        'alphabet',
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(120);
+      });
+
+      expect(hoisted.queryNotesSidebarStructuralSearch).toHaveBeenCalledWith(
+        expect.anything(),
+        'alphabet',
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not rescan note contents when every current search entry is cached', () => {

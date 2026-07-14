@@ -24,11 +24,13 @@ export function useSidebarContentSearchResults({
   starredEntries = EMPTY_STARRED_ENTRIES,
   currentNotesRootPath = null,
   noteContentsCacheRevision = 0,
+  liveNoteContent = null,
 }: {
   rootFolder: FolderNode | null;
   getDisplayName: (path: string) => string;
   noteContentsCache: Map<string, { content: string }>;
   noteContentsCacheRevision?: number;
+  liveNoteContent?: { path: string; content: string } | null;
   scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<unknown>;
   cancelNoteContentScan: () => void;
   pruneNoteContentsCacheToOpenNotes: () => void;
@@ -87,12 +89,16 @@ export function useSidebarContentSearchResults({
       return queryNotesSidebarSearch(
         searchIndex,
         searchQuery,
-        (path) => noteContentsCache.get(path)?.content,
+        (path) => liveNoteContent?.path === path
+          ? liveNoteContent.content
+          : noteContentsCache.get(path)?.content,
         structuralSearchResults,
       );
     },
     [
       noteContentsCache,
+      liveNoteContent?.content,
+      liveNoteContent?.path,
       searchIndex,
       searchQuery,
       shouldSearchContents,

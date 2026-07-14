@@ -5,6 +5,7 @@ export const MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS = 20000;
 const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 const MAX_INCREMENTAL_BODY_LINE_NUMBER_SELECTION_SYNC_ELEMENTS = 64;
+const targetIndexesByLayout = new WeakMap<BodyLineNumberLabelLayout, WeakMap<HTMLElement, number>>();
 
 export function collectSelectedBlockDescendantTargets(editorRoot: HTMLElement): WeakSet<HTMLElement> {
   const selectedDescendantTargets = new WeakSet<HTMLElement>();
@@ -59,6 +60,7 @@ interface SyncBodyLineNumberLabelSelectionOptions {
 
 function collectIncrementalSelectionSyncIndexes(
   editorRoot: HTMLElement,
+  layout: BodyLineNumberLabelLayout,
   targets: readonly HTMLElement[],
   changedElements: readonly Element[] | undefined,
 ): Set<number> | null {
@@ -77,17 +79,39 @@ function collectIncrementalSelectionSyncIndexes(
     relevantChangedElements.push(element);
   }
 
+  let targetIndexes = targetIndexesByLayout.get(layout);
+  if (!targetIndexes) {
+    targetIndexes = new WeakMap();
+    for (let index = 0; index < targets.length; index += 1) {
+      const target = targets[index];
+      if (target) {
+        targetIndexes.set(target, index);
+      }
+    }
+    targetIndexesByLayout.set(layout, targetIndexes);
+  }
+
   const indexes = new Set<number>();
-  for (let index = 0; index < targets.length; index += 1) {
-    const target = targets[index];
-    if (!target || !editorRoot.contains(target)) {
-      continue;
+  for (const element of relevantChangedElements) {
+    for (
+      let ancestor: HTMLElement | null = element;
+      ancestor && ancestor !== editorRoot;
+      ancestor = ancestor.parentElement
+    ) {
+      const index = targetIndexes.get(ancestor);
+      if (index !== undefined) {
+        indexes.add(index);
+      }
     }
 
-    for (const element of relevantChangedElements) {
-      if (target === element || target.contains(element) || element.contains(target)) {
+    const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_ELEMENT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!(node instanceof HTMLElement)) {
+        continue;
+      }
+      const index = targetIndexes.get(node);
+      if (index !== undefined) {
         indexes.add(index);
-        break;
       }
     }
   }
@@ -106,6 +130,7 @@ export function syncBodyLineNumberLabelSelection(
 
   const incrementalSyncIndexes = collectIncrementalSelectionSyncIndexes(
     editorRoot,
+    layout,
     layout.targets,
     options.changedElements,
   );
@@ -117,9 +142,12 @@ export function syncBodyLineNumberLabelSelection(
     ? collectSelectedBlockDescendantTargets(editorRoot)
     : null;
   let changed = false;
-  const labels = layout.labels.map((label, index) => {
-    if (incrementalSyncIndexes && !incrementalSyncIndexes.has(index)) {
-      return label;
+  const labels = [...layout.labels];
+  const indexesToSync = incrementalSyncIndexes ?? layout.labels.keys();
+  for (const index of indexesToSync) {
+    const label = layout.labels[index];
+    if (!label) {
+      continue;
     }
 
     const target = layout.targets[index];
@@ -132,23 +160,24 @@ export function syncBodyLineNumberLabelSelection(
       );
 
     if (selected === (label.selected === true)) {
-      return label;
+      continue;
     }
 
     changed = true;
     if (selected) {
-      return {
+      labels[index] = {
         ...label,
         selected: true,
       };
+      continue;
     }
 
-    return {
+    labels[index] = {
       lineNumber: label.lineNumber,
       top: label.top,
       left: label.left,
     };
-  });
+  }
 
   return changed
     ? {

@@ -567,4 +567,55 @@ describe('notesSidebarTags', () => {
       },
     ]);
   });
+
+  it('keeps aggregate tag index entries stable with managed frontmatter', () => {
+    const index = createNotesSidebarTagIndex();
+    const entries = Array.from({ length: 500 }, (_value, index) => ({
+      path: `projects/note-${index}.md`,
+    }));
+    const content = [
+      '---',
+      'vlaina_updated: "2026-01-01T00:00:00.000Z"',
+      '---',
+      '',
+      `${'Body '.repeat(200)}#work`,
+    ].join('\n');
+
+    reconcileNotesSidebarTagIndex(index, entries, () => content);
+    const firstEntries = new Map(index.paths);
+
+    reconcileNotesSidebarTagIndex(index, entries, () => content);
+
+    for (const entry of entries) {
+      expect(index.paths.get(entry.path)).toBe(firstEntries.get(entry.path));
+    }
+  });
+
+  it('uses content identities to skip unchanged aggregate entries', () => {
+    const index = createNotesSidebarTagIndex();
+    const entries = [
+      { path: 'projects/alpha.md' },
+      { path: 'projects/beta.md' },
+    ];
+    const sources = new Map([
+      ['projects/alpha.md', { content: 'First #alpha' }],
+      ['projects/beta.md', { content: 'Second #beta' }],
+    ]);
+    const reconcile = () => reconcileNotesSidebarTagIndex(
+      index,
+      entries,
+      (path) => sources.get(path)?.content,
+      (path) => sources.get(path),
+    );
+
+    reconcile();
+    const firstAlphaEntry = index.paths.get('projects/alpha.md');
+    const firstBetaEntry = index.paths.get('projects/beta.md');
+
+    sources.set('projects/alpha.md', { content: 'First #work' });
+    reconcile();
+
+    expect(index.paths.get('projects/alpha.md')).not.toBe(firstAlphaEntry);
+    expect(index.paths.get('projects/beta.md')).toBe(firstBetaEntry);
+  });
 });

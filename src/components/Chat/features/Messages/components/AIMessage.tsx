@@ -81,6 +81,7 @@ export function AIMessage({
 }: AIMessageProps) {
   const [copiedCodeBlockId, setCopiedCodeBlockId] = useState<string | null>(null);
   const copiedCodeBlockTimerRef = useRef<number | null>(null);
+  const contentMayContainControlMarkup = msg.content.includes('<');
   const {
     errorType,
     errorCode,
@@ -88,6 +89,16 @@ export function AIMessage({
     webSearchStatuses,
     contentWithoutError,
   } = useMemo(() => {
+    if (!contentMayContainControlMarkup) {
+      return {
+        errorType: undefined,
+        errorCode: undefined,
+        errorContent: null,
+        webSearchStatuses: [],
+        contentWithoutError: msg.content,
+      };
+    }
+
     const parsedError = parseErrorTag(msg.content);
     const nextErrorContent = parsedError?.content ?? null;
     const withoutError = nextErrorContent
@@ -102,9 +113,15 @@ export function AIMessage({
       webSearchStatuses: webSearch.statuses,
       contentWithoutError: stripWebSearchRequestMarkup(webSearch.content),
     };
-  }, [msg.content]);
+  }, [contentMayContainControlMarkup, msg.content]);
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
-  const isEmptyCompletedResponse = !isLoading && stripThinkingContent(contentWithoutError).trim().length === 0;
+  const contentWithoutThinking = useMemo(
+    () => contentMayContainControlMarkup
+      ? stripThinkingContent(contentWithoutError)
+      : contentWithoutError.trim(),
+    [contentMayContainControlMarkup, contentWithoutError],
+  );
+  const isEmptyCompletedResponse = !isLoading && contentWithoutThinking.length === 0;
   const visibleContent = contentWithoutError || ' ';
   const isManagedAuthErrorMessage = errorType === 'AUTH_ERROR'
     && isManagedModelId(msg.modelId);
@@ -146,7 +163,7 @@ export function AIMessage({
     }, themeUiFeedbackTokens.copyFeedbackDurationMs);
   }, []);
 
-  if (shouldHideManagedAuthError && stripThinkingContent(contentWithoutError).trim().length === 0) {
+  if (shouldHideManagedAuthError && contentWithoutThinking.length === 0) {
     return null;
   }
 
@@ -155,7 +172,7 @@ export function AIMessage({
         <div className="[&>*:last-child]:mb-0">
             <WebSearchStatusBlock
                 statuses={webSearchStatuses}
-                isWaitingForAnswer={isLoading && stripThinkingContent(contentWithoutError).trim().length === 0}
+                isWaitingForAnswer={isLoading && contentWithoutThinking.length === 0}
             />
             {retryStatus ? (
                 <RetryStatusMessage detail={retryStatus.detail} countdown={retryStatus.countdown} />

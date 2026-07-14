@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import {
   resolveBodyLineNumberLabelLayout,
   syncBodyLineNumberLabelSelection,
@@ -24,6 +24,9 @@ interface BodyLineNumberGutterProps {
 
 export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineNumberGutterProps) {
   const [layout, setLayout] = useState<BodyLineNumberLabelLayout>(EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT);
+  const markdownRef = useRef(markdown);
+  const refreshRef = useRef<(() => void) | null>(null);
+  markdownRef.current = markdown;
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -150,9 +153,11 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
         pendingDeferredSelectionSyncElements = [];
         needsRefreshAfterDeferredBlockInteraction = false;
         clearDeferredBlockInteractionRefresh();
-        setLayout(resolveBodyLineNumberLabelLayout(resolvedShell, markdown));
+        setLayout(resolveBodyLineNumberLabelLayout(resolvedShell, markdownRef.current));
       });
     }
+
+    refreshRef.current = refresh;
 
     function handleWindowResize() {
       refresh();
@@ -200,6 +205,10 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       return elements;
     }
 
+    function mutationsMayChangeObservedResizeTargets(records: MutationRecord[]) {
+      return records.some((record) => record.type === 'childList' && record.target === editorRoot);
+    }
+
     function syncObservedResizeTargets() {
       const nextTargets = new Set<Element>([resolvedShell]);
       if (editorRoot) {
@@ -236,7 +245,9 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       if (!shouldRefreshForMutation(records)) {
         return;
       }
-      syncObservedResizeTargets();
+      if (mutationsMayChangeObservedResizeTargets(records)) {
+        syncObservedResizeTargets();
+      }
       refresh(collectIncrementalSelectionSyncMutationElements(records));
     });
     if (editorRoot) {
@@ -257,6 +268,9 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
     window.addEventListener('blur', handlePointerInteractionEnd);
 
     return () => {
+      if (refreshRef.current === refresh) {
+        refreshRef.current = null;
+      }
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
       }
@@ -272,7 +286,11 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       window.removeEventListener('mouseup', handlePointerInteractionEnd, true);
       window.removeEventListener('blur', handlePointerInteractionEnd);
     };
-  }, [markdown, revision, shellRef]);
+  }, [revision, shellRef]);
+
+  useEffect(() => {
+    refreshRef.current?.();
+  }, [markdown]);
 
   return (
     <div className="body-line-number-gutter" aria-hidden="true">

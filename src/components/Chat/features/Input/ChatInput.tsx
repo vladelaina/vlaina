@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { useFileTreePointerDragState } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
-import { useAIStore } from '@/stores/useAIStore';
+import { actions as aiActions } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 import { ChatInputComposerFrame } from './components/ChatInputComposerFrame';
 import type { ChatInputProps } from './ChatInputTypes';
@@ -35,7 +36,7 @@ export const ChatInput = memo(function ChatInput({
   const lastSubmittedMessageRef = useRef('');
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
-  const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
+  const webSearchEnabled = useUnifiedStore((state) => state.data.ai?.webSearchEnabled === true);
   const isQuotaSendBlocked = hasSelectedModel && isManagedQuotaExhausted;
   const {
     attachments,
@@ -275,7 +276,7 @@ export const ChatInput = memo(function ChatInput({
       onRequestComposerFocus={scheduleComposerFocus}
       onSend={() => handleSend()}
       onTextareaScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
-      onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
+      onToggleWebSearch={() => aiActions.setWebSearchEnabled(!webSearchEnabled)}
       showMentionPicker={showMentionPicker}
       textareaRef={textareaRef}
       textareaScrollTop={textareaScrollTop}
