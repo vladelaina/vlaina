@@ -277,7 +277,7 @@ export function MarkdownEditor({
           {!hasRenderableNote ? (
             <div
               aria-hidden="true"
-              className="absolute inset-x-0 top-0 h-px overflow-hidden opacity-0 pointer-events-none"
+              className="absolute inset-x-0 top-0 h-px overflow-hidden opacity-[var(--vlaina-opacity-0)] pointer-events-none"
               data-note-editor-prewarm="true"
             >
               <Suspense fallback={null}>

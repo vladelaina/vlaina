@@ -1,4 +1,4 @@
-import { themeWhiteboardTokens } from '@/styles/themeTokens';
+import { themeIconTokens, themeWhiteboardTokens } from '@/styles/themeTokens';
 import { writeImageBlobToClipboard } from '@/lib/clipboard';
 import {
   WHITEBOARD_BRUSHES,
@@ -140,8 +140,8 @@ function renderPaperPattern(paper: WhiteboardPaperStyle, color: string): { defs:
   const mark = paper === 'dots'
     ? `<circle cx="1" cy="1" r="1" fill="${escapeAttr(color)}"/>`
     : paper === 'grid'
-      ? `<path d="M ${size} 0 L 0 0 0 ${size}" fill="none" stroke="${escapeAttr(color)}" stroke-width="1"/>`
-      : `<path d="M 0 ${size - 1} H ${size}" fill="none" stroke="${escapeAttr(color)}" stroke-width="1"/>`;
+      ? `<path d="M ${size} 0 L 0 0 0 ${size}" fill="${themeIconTokens.fillNone}" stroke="${escapeAttr(color)}" stroke-width="${themeIconTokens.strokeHairline}"/>`
+      : `<path d="M 0 ${size - 1} H ${size}" fill="${themeIconTokens.fillNone}" stroke="${escapeAttr(color)}" stroke-width="${themeIconTokens.strokeHairline}"/>`;
   return {
     defs: `<defs><pattern id="whiteboard-paper-pattern" width="${size}" height="${size}" patternUnits="userSpaceOnUse">${mark}</pattern></defs>`,
     fill: '<rect width="100%" height="100%" fill="url(#whiteboard-paper-pattern)"/>',

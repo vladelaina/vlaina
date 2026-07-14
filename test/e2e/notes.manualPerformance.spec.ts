@@ -32,7 +32,7 @@ test.describe('notes manual markdown performance', () => {
         }
       });
 
-      const installedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      const installedTheme = await installReferenceTyporaTheme(page, 'phycat-sky.css');
       console.info('[notes-manual-performance-typora-theme]', installedTheme);
 
       const { notePath } = await page.evaluate((content) =>

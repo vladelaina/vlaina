@@ -48,6 +48,8 @@ export function StorageFolderNameEditor({
         return null;
     }
 
+    const inputWidth = `${Math.max((draftFolderName || 'assets').length, 6)}ch`;
+
     return (
         <div className="inline-flex max-w-full min-w-0 items-center rounded-xl bg-[var(--vlaina-bg-tertiary)] px-2 py-1 font-mono text-[var(--vlaina-font-11)] leading-5 text-[var(--vlaina-sidebar-notes-text-soft)]">
             <input
@@ -94,7 +96,7 @@ export function StorageFolderNameEditor({
                 spellCheck={false}
                 aria-label={t(isNotesRootSubfolder ? 'settings.images.folderName' : 'settings.images.subfolderName')}
                 className="h-5 min-w-12 max-w-24 cursor-text rounded-md border-0 bg-transparent px-1 py-0 font-mono text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] focus:bg-[var(--vlaina-color-setting-field)] focus:ring-1 focus:ring-[var(--vlaina-color-sidebar-focus-ring)]"
-                style={{ width: `${Math.max((draftFolderName || 'assets').length, 6)}ch` }}
+                style={{ width: inputWidth }}
             />
         </div>
     );

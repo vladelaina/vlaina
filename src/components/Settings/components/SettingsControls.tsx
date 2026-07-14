@@ -102,7 +102,7 @@ export function SettingsItem({
         >
             <div className={cn(
                 hasDescription
-                    ? "min-w-[min(100%,var(--vlaina-size-220px))] flex-1"
+                    ? "min-w-[var(--vlaina-width-settings-control-min)] flex-1"
                     : "min-w-max flex-[1_1_auto]",
                 "pr-4 max-[420px]:w-full max-[420px]:pr-0",
             )}>

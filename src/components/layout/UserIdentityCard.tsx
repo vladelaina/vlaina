@@ -12,6 +12,7 @@ import {
 } from '@/components/Chat/features/Input/composerStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { AccountAvatarImage } from './AccountAvatarImage';
+import { themeRenderingTokens } from '@/styles/themeTokens';
 
 const fallbackAvatarUrl = `${import.meta.env.BASE_URL}logo.png?v=20260327`;
 const membershipPlanUrl = 'https://vlaina.com/r/account_plan';
@@ -56,7 +57,7 @@ function AutoFitIdentityText({ value }: { value: string }) {
     const previousFontSize = text.style.fontSize;
     const previousTransform = text.style.transform;
     text.style.fontSize = `${identityMaxFontSizePx}px`;
-    text.style.transform = 'none';
+    text.style.transform = themeRenderingTokens.transformNone;
     const naturalWidth = Math.max(text.scrollWidth, text.getBoundingClientRect().width);
     text.style.fontSize = previousFontSize;
     text.style.transform = previousTransform;

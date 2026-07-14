@@ -131,7 +131,7 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: Whiteboa
 
   return (
     <>
-      <div className="pointer-events-none absolute left-3 top-3 z-[var(--vlaina-z-20)] flex max-w-[calc(100%-var(--vlaina-size-56px))] items-center gap-2">
+      <div className="pointer-events-none absolute left-3 top-3 z-[var(--vlaina-z-20)] flex max-w-[var(--vlaina-width-whiteboard-toolbar-max)] items-center gap-2">
         <ToolbarGroup className={cn('rounded-[var(--vlaina-radius-pill)] p-1', floatingPanelClassName)}>
           <ToolbarButton disabled={!props.canUndo} icon="common.undo" label={t('whiteboard.undo')} onClick={props.onUndo} />
           <ToolbarButton disabled={!props.canRedo} icon="common.redo" label={t('whiteboard.redo')} onClick={props.onRedo} />

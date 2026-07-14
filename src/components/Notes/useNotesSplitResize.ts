@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { useUIStore } from '@/stores/uiSlice';
+import { themeDomStyleTokens, themeRenderingTokens } from '@/styles/themeTokens';
 import {
   resizeNotesSplitPaneTree,
   type NotesSplitOrientation,
@@ -88,8 +89,10 @@ export function useNotesSplitResize(args: {
       previousBodyCursor: document.body.style.cursor,
       previousBodyUserSelect: document.body.style.userSelect,
     };
-    document.body.style.cursor = orientation === 'horizontal' ? 'col-resize' : 'row-resize';
-    document.body.style.userSelect = 'none';
+    document.body.style.cursor = orientation === 'horizontal'
+      ? themeDomStyleTokens.cursorColumnResize
+      : themeDomStyleTokens.cursorRowResize;
+    document.body.style.userSelect = themeRenderingTokens.userSelectNone;
     setLayoutPanelDragging(true);
     updateSplitResizeRatio(event.clientX, event.clientY);
     document.addEventListener('pointermove', handleSplitResizePointerMove, true);

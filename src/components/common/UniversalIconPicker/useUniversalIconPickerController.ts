@@ -20,6 +20,7 @@ import {
   logIconPickerDebug,
 } from './debugLog';
 import { hasIconImageScheme, hasIconSymbolScheme, isIconImageValue } from './iconImageValue';
+import { themeDomStyleTokens, themeMotionTokens } from '@/styles/themeTokens';
 
 export function useUniversalIconPickerController({
   onSelect,
@@ -205,8 +206,8 @@ export function useUniversalIconPickerController({
       } else {
         const textArea = document.createElement('textarea');
         textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
+        textArea.style.position = themeDomStyleTokens.positionFixed;
+        textArea.style.opacity = String(themeMotionTokens.opacityHidden);
         document.body.appendChild(textArea);
         try {
           textArea.focus();

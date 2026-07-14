@@ -116,7 +116,7 @@ describe('CoverPicker', () => {
 
     const anchor = Array.from(container.querySelectorAll('div'))
       .find((element) => element.className.includes('top-[var(--vlaina-size-80px)]'));
-    expect(anchor?.className).toContain('right-[max(var(--vlaina-size-16px)');
+    expect(anchor?.className).toContain('right-[var(--vlaina-width-cover-picker-inset)]');
   });
 
   it('removes the current cover without bubbling pointer events to cover interactions', () => {

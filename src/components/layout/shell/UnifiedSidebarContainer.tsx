@@ -62,9 +62,9 @@ export function UnifiedSidebarContainer({
 
   return (
     <div
+      className="contents"
       ref={widthScopeRef}
       data-shell-sidebar-width-scope="true"
-      style={{ display: 'contents' }}
     >
       <aside
         ref={sidebarRef}

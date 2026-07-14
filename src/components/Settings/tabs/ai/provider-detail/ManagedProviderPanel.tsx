@@ -31,7 +31,7 @@ export function ManagedProviderPanel({
       <section className="min-w-0 rounded-2xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] p-6 max-[640px]:p-4">
         <div className="space-y-4">
           <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-            <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1 space-y-2">
+            <div className="min-w-[var(--vlaina-width-provider-field-min)] flex-1 space-y-2">
               <h3 className="text-sm font-semibold text-[var(--vlaina-sidebar-notes-text)]">{t('settings.ai.managedTitle')}</h3>
               <p className="text-xs text-[var(--vlaina-sidebar-notes-text-soft)]">
                 {t('settings.ai.managedDescription')}

@@ -81,7 +81,7 @@ export function CoverImageShell({
         )}
         ref={containerRef}
         data-note-cover-region="true"
-        style={{ height: shouldHoldCoverSpace ? coverHeight : 0, overflowAnchor: 'none' }}
+        style={{ height: shouldHoldCoverSpace ? coverHeight : 0, overflowAnchor: themeRenderingTokens.overflowAnchorNone }}
         onTransitionEnd={(event) => {
           if (event.target === event.currentTarget && event.propertyName === 'height' && collapseFrame) {
             finishCollapse();

@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { useUIStore } from '@/stores/uiSlice';
+import { themeDomStyleTokens, themeRenderingTokens } from '@/styles/themeTokens';
 import {
   moveNotesSplitPaneLeaf,
   type NotesSplitPaneTree,
@@ -159,8 +160,8 @@ export function useNotesSplitPaneDrag(args: {
       previousBodyUserSelect: document.body.style.userSelect,
       sourceLeafId,
     };
-    document.body.style.cursor = 'grabbing';
-    document.body.style.userSelect = 'none';
+    document.body.style.cursor = themeDomStyleTokens.cursorGrabbing;
+    document.body.style.userSelect = themeRenderingTokens.userSelectNone;
     setLayoutPanelDragging(true);
     document.addEventListener('pointermove', handleSplitPaneDragPointerMove, true);
     document.addEventListener('pointerup', handleSplitPaneDragPointerUp, true);

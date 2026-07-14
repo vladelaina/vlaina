@@ -95,7 +95,7 @@ export function WhiteboardSidebar() {
                     </button>
                   )}
                   {!editing ? (
-                    <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="flex shrink-0 items-center opacity-[var(--vlaina-opacity-0)] transition-opacity group-hover:opacity-[var(--vlaina-opacity-100)] group-focus-within:opacity-[var(--vlaina-opacity-100)]">
                       <button
                         type="button"
                         aria-label={t('sidebar.rename')}
