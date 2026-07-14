@@ -1,25 +1,25 @@
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) {
-  --typora-inline-code-bg: var(--code-bg, var(--d-cb, var(--vlaina-code-inline-background)));
-  --typora-inline-code-fg: var(--code-t, var(--a-o-c, var(--text-code, inherit)));
+  --typora-inline-code-bg: var(--code-bg, var(--d-cb, var(--element-color-linecode-background, var(--vlaina-code-inline-background))));
+  --typora-inline-code-fg: var(--code-t, var(--element-color-linecode, var(--a-o-c, var(--text-code, inherit))));
   --typora-content-font: var(--v-fm-text, var(--v-fm-text-local, var(--font-text, var(--font-sans))));
-  --typora-heading-font: var(--v-fm-h, var(--v-fm-h-local, var(--v-fm-bd, var(--font-interface, var(--font-sans)))));
-  --typora-strong-font: var(--v-fm-bd, var(--v-fm-bd-local, var(--font-interface, var(--font-sans))));
+  --typora-heading-font: var(--v-fm-h, var(--v-fm-h-local, var(--v-fm-bd, inherit)));
+  --typora-strong-font: var(--v-fm-bd, var(--v-fm-bd-local, inherit));
   --typora-tag-font: var(--v-fm-tag, var(--v-fm-tag-local, var(--font-interface, var(--font-sans))));
-  --typora-block-bg: var(--bq-bg, var(--background-secondary, transparent));
-  --typora-block-border: var(--pn-c-a, var(--background-modifier-border, var(--vlaina-border)));
-  --typora-table-bg: var(--db, var(--background-primary, transparent));
-  --typora-table-hover-bg: var(--bq-bg-fd, var(--background-modifier-hover, transparent));
-  --typora-table-head-bg: var(--db, var(--background-primary, transparent));
-  --typora-selection-bg: var(--v-selected-c, var(--text-selection, var(--vlaina-selection-bg)));
-  --typora-page-bg: var(--db, var(--background-primary, transparent));
-  --typora-outer-bg: var(--db-ext, var(--typora-page-bg));
-  --typora-page-max-width: min(100%, var(--v-write-w, 1200px));
-  --typora-page-padding-block: var(--v-write-pd-y, var(--vlaina-space-20px));
-  --typora-page-padding-inline: var(--v-write-pd-x, var(--vlaina-space-20px));
+  --typora-block-bg: var(--bq-bg, var(--element-color-soo-shallow, var(--code-block-bg, var(--background-secondary, transparent))));
+  --typora-block-border: var(--pn-c-a, var(--border-color, var(--element-color-shallow, var(--background-modifier-border, var(--vlaina-border)))));
+  --typora-table-bg: var(--db, var(--bg-color, var(--background-primary, transparent)));
+  --typora-table-hover-bg: var(--bq-bg-fd, var(--item-hover-bg-color, var(--element-color-soo-shallow, var(--background-modifier-hover, transparent))));
+  --typora-table-head-bg: var(--db, var(--element-color-soo-shallow, var(--bg-color, var(--background-primary, transparent))));
+  --typora-selection-bg: var(--v-selected-c, var(--select-text-bg-color, var(--text-selection, var(--vlaina-selection-bg))));
+  --typora-page-bg: var(--db, var(--bg-color, var(--background-primary, transparent)));
+  --typora-outer-bg: var(--db-ext, var(--bg-color, var(--typora-page-bg)));
+  --typora-page-max-width: min(100%, var(--v-write-w, var(--max-width, 1200px)));
+  --typora-page-padding-block: var(--v-write-pd-y, var(--vlaina-size-60px));
+  --typora-page-padding-inline: var(--v-write-pd-x, var(--vlaina-size-80px));
   --typora-page-padding: var(--typora-page-padding-block) var(--typora-page-padding-inline);
   --typora-block-gap: var(--vlaina-space-05em);
-  --typora-body-line-height: var(--line-height-normal, var(--vlaina-line-height-markdown-body));
-  --typora-heading-bg: linear-gradient(90deg, var(--h-bg-start, transparent), var(--h-bg-end, transparent));
+  --typora-body-line-height: var(--typora-imported-body-line-height, var(--line-height-normal, var(--vlaina-line-height-markdown-body)));
+  --typora-heading-bg: var(--head-title-h2-background, linear-gradient(90deg, var(--h-bg-start, transparent), var(--h-bg-end, transparent)));
   --typora-heading-shadow: var(--h-box-sd, transparent);
   --typora-heading-border-color: var(--h-box-sd, transparent);
   --typora-heading-title-font: var(--v-fw-tt, var(--v-fw-bd, var(--vlaina-font-weight-bold))) 1em var(--typora-heading-font);
@@ -28,8 +28,8 @@
   --typora-table-cell-padding: var(--tbl-cell-padding, var(--vlaina-space-05rem) var(--vlaina-space-075rem));
   --typora-table-cell-min-width: var(--v-table-cell-min-width, 5em);
   --typora-list-indent: var(--v-list-indent, var(--vlaina-space-15rem));
-  --typora-link-color: var(--a-c, var(--primary-color, var(--text-accent, var(--vlaina-accent))));
-  --typora-link-hover-color: var(--a-o-c, var(--interactive-accent-hover, var(--typora-link-color)));
+  --typora-link-color: var(--a-c, var(--primary-color, var(--element-color, var(--text-accent, var(--vlaina-accent)))));
+  --typora-link-hover-color: var(--a-o-c, var(--element-color-deep, var(--interactive-accent-hover, var(--typora-link-color))));
   --typora-kbd-bg: var(--v-btn-bg, var(--kbd-bg, var(--typora-inline-code-bg)));
   --typora-kbd-fg: var(--kbd-c, var(--db, var(--vlaina-bg-primary)));
   --typora-kbd-shadow: 0 var(--vlaina-space-3px, 3px) 0 0 var(--btn-raised, var(--typora-block-border)), 0 var(--vlaina-space-3px, 3px) 0 0 var(--typora-kbd-bg);
@@ -44,23 +44,27 @@
   background: transparent;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write {
+  --code-size: 0.9rem;
+  line-height: var(--typora-body-line-height);
+  text-rendering: optimizeLegibility;
+}
+
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .ProseMirror {
-  font-family: var(--typora-content-font);
   line-height: var(--typora-body-line-height);
   text-rendering: optimizeLegibility;
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write {
-  width: 100%;
-  max-width: 100%;
-  margin-inline: 0;
+  width: var(--typora-page-max-width);
+  max-width: var(--typora-page-max-width);
+  margin-inline: auto;
   padding-block: var(--typora-page-padding-block);
-  padding-inline: 0;
+  padding-inline: var(--typora-page-padding-inline);
   min-width: 0;
   background: transparent;
   color: var(--df, var(--text-color, inherit));
-  font-size: var(--vlaina-markdown-font-size);
+  font-size: var(--v-f-size, var(--vlaina-size-16px));
   box-sizing: border-box;
 }
 
@@ -90,6 +94,11 @@
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write li {
   margin-block: 0;
   padding-inline-start: var(--vlaina-space-05rem, 0.5rem);
+  line-height: var(--typora-body-line-height);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote {
+  line-height: var(--typora-body-line-height);
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write li > p {
@@ -109,7 +118,8 @@
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--typora-heading-font);
-  color: var(--h-f, var(--text-color, inherit));
+  line-height: inherit;
+  color: var(--h-f, inherit);
   background: var(--typora-heading-bg);
   box-shadow: inset 0 calc(var(--vlaina-border-width-1) * -1) 0 var(--typora-heading-shadow);
 }
@@ -130,7 +140,7 @@
   padding: var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(blockquote, details, .md-alert) {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write :is(blockquote, details, .md-alert)) {
   color: inherit;
   background: var(--typora-block-bg);
   border-color: var(--typora-block-border);
@@ -140,18 +150,14 @@
   padding: var(--vlaina-space-075rem, 0.75rem);
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote::before {
-  content: none;
-}
-
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert) {
   display: block;
   grid-template-columns: none;
   gap: 0;
   overflow: hidden;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert .callout-title {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert .callout-title) {
   display: flex;
   color: var(--typora-alert-fg, inherit);
   background: var(--typora-alert-accent, transparent);
@@ -161,35 +167,35 @@
   padding: var(--vlaina-space-0625rem, 0.625rem) var(--vlaina-space-1rem, 1rem);
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-note {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-note) {
   --typora-alert-accent: var(--ac-bu, var(--primary-color));
   --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
   background: linear-gradient(180deg, var(--ac-bu-a, var(--typora-block-bg)), var(--ac-bu-fd, var(--typora-block-bg)));
   border-color: var(--ac-bu, var(--typora-block-border));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-tip {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-tip) {
   --typora-alert-accent: var(--ac-gn, var(--primary-color));
   --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
   background: linear-gradient(180deg, var(--ac-gn-a, var(--typora-block-bg)), var(--ac-gn-fd, var(--typora-block-bg)));
   border-color: var(--ac-gn, var(--typora-block-border));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-important {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-important) {
   --typora-alert-accent: var(--ac-pu, var(--primary-color));
   --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
   background: linear-gradient(180deg, var(--ac-pu-a, var(--typora-block-bg)), var(--ac-pu-fd, var(--typora-block-bg)));
   border-color: var(--ac-pu, var(--typora-block-border));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-warning {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-warning) {
   --typora-alert-accent: var(--ac-og, var(--primary-color));
   --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
   background: linear-gradient(180deg, var(--ac-og-a, var(--typora-block-bg)), var(--ac-og-fd, var(--typora-block-bg)));
   border-color: var(--ac-og, var(--typora-block-border));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-caution {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-caution) {
   --typora-alert-accent: var(--ac-rd, var(--primary-color));
   --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
   background: linear-gradient(180deg, var(--ac-rd-a, var(--typora-block-bg)), var(--ac-rd-fd, var(--typora-block-bg)));

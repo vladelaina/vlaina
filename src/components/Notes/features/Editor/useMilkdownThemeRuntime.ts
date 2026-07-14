@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
+import { useEffectiveImportedMarkdownThemeId } from '@/components/markdown-theme/markdownThemePreview';
 import { normalizeColorModePreference } from '@/lib/theme/colorModeSync';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import {
@@ -19,7 +20,8 @@ export function useMilkdownThemeRuntime(args: {
   editorShellRef: React.MutableRefObject<HTMLDivElement | null>;
 }) {
   const { activatedRevision, editorShellRef } = args;
-  const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
+  const selectedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
+  const importedMarkdownThemeId = useEffectiveImportedMarkdownThemeId(selectedMarkdownThemeId);
   const typewriterMode = useUnifiedStore(selectMarkdownTypewriterModeEnabled);
   const appColorModePreference = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
   const { resolvedTheme } = useTheme();

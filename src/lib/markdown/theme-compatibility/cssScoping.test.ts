@@ -27,6 +27,16 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).not.toMatch(/(^|[}\n]\s*):root\s*\{/);
   });
 
+  it('preserves Typora #write line height as an inherited compatibility token', () => {
+    const scoped = scopeImportedMarkdownThemeCss(
+      '#write { line-height: 2.25; color: #333; }',
+      'typora'
+    );
+
+    expect(scoped).toContain('--typora-imported-body-line-height: 2.25;');
+    expect(scoped).toContain('line-height: 2.25;');
+  });
+
   it('keeps Obsidian light and dark theme selectors on the scoped root', () => {
     const css = [
       'body.theme-dark { --background-primary: #101010; }',
@@ -255,7 +265,7 @@ describe('markdown theme CSS scoping', () => {
   it('keeps Typora content styles while filtering root page layout and decorations', () => {
     const scoped = scopeImportedMarkdownThemeCss(
       [
-        '#write { margin-left: 120px; padding-left: 64px; max-width: 960px; overflow: visible; transform: translateX(20px); color: var(--df); --content-width: 960px; }',
+        '#write { margin-left: 120px; padding-left: 64px; max-width: 960px; overflow: visible; position: relative; transform: translateX(20px); color: var(--df); --content-width: 960px; }',
         '#write.done.max { box-shadow: 0 0 5px var(--ac-t2-fd); outline: 1px solid var(--ac-t2); border-left: 12px solid var(--ac-t2-a); border-right: 12px solid var(--ac-t2-a); background: var(--db); }',
         '#write.fill-width { margin: 0 auto; padding: 20px; width: 100%; display: block; font-size: var(--v-f-size); background-color: var(--db); }',
         '#write.unsafe-root { width: calc(100% + 40px); min-width: 720px; height: 100vh; overflow: hidden; position: fixed; }',
@@ -274,7 +284,8 @@ describe('markdown theme CSS scoping', () => {
     expect(rootRule).not.toContain('max-width');
     expect(rootRule).not.toContain('overflow');
     expect(rootRule).not.toContain('margin-left');
-    expect(rootRule).not.toContain('padding-left');
+    expect(rootRule).toContain('padding-left: 64px');
+    expect(rootRule).toContain('position: relative');
     expect(rootRule).not.toContain('transform');
     expect(rootRule).not.toContain('font-size');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.done.max');
@@ -287,14 +298,33 @@ describe('markdown theme CSS scoping', () => {
     expect(fillWidthRule).not.toContain('background');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.unsafe-root');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write p { margin-left: 2em; padding-left: 1em; max-width: 60ch; }');
-    expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write:after');
+    const writeAfterRule = scoped.match(/\[data-markdown-theme-root="true"\]\[data-markdown-theme-platform="typora"\]#write:after\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(writeAfterRule).toContain('right: 0');
+    expect(writeAfterRule).toContain('content: ""');
+    expect(writeAfterRule).not.toContain('position: sticky');
+    expect(writeAfterRule).not.toContain('calc(100% + 40px)');
+    expect(writeAfterRule).not.toContain('margin:');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write:before');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write .content-card:before { content: ""; background: #dcdac5; }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write .content-card { box-shadow: 0 0 5px var(--ac-t2-fd); outline: 1px solid var(--ac-t2); border-left: 12px solid var(--ac-t2-a); background: var(--db); }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write blockquote:before { position: absolute; right: 0; width: 40px; content: ""; }');
   });
 
-  it('drops imported Typora root font-size values so app markdown sizing wins', () => {
+  it('keeps safe Typora #write paper decorations used by exported themes', () => {
+    const scoped = scopeImportedMarkdownThemeCss(
+      '#write::before { content: ""; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; background-color: var(--element-color); opacity: .12; mask-image: var(--bg-style); }',
+      'typora'
+    );
+
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write::before');
+    expect(scoped).toContain('position: absolute');
+    expect(scoped).toContain('width: 100%');
+    expect(scoped).toContain('height: 100%');
+    expect(scoped).toContain('background-color: var(--element-color)');
+    expect(scoped).toContain('mask-image: var(--bg-style)');
+  });
+
+  it('keeps imported Typora font-size variables without letting root font-size override app sizing', () => {
     const scoped = scopeImportedMarkdownThemeCss(
       [
         ':root { --v-f-size: 16px; --theme-color: red; font-size: 16px; }',
@@ -307,7 +337,7 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).toContain('--theme-color: red');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write { color: var(--theme-color); }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write p { font-size: 0.95em; }');
-    expect(scoped).not.toContain('--v-f-size');
+    expect(scoped).toContain('--v-f-size: 16px');
     expect(scoped).not.toContain('font-size: 16px');
     expect(scoped).not.toContain('font-size: var(--v-f-size)');
   });
@@ -466,6 +496,20 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"] img[src$="#circle"]:not(.emoji)');
   });
 
+  it('maps Typora heading state classes onto native heading elements', () => {
+    const scoped = scopeImportedMarkdownThemeCss(
+      [
+        '#write h3.md-heading::after { background: var(--h3-icon-shape); }',
+        '#write .md-heading:hover { color: var(--head-title-color); }',
+      ].join('\n'),
+      'typora'
+    );
+
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write h3::after');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write :is(h1, h2, h3, h4, h5, h6):hover');
+    expect(scoped).not.toContain('.md-heading');
+  });
+
   it('maps imported Obsidian task checkbox selectors onto Vlaina task item checkboxes', () => {
     const scoped = scopeImportedMarkdownThemeCss(
       [
@@ -498,6 +542,28 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"] li[data-item-type=\'task\']::before { background-color: var(--db); }');
     expect(scoped).not.toContain('label.checkbox');
     expect(scoped).not.toContain('.checkbox>svg');
+  });
+
+  it('maps exported Typora task-list input selectors onto native task items', () => {
+    const scoped = scopeImportedMarkdownThemeCss(
+      [
+        '#write .task-list-item input { width: 1.3rem; height: 1.3rem; border: 1px solid var(--element-color); }',
+        '#write .task-list-item input::before { position: absolute; left: 18px; width: 100%; height: 100%; min-width: 1.2rem; border-radius: 50%; }',
+        '#write .task-list-item input:checked::after { opacity: 1; }',
+        '#write .task-list-item input[type=checkbox] + p { color: var(--text-color); }',
+        '#write .task-list-item input[type=checkbox]:checked + p { color: var(--text-color-secondary); }',
+      ].join('\n'),
+      'typora'
+    );
+
+    expect(scoped).toContain("#write :is(#write li[data-item-type='task'])::before { width: 1.3rem; height: 1.3rem; border: 1px solid var(--element-color); }");
+    expect(scoped).toContain("#write :is(#write li[data-item-type='task'])::before { min-width: 1.2rem; border-radius: 50%; }");
+    expect(scoped).not.toContain("left: 18px");
+    expect(scoped).not.toContain("width: 100%");
+    expect(scoped).toContain("#write :is(#write li[data-item-type='task'][data-checked='true'])::after { opacity: 1; }");
+    expect(scoped).toContain("#write li[data-item-type='task'] > p { color: var(--text-color); }");
+    expect(scoped).toContain("#write li[data-item-type='task'][data-checked='true'] > p { color: var(--text-color-secondary); }");
+    expect(scoped).not.toContain('.task-list-item input');
   });
 
   it('maps imported CodeMirror 5 code block selectors onto CodeMirror 6 DOM', () => {

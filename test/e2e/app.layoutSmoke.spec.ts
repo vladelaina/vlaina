@@ -129,7 +129,11 @@ test.describe('app layout smoke', () => {
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Layout smoke sentinel paragraph', {
         timeout: 30_000,
       });
-      const importedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      await expect(page.locator('[data-sidebar-surface="true"]').first()).toHaveCSS(
+        'background-color',
+        'rgba(0, 0, 0, 0)',
+      );
+      const importedTheme = await installReferenceTyporaTheme(page, 'phycat-sky.css');
       let shellPaperBackground: {
         backgroundImage: string;
         importedLayer: string;
@@ -148,6 +152,7 @@ test.describe('app layout smoke', () => {
         expect(notesBackground.rootTheme).toBeNull();
       } else {
         expect(notesBackground.rootTheme).toBe(importedTheme.themeId);
+        expect(await page.locator('html').getAttribute('data-vlaina-imported-app-theme-platform')).toBe('typora');
         expect(notesBackground.importedLayer).not.toBe('');
         shellPaperBackground = await page.locator('[data-app-shell-root="true"]').evaluate((element) => {
           const style = getComputedStyle(element);
@@ -171,7 +176,7 @@ test.describe('app layout smoke', () => {
       }
       await expect(page.locator('[data-sidebar-surface="true"]').first()).toHaveCSS(
         'background-color',
-        'rgba(0, 0, 0, 0)',
+        importedTheme.skipped ? 'rgba(0, 0, 0, 0)' : 'rgba(206, 230, 250, 0.17)',
       );
       if (!importedTheme.skipped) {
         const notesEditorSurfaceBackgrounds = await page.locator(
@@ -190,12 +195,12 @@ test.describe('app layout smoke', () => {
           };
         });
         expect(notesEditorSurfaceBackgrounds).toMatchObject({
-          editorBackgroundColor: 'rgb(250, 249, 245)',
+          editorBackgroundColor: 'rgb(255, 255, 255)',
           milkdown: 'rgba(0, 0, 0, 0)',
           proseMirror: 'rgba(0, 0, 0, 0)',
         });
-        expect(notesEditorSurfaceBackgrounds.typoraDocumentImage).toContain('data:image/png;base64');
-        expect(notesEditorSurfaceBackgrounds.editorBackgroundImage).toContain('data:image/png;base64');
+        expect(notesEditorSurfaceBackgrounds.typoraDocumentImage).toBe('');
+        expect(notesEditorSurfaceBackgrounds.editorBackgroundImage).toBe('none');
       }
 
       let notesLayout = await collectLayoutSmokeMetrics(page);
@@ -238,8 +243,8 @@ test.describe('app layout smoke', () => {
       } else {
         expect(chatBackground.rootTheme).toBe(importedTheme.themeId);
         expect(chatBackground.importedLayer).toBe(notesBackground.importedLayer);
-        expect(chatBackground.documentBackgroundImage).toContain('data:image/png;base64');
-        expect(chatBackground.backgroundImage).toContain('data:image/png;base64');
+        expect(chatBackground.documentBackgroundImage).toBe('');
+        expect(chatBackground.backgroundImage).toBe('none');
         const chatContentBackground = await page.locator(CHAT_SCROLLABLE_SELECTOR).evaluate((element) => {
           const style = getComputedStyle(element);
           return {
@@ -248,9 +253,9 @@ test.describe('app layout smoke', () => {
             documentBackgroundImage: style.getPropertyValue('--vlaina-imported-app-document-background-image').trim(),
           };
         });
-        expect(chatContentBackground.backgroundColor).toBe('rgb(250, 249, 245)');
-        expect(chatContentBackground.documentBackgroundImage).toContain('data:image/png;base64');
-        expect(chatContentBackground.backgroundImage).toContain('data:image/png;base64');
+        expect(chatContentBackground.backgroundColor).toBe('rgb(255, 255, 255)');
+        expect(chatContentBackground.documentBackgroundImage).toBe('');
+        expect(chatContentBackground.backgroundImage).toBe('none');
         const shellPaperBackgroundInChat = await page.locator('[data-app-shell-root="true"]').evaluate((element) => {
           const style = getComputedStyle(element);
           return {

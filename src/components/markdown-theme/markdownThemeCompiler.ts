@@ -16,6 +16,7 @@ interface MarkdownThemeCompilerModules {
 
 export interface CompiledImportedMarkdownThemeStyles {
   id: string;
+  platform: ImportedMarkdownTheme['platform'];
   markdownCss: string;
   appCss: string;
   postBridgeCss: string;
@@ -156,6 +157,7 @@ export async function compileImportedMarkdownThemeStyles(
     const sanitizedCss = sanitizeImportedMarkdownThemeCss(theme.css);
     const compiled = {
       id: theme.id,
+      platform: theme.platform,
       markdownCss: scopeImportedMarkdownThemeCss(
         sanitizedCss,
         theme.platform,

@@ -7,11 +7,14 @@ describe('imported markdown theme post bridge', () => {
 
     expect(css).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"].theme-typora#write');
     expect(css).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"].theme-typora #write');
-    expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, var(--vlaina-size-1080px)));');
-    expect(css).toContain('max-width: 100% !important;');
+    expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, var(--max-width, var(--vlaina-size-1080px))));');
+    expect(css).toContain('max-width: var(--typora-page-max-width) !important;');
+    expect(css).toContain('padding-block: var(--typora-page-padding-block) !important;');
+    expect(css).toContain('padding-inline: var(--typora-page-padding-inline) !important;');
     expect(css).toContain('background: transparent !important;');
-    expect(css).toContain('font-size: var(--vlaina-markdown-font-size, 16px) !important;');
-    expect(css).not.toContain('--v-f-size');
+    expect(css).toContain('font-size: var(--v-f-size, var(--vlaina-size-16px)) !important;');
+    expect(css).not.toContain('font-family: var(--typora-content-font) !important;');
+    expect(css).not.toContain('line-height: var(--typora-body-line-height) !important;');
     expect(css).toContain(':is(strong, em, mark, u, del, code, sup, sub)');
     expect(css).toContain('display: inline !important;');
     expect(css).toContain('.milkdown-table-block.table-figure .table-wrapper');

@@ -543,6 +543,10 @@ html[data-image-file-hover-preview-active='true'] :is(
   background: transparent !important;
 }
 
+html[data-vlaina-imported-app-theme-platform='typora'] [data-sidebar-surface='true'] {
+  background: var(--vlaina-sidebar-surface) !important;
+}
+
 [data-chat-view-mode] button:not(:disabled),
 [data-chat-view-mode] [role="button"]:not([aria-disabled="true"]) {
   cursor: pointer;

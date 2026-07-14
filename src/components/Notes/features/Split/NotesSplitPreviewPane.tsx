@@ -24,6 +24,7 @@ import { findStarredEntryByPath } from '@/stores/notes/starred';
 import type { NotesSplitDirection } from './notesSplitLayout';
 import type { EditorViewportPoint } from '@/components/Notes/features/Editor/utils/focusEditorAtPoint';
 import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
+import { useEffectiveImportedMarkdownThemeId } from '@/components/markdown-theme/markdownThemePreview';
 import {
   resolveMarkdownThemeRuntimeColorScheme,
   resolveMarkdownThemeViewport,
@@ -101,7 +102,8 @@ export function NotesSplitPreviewPane({
   const starredEntries = useNotesStore(s => s.starredEntries);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const defaultIconSize = useNotesStore(s => ('noteIconSize' in s ? s.noteIconSize : DEFAULT_ICON_SIZE));
-  const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
+  const selectedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
+  const importedMarkdownThemeId = useEffectiveImportedMarkdownThemeId(selectedMarkdownThemeId);
   const typewriterMode = useUnifiedStore(selectMarkdownTypewriterModeEnabled);
   const appColorModePreference = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
   const { resolvedTheme } = useTheme();
