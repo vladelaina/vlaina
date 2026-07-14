@@ -7,6 +7,7 @@ import {
   resolveTextNodeDocumentPosition,
   resolveTextOffsetAtPoint,
 } from '../shared/pointerTextPosition';
+import { resolveTaskCheckboxTarget } from '../task-list/taskCheckboxHitArea';
 
 export const nestedListPointerCaretPluginKey = new PluginKey('nestedListPointerCaret');
 
@@ -31,6 +32,17 @@ function isPrimaryPlainMouseDown(event: MouseEvent): boolean {
     !event.ctrlKey &&
     !event.altKey &&
     !event.shiftKey;
+}
+
+function isTaskCheckboxPointer(view: EditorView, event: MouseEvent): boolean {
+  const target = event.target instanceof HTMLElement
+    ? event.target
+    : event.target instanceof Node
+      ? event.target.parentElement
+      : null;
+  return Boolean(
+    target && resolveTaskCheckboxTarget(view.dom, target, event.clientX, event.clientY)
+  );
 }
 
 function dispatchNestedListTextSelection(view: EditorView, anchor: number, head = anchor): boolean {
@@ -213,6 +225,7 @@ export const nestedListPointerCaretPlugin = $prose(() => {
           if (!(event instanceof MouseEvent)) return false;
           if (!isPrimaryPlainMouseDown(event)) return false;
           if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return false;
+          if (isTaskCheckboxPointer(view, event)) return false;
 
           const targetElement = event.target instanceof Element ? event.target : event.target.parentElement;
           const listItem = targetElement?.closest('li');
@@ -229,6 +242,7 @@ export const nestedListPointerCaretPlugin = $prose(() => {
           if (!(event instanceof MouseEvent)) return false;
           if (!isPrimaryPlainMouseDown(event)) return false;
           if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return false;
+          if (isTaskCheckboxPointer(view, event)) return false;
 
           const targetElement = event.target instanceof Element ? event.target : event.target.parentElement;
           const listItem = targetElement?.closest('li');
