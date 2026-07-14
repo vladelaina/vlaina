@@ -108,19 +108,17 @@ export const WhiteboardRulerOverlay = memo(function WhiteboardRulerOverlay({
       <button
         type="button"
         aria-label={closeLabel}
-        className="absolute right-10 top-1/2 flex size-[var(--vlaina-size-24px)] -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--vlaina-radius-circle)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-floating-surface)] text-[var(--vlaina-color-text-secondary)] hover:text-[var(--vlaina-color-text-primary)]"
+        className="pointer-events-auto absolute right-10 top-1/2 flex size-[var(--vlaina-size-24px)] -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--vlaina-radius-circle)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-floating-surface)] text-[var(--vlaina-color-text-secondary)] hover:text-[var(--vlaina-color-text-primary)]"
         onClick={onClose}
         onPointerDown={handleClosePointerDown}
-        style={{ pointerEvents: 'auto' }}
       >
         <Icon name="common.close" size={themeIconTokens.sizeXs} />
       </button>
       <button
         type="button"
         aria-label={rotateLabel}
-        className="absolute right-2 top-1/2 flex size-[var(--vlaina-size-24px)] -translate-y-1/2 cursor-alias items-center justify-center rounded-[var(--vlaina-radius-circle)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-floating-surface)] text-[var(--vlaina-color-text-secondary)] hover:text-[var(--vlaina-color-text-primary)]"
+        className="pointer-events-auto absolute right-2 top-1/2 flex size-[var(--vlaina-size-24px)] -translate-y-1/2 cursor-alias items-center justify-center rounded-[var(--vlaina-radius-circle)] border border-[var(--vlaina-color-whiteboard-ruler-border)] bg-[var(--vlaina-color-floating-surface)] text-[var(--vlaina-color-text-secondary)] hover:text-[var(--vlaina-color-text-primary)]"
         onPointerDown={(event) => onPointerDown(event, 'rotate')}
-        style={{ pointerEvents: 'auto' }}
       >
         <Icon name="common.refresh" size={themeIconTokens.sizeXs} />
       </button>

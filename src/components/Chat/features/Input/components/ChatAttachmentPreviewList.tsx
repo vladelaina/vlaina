@@ -38,7 +38,7 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
     <>
       <div
         data-chat-attachment-preview-list="true"
-        className="max-h-[min(10rem,38vh)] overflow-y-auto overflow-x-hidden px-1 pt-4 pb-1 scrollbar-none sm:px-4"
+        className="max-h-[var(--vlaina-height-chat-attachment-preview-max)] overflow-y-auto overflow-x-hidden px-1 pt-4 pb-1 scrollbar-none sm:px-4"
       >
         <div className="flex w-full min-w-0 flex-wrap content-start items-start gap-2">
           {attachments.map((attachment) => (
@@ -67,8 +67,7 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
                 </>
               ) : (
                 <span
-                  className={chatComposerFileAttachmentTokenClass}
-                  style={{ maxWidth: 'min(16rem, calc(100% - 0.5rem))' }}
+                  className={`${chatComposerFileAttachmentTokenClass} max-w-[var(--vlaina-width-chat-file-attachment-max)]`}
                   data-chat-file-attachment-token="true"
                   data-no-focus-input="true"
                 >

@@ -206,8 +206,8 @@
   .ProseMirror-selectednode,
   .editor-native-selected-textlike
 ) .footnote-def {
-  --vlaina-block-selection-fill-top: 0px !important;
-  --vlaina-block-selection-fill-bottom: 0px !important;
+  --vlaina-block-selection-fill-top: var(--vlaina-space-0) !important;
+  --vlaina-block-selection-fill-bottom: var(--vlaina-space-0) !important;
 }
 
 .milkdown .footnote-def:is(
@@ -354,7 +354,7 @@
 
 .milkdown .mermaid-block[data-mermaid-diagram='gantt'] svg {
   flex: 0 0 auto;
-  width: 1200px;
+  width: var(--vlaina-size-1200px);
   max-width: none;
   height: auto;
 }

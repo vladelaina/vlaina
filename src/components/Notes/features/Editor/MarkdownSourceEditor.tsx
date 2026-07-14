@@ -7,7 +7,7 @@ import {
   flushPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from '@/stores/notes/pendingEditorMarkdown';
-import { themeEditorLayoutTokens } from '@/styles/themeTokens';
+import { themeEditorLayoutTokens, themeImageBlockStyleTokens } from '@/styles/themeTokens';
 import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
 
 const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
@@ -116,7 +116,7 @@ export function MarkdownSourceEditor({
       return;
     }
 
-    textarea.style.height = 'auto';
+    textarea.style.height = themeImageBlockStyleTokens.heightAuto;
     textarea.style.height = `${Math.max(textarea.scrollHeight, textarea.clientHeight)}px`;
   }, []);
 

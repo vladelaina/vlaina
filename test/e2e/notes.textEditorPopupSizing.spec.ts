@@ -134,7 +134,7 @@ test.describe('notes math and Mermaid popup sizing', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const installedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      const installedTheme = await installReferenceTyporaTheme(page, 'phycat-sky.css');
       console.info('[notes-popup-sizing-theme]', installedTheme);
 
       await openMarkdownFixture(page, {

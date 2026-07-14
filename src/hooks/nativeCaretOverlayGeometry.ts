@@ -211,7 +211,7 @@ function createCaretMarker(control: TextControl, lineHeight: number): HTMLSpanEl
     marker.style.padding = themeDomStyleTokens.sizeZero;
     marker.style.overflow = themeTextAreaTokens.overflowHidden;
     marker.style.letterSpacing = themeDomStyleTokens.sizeZero;
-    marker.style.verticalAlign = 'baseline';
+    marker.style.verticalAlign = themeRenderingTokens.verticalAlignBaseline;
     return marker;
   }
 

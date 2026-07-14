@@ -4,13 +4,13 @@ import { isVerticalNotesSplit, type NotesSplitDirection } from './notesSplitLayo
 function getDropOverlayClass(direction: NotesSplitDirection): string {
   switch (direction) {
     case 'left':
-      return 'bottom-[var(--vlaina-space-12px)] left-[var(--vlaina-space-12px)] top-[var(--vlaina-space-12px)] w-[calc(50%_-_var(--vlaina-space-18px))]';
+      return 'bottom-[var(--vlaina-space-12px)] left-[var(--vlaina-space-12px)] top-[var(--vlaina-space-12px)] w-[var(--vlaina-size-split-drop-half)]';
     case 'right':
-      return 'bottom-[var(--vlaina-space-12px)] right-[var(--vlaina-space-12px)] top-[var(--vlaina-space-12px)] w-[calc(50%_-_var(--vlaina-space-18px))]';
+      return 'bottom-[var(--vlaina-space-12px)] right-[var(--vlaina-space-12px)] top-[var(--vlaina-space-12px)] w-[var(--vlaina-size-split-drop-half)]';
     case 'top':
-      return 'left-[var(--vlaina-space-12px)] right-[var(--vlaina-space-12px)] top-[var(--vlaina-space-12px)] h-[calc(50%_-_var(--vlaina-space-18px))]';
+      return 'left-[var(--vlaina-space-12px)] right-[var(--vlaina-space-12px)] top-[var(--vlaina-space-12px)] h-[var(--vlaina-size-split-drop-half)]';
     case 'bottom':
-      return 'bottom-[var(--vlaina-space-12px)] left-[var(--vlaina-space-12px)] right-[var(--vlaina-space-12px)] h-[calc(50%_-_var(--vlaina-space-18px))]';
+      return 'bottom-[var(--vlaina-space-12px)] left-[var(--vlaina-space-12px)] right-[var(--vlaina-space-12px)] h-[var(--vlaina-size-split-drop-half)]';
   }
 }
 

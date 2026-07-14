@@ -200,7 +200,7 @@ export function ChannelObject({
         dragOver
           ? 'border-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-md)]'
           : 'border-transparent',
-        dragging && 'opacity-0'
+        dragging && 'opacity-[var(--vlaina-opacity-0)]'
       )}
     >
       <div className="block w-full px-5 pb-3 pt-5 text-left">

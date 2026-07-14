@@ -43,7 +43,7 @@ function ErrorWindowButton({
 
 function ErrorMacOSTrafficLightControls() {
   const buttonClass =
-    'app-no-drag h-3 w-3 rounded-full border border-black/15 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.35)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-accent-focus-ring)]';
+    'app-no-drag h-3 w-3 rounded-full border border-black/15 shadow-[var(--vlaina-shadow-macos-traffic-light)] transition-transform hover:scale-[var(--vlaina-scale-105)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-accent-focus-ring)]';
 
   return (
     <div className="absolute left-3 top-0 z-[var(--vlaina-z-60)] flex h-10 items-center gap-2">
@@ -51,19 +51,19 @@ function ErrorMacOSTrafficLightControls() {
         type="button"
         aria-label={safeTranslate('common.closeWindow')}
         onClick={() => void getElectronBridge()?.window?.close?.()}
-        className={`${buttonClass} bg-[#ff5f57]`}
+        className={`${buttonClass} bg-[var(--vlaina-color-macos-close)]`}
       />
       <button
         type="button"
         aria-label={safeTranslate('common.minimizeWindow')}
         onClick={() => void getElectronBridge()?.window?.minimize?.()}
-        className={`${buttonClass} bg-[#febc2e]`}
+        className={`${buttonClass} bg-[var(--vlaina-color-macos-minimize)]`}
       />
       <button
         type="button"
         aria-label={safeTranslate('common.maximizeWindow')}
         onClick={() => void getElectronBridge()?.window?.toggleMaximize?.()}
-        className={`${buttonClass} bg-[#28c840]`}
+        className={`${buttonClass} bg-[var(--vlaina-color-macos-maximize)]`}
       />
     </div>
   );

@@ -152,7 +152,7 @@
 
 .slash-emoji-inline-preview-empty-block {
   position: relative;
-  top: calc(1lh - 1em);
+  top: var(--vlaina-slash-menu-marker-offset);
 }
 
 .editor-preview-context-menu {
