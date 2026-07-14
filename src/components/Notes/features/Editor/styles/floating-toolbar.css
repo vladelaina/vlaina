@@ -235,22 +235,35 @@
 .milkdown .ProseMirror .editor-block-selected :is(
   .floating-toolbar-inner,
   .toolbar-tooltip
-) .toolbar-btn.active {
+) :is(.toolbar-btn:hover, .toolbar-btn:hover *) {
+  color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;
+}
+
+.milkdown .ProseMirror .editor-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) :is(.toolbar-btn.active:not([data-action="color"]), .toolbar-btn.active:not([data-action="color"]) *) {
   color: var(--vlaina-accent) !important;
 }
 
 .milkdown .ProseMirror .editor-block-selected :is(
   .floating-toolbar-inner,
   .toolbar-tooltip
-) .toolbar-btn:hover[class*="status-danger"] {
+) :is(
+  .toolbar-btn[data-action="color"].active,
+  .toolbar-btn[data-action="color"].active *
+) {
+  color: var(--vlaina-text-primary) !important;
+}
+
+.milkdown .ProseMirror .editor-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) :is(
+  .toolbar-btn:hover[class*="status-danger"],
+  .toolbar-btn:hover[class*="status-danger"] *
+) {
   color: var(--vlaina-color-status-danger-fg) !important;
-}
-
-.milkdown .ProseMirror .editor-block-selected :is(
-  .floating-toolbar-inner,
-  .toolbar-tooltip
-) .toolbar-btn[data-action="copy"].active {
-  color: var(--vlaina-accent) !important;
 }
 
 .dark .milkdown .ProseMirror .editor-block-selected :is(
@@ -267,14 +280,34 @@
 .dark .milkdown .ProseMirror .editor-block-selected :is(
   .floating-toolbar-inner,
   .toolbar-tooltip
-) .toolbar-btn.active {
+) :is(.toolbar-btn:hover, .toolbar-btn:hover *) {
+  color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;
+}
+
+.dark .milkdown .ProseMirror .editor-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) :is(.toolbar-btn.active:not([data-action="color"]), .toolbar-btn.active:not([data-action="color"]) *) {
   color: var(--vlaina-accent) !important;
 }
 
 .dark .milkdown .ProseMirror .editor-block-selected :is(
   .floating-toolbar-inner,
   .toolbar-tooltip
-) .toolbar-btn:hover[class*="status-danger"] {
+) :is(
+  .toolbar-btn[data-action="color"].active,
+  .toolbar-btn[data-action="color"].active *
+) {
+  color: var(--vlaina-text-primary) !important;
+}
+
+.dark .milkdown .ProseMirror .editor-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) :is(
+  .toolbar-btn:hover[class*="status-danger"],
+  .toolbar-btn:hover[class*="status-danger"] *
+) {
   color: var(--vlaina-color-status-danger-fg) !important;
 }
 

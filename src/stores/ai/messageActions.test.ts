@@ -148,6 +148,24 @@ describe('message actions API transcript handling', () => {
     expect(useUnifiedStore.getState().data.ai?.messages['session-1']).toEqual([assistantMessage]);
   });
 
+  it('updates a streaming tail message without scanning historical message ids', () => {
+    const historicalMessage = createUserMessage('historical', 'old prompt');
+    Object.defineProperty(historicalMessage, 'id', {
+      configurable: true,
+      get: () => {
+        throw new Error('Historical message id should not be scanned');
+      },
+    });
+    const assistantMessage = createAssistantMessage();
+    seedMessages([historicalMessage, assistantMessage]);
+
+    createMessageActions().updateMessage('session-1', 'assistant-1', 'streamed answer');
+
+    const messages = useUnifiedStore.getState().data.ai!.messages['session-1'];
+    expect(messages[0]).toBe(historicalMessage);
+    expect(messages[1]?.content).toBe('streamed answer');
+  });
+
   it('restores the selected version transcript when switching versions', () => {
     seedMessages([createAssistantMessage()]);
     const actions = createMessageActions();

@@ -88,7 +88,29 @@ function stripInlineHtmlTags(line: string): string {
   return parts.join('');
 }
 
+function needsMarkdownPlainTextConversion(line: string): boolean {
+  return line.includes('\\')
+    || line.includes('`')
+    || line.includes('*')
+    || line.includes('_')
+    || line.includes('~')
+    || line.includes('^')
+    || line.includes('==')
+    || line.includes('++')
+    || line.includes('<')
+    || line.includes('>')
+    || line.includes('&')
+    || line.includes('[')
+    || line.includes('#')
+    || line.includes('|')
+    || /^\s*(?:[-+]\s|\d+\.\s)/u.test(line);
+}
+
 function toPlainTextLine(line: string): string {
+  if (!needsMarkdownPlainTextConversion(line)) {
+    return line.replace(/\s+/g, ' ').trim();
+  }
+
   return decodeMarkdownHtmlText(stripMarkdownInline(stripInlineHtmlTags(line), { preserveImageAlt: false }))
     .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, '$2')
     .replace(/\[\[([^\]]+)\]\]/g, '$1')
@@ -158,6 +180,9 @@ export function getNotesSidebarContentMatches(
   lowerQuery: string,
 ): NotesSidebarContentMatch[] {
   if (!content || !lowerQuery) {
+    return [];
+  }
+  if (!content.includes('&') && !content.toLocaleLowerCase().includes(lowerQuery)) {
     return [];
   }
 

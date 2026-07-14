@@ -125,6 +125,47 @@ describe('workspace document actions', () => {
     mocks.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
   });
 
+  it('keeps the regular note cache stable while editing the current note', () => {
+    const noteContentsCache = new Map([
+      ['alpha.md', { content: '# Saved alpha', modifiedAt: 1 }],
+      ...Array.from({ length: 250 }, (_value, index) => [
+        `cached-${index}.md`,
+        { content: `Cached ${index}`, modifiedAt: index + 2 },
+      ] as const),
+    ]);
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# Saved alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache,
+    });
+
+    store.getState().updateContent('# Edited alpha');
+
+    expect(store.getState().currentNote?.content).toBe('# Edited alpha');
+    expect(store.getState().noteContentsCache).toBe(noteContentsCache);
+    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('# Saved alpha');
+    expect(store.getState().openTabs[0]?.isDirty).toBe(true);
+  });
+
+  it('keeps draft cache content live while editing', () => {
+    const noteContentsCache = new Map([
+      ['draft:blank', { content: '', modifiedAt: null }],
+    ]);
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: '' },
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache,
+    });
+
+    store.getState().updateContent('Draft body');
+
+    expect(store.getState().noteContentsCache).not.toBe(noteContentsCache);
+    expect(store.getState().noteContentsCache.get('draft:blank')?.content).toBe('Draft body');
+  });
+
   it('keeps the active tab dirty when a draft save fails after the file write step', async () => {
     mocks.persistWorkspaceSnapshot.mockImplementation(() => {
       throw new Error('snapshot failed');

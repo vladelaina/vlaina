@@ -1,4 +1,4 @@
-import { Suspense, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Suspense, useCallback, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import type { NoteMetadataEntry } from '@/stores/notes/types';
@@ -21,6 +21,8 @@ import type {
 import { MarkdownEditor } from './notesViewLazyComponents';
 import type { NotesSplitDropTarget } from './notesViewSplitTypes';
 
+const EMPTY_NOTE_CONTENTS_CACHE: ReturnType<typeof useNotesStore.getState>['noteContentsCache'] = new Map();
+
 export function NotesViewSplitContent({
   active,
   activeSplitPreviewLeafId,
@@ -32,7 +34,6 @@ export function NotesViewSplitContent({
   closeActiveSplitPane,
   closePrimaryPreviewPane,
   closeSplitPane,
-  currentNoteContent,
   currentNoteMetadata,
   currentNotePath,
   currentNoteStarred,
@@ -40,7 +41,6 @@ export function NotesViewSplitContent({
   getDisplayName,
   hasSplitPanes,
   isPrimaryContentReady,
-  noteContentsCache,
   notesPath,
   onPrimaryContentReady,
   primaryPreviewLeaf,
@@ -58,7 +58,6 @@ export function NotesViewSplitContent({
   closeActiveSplitPane: () => void;
   closePrimaryPreviewPane: () => void;
   closeSplitPane: (leafId: string) => void;
-  currentNoteContent: string;
   currentNoteMetadata: NoteMetadataEntry | undefined;
   currentNotePath: string | undefined;
   currentNoteStarred: boolean;
@@ -66,7 +65,6 @@ export function NotesViewSplitContent({
   getDisplayName: ReturnType<typeof useNotesStore.getState>['getDisplayName'];
   hasSplitPanes: boolean;
   isPrimaryContentReady: boolean;
-  noteContentsCache: ReturnType<typeof useNotesStore.getState>['noteContentsCache'];
   notesPath: string;
   onPrimaryContentReady: () => void;
   primaryPreviewLeaf: NotesSplitPreviewLeaf | null;
@@ -74,6 +72,24 @@ export function NotesViewSplitContent({
   splitPaneTree: NotesSplitPaneTree;
   toggleStarred: ReturnType<typeof useNotesStore.getState>['toggleStarred'];
 }) {
+  const currentNoteContent = useNotesStore(
+    useCallback((state) => {
+      const currentNote = state.currentNote;
+      if (!hasSplitPanes || !currentNotePath || !currentNote || currentNote.path !== currentNotePath) {
+        return '';
+      }
+      return currentNote.content;
+    }, [currentNotePath, hasSplitPanes]),
+  );
+  const noteContentsCache = useNotesStore(
+    useCallback((state) => (
+      hasSplitPanes ? state.noteContentsCache : EMPTY_NOTE_CONTENTS_CACHE
+    ), [hasSplitPanes]),
+  );
+  const getCurrentNoteContent = useCallback(() => {
+    const currentNote = useNotesStore.getState().currentNote;
+    return currentNote && currentNote.path === currentNotePath ? currentNote.content : '';
+  }, [currentNotePath]);
   const currentSplitPaneTitle = currentNotePath ? getDisplayName(currentNotePath) : '';
   const primaryEditorContent = (
     <div
@@ -113,7 +129,7 @@ export function NotesViewSplitContent({
             <NoteToolbarActions
               currentNotePath={currentNotePath}
               currentNoteTitle={currentSplitPaneTitle}
-              getCurrentNoteContent={() => currentNoteContent}
+              getCurrentNoteContent={getCurrentNoteContent}
               notesPath={notesPath}
               starred={currentNoteStarred}
               toggleStarred={toggleStarred}

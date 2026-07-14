@@ -43,6 +43,9 @@ export function useMessageListMeasurement({
   const measuredHeightsRafRef = useRef<number | null>(null);
   const pendingMeasuredHeightsRef = useRef(new Map<string, number>());
   const measuredHeightsRef = useRef(measuredHeights);
+  const renderedMessagesRef = useRef(renderedMessages);
+  const historicalMessagesRef = useRef<ChatMessage[]>([]);
+  const historicalMessagesRevisionRef = useRef(0);
   const lastStreamingMessageIdRef = useRef<string | null>(null);
   const measuredHeightContextRef = useRef({
     activeMeasuredMessageId: null as string | null,
@@ -52,8 +55,24 @@ export function useMessageListMeasurement({
     messageById: new Map<string, ChatMessage>(),
   });
   const messageById = renderedState.messageById;
+  if (isSessionActive) {
+    const historicalMessageCount = Math.max(0, renderedMessages.length - 1);
+    const previousHistoricalMessages = historicalMessagesRef.current;
+    let historicalMessagesChanged = previousHistoricalMessages.length !== historicalMessageCount;
+    for (let index = 0; !historicalMessagesChanged && index < historicalMessageCount; index += 1) {
+      historicalMessagesChanged = previousHistoricalMessages[index] !== renderedMessages[index];
+    }
+    if (historicalMessagesChanged) {
+      historicalMessagesRef.current = renderedMessages.slice(0, historicalMessageCount);
+      historicalMessagesRevisionRef.current += 1;
+    }
+  }
+  const measuredHeightRestoreTrigger = isSessionActive
+    ? `${renderedMessages.length}:${historicalMessagesRevisionRef.current}`
+    : renderedMessages;
 
   measuredHeightsRef.current = measuredHeights;
+  renderedMessagesRef.current = renderedMessages;
   lastStreamingMessageIdRef.current = lastStreamingMessageId;
 
   useEffect(() => {
@@ -73,7 +92,7 @@ export function useMessageListMeasurement({
     }
 
     setMeasuredHeights((current) => {
-      const restored = restoreCachedMeasuredHeights(renderedMessages, {
+      const restored = restoreCachedMeasuredHeights(renderedMessagesRef.current, {
         activeMessageId: activeMeasuredMessageId,
         cacheKey: chatId,
         containerWidth: layoutWidth,
@@ -81,7 +100,7 @@ export function useMessageListMeasurement({
       });
       return areMeasuredHeightsEqual(current, restored) ? current : restored;
     });
-  }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, renderedMessages]);
+  }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, measuredHeightRestoreTrigger]);
 
   const flushMeasuredHeights = useCallback(() => {
     measuredHeightsRafRef.current = null;

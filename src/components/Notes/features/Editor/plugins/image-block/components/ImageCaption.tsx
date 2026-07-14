@@ -106,7 +106,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
 
     return (
         <div className={cn(
-            "absolute bottom-2 mb-0 max-w-[var(--vlaina-width-full-minus-16px)] z-[var(--vlaina-z-60)] transition-all duration-[var(--vlaina-duration-200)] select-auto",
+            "absolute bottom-2 mb-0 max-w-[var(--vlaina-width-full-minus-16px)] z-[var(--vlaina-z-60)] transition-all duration-[var(--vlaina-duration-200)] select-none",
             align === 'left' ? "left-2" : "right-2",
             "floating-toolbar-inner image-caption-toolbar !rounded-[var(--vlaina-radius-26px)]",
             chatComposerPillSurfaceClass,
