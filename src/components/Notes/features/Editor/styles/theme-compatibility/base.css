@@ -4,79 +4,74 @@
 
 .milkdown-editor[data-markdown-compat-layer='external'][data-markdown-theme-platform='typora'][data-markdown-theme-color-scheme-mode='fixed-light'] {
   color-scheme: light;
-  --vlaina-bg-primary: #fcfcfc;
-  --vlaina-bg-secondary: #fbfbfc;
-  --vlaina-bg-tertiary: #f4f5f7;
-  --vlaina-bg-hover: rgba(0, 0, 0, 0.04);
-  --vlaina-hover: rgba(0, 0, 0, 0.04);
-  --vlaina-accent: #1e96eb;
-  --vlaina-accent-hover: #0c7fd9;
-  --vlaina-accent-soft: rgb(39 131 222 / 0.12);
-  --vlaina-selection-bg: #2781db;
-  --vlaina-text-primary: #2c2c2b;
-  --vlaina-text-secondary: #636363;
-  --vlaina-text-tertiary: #636363;
-  --vlaina-border: #e3e2e4;
-  --vlaina-code-block-background: #f5f5f5;
+  --vlaina-bg-primary: var(--vlaina-typora-fixed-light-bg-primary);
+  --vlaina-bg-secondary: var(--vlaina-typora-fixed-light-bg-secondary);
+  --vlaina-bg-tertiary: var(--vlaina-typora-fixed-light-bg-tertiary);
+  --vlaina-bg-hover: var(--vlaina-typora-fixed-light-hover);
+  --vlaina-hover: var(--vlaina-typora-fixed-light-hover);
+  --vlaina-accent: var(--vlaina-typora-fixed-light-accent);
+  --vlaina-accent-hover: var(--vlaina-typora-fixed-light-accent-hover);
+  --vlaina-accent-soft: var(--vlaina-typora-fixed-light-accent-soft);
+  --vlaina-selection-bg: var(--vlaina-typora-fixed-light-selection);
+  --vlaina-text-primary: var(--vlaina-typora-fixed-light-text-primary);
+  --vlaina-text-secondary: var(--vlaina-typora-fixed-light-text-secondary);
+  --vlaina-text-tertiary: var(--vlaina-typora-fixed-light-text-secondary);
+  --vlaina-border: var(--vlaina-typora-fixed-light-border);
+  --vlaina-code-block-background: var(--vlaina-typora-fixed-light-code-block-bg);
   --vlaina-code-inline-background: var(--vlaina-code-inline-background-light);
-  --vlaina-code-inline-foreground: #262626;
-  --vlaina-code-syntax-foreground: #24292e;
-  --vlaina-code-syntax-muted: #6a737d;
-  --vlaina-code-syntax-keyword: #d73a49;
-  --vlaina-code-syntax-name: #6f42c1;
-  --vlaina-code-syntax-function: #6f42c1;
-  --vlaina-code-syntax-constant: #005cc5;
-  --vlaina-code-syntax-type: #d73a49;
-  --vlaina-code-syntax-operator: #24292e;
-  --vlaina-code-syntax-string: #032f62;
-  --vlaina-code-syntax-variable: #e36209;
-  --vlaina-code-syntax-tag: #22863a;
-  --vlaina-code-syntax-markup: #005cc5;
-  --vlaina-code-syntax-list: #735c0f;
-  --vlaina-code-syntax-invalid: #b31d28;
+  --vlaina-code-inline-foreground: var(--vlaina-typora-fixed-light-code-inline-fg);
+  --vlaina-code-syntax-foreground: var(--vlaina-typora-fixed-light-code-syntax-fg);
+  --vlaina-code-syntax-muted: var(--vlaina-typora-fixed-light-code-syntax-muted);
+  --vlaina-code-syntax-keyword: var(--vlaina-typora-fixed-light-code-syntax-keyword);
+  --vlaina-code-syntax-name: var(--vlaina-typora-fixed-light-code-syntax-name);
+  --vlaina-code-syntax-function: var(--vlaina-typora-fixed-light-code-syntax-name);
+  --vlaina-code-syntax-constant: var(--vlaina-typora-fixed-light-code-syntax-constant);
+  --vlaina-code-syntax-type: var(--vlaina-typora-fixed-light-code-syntax-keyword);
+  --vlaina-code-syntax-operator: var(--vlaina-typora-fixed-light-code-syntax-fg);
+  --vlaina-code-syntax-string: var(--vlaina-typora-fixed-light-code-syntax-string);
+  --vlaina-code-syntax-variable: var(--vlaina-typora-fixed-light-code-syntax-variable);
+  --vlaina-code-syntax-tag: var(--vlaina-typora-fixed-light-code-syntax-tag);
+  --vlaina-code-syntax-markup: var(--vlaina-typora-fixed-light-code-syntax-constant);
+  --vlaina-code-syntax-list: var(--vlaina-typora-fixed-light-code-syntax-list);
+  --vlaina-code-syntax-invalid: var(--vlaina-typora-fixed-light-code-syntax-invalid);
   --vlaina-color-editor-inline-code-bg: var(--vlaina-code-inline-background);
-  --vlaina-color-mark-highlight-bg: #ccfbf1;
-  --vlaina-color-mark-highlight-fg: #115e59;
-  --vlaina-color-mark-highlight-surface-bg: #ccfbf138;
-  --vlaina-color-find-match-bg: rgba(255, 221, 87, 0.82);
-  --vlaina-color-find-match-active-bg: rgba(255, 176, 32, 0.96);
-  --vlaina-color-footnote-ref-bg: #f5f5f5;
+  --vlaina-color-mark-highlight-bg: var(--vlaina-typora-fixed-light-mark-bg);
+  --vlaina-color-mark-highlight-fg: var(--vlaina-typora-fixed-light-mark-fg);
+  --vlaina-color-mark-highlight-surface-bg: var(--vlaina-typora-fixed-light-mark-surface-bg);
+  --vlaina-color-find-match-bg: var(--vlaina-typora-fixed-light-find-bg);
+  --vlaina-color-find-match-active-bg: var(--vlaina-typora-fixed-light-find-active-bg);
+  --vlaina-color-footnote-ref-bg: var(--vlaina-typora-fixed-light-code-block-bg);
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] {
-  --bg-color: var(--db, var(--background-primary, var(--vlaina-bg-primary)));
-  --text-color: var(--df, var(--text-normal, var(--vlaina-text-primary)));
   --md-char-color: var(--df-a, var(--text-faint, var(--vlaina-text-tertiary)));
   --meta-content-color: var(--df-a, var(--text-muted, var(--vlaina-text-secondary)));
-  --primary-color: var(--a-c, var(--interactive-accent, var(--text-accent, var(--vlaina-accent))));
-  --select-text-bg-color: var(--v-selected-c, var(--text-selection, var(--vlaina-selection-bg)));
-  --monospace: var(--v-fm-code, var(--v-fm-code-local, var(--font-monospace, var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace))));
-  --bg-code: var(--d-cb, var(--code-bg, var(--code-background, var(--vlaina-code-block-background))));
-  --text-code: var(--df, var(--code-t, var(--code-normal, var(--vlaina-code-syntax-foreground))));
+  --bg-code: var(--d-cb, var(--code-bg, var(--code-block-bg, var(--code-background, var(--vlaina-code-block-background)))));
+  --text-code: var(--df, var(--code-t, var(--element-color-linecode, var(--code-normal, var(--vlaina-code-syntax-foreground)))));
   --typora-code-frame-bg: var(--std-code-sd, var(--background-modifier-border, var(--border-light, var(--background-secondary, transparent))));
-  --typora-code-editor-bg: var(--d-cb, var(--code-bg, var(--code-background, var(--background-primary, transparent))));
-  --typora-code-border: var(--std-code-sd, var(--pn-c-a, var(--background-modifier-border, var(--vlaina-border))));
-  --typora-code-line-hover-bg: var(--bq-bg, var(--background-modifier-hover, transparent));
-  --typora-code-line-number-fg: var(--df-a, var(--text-muted, var(--vlaina-code-syntax-muted)));
-  --bg-tertiary: var(--pn-c, var(--background-secondary-alt, var(--vlaina-bg-tertiary)));
-  --border-light: var(--pn-c-a, var(--background-modifier-border, var(--vlaina-border)));
-  --border-medium: var(--pn-c-a, var(--background-modifier-border, var(--vlaina-text-tertiary)));
-  --background-primary: var(--db, var(--vlaina-bg-primary));
-  --background-primary-alt: var(--pn-c, var(--vlaina-bg-secondary));
-  --background-secondary: var(--pn-c, var(--vlaina-bg-secondary));
-  --background-secondary-alt: var(--pn-c, var(--vlaina-bg-tertiary));
-  --background-modifier-border: var(--pn-c-a, var(--vlaina-border));
-  --background-modifier-hover: var(--bq-bg-fd, var(--vlaina-hover));
-  --background-modifier-active: var(--v-selected-c, var(--vlaina-accent-soft));
-  --background-modifier-form-field: var(--db, var(--vlaina-bg-secondary));
-  --text-normal: var(--df, var(--vlaina-text-primary));
-  --text-muted: var(--df-a, var(--vlaina-text-secondary));
-  --text-faint: var(--df-a, var(--vlaina-text-tertiary));
-  --text-accent: var(--a-c, var(--vlaina-accent));
-  --text-accent-hover: var(--a-o-c, var(--vlaina-accent-hover));
-  --text-selection: var(--v-selected-c, var(--vlaina-selection-bg));
-  --interactive-accent: var(--a-c, var(--vlaina-accent));
-  --interactive-accent-hover: var(--a-o-c, var(--vlaina-accent-hover));
+  --typora-code-editor-bg: var(--d-cb, var(--code-bg, var(--code-block-bg, var(--background-primary, transparent))));
+  --typora-code-border: var(--std-code-sd, var(--pn-c-a, var(--border-color, var(--background-modifier-border, var(--vlaina-border)))));
+  --typora-code-line-hover-bg: var(--bq-bg, var(--item-hover-bg-color, var(--background-modifier-hover, transparent)));
+  --typora-code-line-number-fg: var(--df-a, var(--text-color-secondary, var(--text-muted, var(--vlaina-code-syntax-muted))));
+  --bg-tertiary: var(--pn-c, var(--element-color-so-shallow, var(--background-secondary-alt, var(--vlaina-bg-tertiary))));
+  --border-light: var(--pn-c-a, var(--border-color, var(--element-color-shallow, var(--background-modifier-border, var(--vlaina-border)))));
+  --border-medium: var(--pn-c-a, var(--border-color, var(--element-color-shallow, var(--background-modifier-border, var(--vlaina-text-tertiary)))));
+  --background-primary: var(--db, var(--bg-color, var(--vlaina-bg-primary)));
+  --background-primary-alt: var(--pn-c, var(--element-color-soo-shallow, var(--vlaina-bg-secondary)));
+  --background-secondary: var(--pn-c, var(--element-color-soo-shallow, var(--code-block-bg, var(--vlaina-bg-secondary))));
+  --background-secondary-alt: var(--pn-c, var(--element-color-so-shallow, var(--vlaina-bg-tertiary)));
+  --background-modifier-border: var(--pn-c-a, var(--border-color, var(--element-color-shallow, var(--vlaina-border))));
+  --background-modifier-hover: var(--bq-bg-fd, var(--item-hover-bg-color, var(--element-color-soo-shallow, var(--vlaina-hover))));
+  --background-modifier-active: var(--v-selected-c, var(--active-file-bg-color, var(--select-text-bg-color, var(--vlaina-accent-soft))));
+  --background-modifier-form-field: var(--db, var(--bg-color, var(--vlaina-bg-secondary)));
+  --text-normal: var(--df, var(--text-color, var(--appui-color-text, var(--vlaina-text-primary))));
+  --text-muted: var(--df-a, var(--text-color-secondary, var(--vlaina-text-secondary)));
+  --text-faint: var(--df-a, var(--text-color-secondary, var(--vlaina-text-tertiary)));
+  --text-accent: var(--a-c, var(--primary-color, var(--appui-color, var(--element-color, var(--vlaina-accent)))));
+  --text-accent-hover: var(--a-o-c, var(--element-color-deep, var(--vlaina-accent-hover)));
+  --text-selection: var(--v-selected-c, var(--select-text-bg-color, var(--vlaina-selection-bg)));
+  --interactive-accent: var(--a-c, var(--primary-color, var(--appui-color, var(--element-color, var(--vlaina-accent)))));
+  --interactive-accent-hover: var(--a-o-c, var(--element-color-deep, var(--vlaina-accent-hover)));
   --code-background: var(--typora-code-editor-bg, var(--code-bg, var(--vlaina-code-block-background)));
   --code-normal: var(--text-code, var(--code-t, var(--vlaina-code-syntax-foreground)));
   --code-size: var(--vlaina-font-0875rem);
@@ -120,7 +115,6 @@
 .milkdown-editor[data-markdown-compat-layer='external'] .markdown-preview-view {
   color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
   background: transparent;
-  font-family: var(--v-fm-text, var(--font-text, var(--font-sans)));
   font-size: var(--vlaina-markdown-font-size, inherit);
 }
 
@@ -201,8 +195,8 @@
 .milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-line,
 .milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-lazy-preview,
 .milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-lazy-line-numbers {
-  background: var(--typora-code-editor-bg) !important;
-  background-color: var(--typora-code-editor-bg) !important;
+  background: var(--typora-code-editor-bg);
+  background-color: var(--typora-code-editor-bg);
   color: var(--text-code, var(--code-normal, var(--vlaina-code-syntax-foreground)));
   font-family: var(--v-fm-code, var(--monospace, var(--font-monospace, var(--font-mono))));
 }

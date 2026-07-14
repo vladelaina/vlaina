@@ -8,6 +8,14 @@ export function normalizeContentElementAliases(selector: string): string {
 
   let result = selector
     .replace(
+      /(^|[\s>+~,(])h([1-6])\.md-heading(?=$|[\s>+~):.#\[])/gi,
+      (_match, prefix: string, level: string) => `${prefix}h${level}`
+    )
+    .replace(
+      /(^|[\s>+~,(])\.md-heading(?=$|[\s>+~):.#\[])/gi,
+      (_match, prefix: string) => `${prefix}${stash(':is(h1, h2, h3, h4, h5, h6)')}`
+    )
+    .replace(
       /(^|[\s>+~,(])figure\.table-figure(?=$|[\s>+~):.#\[])/gi,
       (_match, prefix: string) =>
         `${prefix}${stash(':is(figure.table-figure, .milkdown-table-block.table-figure)')}`

@@ -270,6 +270,7 @@ export interface E2EBridge {
     imageNotesRootSubfolderName: string;
     imageFilenameFormat: string;
     notesChatPanelCollapsed: boolean;
+    colorMode: 'system' | 'light' | 'dark';
   };
   setUIPreferences(input: {
     fontSize?: number;
@@ -278,6 +279,7 @@ export interface E2EBridge {
     imageStorageMode?: 'notesRoot' | 'notesRootSubfolder' | 'currentFolder' | 'subfolder';
     imageSubfolderName?: string;
     notesChatPanelCollapsed?: boolean;
+    colorMode?: 'system' | 'light' | 'dark';
   }): Promise<void>;
   getManagedBudgetState(): Pick<
     ReturnType<typeof useManagedAIStore.getState>,

@@ -16,15 +16,17 @@ import {
   upsertImportedThemePostBridgeStyle,
   upsertImportedThemeStyle,
 } from './markdownThemeStyleElements';
+import { useEffectiveImportedMarkdownThemeId } from './markdownThemePreview';
 
 export function MarkdownThemeLoader() {
   const importedThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
+  const effectiveThemeId = useEffectiveImportedMarkdownThemeId(importedThemeId);
   const setMarkdownImportedThemeId = useUnifiedStore((state) => state.setMarkdownImportedThemeId);
 
   useEffect(() => {
     let cancelled = false;
 
-    if (!importedThemeId) {
+    if (!effectiveThemeId) {
       removeImportedThemeStyles();
       return () => {
         cancelled = true;
@@ -33,11 +35,13 @@ export function MarkdownThemeLoader() {
 
     preloadMarkdownThemeCompiler();
 
-    void readImportedMarkdownTheme(importedThemeId).then(async (theme) => {
+    void readImportedMarkdownTheme(effectiveThemeId).then(async (theme) => {
       if (cancelled) return;
       if (!theme) {
         removeImportedThemeStyles();
-        setMarkdownImportedThemeId(null);
+        if (effectiveThemeId === importedThemeId) {
+          setMarkdownImportedThemeId(null);
+        }
         return;
       }
 
@@ -50,6 +54,7 @@ export function MarkdownThemeLoader() {
       );
       upsertImportedAppThemeStyle(
         compiled.id,
+        compiled.platform,
         compiled.appCss
       );
       upsertImportedThemePostBridgeStyle(
@@ -65,7 +70,7 @@ export function MarkdownThemeLoader() {
     return () => {
       cancelled = true;
     };
-  }, [importedThemeId, setMarkdownImportedThemeId]);
+  }, [effectiveThemeId, importedThemeId, setMarkdownImportedThemeId]);
 
   return null;
 }

@@ -77,8 +77,21 @@ function collectDefinedCssVariables() {
 function collectUndefinedThemeReferences() {
   const defined = collectDefinedCssVariables();
   const runtimeProtocolVars = new Set([
+    '--vlaina-bg-color-mark-bg',
     '--vlaina-hero-icon-header-size',
+    '--vlaina-imported-app-background',
+    '--vlaina-imported-app-background-attachment',
+    '--vlaina-imported-app-background-clip',
+    '--vlaina-imported-app-background-layer',
+    '--vlaina-imported-app-background-origin',
+    '--vlaina-imported-app-background-position',
+    '--vlaina-imported-app-background-repeat',
+    '--vlaina-imported-app-background-size',
+    '--vlaina-imported-app-document-background-image',
     '--vlaina-math-editor-width',
+    '--vlaina-text-editor-popup-width',
+    '--vlaina-toolbar-preview-bg-color',
+    '--vlaina-toolbar-preview-text-color',
     '--vlaina-toolbar-ai-review-result-predicted-height',
     '--vlaina-toolbar-ai-review-width',
   ]);
@@ -136,13 +149,27 @@ const languageDetectorAllowlist = [
   'src/components/Notes/features/Editor/utils/languageDetection/detectors/',
 ];
 
+function isRawColorAllowlisted({ file, source, match, index }) {
+  if (rawColorAllowlist.has(file) || languageDetectorAllowlist.some((prefix) => file.startsWith(prefix))) {
+    return true;
+  }
+
+  const end = index + match[0].length;
+  return match[0].startsWith('#') && /^[wh]$/i.test(source[end] ?? '');
+}
+
+function isCentralizedInlineStyle({ match }) {
+  return match[0].includes('var(--vlaina-');
+}
+
 const markdownThemeCompatibilityCssFile = 'src/components/Notes/features/Editor/styles/theme-compatibility.css';
+const markdownThemeCompatibilityCssPrefix = 'src/components/Notes/features/Editor/styles/theme-compatibility/';
 const markdownThemeCompatibilityRuntimeCustomProperties = new Set([
   '--callout-color',
 ]);
 
 function isMarkdownThemeCompatibilityCustomPropertyDefinition({ file, match }) {
-  return file === markdownThemeCompatibilityCssFile
+  return (file === markdownThemeCompatibilityCssFile || file.startsWith(markdownThemeCompatibilityCssPrefix))
     && typeof match?.[0] === 'string'
     && /^\s*--[A-Za-z0-9_-]+\s*:/.test(match[0]);
 }
@@ -179,6 +206,7 @@ const checks = [
     name: 'Inline style string literals should use centralized tokens',
     fileFilter: (file) => isScript(file),
     pattern: /\.style\.[A-Za-z]+\s*=\s*'[^']+'|style=\{\{[^\n]*'[^']+'/g,
+    ignoreMatch: isCentralizedInlineStyle,
   },
   {
     name: 'SVG protocol constants should use theme icon/style tokens',
@@ -199,7 +227,7 @@ const checks = [
     name: 'Raw colors should live in themeTokens or non-theme parser/fixture code',
     fileFilter: (file) => isScript(file),
     pattern: /#[0-9A-Fa-f]{3,8}|rgba?\(|hsla?\(/g,
-    ignoreMatch: ({ file }) => rawColorAllowlist.has(file) || languageDetectorAllowlist.some((prefix) => file.startsWith(prefix)),
+    ignoreMatch: isRawColorAllowlisted,
   },
   {
     name: 'CSS appearance declarations outside theme.css should not introduce raw values',

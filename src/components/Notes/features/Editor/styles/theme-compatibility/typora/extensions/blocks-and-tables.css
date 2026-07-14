@@ -1,34 +1,34 @@
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert) {
   border-width: calc(var(--vlaina-border-width-1) * 2);
   padding-block-start: 0.625em;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert .callout-title {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert .callout-title) {
   color: var(--db, var(--typora-page-bg));
   font: condensed var(--v-fw-toc, var(--v-fw-bd, bold)) 1em/1 var(--v-fm-toc, var(--typora-tag-font));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-note {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-note) {
   background: linear-gradient(180deg, var(--ac-bu, var(--typora-alert-accent)) 2.625em, var(--ac-bu-a, var(--typora-block-bg)) 2.625em, var(--ac-bu-fd, var(--typora-block-bg)));
   border-color: var(--ac-bu, var(--typora-block-border));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-tip {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-tip) {
   background: linear-gradient(180deg, var(--ac-gn, var(--typora-alert-accent)) 2.625em, var(--ac-gn-a, var(--typora-block-bg)) 2.625em, var(--ac-gn-fd, var(--typora-block-bg)));
   border-color: var(--ac-gn, var(--typora-block-border));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-important {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-important) {
   background: linear-gradient(180deg, var(--ac-pu, var(--typora-alert-accent)) 2.625em, var(--ac-pu-a, var(--typora-block-bg)) 2.625em, var(--ac-pu-fd, var(--typora-block-bg)));
   border-color: var(--ac-pu, var(--typora-block-border));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-warning {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-warning) {
   background: linear-gradient(180deg, var(--ac-og, var(--typora-alert-accent)) 2.625em, var(--ac-og-a, var(--typora-block-bg)) 2.625em, var(--ac-og-fd, var(--typora-block-bg)));
   border-color: var(--ac-og, var(--typora-block-border));
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-caution {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write .callout.md-alert-caution) {
   background: linear-gradient(180deg, var(--ac-rd, var(--typora-alert-accent)) 2.625em, var(--ac-rd-a, var(--typora-block-bg)) 2.625em, var(--ac-rd-fd, var(--typora-block-bg)));
   border-color: var(--ac-rd, var(--typora-block-border));
 }

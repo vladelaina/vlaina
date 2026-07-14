@@ -1,4 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import {
+  clearMarkdownThemePreview,
+  setMarkdownThemePreviewId,
+} from '@/components/markdown-theme/markdownThemePreview';
 import { Icon } from '@/components/ui/icons';
 import type { IconName } from '@/components/ui/icons';
 import {
@@ -17,6 +22,7 @@ import {
 } from '../../styles';
 
 export type ColorMode = 'system' | 'light' | 'dark';
+const THEME_PREVIEW_DELAY_MS = 80;
 
 const COLOR_MODE_OPTIONS = [
   {
@@ -92,16 +98,46 @@ function ThemeDropdown({
   onThemePreload,
 }: ThemeDropdownProps) {
   const { t } = useI18n();
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTheme = importedThemeId
     ? importedThemes.find((theme) => theme.id === importedThemeId) ?? null
     : null;
   const activeThemeName = activeTheme?.name ?? t('settings.appearance.theme.default');
+
+  const cancelScheduledPreview = () => {
+    if (previewTimerRef.current === null) return;
+    clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = null;
+  };
+
+  const schedulePreview = (themeId: string | null) => {
+    cancelScheduledPreview();
+    previewTimerRef.current = setTimeout(() => {
+      previewTimerRef.current = null;
+      if (themeId) onThemePreload(themeId);
+      setMarkdownThemePreviewId(themeId);
+    }, THEME_PREVIEW_DELAY_MS);
+  };
+
+  const clearPreview = () => {
+    cancelScheduledPreview();
+    clearMarkdownThemePreview();
+  };
+
+  useEffect(() => () => {
+    if (previewTimerRef.current !== null) {
+      clearTimeout(previewTimerRef.current);
+    }
+    clearMarkdownThemePreview();
+  }, []);
 
   return (
     <DropdownMenu onOpenChange={(open) => {
       if (open) {
         onWarmup();
         onRefresh();
+      } else {
+        clearPreview();
       }
     }}>
       <DropdownMenuTrigger asChild>
@@ -117,13 +153,19 @@ function ThemeDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
+        onPointerLeave={clearPreview}
         className={cn(
           settingsPillDropdownContentClassName,
           "min-w-[var(--vlaina-size-170px)]",
         )}
       >
         <DropdownMenuItem
-          onSelect={() => onChange(null)}
+          onFocus={() => schedulePreview(null)}
+          onPointerEnter={() => schedulePreview(null)}
+          onSelect={() => {
+            clearPreview();
+            onChange(null);
+          }}
           className={cn(
             settingsPillDropdownItemClassName,
             importedThemeId === null && settingsPillDropdownItemSelectedClassName
@@ -134,9 +176,12 @@ function ThemeDropdown({
         {importedThemes.map((theme) => (
           <DropdownMenuItem
             key={theme.id}
-            onFocus={() => onThemePreload(theme.id)}
-            onPointerEnter={() => onThemePreload(theme.id)}
-            onSelect={() => onChange(theme.id)}
+            onFocus={() => schedulePreview(theme.id)}
+            onPointerEnter={() => schedulePreview(theme.id)}
+            onSelect={() => {
+              clearPreview();
+              onChange(theme.id);
+            }}
             className={cn(
               settingsPillDropdownItemClassName,
               importedThemeId === theme.id && settingsPillDropdownItemSelectedClassName

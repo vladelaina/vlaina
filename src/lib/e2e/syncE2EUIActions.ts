@@ -1,4 +1,5 @@
 import { useUIStore } from '@/stores/uiSlice';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import type { E2EBridge } from './syncE2EBridgeTypes';
 
@@ -33,6 +34,7 @@ export function createSyncE2EUIActions(): UIBridgeActions {
         imageNotesRootSubfolderName,
         imageFilenameFormat,
         notesChatPanelCollapsed,
+        colorMode: useUnifiedStore.getState().data.settings.ui?.colorMode ?? 'system',
       };
     },
     setUIPreferences: async (input) => {
@@ -54,6 +56,9 @@ export function createSyncE2EUIActions(): UIBridgeActions {
       }
       if (typeof input.notesChatPanelCollapsed === 'boolean') {
         store.setNotesChatPanelCollapsed(input.notesChatPanelCollapsed);
+      }
+      if (input.colorMode) {
+        useUnifiedStore.getState().setColorMode(input.colorMode);
       }
     },
     getManagedBudgetState: () => {

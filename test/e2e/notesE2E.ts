@@ -399,12 +399,12 @@ export async function pruneNoteContentsCacheToOpenNotes(page: Page): Promise<voi
 
 export async function installReferenceTyporaTheme(
   page: Page,
-  cssFilename = 'vlook-fancy.css',
+  cssFilename = 'phycat-sky.css',
 ): Promise<ImportedMarkdownThemeInstallResult> {
   const themeDirectoryPath = await page.evaluate(() =>
     (window as any).__vlainaE2E.getImportedMarkdownThemesDirectoryPath()
   );
-  const referenceRoot = path.join(process.cwd(), '.reference', 'typora');
+  const referenceRoot = path.join(process.cwd(), '.reference', 'typora-theme-phycat');
   const referenceCssPath = path.join(referenceRoot, cssFilename);
   const hasReferenceCss = await fs.access(referenceCssPath).then(() => true, () => false);
   if (!hasReferenceCss) {
@@ -423,8 +423,8 @@ export async function installReferenceTyporaTheme(
     path.join(themeDirectoryPath, cssFilename),
   );
   await fs.cp(
-    path.join(referenceRoot, 'vlook'),
-    path.join(themeDirectoryPath, 'vlook'),
+    path.join(referenceRoot, 'phycat'),
+    path.join(themeDirectoryPath, 'phycat'),
     { recursive: true },
   ).catch(() => undefined);
 

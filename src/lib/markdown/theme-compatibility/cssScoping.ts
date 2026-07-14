@@ -19,6 +19,17 @@ const TYPORA_INLINE_WRAPPER_LAYOUT_PROPS = new Set([
   'line-height',
 ]);
 
+const TYPORA_TASK_INPUT_FACE_LAYOUT_PROPS = new Set([
+  'position',
+  'inset',
+  'inset-block',
+  'inset-inline',
+  'top',
+  'right',
+  'bottom',
+  'left',
+]);
+
 export function scopeImportedMarkdownThemeCss(
   css: string,
   platform: MarkdownThemePlatform,
@@ -47,11 +58,12 @@ function rewriteCssSelectors(
       : rule.selector;
     rule.selector = scopeSelectorList(rule.selector, scopeSelector);
     if (removeImportedPageChromeSelectors(rule)) return;
-    if (removeImportedRootPseudoElementSelectors(rule)) return;
+    if (removeImportedRootPseudoElementSelectors(rule, platform, sourceSelector)) return;
     if (platform === 'typora') {
       if (removeImportedInlineWrapperLayoutDeclarations(rule, sourceSelector)) return;
+      removeImportedTaskInputFaceLayoutDeclarations(rule, sourceSelector);
     }
-    removeImportedRootLayoutDeclarations(rule, platform);
+    removeImportedRootLayoutDeclarations(rule, platform, sourceSelector);
   });
 
   if (platform === 'typora') {
@@ -60,6 +72,28 @@ function rewriteCssSelectors(
     rewriteColorSchemeMediaQueries(root, scopeSelector);
   }
   return root.toString();
+}
+
+function removeImportedTaskInputFaceLayoutDeclarations(
+  rule: postcss.Rule,
+  sourceSelector: string
+): void {
+  const selectors = splitSelectorList(sourceSelector);
+  if (
+    selectors.length === 0 ||
+    !selectors.every((selector) => /\.task-list-item\s+input(?:\[[^\]]+\])*(?:::before|:before)\s*$/i.test(selector))
+  ) {
+    return;
+  }
+
+  rule.walkDecls((declaration) => {
+    const property = declaration.prop.toLowerCase();
+    const isRelativeFaceSize = (property === 'width' || property === 'height') &&
+      declaration.value.trim() === '100%';
+    if (TYPORA_TASK_INPUT_FACE_LAYOUT_PROPS.has(property) || isRelativeFaceSize) {
+      declaration.remove();
+    }
+  });
 }
 
 function removeImportedInlineWrapperLayoutDeclarations(
