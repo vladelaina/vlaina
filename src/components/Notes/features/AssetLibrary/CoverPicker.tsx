@@ -147,6 +147,7 @@ export function CoverPicker({
     }
 
     if (!assetPath) {
+      onPreview?.(null);
       return;
     }
 
