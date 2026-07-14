@@ -186,6 +186,42 @@ describe('textSelectionOverlayPlugin', () => {
     }
   });
 
+  it('does not consume pointer down on an atomic block while a text selection exists', async () => {
+    const view = await createEditor('hello world');
+    const atomicBlock = document.createElement('div');
+    atomicBlock.contentEditable = 'false';
+    view.dom.append(atomicBlock);
+    const originalElementFromPoint = document.elementFromPoint;
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => atomicBlock,
+    });
+
+    try {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+
+      const event = new MouseEvent('mousedown', {
+        button: 0,
+        bubbles: true,
+        cancelable: true,
+        clientX: 240,
+        clientY: 160,
+      });
+      atomicBlock.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(view.state.selection.from).toBe(1);
+      expect(view.state.selection.to).toBe(6);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+    } finally {
+      atomicBlock.remove();
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
   it('skips overlay decorations while native pointer selection is active', async () => {
     const view = await createEditor('hello world');
     const originalElementFromPoint = document.elementFromPoint;
@@ -550,8 +586,8 @@ describe('textSelectionOverlayPlugin', () => {
       });
       const mouseDownDispatched = view.dom.dispatchEvent(collapseMouseDown);
 
-      expect(mouseDownDispatched).toBe(false);
-      expect(collapseMouseDown.defaultPrevented).toBe(true);
+      expect(mouseDownDispatched).toBe(true);
+      expect(collapseMouseDown.defaultPrevented).toBe(false);
       expect(view.state.selection.empty).toBe(true);
       expect(view.state.selection.from).toBe(4);
 
@@ -615,8 +651,8 @@ describe('textSelectionOverlayPlugin', () => {
       });
       const mouseDownDispatched = view.dom.dispatchEvent(collapseMouseDown);
 
-      expect(mouseDownDispatched).toBe(false);
-      expect(collapseMouseDown.defaultPrevented).toBe(true);
+      expect(mouseDownDispatched).toBe(true);
+      expect(collapseMouseDown.defaultPrevented).toBe(false);
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
       expect(view.state.selection.empty).toBe(true);
       expect(view.state.selection.from).toBe(4);
@@ -661,12 +697,16 @@ describe('textSelectionOverlayPlugin', () => {
       document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      view.dom.dispatchEvent(new MouseEvent('mousedown', {
+      const dragMouseDown = new MouseEvent('mousedown', {
         bubbles: true,
         button: 0,
+        cancelable: true,
         clientX: 32,
         clientY: 12,
-      }));
+      });
+      view.dom.dispatchEvent(dragMouseDown);
+      expect(dragMouseDown.defaultPrevented).toBe(false);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 4, 9)));
       document.dispatchEvent(new MouseEvent('mousemove', {
         bubbles: true,
         button: 0,
@@ -682,9 +722,8 @@ describe('textSelectionOverlayPlugin', () => {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
       expect(view.state.selection.empty).toBe(false);
-      expect(view.state.selection.from).toBe(1);
-      expect(view.state.selection.to).toBe(6);
-      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+      expect(view.state.selection.from).toBe(4);
+      expect(view.state.selection.to).toBe(9);
     } finally {
       restoreCaretRangeFromPoint();
       Object.defineProperty(document, 'elementFromPoint', {

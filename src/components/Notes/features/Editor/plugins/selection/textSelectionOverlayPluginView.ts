@@ -31,7 +31,6 @@ export function createTextSelectionOverlayPluginView(view: EditorView) {
     pointerClickCollapseFrame: null,
     pointerClickCollapseTarget: null,
     pointerClickCollapseTimeout: null,
-    pointerClickRestoreSelectionRange: null,
     pointerDownPoint: null,
     pointerMovedSinceDown: false,
     pointerNativeReleaseFrame: null,

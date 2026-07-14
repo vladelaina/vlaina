@@ -7,12 +7,6 @@ export interface PointerCaretTarget {
   pos: number;
 }
 
-export interface PointerClickRestoreSelectionRange {
-  from: number;
-  to: number;
-  usePointerNativeSelection: boolean;
-}
-
 export interface TextSelectionOverlayViewSession {
   clearNativeSelectionFrame: number | null;
   keyClearFrame: number | null;
@@ -23,7 +17,6 @@ export interface TextSelectionOverlayViewSession {
   pointerClickCollapseFrame: number | null;
   pointerClickCollapseTarget: PointerCaretTarget | null;
   pointerClickCollapseTimeout: number | null;
-  pointerClickRestoreSelectionRange: PointerClickRestoreSelectionRange | null;
   pointerDownPoint: { x: number; y: number } | null;
   pointerMovedSinceDown: boolean;
   pointerNativeReleaseFrame: number | null;
