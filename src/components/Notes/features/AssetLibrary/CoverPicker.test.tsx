@@ -240,7 +240,7 @@ describe('CoverPicker', () => {
     vi.useRealTimers();
   });
 
-  it('keeps the visible preview when leaving the asset grid inside the picker', async () => {
+  it('clears the visible preview when leaving the asset grid', async () => {
     hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [{ filename: 'a.png' }];
     const onPreview = vi.fn();
@@ -270,7 +270,7 @@ describe('CoverPicker', () => {
       vi.advanceTimersByTime(180);
     });
 
-    expect(onPreview).not.toHaveBeenCalledWith(null);
+    expect(onPreview).toHaveBeenCalledWith(null);
     vi.useRealTimers();
   });
 
