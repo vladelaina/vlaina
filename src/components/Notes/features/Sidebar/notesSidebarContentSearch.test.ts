@@ -12,6 +12,20 @@ describe('notesSidebarContentSearch', () => {
     expect(getNotesSidebarContentMatches('visible target', '')).toEqual([]);
   });
 
+  it('quickly rejects plain content without a case-insensitive query match', () => {
+    expect(getNotesSidebarContentMatches('Alpha body without the requested word', 'needle')).toEqual([]);
+  });
+
+  it('searches ordinary prose without changing visible punctuation', () => {
+    expect(getNotesSidebarContentMatches('Release 2.0: ordinary text, fast search.', 'ordinary')).toEqual([
+      {
+        matchIndex: 13,
+        ordinal: 0,
+        snippet: 'Release 2.0: ordinary text, fast search.',
+      },
+    ]);
+  });
+
   it('bounds skipped HTML ranges while searching note content', () => {
     const hiddenBlocks = Array.from(
       { length: MAX_CONTENT_SEARCH_HTML_RANGES + 100 },

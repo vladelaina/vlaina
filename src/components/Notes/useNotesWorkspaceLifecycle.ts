@@ -16,11 +16,10 @@ import { useNotesBlankWorkspaceDropLifecycle } from './useNotesBlankWorkspaceDro
 export function useNotesWorkspaceLifecycle(args: {
   active: boolean;
   adoptAbsoluteNoteIntoNotesRoot: ReturnType<typeof useNotesStore.getState>['adoptAbsoluteNoteIntoNotesRoot'];
-  blankDropDraftContent: string;
+  blankDropDraftHasUnsavedChanges: boolean;
   cancelNoteContentScan: ReturnType<typeof useNotesStore.getState>['cancelNoteContentScan'];
   cleanupAssetTempFiles: ReturnType<typeof useNotesStore.getState>['cleanupAssetTempFiles'];
   clearAssetUrlCache: ReturnType<typeof useNotesStore.getState>['clearAssetUrlCache'];
-  currentDraftMetadata: NonNullable<ReturnType<typeof useNotesStore.getState>['noteMetadata']>['notes'][string] | undefined;
   currentNotePath: string | undefined;
   currentNotesRoot: { path: string } | null | undefined;
   draftNotes: ReturnType<typeof useNotesStore.getState>['draftNotes'];
@@ -47,11 +46,10 @@ export function useNotesWorkspaceLifecycle(args: {
   const {
     active,
     adoptAbsoluteNoteIntoNotesRoot,
-    blankDropDraftContent,
+    blankDropDraftHasUnsavedChanges,
     cancelNoteContentScan,
     cleanupAssetTempFiles,
     clearAssetUrlCache,
-    currentDraftMetadata,
     currentNotePath,
     currentNotesRoot,
     draftNotes,
@@ -212,8 +210,7 @@ export function useNotesWorkspaceLifecycle(args: {
 
   const { isBlankWorkspaceDropActive } = useNotesBlankWorkspaceDropLifecycle({
     active,
-    blankDropDraftContent,
-    currentDraftMetadata,
+    blankDropDraftHasUnsavedChanges,
     currentNotePath,
     currentNotesRoot,
     draftNotes,

@@ -188,6 +188,27 @@ describe('useSidebarContentSearchResults', () => {
     });
   });
 
+  it('searches live current-note content before its cached disk baseline', () => {
+    const { result } = renderHook(() => useSidebarContentSearchResults({
+      rootFolder: createRootFolderFromPaths(['docs/alpha.md']),
+      getDisplayName: (path) => path.split('/').pop() ?? path,
+      noteContentsCache: new Map([
+        ['docs/alpha.md', { content: 'saved baseline', modifiedAt: 1 }],
+      ]),
+      scanAllNotes: vi.fn(async () => undefined),
+      cancelNoteContentScan: vi.fn(),
+      pruneNoteContentsCacheToOpenNotes: vi.fn(),
+      searchQuery: 'edited',
+      isSearchOpen: true,
+      liveNoteContent: {
+        path: 'docs/alpha.md',
+        content: 'live edited body',
+      },
+    }));
+
+    expect(result.current.searchResults.map((entry) => entry.path)).toEqual(['docs/alpha.md']);
+  });
+
   it('does not repeatedly rescan unchanged oversized content indexes after a completed scan', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
     const cancelNoteContentScan = vi.fn();

@@ -107,6 +107,10 @@ export function getChatMessageImageTokens(
   content: string,
   options: ChatMessageImageSourceOptions = {},
 ): ImageToken[] {
+  if (!content.includes('![') && !content.includes('<')) {
+    return [];
+  }
+
   return parseMarkdownAndHtmlImageTokens(content, { maxTokens: options.maxTokens })
     .map((token) => {
       const src = normalizeChatMessageImageSourceForMode(token.src, options.persistable === true);

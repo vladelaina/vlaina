@@ -45,6 +45,7 @@ const FRAME_LAYOUT_CACHE_LIMIT = 24;
 const MEASURED_HEIGHT_CACHE_LIMIT = 2000;
 const estimatedFrameLayoutCache = new Map<string, CachedFrameLayoutEntry>();
 const measuredHeightCache = new Map<string, CachedMeasuredHeightEntry>();
+const messageSignatureCache = new WeakMap<ChatMessage, string>();
 
 function hashString(value: string): string {
   let hash = 0x811c9dc5;
@@ -106,12 +107,19 @@ function getFrameLayoutCacheKey(
 }
 
 function getMessageSignature(message: ChatMessage): string {
+  const cached = messageSignatureCache.get(message);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const content = message.content;
   const length = content.length;
   const sample = length <= 96
     ? content
     : `${content.slice(0, 32)}\u0002${content.slice(Math.max(0, Math.floor(length / 2) - 16), Math.floor(length / 2) + 16)}\u0002${content.slice(-32)}`;
-  return `${message.id}\u0000${message.currentVersionIndex}\u0000${message.role}\u0000${length}\u0000${countLineBreaks(content)}\u0000${hashString(sample)}`;
+  const signature = `${message.id}\u0000${message.currentVersionIndex}\u0000${message.role}\u0000${length}\u0000${countLineBreaks(content)}\u0000${hashString(sample)}`;
+  messageSignatureCache.set(message, signature);
+  return signature;
 }
 
 function getMessageSignatures(messages: ChatMessage[]): string[] {

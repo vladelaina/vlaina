@@ -9,6 +9,7 @@ import {
 } from '@/stores/notes/pendingEditorMarkdown';
 import { themeEditorLayoutTokens } from '@/styles/themeTokens';
 import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
+import { publishLiveMarkdownPreview } from './hooks/pendingMarkdownLivePreview';
 
 const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 
@@ -56,6 +57,7 @@ export function MarkdownSourceEditor({
       return true;
     }
     updateContent(markdown);
+    publishLiveMarkdownPreview(currentNotePath, markdown);
     draftBaseContentRef.current = markdown;
     return true;
   }, [currentNotePath, updateContent]);
@@ -277,11 +279,7 @@ export function MarkdownSourceEditor({
           const nextValue = event.currentTarget.value;
           updateSourceDraft(nextValue);
           updateCommittedSourceDraft(nextValue);
-          if (mode === 'fallback') {
-            updateContent(nextValue);
-          } else {
-            scheduleContentCommit();
-          }
+          scheduleContentCommit();
           scheduleTextareaResize();
           scheduleSave();
         }}
@@ -293,11 +291,7 @@ export function MarkdownSourceEditor({
             return;
           }
           updateCommittedSourceDraft(nextValue);
-          if (mode === 'fallback') {
-            updateContent(nextValue);
-          } else {
-            scheduleContentCommit();
-          }
+          scheduleContentCommit();
           scheduleSave();
         }}
         onBlur={flushSave}

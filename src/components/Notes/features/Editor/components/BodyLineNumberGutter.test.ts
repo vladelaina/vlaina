@@ -224,6 +224,76 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
+  it('keeps observers mounted when only markdown content changes', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      window.clearTimeout(id);
+    });
+
+    let resizeObserverCount = 0;
+    let mutationObserverCount = 0;
+    const resizeDisconnect = vi.fn();
+    const mutationDisconnect = vi.fn();
+    class TestResizeObserver {
+      constructor(_callback: ResizeObserverCallback) {
+        resizeObserverCount += 1;
+      }
+
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = resizeDisconnect;
+    }
+    class TestMutationObserver {
+      constructor(_callback: MutationCallback) {
+        mutationObserverCount += 1;
+      }
+
+      observe = vi.fn();
+      disconnect = mutationDisconnect;
+    }
+
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    vi.stubGlobal('MutationObserver', TestMutationObserver);
+
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
+    editorRoot.className = 'ProseMirror';
+    paragraph.textContent = 'Body';
+    editorRoot.appendChild(paragraph);
+    shell.appendChild(editorRoot);
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(paragraph, { left: 106, top: 40, height: 24 });
+
+    try {
+      const { rerender } = render(createElement(BodyLineNumberGutter, {
+        markdown: 'Body',
+        revision: 1,
+        shellRef,
+      }));
+
+      rerender(createElement(BodyLineNumberGutter, {
+        markdown: 'Body updated',
+        revision: 1,
+        shellRef,
+      }));
+
+      expect(resizeObserverCount).toBe(1);
+      expect(mutationObserverCount).toBe(1);
+      expect(resizeDisconnect).not.toHaveBeenCalled();
+      expect(mutationDisconnect).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('ignores internal code editor mutations because code block resize already refreshes labels', () => {
     vi.useFakeTimers();
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
@@ -933,6 +1003,7 @@ describe('BodyLineNumberGutter', () => {
     setRect(secondParagraph, { left: 106, top: 72, height: 24 });
     const createTreeWalker = document.createTreeWalker.bind(document);
     let createTreeWalkerSpy: ReturnType<typeof vi.spyOn> | null = null;
+    let childItemSpy: ReturnType<typeof vi.spyOn> | null = null;
 
     try {
       const { container } = render(createElement(BodyLineNumberGutter, {
@@ -944,6 +1015,7 @@ describe('BodyLineNumberGutter', () => {
       act(() => {
         vi.advanceTimersByTime(0);
       });
+      childItemSpy = vi.spyOn(editorRoot.children, 'item');
 
       const lineNumbers = () => Array.from(container.querySelectorAll<HTMLElement>('.body-line-number'));
       expect(lineNumbers().map((lineNumber) =>
@@ -1005,7 +1077,9 @@ describe('BodyLineNumberGutter', () => {
       expect(lineNumbers().map((lineNumber) =>
         lineNumber.classList.contains('body-line-number-selected')
       )).toEqual([false, true]);
+      expect(childItemSpy).not.toHaveBeenCalled();
     } finally {
+      childItemSpy?.mockRestore();
       createTreeWalkerSpy?.mockRestore();
       act(() => {
         window.dispatchEvent(new Event('pointerup'));
