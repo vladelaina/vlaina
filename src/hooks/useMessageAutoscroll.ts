@@ -171,12 +171,11 @@ export const useMessageAutoscroll = ({
   ]);
 
   const handleNewUserMessage = useCallback(() => {
-    const shouldAnchorNearTop = chatId === null || messages.length === 0;
     pendingScrollToCurrentTurnRef.current = true;
     pendingScrollMessageCountRef.current = messages.length;
     pendingChatCreationAnchorRef.current = chatId === null;
     isCurrentTurnAnchoredRef.current = true;
-    currentTurnAnchorModeRef.current = shouldAnchorNearTop ? "top" : "near-composer";
+    currentTurnAnchorModeRef.current = "top";
     userDetachedFromCurrentTurnRef.current = false;
     isAutoFollowRef.current = true;
   }, [chatId, messages.length]);
