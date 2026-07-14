@@ -3,6 +3,7 @@ import {
   fetchManagedModelCatalog,
   fetchManagedModelsVersion,
 } from '@/lib/ai/managedService'
+import type { AIModel } from '@/lib/ai/types'
 import { useAccountSessionStore } from '../accountSession'
 import { useManagedAIStore } from '../useManagedAIStore'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
@@ -19,7 +20,21 @@ let managedModelsRefreshInFlight: Promise<void> | null = null;
 let managedModelsLastRefreshAttemptAt = 0;
 let managedModelsLastFullRefreshAt = 0;
 let managedModelsCatalogVersion: string | null = null;
+let managedModelsLastCatalog: AIModel[] | null = null;
 let managedModelsSyncGeneration = 0;
+
+function managedCatalogNeedsReapply(): boolean {
+  if (!managedModelsLastCatalog) return false;
+
+  const models = (useUnifiedStore.getState().data.ai?.models || [])
+    .filter((model) => model.providerId === MANAGED_PROVIDER_ID);
+  const reconciledModels = replaceProviderModels(
+    models,
+    MANAGED_PROVIDER_ID,
+    managedModelsLastCatalog,
+  );
+  return !areModelsEqual(models, reconciledModels);
+}
 
 async function refreshManagedBudgetIfConnected(): Promise<void> {
   if (!useAccountSessionStore.getState().isConnected) {
@@ -40,6 +55,7 @@ async function syncManagedProviderModels(
 
   const models = catalog.models
   managedModelsCatalogVersion = catalog.version
+  managedModelsLastCatalog = models
   managedModelsLastFullRefreshAt = Date.now()
   const store = useUnifiedStore.getState()
   const ai = store.data.ai!
@@ -77,7 +93,8 @@ function refreshManagedProviderInBackground(options: { force?: boolean } = {}): 
   if (
     !options.force &&
     managedModelsLastRefreshAttemptAt > 0 &&
-    now - managedModelsLastRefreshAttemptAt < MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS
+    now - managedModelsLastRefreshAttemptAt < MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS &&
+    !managedCatalogNeedsReapply()
   ) {
     return managedModelsRefreshInFlight;
   }
@@ -126,7 +143,8 @@ async function syncManagedProviderModelsFromStartup(
 
   if (
     managedModelsLastRefreshAttemptAt > 0 &&
-    now - managedModelsLastRefreshAttemptAt < MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS
+    now - managedModelsLastRefreshAttemptAt < MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS &&
+    !managedCatalogNeedsReapply()
   ) {
     if (options.refreshBudget) {
       await refreshManagedBudgetIfConnected();
@@ -149,6 +167,12 @@ export function refreshManagedProviderInBackgroundAction(
   void refreshManagedProviderInBackground(options)
 }
 
+function reconcileManagedProviderModelsAfterStoreChange(): void {
+  if (!managedCatalogNeedsReapply()) return;
+  void syncManagedProviderModelsFromStartup();
+}
+
 export const managedProviderSync = {
+  reconcileAfterStoreChange: reconcileManagedProviderModelsAfterStoreChange,
   syncFromStartup: syncManagedProviderModelsFromStartup,
 };

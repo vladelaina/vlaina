@@ -30,6 +30,7 @@ interface UseAppContentViewLifecycleOptions {
   hasLaunchViewMode: boolean;
   initialUnifiedAppViewMode: AppViewMode | null;
   shouldWaitForInitialUnifiedView: boolean;
+  unifiedLoaded: boolean;
 }
 
 function isPrewarmedAppViewMode(viewMode: AppViewMode): viewMode is ReadyAppViewMode {
@@ -69,6 +70,7 @@ export function useAppContentViewLifecycle({
   hasLaunchViewMode,
   initialUnifiedAppViewMode,
   shouldWaitForInitialUnifiedView,
+  unifiedLoaded,
 }: UseAppContentViewLifecycleOptions) {
   const [mountedAppViews, setMountedAppViews] = useState<Set<AppViewMode>>(() =>
     hasLaunchViewMode ? new Set([appViewMode]) : new Set()
@@ -216,7 +218,7 @@ export function useAppContentViewLifecycle({
     void preloadNotesTabRowModule();
     void preloadModelSelectorModule();
     void preloadTemporaryChatToggleModule();
-    if (!didPrewarmManagedModelsRef.current) {
+    if (unifiedLoaded && !didPrewarmManagedModelsRef.current) {
       didPrewarmManagedModelsRef.current = true;
       void preloadAIStoreModule()
         .then((mod) => {
@@ -228,7 +230,7 @@ export function useAppContentViewLifecycle({
 
     setMountedAppViews(addPrewarmedAppViews);
     setRenderedSidebarAppViews(addPrewarmedAppViews);
-  }, [activeViewReady, effectiveAppViewMode, primaryContentReady]);
+  }, [activeViewReady, effectiveAppViewMode, primaryContentReady, unifiedLoaded]);
 
   return {
     handleActiveViewReady,

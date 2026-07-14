@@ -471,7 +471,7 @@ describe('createFileSystemSlice tree flows', () => {
     expect(harness.getState().isLoading).toBe(false);
 
     await vi.advanceTimersByTimeAsync(100);
-    expect(newNotesRootRootListCalls).toBe(2);
+    expect(newNotesRootRootListCalls).toBe(3);
   });
 
   it('keeps the root folder reference stable when background metadata does not affect name sorting', async () => {
@@ -565,7 +565,11 @@ describe('createFileSystemSlice tree flows', () => {
       ];
     });
     hoisted.storageAdapter.stat.mockResolvedValue({ isFile: true, isDirectory: false, modifiedAt: 1, size: 7 });
-    hoisted.storageAdapter.readFile.mockResolvedValue('# Alpha');
+    hoisted.storageAdapter.readFile.mockImplementation(async (path: string) => (
+      path.endsWith('/alpha.md')
+        ? ['---', 'vlaina_cover: "assets/alpha.webp"', '---', '', '# Alpha'].join('\n')
+        : '# Beta'
+    ));
 
     const harness = createSliceHarness({
       rootFolder: null,
@@ -579,6 +583,7 @@ describe('createFileSystemSlice tree flows', () => {
     await vi.advanceTimersByTimeAsync(100);
 
     expect(harness.getState().rootFolder).toBe(rootAfterInitialTree);
+    expect(harness.getState().noteMetadata.notes['alpha.md']?.cover?.assetPath).toBe('assets/alpha.webp');
   });
 
   it('keeps the root folder reference stable for no-op tree actions', async () => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom';
 import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE } from '../../../../utils/coverConstants';
 import { loadImageWithDimensions } from '../../../../utils/coverDimensionCache';
-import { getCoverResolveOptions, useCoverSource } from '../../../../hooks/useCoverSource';
+import { getCoverDimensionProbeSrc, getCoverResolveOptions, useCoverSource } from '../../../../hooks/useCoverSource';
 import { resolveCoverAssetUrl } from '../../../../utils/resolveCoverAssetUrl';
 import { resolveCoverFlowPhase } from './coverSelectionPhase';
 import { useUIStore } from '@/stores/uiSlice';
@@ -147,7 +147,7 @@ export function useCoverSelectionFlow({
               notesRootPath,
               currentNotePath,
             }));
-            const dimensions = await loadImageWithDimensions(imageUrl);
+            const dimensions = await loadImageWithDimensions(getCoverDimensionProbeSrc(assetPath, imageUrl));
             return dimensions ? imageUrl : null;
           } finally {
             previewRequestRef.current.delete(requestKey);

@@ -85,7 +85,7 @@ export function useMessageListMeasurement({
     };
   }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, messageById]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (layoutWidth <= 0) {
       setMeasuredHeights((current) => (current.size === 0 ? current : new Map()));
       return;

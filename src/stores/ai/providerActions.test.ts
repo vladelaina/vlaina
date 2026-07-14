@@ -737,6 +737,50 @@ describe('refreshManagedProviderInBackground', () => {
     expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['startup-model']);
   });
 
+  it('reapplies the managed catalog when a later store reload removes it', async () => {
+    vi.setSystemTime(managedRefreshTestNow + 10 * 60 * 1000);
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::startup-model',
+        apiModelId: 'startup-model',
+        name: 'Startup Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+
+    await managedProviderSync.syncFromStartup();
+    useUnifiedStore.getState().updateAIData({ models: [] }, true);
+
+    managedProviderSync.reconcileAfterStoreChange();
+    await vi.runAllTimersAsync();
+
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(2);
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['startup-model']);
+  });
+
+  it('does not reapply the managed catalog when only custom model ordering changes', async () => {
+    vi.setSystemTime(managedRefreshTestNow + 10 * 60 * 1000);
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::startup-model',
+        apiModelId: 'startup-model',
+        name: 'Startup Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+
+    await managedProviderSync.syncFromStartup();
+    const managedModel = useUnifiedStore.getState().data.ai!.models[0]!;
+    useUnifiedStore.getState().updateAIData({
+      models: [managedModel, buildModel({ id: 'provider-1::custom-model', apiModelId: 'custom-model' })],
+    }, true);
+
+    managedProviderSync.reconcileAfterStoreChange();
+    await vi.runAllTimersAsync();
+
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+  });
+
   it('does not refresh the managed budget during model sync while signed out', async () => {
     const refreshBudget = vi.fn(async () => undefined);
     useManagedAIStore.setState({ refreshBudget });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
 import { useEffectiveImportedMarkdownThemeId } from '@/components/markdown-theme/markdownThemePreview';
@@ -62,21 +62,35 @@ export function useMilkdownThemeRuntime(args: {
     return () => window.removeEventListener('resize', updateViewport);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const shell = editorShellRef.current;
     if (!shell) return;
 
-    const root = shell.querySelector<HTMLElement>('[data-markdown-theme-root="true"], #write, .ProseMirror');
-    for (const element of [shell, root].filter((element): element is HTMLElement => Boolean(element))) {
-      applyMarkdownThemeRuntimeAttributes(element, {
-        importedThemeId: importedMarkdownThemeId,
-        importedThemePlatform: importedMarkdownThemePlatform,
-        colorScheme: markdownThemeRuntimeColorScheme.colorScheme,
-        colorSchemeMode: markdownThemeRuntimeColorScheme.mode,
-        viewport: markdownThemeViewport,
-        typewriterMode,
-      });
+    const applyRuntimeAttributes = () => {
+      const root = shell.querySelector<HTMLElement>('#write, .ProseMirror');
+      for (const element of [shell, root].filter((element): element is HTMLElement => Boolean(element))) {
+        applyMarkdownThemeRuntimeAttributes(element, {
+          importedThemeId: importedMarkdownThemeId,
+          importedThemePlatform: importedMarkdownThemePlatform,
+          colorScheme: markdownThemeRuntimeColorScheme.colorScheme,
+          colorSchemeMode: markdownThemeRuntimeColorScheme.mode,
+          viewport: markdownThemeViewport,
+          typewriterMode,
+        });
+      }
+      return Boolean(root);
+    };
+
+    const observer = new MutationObserver(() => {
+      if (applyRuntimeAttributes()) {
+        observer.disconnect();
+      }
+    });
+    observer.observe(shell, { childList: true, subtree: true });
+    if (applyRuntimeAttributes()) {
+      observer.disconnect();
     }
+    return () => observer.disconnect();
   }, [
     activatedRevision,
     editorShellRef,

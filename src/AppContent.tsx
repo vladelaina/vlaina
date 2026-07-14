@@ -34,6 +34,7 @@ export function AppContent() {
     hasLaunchViewMode,
     initialUnifiedAppViewMode,
     shouldWaitForInitialUnifiedView,
+    unifiedLoaded,
   });
 
   useAppContentRuntimeEffects({

@@ -51,6 +51,137 @@ async function expectOverlayScrollbarDraggable(page: Page, viewportSelector: str
 test.describe('app layout smoke', () => {
   test.setTimeout(120_000);
 
+  test('keeps a multiline Chat composer height stable when returning from Notes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('chat-composer-view-switch-stability');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await createChatFixture(page, {
+        sessions: [{
+          title: 'Composer Stability',
+          messages: [{ role: 'user', content: 'Composer stability fixture.' }],
+        }],
+      });
+      await setAppViewMode(page, 'chat');
+
+      const textarea = page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR);
+      await textarea.fill(['one', 'two', 'three', 'four', 'five', 'six'].join('\n'));
+      const stableHeight = await expect.poll(async () => textarea.evaluate((element) =>
+        element.getBoundingClientRect().height
+      )).toBeGreaterThan(80).then(() => textarea.evaluate((element) =>
+        element.getBoundingClientRect().height
+      ));
+
+      await setAppViewMode(page, 'notes');
+      const samples = await page.evaluate(async () => new Promise<number[]>((resolve) => {
+        const heights: number[] = [];
+        (window as any).__vlainaE2E.setAppViewMode('chat');
+
+        const sample = () => {
+          const textarea = document.querySelector<HTMLTextAreaElement>('[data-chat-input="true"] textarea');
+          const height = textarea?.getBoundingClientRect().height ?? 0;
+          if (height > 0) {
+            heights.push(height);
+          }
+          if (heights.length >= 6) {
+            resolve(heights);
+            return;
+          }
+          requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      }));
+
+      expect(samples).toHaveLength(6);
+      expect(samples.every((height) => Math.abs(height - stableHeight) <= 1)).toBe(true);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('restores Chat message geometry before paint after resizing while hidden', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('chat-hidden-resize-stability');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 900, height: 720 });
+      const chatFixture = await createChatFixture(page, {
+        sessions: [{
+          title: 'Hidden Resize Stability',
+          messages: Array.from({ length: 8 }, (_, index) => ({
+            role: index % 2 === 0 ? 'user' as const : 'assistant' as const,
+            content: `Message ${index + 1}: ${'width-sensitive content '.repeat(24)}`,
+          })),
+        }],
+      });
+      await setAppViewMode(page, 'chat');
+      await waitForChatSession(page, {
+        sessionId: chatFixture.sessionIds[0]!,
+        minMessageCount: 8,
+        sentinelText: 'Message 8:',
+      });
+
+      const scrollable = page.locator(CHAT_SCROLLABLE_SELECTOR);
+      await scrollable.evaluate((element) => {
+        element.scrollTop = 0;
+      });
+      await expect.poll(() => page.locator('[data-message-index="1"]').evaluate((element) =>
+        element.getBoundingClientRect().top
+      )).toBeGreaterThan(100);
+      const narrowSecondMessageTop = await page.locator('[data-message-index="1"]').evaluate((element) =>
+        element.getBoundingClientRect().top
+      );
+
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await expect.poll(() => page.locator('[data-message-index="1"]').evaluate((element) =>
+        element.getBoundingClientRect().top
+      )).not.toBe(narrowSecondMessageTop);
+
+      await setAppViewMode(page, 'notes');
+      await page.setViewportSize({ width: 900, height: 720 });
+      const samples = await page.evaluate(async () => new Promise<Array<{
+        scrollTop: number;
+        secondMessageTop: number;
+        viewportWidth: number;
+      }>>((resolve) => {
+        const frames: Array<{
+          scrollTop: number;
+          secondMessageTop: number;
+          viewportWidth: number;
+        }> = [];
+        (window as any).__vlainaE2E.setAppViewMode('chat');
+
+        const sample = () => {
+          const viewport = document.querySelector<HTMLElement>('[data-chat-scrollable="true"]');
+          const secondMessage = document.querySelector<HTMLElement>('[data-message-index="1"]');
+          if (viewport && secondMessage && viewport.getBoundingClientRect().width > 0) {
+            frames.push({
+              scrollTop: viewport.scrollTop,
+              secondMessageTop: secondMessage.getBoundingClientRect().top,
+              viewportWidth: viewport.getBoundingClientRect().width,
+            });
+          }
+          if (frames.length >= 6) {
+            resolve(frames);
+            return;
+          }
+          requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      }));
+
+      expect(samples).toHaveLength(6);
+      expect(samples.every((sample) => Math.abs(sample.secondMessageTop - narrowSecondMessageTop) <= 1)).toBe(true);
+      expect(samples.every((sample) => sample.scrollTop === 0)).toBe(true);
+      expect(samples.every((sample) => sample.viewportWidth === samples[0]!.viewportWidth)).toBe(true);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps Notes and Chat primary surfaces visible without document overflow', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('app-layout-smoke');
 
