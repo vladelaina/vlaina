@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
   refreshManagedProviderInBackground: vi.fn(),
+  unifiedLoaded: true,
   settingsModuleImports: 0,
   temporaryChatToggleModuleImports: 0,
   fontSize: 17,
@@ -249,7 +250,7 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
   };
 
   const getState = (): UnifiedState => ({
-    loaded: true,
+    loaded: mocks.unifiedLoaded,
     data: {
       settings: {
         ui: {
@@ -358,6 +359,7 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.notesSidebarUnmounts = 0;
     mocks.whiteboardMounts = 0;
     mocks.whiteboardSidebarMounts = 0;
+    mocks.unifiedLoaded = true;
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([importedTheme]);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
       directoryPath: '/app/.vlaina/app/themes',
@@ -391,6 +393,21 @@ describe('AppContent view switching chrome readiness', () => {
       expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledWith();
     });
     expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for unified data before prewarming the managed model catalog', async () => {
+    mocks.unifiedLoaded = false;
+    const { rerender } = render(<AppContent />);
+
+    expect(mocks.refreshManagedProviderInBackground).not.toHaveBeenCalled();
+
+    mocks.unifiedLoaded = true;
+    rerender(<AppContent />);
+
+    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    await waitFor(() => {
+      expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {

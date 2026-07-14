@@ -56,6 +56,8 @@ export function scheduleLoadFileTreeBackgroundRefresh({
 }) {
   setTimeout(() => {
     void (async () => {
+      const metadataStateBeforeBackgroundLoad = get().noteMetadata;
+      const metadataPromise = loadNoteMetadata(basePath);
       let nextBackgroundChildren = get().rootFolder?.children ?? [];
 
       if (shouldBuildShallowInitialTree) {
@@ -102,18 +104,15 @@ export function scheduleLoadFileTreeBackgroundRefresh({
             currentState.fileTreeSortMode,
             currentState.noteMetadata,
           );
-          if (nextRootFolder === currentState.rootFolder) {
-            return;
+          if (nextRootFolder !== currentState.rootFolder) {
+            set({
+              rootFolder: nextRootFolder,
+            });
           }
-
-          set({
-            rootFolder: nextRootFolder,
-          });
         }
       }
 
-      const metadataStateBeforeBackgroundLoad = get().noteMetadata;
-      const metadata = await loadNoteMetadata(basePath);
+      const metadata = await metadataPromise;
       if (!isCurrentRequest(requestId, basePath)) {
         return;
       }

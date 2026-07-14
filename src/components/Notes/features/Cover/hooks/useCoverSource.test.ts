@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCoverResolveOptions, useCoverSource } from './useCoverSource';
+import { getCoverDimensionProbeSrc, getCoverResolveOptions, useCoverSource } from './useCoverSource';
 import { clearCoverAssetUrlResolveCacheForTests, resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
@@ -106,7 +106,14 @@ describe('useCoverSource', () => {
 
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/notesRoot/assets/animated.gif');
     expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
+    expect(hoisted.loadImageWithDimensions).toHaveBeenCalledWith(
+      expect.stringMatching(/^blob:animated-cover#vlaina-replay=.*&vlaina-dimension-probe=1$/),
+    );
     expect(result.current.isError).toBe(false);
+  });
+
+  it('keeps static cover dimension probes on the displayed source', () => {
+    expect(getCoverDimensionProbeSrc('assets/cover.png', 'blob:cover')).toBe('blob:cover');
   });
 
   it('marks error when local resolution fails', async () => {
