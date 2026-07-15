@@ -1,6 +1,7 @@
 import { act, fireEvent, render, renderHook, screen as rtlScreen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
+import { CHAT_MESSAGE_LIST_TOP_PADDING } from '@/components/Chat/features/Layout/chatMessageFrames';
 import { useMessageAutoscroll } from './useMessageAutoscroll';
 
 function createMessage(id: string, role: ChatMessage['role']): ChatMessage {
@@ -331,6 +332,290 @@ describe('useMessageAutoscroll', () => {
     expect(container.scrollTop).toBe(160);
     expect(result.current.currentTurnTopSpacerHeight).toBe(0);
     requestAnimationFrameSpy.mockRestore();
+  });
+
+  it('anchors the user prompt instead of the assistant message when regenerating the latest response', () => {
+    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    const cancelAnimationFrameSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    const messages = [
+      createMessage('u1', 'user'),
+      createMessage('a1', 'assistant'),
+    ];
+
+    function TestHarness({ isStreaming, messages }: { isStreaming: boolean; messages: ChatMessage[] }) {
+      const { containerRef, handleRegenerateMessage } = useMessageAutoscroll({
+        messages,
+        isStreaming,
+        chatId: 'chat-1',
+        showLoading: false,
+      });
+
+      return (
+        <div data-testid="regenerate-scrollable" ref={containerRef}>
+          <button type="button" onClick={() => handleRegenerateMessage('a1')}>regenerate</button>
+          <div data-message-index="0" data-testid="regenerate-user-row" />
+          <div data-message-index="1" data-testid="regenerate-assistant-row" />
+        </div>
+      );
+    }
+
+    const view = render(<TestHarness isStreaming={false} messages={messages} />);
+    const scrollable = rtlScreen.getByTestId('regenerate-scrollable');
+    const userRow = rtlScreen.getByTestId('regenerate-user-row');
+    let scrollTop = 200;
+    Object.defineProperties(scrollable, {
+      clientHeight: { configurable: true, get: () => 600 },
+      clientWidth: { configurable: true, get: () => 900 },
+      scrollHeight: { configurable: true, get: () => 1800 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => { scrollTop = value; },
+      },
+    });
+    scrollable.getBoundingClientRect = () => ({
+      bottom: 700, height: 600, left: 0, right: 900, top: 100, width: 900, x: 0, y: 100,
+      toJSON: () => ({}),
+    });
+    userRow.getBoundingClientRect = () => ({
+      bottom: 180 - scrollTop + 400,
+      height: 80,
+      left: 0,
+      right: 900,
+      top: 100 - scrollTop + 400,
+      width: 900,
+      x: 0,
+      y: 100 - scrollTop + 400,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.click(rtlScreen.getByRole('button', { name: 'regenerate' }));
+    expect(scrollTop).toBe(200);
+
+    view.rerender(<TestHarness isStreaming messages={messages} />);
+    expect(scrollTop).toBe(200);
+
+    view.rerender(<TestHarness
+      isStreaming
+      messages={[messages[0]!, { ...messages[1]!, content: '' }]}
+    />);
+
+    expect(scrollTop).toBe(400 - CHAT_MESSAGE_LIST_TOP_PADDING);
+    expect(userRow.getBoundingClientRect().top).toBe(100 + CHAT_MESSAGE_LIST_TOP_PADDING);
+    requestAnimationFrameSpy.mockRestore();
+    cancelAnimationFrameSpy.mockRestore();
+  });
+
+  it('does not jump to the latest turn when regenerating an earlier response', () => {
+    const messages = [
+      createMessage('u1', 'user'),
+      createMessage('a1', 'assistant'),
+      createMessage('u2', 'user'),
+      createMessage('a2', 'assistant'),
+    ];
+    const container = createScrollContainer();
+    const { result } = renderHook(() => useMessageAutoscroll({
+      messages,
+      isStreaming: false,
+      chatId: 'chat-1',
+      showLoading: false,
+    }));
+    act(() => {
+      result.current.containerRef.current = container;
+      container.scrollTop = 360;
+      result.current.handleRegenerateMessage('a1');
+    });
+
+    expect(container.scrollTop).toBe(360);
+  });
+
+  it('waits for an edited branch to replace the message tree before anchoring the edited prompt', () => {
+    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    const cancelAnimationFrameSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    const messages = [
+      createMessage('u1', 'user'),
+      createMessage('a1', 'assistant'),
+      createMessage('u2', 'user'),
+      createMessage('a2', 'assistant'),
+    ];
+
+    function TestHarness({ isStreaming, messages }: { isStreaming: boolean; messages: ChatMessage[] }) {
+      const { containerRef, handleEditMessage } = useMessageAutoscroll({
+        messages,
+        isStreaming,
+        chatId: 'chat-1',
+        showLoading: false,
+      });
+
+      return (
+        <div data-testid="edit-scrollable" ref={containerRef}>
+          <button type="button" onClick={() => handleEditMessage('u1')}>edit</button>
+          {messages.map((message, index) => (
+            <div
+              data-message-index={index}
+              data-testid={message.id === 'u1' ? 'edited-user-row' : undefined}
+              key={message.id}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    const view = render(<TestHarness isStreaming={false} messages={messages} />);
+    const scrollable = rtlScreen.getByTestId('edit-scrollable');
+    const userRow = rtlScreen.getByTestId('edited-user-row');
+    let scrollTop = 260;
+    Object.defineProperties(scrollable, {
+      clientHeight: { configurable: true, get: () => 600 },
+      clientWidth: { configurable: true, get: () => 900 },
+      scrollHeight: { configurable: true, get: () => 1800 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => { scrollTop = value; },
+      },
+    });
+    scrollable.getBoundingClientRect = () => ({
+      bottom: 700, height: 600, left: 0, right: 900, top: 100, width: 900, x: 0, y: 100,
+      toJSON: () => ({}),
+    });
+    userRow.getBoundingClientRect = () => ({
+      bottom: 180 - scrollTop + 400,
+      height: 80,
+      left: 0,
+      right: 900,
+      top: 100 - scrollTop + 400,
+      width: 900,
+      x: 0,
+      y: 100 - scrollTop + 400,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.click(rtlScreen.getByRole('button', { name: 'edit' }));
+    expect(scrollTop).toBe(260);
+
+    view.rerender(<TestHarness isStreaming messages={messages} />);
+    expect(scrollTop).toBe(260);
+
+    view.rerender(<TestHarness
+      isStreaming
+      messages={[
+        { ...messages[0]!, content: 'edited prompt' },
+        { ...createMessage('a3', 'assistant'), content: '' },
+      ]}
+    />);
+
+    expect(scrollTop).toBe(400 - CHAT_MESSAGE_LIST_TOP_PADDING);
+    expect(userRow.getBoundingClientRect().top).toBe(100 + CHAT_MESSAGE_LIST_TOP_PADDING);
+    requestAnimationFrameSpy.mockRestore();
+    cancelAnimationFrameSpy.mockRestore();
+  });
+
+  it('does not anchor an edited latest prompt before its assistant branch is replaced', () => {
+    const messages = [
+      createMessage('u1', 'user'),
+      createMessage('a1', 'assistant'),
+      createMessage('u2', 'user'),
+      createMessage('a2', 'assistant'),
+    ];
+    const container = createScrollContainer();
+    const { result, rerender } = renderHook(
+      ({ isStreaming, messages }) => useMessageAutoscroll({
+        messages,
+        isStreaming,
+        chatId: 'chat-1',
+        showLoading: false,
+      }),
+      {
+        initialProps: {
+          isStreaming: false,
+          messages,
+        },
+      },
+    );
+    act(() => {
+      result.current.containerRef.current = container;
+      container.scrollTop = 360;
+      result.current.handleEditMessage('u2');
+    });
+
+    rerender({ isStreaming: true, messages });
+
+    expect(container.scrollTop).toBe(360);
+  });
+
+  it('keeps the viewport in place when the anchored turn is recalled as streaming stops', () => {
+    const previousMessages = [
+      createMessage('u1', 'user'),
+      createMessage('a1', 'assistant'),
+    ];
+    const activeMessages = [
+      ...previousMessages,
+      createMessage('u2', 'user'),
+      createMessage('a2', 'assistant'),
+    ];
+    const container = createScrollContainer();
+    const previousUserRow = document.createElement('div');
+    const previousAssistantRow = document.createElement('div');
+    previousUserRow.dataset.messageIndex = '0';
+    previousAssistantRow.dataset.messageIndex = '1';
+    container.append(previousUserRow, previousAssistantRow);
+    container.getBoundingClientRect = () => ({
+      bottom: 700, height: 600, left: 0, right: 900, top: 100, width: 900, x: 0, y: 100,
+      toJSON: () => ({}),
+    });
+    previousUserRow.getBoundingClientRect = () => ({
+      bottom: 580 - container.scrollTop,
+      height: 80,
+      left: 0,
+      right: 900,
+      top: 500 - container.scrollTop,
+      width: 900,
+      x: 0,
+      y: 500 - container.scrollTop,
+      toJSON: () => ({}),
+    });
+    previousAssistantRow.getBoundingClientRect = () => ({
+      bottom: 680 - container.scrollTop,
+      height: 80,
+      left: 0,
+      right: 900,
+      top: 600 - container.scrollTop,
+      width: 900,
+      x: 0,
+      y: 600 - container.scrollTop,
+      toJSON: () => ({}),
+    });
+    const { result, rerender } = renderHook(
+      ({ isStreaming, messages }) => useMessageAutoscroll({
+        messages,
+        isStreaming,
+        chatId: 'chat-1',
+        showLoading: false,
+      }),
+      {
+        initialProps: {
+          isStreaming: false,
+          messages: previousMessages,
+        },
+      },
+    );
+    act(() => {
+      result.current.containerRef.current = container;
+      result.current.handleNewUserMessage();
+    });
+    rerender({ isStreaming: true, messages: activeMessages });
+    container.scrollTop = 500;
+
+    rerender({ isStreaming: false, messages: previousMessages });
+
+    expect(container.scrollTop).toBe(500);
   });
 
   it('anchors the second user message at the top of the viewport', () => {

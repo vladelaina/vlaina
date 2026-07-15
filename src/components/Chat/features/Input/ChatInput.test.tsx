@@ -6,6 +6,8 @@ import { FILE_TREE_CHAT_DROP_EVENT } from '@/components/Notes/features/FileTree/
 import { getDroppedExternalPaths } from '@/components/Notes/hooks/externalDropPayload';
 import { setCurrentNotesRootPath, useNotesStore } from '@/stores/notes/useNotesStore';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { actions as aiActions } from '@/stores/useAIStore';
 
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -66,6 +68,117 @@ describe('ChatInput', () => {
       notesPath: '',
       getDisplayName: getTestDisplayName,
     });
+    useUnifiedStore.setState((state) => ({
+      loaded: false,
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          providers: [],
+          models: [],
+          selectedModelId: null,
+          webSearchEnabled: false,
+        },
+      },
+    }));
+  });
+
+  it('does not clear persisted web search while the selected model is unresolved', () => {
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          webSearchEnabled: true,
+        },
+      },
+    }));
+    const setWebSearchEnabled = vi.spyOn(aiActions, 'setWebSearchEnabled').mockImplementation(() => {});
+
+    renderChatInput();
+
+    expect(setWebSearchEnabled).not.toHaveBeenCalled();
+    setWebSearchEnabled.mockRestore();
+  });
+
+  it('disables web search for a verified model-level Anthropic endpoint', () => {
+    useUnifiedStore.setState((state) => ({
+      loaded: true,
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          providers: [{
+            id: 'custom-provider',
+            name: 'Custom provider',
+            type: 'newapi',
+            endpointType: 'openai',
+            apiHost: 'https://api.example.test',
+            apiKey: 'test-key',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          }],
+          models: [{
+            id: 'custom-model',
+            apiModelId: 'custom-model',
+            name: 'Custom model',
+            providerId: 'custom-provider',
+            endpointType: 'anthropic',
+            endpointTypeCheckedAt: 1,
+            enabled: true,
+            createdAt: 1,
+          }],
+          selectedModelId: 'custom-model',
+          webSearchEnabled: true,
+        },
+      },
+    }));
+    const setWebSearchEnabled = vi.spyOn(aiActions, 'setWebSearchEnabled').mockImplementation(() => {});
+
+    renderChatInput();
+
+    expect(setWebSearchEnabled).toHaveBeenCalledWith(false);
+    setWebSearchEnabled.mockRestore();
+  });
+
+  it('disables web search for standalone image generation models', () => {
+    useUnifiedStore.setState((state) => ({
+      loaded: true,
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          providers: [{
+            id: 'image-provider',
+            name: 'Image provider',
+            type: 'newapi',
+            endpointType: 'openai',
+            apiHost: 'https://api.example.test',
+            apiKey: 'test-key',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          }],
+          models: [{
+            id: 'image-model',
+            apiModelId: 'gpt-image-2',
+            name: 'GPT Image 2',
+            providerId: 'image-provider',
+            enabled: true,
+            createdAt: 1,
+          }],
+          selectedModelId: 'image-model',
+          webSearchEnabled: true,
+        },
+      },
+    }));
+    const setWebSearchEnabled = vi.spyOn(aiActions, 'setWebSearchEnabled').mockImplementation(() => {});
+
+    renderChatInput();
+
+    expect(setWebSearchEnabled).toHaveBeenCalledWith(false);
+    setWebSearchEnabled.mockRestore();
   });
 
   it('keeps the composer editable and lets submit retry quota refresh while managed quota is shown', async () => {

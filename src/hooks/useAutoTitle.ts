@@ -3,7 +3,6 @@ import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { buildTitleSourceFromMessages, needsAutoTitle } from '@/lib/ai/temporaryChat';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
-import { stripWebSearchRequestMarkup } from '@/lib/ai/webSearch/requestMarkup';
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities';
 import { APP_LANGUAGES, type AppLanguage, useI18n } from '@/lib/i18n';
 import { parseMarkdownAndHtmlImageTokens } from '@/lib/markdown/markdownImageTokens';
@@ -42,7 +41,7 @@ function hasImageToken(value: string): boolean {
 }
 
 function normalizeAutoTitleResponse(title: string, imageTitle: string): string {
-  const withoutThinking = stripWebSearchRequestMarkup(stripThinkingContent(title))
+  const withoutThinking = stripThinkingContent(title)
     .replace(/^["']|["']$/g, '')
     .trim();
 

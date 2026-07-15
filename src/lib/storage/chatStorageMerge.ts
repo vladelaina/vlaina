@@ -1,5 +1,6 @@
 import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
+import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/status';
 import {
   MAX_SESSION_MESSAGE_BRANCH_DEPTH,
   MAX_SESSION_MESSAGE_BRANCH_MESSAGES,
@@ -55,6 +56,7 @@ function createVersionFromMessage(message: ChatMessage): ChatMessage['versions']
     kind: 'original',
     subsequentMessages: [],
     ...(message.apiTranscript ? { apiTranscript: message.apiTranscript } : {}),
+    ...(message.webSearchStatuses ? { webSearchStatuses: message.webSearchStatuses } : {}),
   };
 }
 
@@ -157,6 +159,8 @@ function isSameMessageVersion(
     (!Array.isArray(left.subsequentMessages) || left.subsequentMessages.length === 0) &&
     (!Array.isArray(right.subsequentMessages) || right.subsequentMessages.length === 0) &&
     areApiTranscriptsEquivalent(left.apiTranscript, right.apiTranscript)
+    && JSON.stringify(sanitizeWebSearchStatuses(left.webSearchStatuses))
+      === JSON.stringify(sanitizeWebSearchStatuses(right.webSearchStatuses))
   );
 }
 

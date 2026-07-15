@@ -72,6 +72,7 @@ interface ChatInputComposerFrameProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   textareaScrollTop: number;
   webSearchEnabled: boolean;
+  webSearchAvailable?: boolean;
 }
 
 export function ChatInputComposerFrame({
@@ -121,6 +122,7 @@ export function ChatInputComposerFrame({
   textareaRef,
   textareaScrollTop,
   webSearchEnabled,
+  webSearchAvailable = true,
 }: ChatInputComposerFrameProps) {
   const { t } = useI18n();
 
@@ -225,6 +227,7 @@ export function ChatInputComposerFrame({
               canSubmit={canSubmit}
               showSendReadyState={!isQuotaSendBlocked && canSend}
               webSearchEnabled={webSearchEnabled}
+              webSearchAvailable={webSearchAvailable}
               onToggleWebSearch={onToggleWebSearch}
               onRequestComposerFocus={onRequestComposerFocus}
               onStop={handleStopButton}

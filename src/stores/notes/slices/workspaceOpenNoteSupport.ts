@@ -192,9 +192,7 @@ export function mergeLoadedNoteCacheEntry(
 
   const hasDirtyContent = dirtyContent !== undefined;
   const options: Parameters<typeof setCachedNoteContent>[4] = {
-    ...(hasDirtyContent
-      ? { baselineContent: loadedEntry.savedContent ?? loadedEntry.content }
-      : { updateBaseline: true }),
+    baselineContent: loadedEntry.savedContent ?? loadedEntry.content,
     freshUntil: loadedEntry.freshUntil,
   };
   if (loadedEntry.size !== undefined) {

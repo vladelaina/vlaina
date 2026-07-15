@@ -15,6 +15,7 @@ interface ChatInputActionsProps {
   canSubmit: boolean;
   showSendReadyState?: boolean;
   webSearchEnabled: boolean;
+  webSearchAvailable?: boolean;
   onToggleWebSearch: () => void;
   onRequestComposerFocus: () => void;
   onStop: () => void;
@@ -31,6 +32,7 @@ export function ChatInputActions({
   canSubmit,
   showSendReadyState,
   webSearchEnabled,
+  webSearchAvailable = true,
   onToggleWebSearch,
   onRequestComposerFocus,
   onStop,
@@ -115,7 +117,7 @@ export function ChatInputActions({
               chatComposerPillSurfaceClass
             )}
           >
-            {!webSearchEnabled && (
+            {webSearchAvailable && !webSearchEnabled && (
               <button
                 type="button"
                 data-chat-input-action="enable-web-search"

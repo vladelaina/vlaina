@@ -18,7 +18,7 @@
   --typora-page-padding-inline: var(--v-write-pd-x, var(--vlaina-size-80px));
   --typora-page-padding: var(--typora-page-padding-block) var(--typora-page-padding-inline);
   --typora-block-gap: var(--vlaina-space-05em);
-  --typora-body-line-height: var(--typora-imported-body-line-height, var(--line-height-normal, var(--vlaina-line-height-markdown-body)));
+  --typora-body-line-height: var(--typora-imported-body-line-height, var(--line-height-normal, var(--vlaina-markdown-line-height-body)));
   --typora-heading-bg: var(--head-title-h2-background, linear-gradient(90deg, var(--h-bg-start, transparent), var(--h-bg-end, transparent)));
   --typora-heading-shadow: var(--h-box-sd, transparent);
   --typora-heading-border-color: var(--h-box-sd, transparent);

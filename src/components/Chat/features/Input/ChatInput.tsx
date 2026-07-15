@@ -17,6 +17,7 @@ import { useChatInputFileTreeDrop } from './hooks/useChatInputFileTreeDrop';
 import { useChatInputFocus } from './hooks/useChatInputFocus';
 import { useChatInputRecall } from './hooks/useChatInputRecall';
 import { useNoteMentions } from './hooks/useNoteMentions';
+import { getWebSearchAvailability } from './webSearchAvailability';
 
 export const ChatInput = memo(function ChatInput({
   active = true,
@@ -37,6 +38,12 @@ export const ChatInput = memo(function ChatInput({
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const webSearchEnabled = useUnifiedStore((state) => state.data.ai?.webSearchEnabled === true);
+  const webSearchAvailable = useUnifiedStore((state) => getWebSearchAvailability(state.data.ai));
+  useEffect(() => {
+    if (webSearchEnabled && webSearchAvailable === false) {
+      aiActions.setWebSearchEnabled(false);
+    }
+  }, [webSearchAvailable, webSearchEnabled]);
   const isQuotaSendBlocked = hasSelectedModel && isManagedQuotaExhausted;
   const {
     attachments,
@@ -281,6 +288,7 @@ export const ChatInput = memo(function ChatInput({
       textareaRef={textareaRef}
       textareaScrollTop={textareaScrollTop}
       webSearchEnabled={webSearchEnabled}
+      webSearchAvailable={webSearchAvailable}
     />
   );
 });

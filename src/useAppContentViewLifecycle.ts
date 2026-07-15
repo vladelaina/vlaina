@@ -85,7 +85,7 @@ export function useAppContentViewLifecycle({
   const didReportStartupReadyRef = useRef(false);
   const didEnableCenterChromeRef = useRef(false);
   const didEnableDeferredChromeRef = useRef(false);
-  const didPrewarmManagedModelsRef = useRef(false);
+  const didPrewarmManagedStartupDataRef = useRef(false);
   const centerChromeTimerRef = useRef<number | null>(null);
   const deferredChromeTimerRef = useRef<number | null>(null);
   const preloadedPrimaryViewRef = useRef<AppViewMode | null>(null);
@@ -218,11 +218,11 @@ export function useAppContentViewLifecycle({
     void preloadNotesTabRowModule();
     void preloadModelSelectorModule();
     void preloadTemporaryChatToggleModule();
-    if (unifiedLoaded && !didPrewarmManagedModelsRef.current) {
-      didPrewarmManagedModelsRef.current = true;
+    if (unifiedLoaded && !didPrewarmManagedStartupDataRef.current) {
+      didPrewarmManagedStartupDataRef.current = true;
       void preloadAIStoreModule()
         .then((mod) => {
-          mod.actions.refreshManagedProviderInBackground();
+          mod.actions.prewarmManagedStartupDataInBackground();
         })
         .catch(() => {
         });

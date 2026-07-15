@@ -103,6 +103,26 @@ describe('message actions API transcript handling', () => {
     useUIStore.setState({ languagePreference: 'en' });
   });
 
+  it('stores web search statuses on the active assistant version', () => {
+    seedMessages([createAssistantMessage()]);
+
+    createMessageActions().updateMessageWebSearchStatus('session-1', 'assistant-1', {
+      phase: 'results',
+      query: 'example',
+      results: [{
+        title: 'Example',
+        url: 'https://example.com',
+        snippet: 'Result',
+        publishedAt: null,
+      }],
+    });
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.webSearchStatuses).toEqual([expect.objectContaining({ phase: 'results', query: 'example' })]);
+    expect(message.versions[0].webSearchStatuses).toEqual(message.webSearchStatuses);
+    expect(message.content).toBe('old answer');
+  });
+
   it('clears the active top-level transcript when adding a regeneration version', () => {
     seedMessages([{
       ...createAssistantMessage(),
@@ -681,10 +701,12 @@ describe('message actions API transcript handling', () => {
       {
         ...createAssistantMessage(),
         id: 'assistant-1',
-        content: '<web-search-status>{"phase":"searching"}</web-search-status><think>planning',
+        content: '<think>planning',
+        webSearchStatuses: [{ phase: 'searching' }],
         apiTranscript: undefined,
         versions: [{
-          content: '<web-search-status>{"phase":"searching"}</web-search-status><think>planning',
+          content: '<think>planning',
+          webSearchStatuses: [{ phase: 'searching' }],
           createdAt: 1,
           kind: 'original' as const,
           subsequentMessages: [],

@@ -229,9 +229,9 @@
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .mermaid-block.ProseMirror-selectednode :is(text, tspan, .nodeLabel, .nodeLabel *, .label, .label *, .edgeLabel, .edgeLabel *) {
-  color: var(--vlaina-mermaid-text) !important;
-  -webkit-text-fill-color: var(--vlaina-mermaid-text) !important;
-  fill: var(--vlaina-mermaid-text) !important;
+  color: var(--vlaina-markdown-color-text) !important;
+  -webkit-text-fill-color: var(--vlaina-markdown-color-text) !important;
+  fill: var(--vlaina-markdown-color-text) !important;
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-atomic-block-keyboard-selected :is(

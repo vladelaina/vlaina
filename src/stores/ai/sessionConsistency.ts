@@ -77,6 +77,7 @@ function areMessagesEqual(left: ChatMessage[], right: ChatMessage[]) {
         leftVersion.content !== rightVersion.content ||
         leftVersion.createdAt !== rightVersion.createdAt ||
         leftVersion.kind !== rightVersion.kind ||
+        JSON.stringify(leftVersion.webSearchStatuses || []) !== JSON.stringify(rightVersion.webSearchStatuses || []) ||
         !areTranscriptsEqual(leftVersion.apiTranscript, rightVersion.apiTranscript) ||
         !areMessagesEqualInternal(leftVersion.subsequentMessages, rightVersion.subsequentMessages)
       ) {
@@ -102,6 +103,7 @@ function areMessagesEqual(left: ChatMessage[], right: ChatMessage[]) {
         leftMessage.timestamp !== rightMessage.timestamp ||
         leftMessage.currentVersionIndex !== rightMessage.currentVersionIndex ||
         !areStringArraysEqual(leftMessage.imageSources, rightMessage.imageSources) ||
+        JSON.stringify(leftMessage.webSearchStatuses || []) !== JSON.stringify(rightMessage.webSearchStatuses || []) ||
         !areTranscriptsEqual(leftMessage.apiTranscript, rightMessage.apiTranscript) ||
         !areVersionsEqual(leftMessage.versions, rightMessage.versions)
       ) {

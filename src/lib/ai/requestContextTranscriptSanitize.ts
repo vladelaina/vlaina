@@ -2,8 +2,6 @@ import type { ApiTranscriptMessage, ChatMessage } from './types';
 import { IMAGE_PLACEHOLDER } from './prompts';
 import { normalizeApiTranscriptMessages } from './apiTranscript';
 import { stripThinkingContent } from './stripThinkingContent';
-import { extractWebSearchStatuses } from './webSearch/statusMarkup';
-import { stripWebSearchRequestMarkup } from './webSearch/requestMarkup';
 import { sanitizeRequestTextImageReferences } from './requestContextImageSanitizer';
 
 const ERROR_TAG_GLOBAL_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/gi;
@@ -115,11 +113,7 @@ export function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
 
   return {
     ...msg,
-    content: extractWebSearchStatuses(
-      sanitizeRequestTextImageReferences(
-        stripWebSearchRequestMarkup(stripThinkingContent(contentWithoutUiErrors))
-      )
-    ).content,
+    content: sanitizeRequestTextImageReferences(stripThinkingContent(contentWithoutUiErrors)),
     apiTranscript,
     versions: stripVersionApiTranscripts(msg.versions),
   };

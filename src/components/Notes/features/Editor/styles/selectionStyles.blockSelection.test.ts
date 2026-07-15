@@ -349,13 +349,13 @@ describe("editor block selection styles", () => {
       '.milkdown .ProseMirror > p.editor-empty-paragraph:not(.is-editor-empty)'
     );
 
-    expect(editorBlankLineRule).toContain('min-height: var(--vlaina-height-markdown-blank-line);');
+    expect(editorBlankLineRule).toContain('min-height: var(--vlaina-markdown-size-blank-line);');
     expect(editorBlankLineRule).toContain('margin: var(--vlaina-space-0);');
     expect(editorBlankLineRule).toContain('padding: var(--vlaina-space-0);');
-    expect(editableBlankLineRule).toContain('min-height: var(--vlaina-height-markdown-blank-line);');
+    expect(editableBlankLineRule).toContain('min-height: var(--vlaina-markdown-size-blank-line);');
     expect(editableBlankLineRule).toContain('margin: var(--vlaina-space-0);');
     expect(editableBlankLineRule).toContain('padding: var(--vlaina-space-0);');
-    expect(trailingBreakBlankLineRule).toContain('min-height: var(--vlaina-height-markdown-blank-line);');
+    expect(trailingBreakBlankLineRule).toContain('min-height: var(--vlaina-markdown-size-blank-line);');
     expect(trailingBreakBlankLineRule).toContain('margin: var(--vlaina-space-0);');
     expect(trailingBreakBlankLineRule).toContain('padding: var(--vlaina-space-0);');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-native-selected-textlike {');

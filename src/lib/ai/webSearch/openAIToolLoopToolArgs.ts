@@ -1,4 +1,4 @@
-import { sanitizeWebSearchSourceUrl } from './statusMarkup';
+import { sanitizeWebSearchSourceUrl } from './status';
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
 import {

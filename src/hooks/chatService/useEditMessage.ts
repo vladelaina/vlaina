@@ -174,6 +174,7 @@ export function useEditMessage({
                   if (!isActiveRequest()) {
                     return;
                   }
+                  aiActions.updateMessageWebSearchStatus(sessionId, assistantMessageId, status);
                   addChatDebugLog('web-search', `status:${status.phase}`, {
                     sessionId,
                     query: status.query,

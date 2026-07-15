@@ -216,6 +216,41 @@ describe('web search IPC', () => {
     await expect(searchPromise).rejects.toMatchObject({ name: 'AbortError' });
   });
 
+  it('scopes request ids and cancellation to the originating renderer', async () => {
+    const handlers = new Map();
+    const signals = [];
+    const services = {
+      searchService: {
+        webSearch: vi.fn((_query, options) => new Promise((_resolve, reject) => {
+          signals.push(options.signal);
+          options.signal.addEventListener('abort', () => {
+            reject(new DOMException('cancelled', 'AbortError'));
+          }, { once: true });
+        })),
+      },
+      crawler: { readUrl: vi.fn() },
+    };
+    registerWebSearchIpc({
+      handleIpc: (channel, handler) => handlers.set(channel, handler),
+      services,
+    });
+    const firstEvent = { sender: { id: 1 } };
+    const secondEvent = { sender: { id: 2 } };
+
+    const first = handlers.get('desktop:web-search:search')(firstEvent, 'one', {}, 'same-id');
+    const second = handlers.get('desktop:web-search:search')(secondEvent, 'two', {}, 'same-id');
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(false);
+    expect(signals[1].aborted).toBe(false);
+
+    await expect(handlers.get('desktop:web-search:cancel')(firstEvent, 'same-id')).resolves.toBe(true);
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    expect(signals[1].aborted).toBe(false);
+
+    await expect(handlers.get('desktop:web-search:cancel')(secondEvent, 'same-id')).resolves.toBe(true);
+    await expect(second).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('rejects a search result that resolves after the request was cancelled', async () => {
     const handlers = new Map();
     const services = {

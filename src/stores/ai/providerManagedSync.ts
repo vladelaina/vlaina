@@ -167,6 +167,15 @@ export function refreshManagedProviderInBackgroundAction(
   void refreshManagedProviderInBackground(options)
 }
 
+export function prewarmManagedStartupDataInBackgroundAction(): void {
+  const accountRefresh = useAccountSessionStore.getState().checkStatus();
+  const modelRefresh = refreshManagedProviderInBackground();
+  void Promise.allSettled([
+    accountRefresh,
+    ...(modelRefresh ? [modelRefresh] : []),
+  ]);
+}
+
 function reconcileManagedProviderModelsAfterStoreChange(): void {
   if (!managedCatalogNeedsReapply()) return;
   void syncManagedProviderModelsFromStartup();
