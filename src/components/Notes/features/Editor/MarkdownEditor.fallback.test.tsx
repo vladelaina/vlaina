@@ -263,6 +263,22 @@ describe('MarkdownEditor source fallback', () => {
     vi.useRealTimers();
   });
 
+  it('uses the configured markdown font size in source mode', () => {
+    render(
+      <MarkdownSourceEditor
+        currentNotePath="alpha.md"
+        showBodyLineNumbers={false}
+        saveNote={mocks.notesState.saveNote}
+        mode="source"
+      />,
+    );
+
+    const sourceEditor = screen.getByLabelText('Markdown source editor');
+    expect(sourceEditor).toHaveClass('text-[length:var(--vlaina-markdown-font-body-size)]');
+    expect(sourceEditor).toHaveClass('leading-[var(--vlaina-markdown-line-height-body)]');
+    expect(sourceEditor.closest('[data-vlaina-markdown-font-size-surface="true"]')).toBeInstanceOf(HTMLElement);
+  });
+
   it('keeps markdown editable when the Milkdown runtime throws during render', async () => {
     render(<MarkdownEditor />);
 

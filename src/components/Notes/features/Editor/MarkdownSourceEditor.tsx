@@ -259,6 +259,7 @@ export function MarkdownSourceEditor({
         EDITOR_LAYOUT_CLASS
       )}
       data-note-content-root="true"
+      data-vlaina-markdown-font-size-surface="true"
       data-markdown-theme-root="true"
       data-markdown-theme-platform="vlaina"
       data-markdown-compat="native"
@@ -298,7 +299,7 @@ export function MarkdownSourceEditor({
         onMouseDownCapture={handleSourceMouseDownCapture}
         spellCheck={false}
         aria-label={t('editor.markdownSourceEditor')}
-        className="block min-h-[var(--vlaina-height-prosemirror-min)] w-full resize-none overflow-hidden bg-transparent px-0 py-2 pb-[var(--vlaina-height-prosemirror-bottom-padding)] font-mono text-sm leading-6 text-[var(--vlaina-text-primary)] outline-none"
+        className="block min-h-[var(--vlaina-height-prosemirror-min)] w-full resize-none overflow-hidden bg-transparent px-0 py-2 pb-[var(--vlaina-height-prosemirror-bottom-padding)] font-mono text-[length:var(--vlaina-markdown-font-body-size)] leading-[var(--vlaina-markdown-line-height-body)] text-[var(--vlaina-text-primary)] outline-none"
       />
     </div>
   );
