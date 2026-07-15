@@ -9,6 +9,10 @@ const RAW_MARKDOWN_ALIGNMENT_COMMENT_PATTERN = /^<!--\s*align\s*:\s*(?:left|cent
 export const MARKDOWN_HTML_INLINE_CLASS = 'md-html-inline';
 export const MARKDOWN_HTML_SOURCE_TEXT_CLASS = 'md-html-source-text';
 
+export function getRawMarkdownHtmlValue(value: unknown): string {
+    return typeof value === 'string' && value.length <= MAX_RAW_MARKDOWN_HTML_CHARS ? value : '';
+}
+
 function isSafeInternalMarkdownHtmlValue(value: string): boolean {
     const trimmed = value.trim();
     return trimmed === '<!--vlaina-markdown-blank-line-->'
@@ -35,17 +39,17 @@ function isPlainUnclosedHtmlBlockStart(value: string): boolean {
 }
 
 export function sanitizeRawMarkdownHtmlValue(value: unknown): string {
-    if (typeof value !== 'string') return '';
-    if (value.length > MAX_RAW_MARKDOWN_HTML_CHARS) return '';
+    const rawValue = getRawMarkdownHtmlValue(value);
+    if (!rawValue) return '';
     if (
-        isSafeInternalMarkdownHtmlValue(value)
-        || isNonRenderingMarkdownHtmlValue(value)
-        || isSafeStaticMarkdownHtmlValue(value)
+        isSafeInternalMarkdownHtmlValue(rawValue)
+        || isNonRenderingMarkdownHtmlValue(rawValue)
+        || isSafeStaticMarkdownHtmlValue(rawValue)
     ) {
-        return value.trim();
+        return rawValue.trim();
     }
-    if (isPlainUnclosedHtmlBlockStart(value)) return value;
-    return sanitizeHtml(value);
+    if (isPlainUnclosedHtmlBlockStart(rawValue)) return rawValue;
+    return sanitizeHtml(rawValue);
 }
 
 export function shouldRenderRawMarkdownHtmlValueAsLiteralText(value: unknown): value is string {

@@ -27,6 +27,7 @@ import {
     readEscapedMarkdownBlockSyntax,
 } from '@/components/common/markdown/escapedBlockSyntax';
 import {
+    getRawMarkdownHtmlValue,
     isLiteralInlineMarkdownHtmlElement,
     MARKDOWN_HTML_INLINE_CLASS,
     MARKDOWN_HTML_SOURCE_TEXT_CLASS,
@@ -194,15 +195,15 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         parseMarkdown: {
             match: (node: any) => prev.parseMarkdown?.match?.(node) ?? node.type === 'html',
             runner: (state: any, node: any, type: any) => {
-                const safeValue = sanitizeRawMarkdownHtmlValue(node.value);
-                if (safeValue) state.addNode(type, { value: safeValue });
+                const rawValue = getRawMarkdownHtmlValue(node.value);
+                if (rawValue) state.addNode(type, { value: rawValue });
             },
         },
         toMarkdown: {
             match: (node: any) => node.type.name === 'html',
             runner: (state: any, node: any) => {
-                const safeValue = sanitizeRawMarkdownHtmlValue(node.attrs?.value);
-                if (safeValue) state.addNode('html', undefined, safeValue);
+                const rawValue = getRawMarkdownHtmlValue(node.attrs?.value);
+                if (rawValue) state.addNode('html', undefined, rawValue);
             },
         },
     }));
@@ -277,15 +278,15 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         parseMarkdown: {
             match: (node: any) => prev.parseMarkdown?.match?.(node) ?? node.type === 'html',
             runner: (state: any, node: any, type: any) => {
-                const safeValue = sanitizeRawMarkdownHtmlValue(node.value);
-                if (safeValue) state.addNode(type, { value: safeValue });
+                const rawValue = getRawMarkdownHtmlValue(node.value);
+                if (rawValue) state.addNode(type, { value: rawValue });
             },
         },
         toMarkdown: {
             match: (node: any) => node.type.name === 'html_block',
             runner: (state: any, node: any) => {
-                const safeValue = sanitizeRawMarkdownHtmlValue(node.attrs?.value);
-                if (safeValue) state.addNode('html', undefined, safeValue);
+                const rawValue = getRawMarkdownHtmlValue(node.attrs?.value);
+                if (rawValue) state.addNode('html', undefined, rawValue);
             },
         },
     }));
