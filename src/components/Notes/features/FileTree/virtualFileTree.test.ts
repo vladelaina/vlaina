@@ -4,10 +4,12 @@ import {
   countVisibleFileTreeRows,
   estimateVirtualFileTreeRowHeight,
   flattenVisibleFileTreeRows,
+  getRecommendedFileTreeSidebarWidth,
   getVirtualFileTreeWindow,
   VIRTUAL_FILE_TREE_ROW_HEIGHT,
 } from './virtualFileTree';
 import type { FileTreeNode } from '@/stores/useNotesStore';
+import { SIDEBAR_DEFAULT_WIDTH, SIDEBAR_MAX_WIDTH } from '@/lib/layout/sidebarWidth';
 
 function file(name: string): FileTreeNode {
   return {
@@ -18,7 +20,7 @@ function file(name: string): FileTreeNode {
   };
 }
 
-function folder(name: string, children: FileTreeNode[] = []): FileTreeNode {
+function folder(name: string, children: FileTreeNode[] = []): Extract<FileTreeNode, { isFolder: true }> {
   return {
     id: name,
     name,
@@ -40,6 +42,38 @@ function deepVisibleTree(depth: number): FileTreeNode[] {
 }
 
 describe('virtualFileTree', () => {
+  it('recommends a wider sidebar for long visible file names', () => {
+    expect(getRecommendedFileTreeSidebarWidth([
+      file('a-markdown-file-name-that-needs-more-room'),
+    ])).toBeGreaterThan(SIDEBAR_DEFAULT_WIDTH);
+  });
+
+  it('reserves space for the file icon, row padding, and more-actions button', () => {
+    expect(getRecommendedFileTreeSidebarWidth([
+      file('12345678901234567890'),
+    ])).toBe(312);
+  });
+
+  it('uses rendered text measurements when they exceed the character estimate', () => {
+    expect(getRecommendedFileTreeSidebarWidth(
+      [file('wide-name')],
+      () => 240,
+    )).toBe(392);
+  });
+
+  it('accounts for nested wide-character names without exceeding the sidebar maximum', () => {
+    const collapsedFolder = folder('folder', [file('\u4e00'.repeat(32))]);
+    collapsedFolder.expanded = false;
+
+    expect(getRecommendedFileTreeSidebarWidth([
+      collapsedFolder,
+    ])).toBe(SIDEBAR_MAX_WIDTH);
+  });
+
+  it('keeps the default width when visible file names already fit', () => {
+    expect(getRecommendedFileTreeSidebarWidth([file('short')])).toBe(SIDEBAR_DEFAULT_WIDTH);
+  });
+
   it('estimates taller rows for long names so wrapped sidebar labels are not overlapped', () => {
     const shortHeight = estimateVirtualFileTreeRowHeight({ node: file('short'), depth: 1, parentFolderPath: '' });
     const mediumHeight = estimateVirtualFileTreeRowHeight({

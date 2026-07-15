@@ -34,6 +34,8 @@ const hoisted = vi.hoisted(() => ({
   recentNotesRoots: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
   uiState: {
     sidebarCollapsed: false,
+    sidebarWidth: 270,
+    setSidebarWidth: vi.fn(),
     notesPreviewTitle: null as { path: string; title: string } | null,
   },
   currentNote: null as { path: string; content: string } | null,
@@ -71,7 +73,10 @@ vi.mock('@/stores/useNotesRootStore', () => ({
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
-  useUIStore: (selector: (state: any) => unknown) => selector(hoisted.uiState),
+  useUIStore: Object.assign(
+    (selector: (state: any) => unknown) => selector(hoisted.uiState),
+    { getState: () => hoisted.uiState },
+  ),
 }));
 
 vi.mock('@/hooks/useTitleSync', () => ({
@@ -305,6 +310,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.currentNotesRoot = null;
     hoisted.recentNotesRoots = [];
     hoisted.uiState.sidebarCollapsed = false;
+    hoisted.uiState.sidebarWidth = 270;
     hoisted.uiState.notesPreviewTitle = null;
     hoisted.openNote.mockClear();
     hoisted.openNote.mockResolvedValue(undefined);
@@ -322,6 +328,77 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
+  });
+
+  it('widens the sidebar when a loaded file name needs more room', async () => {
+    render(
+      <SidebarContent
+        rootFolder={{
+          id: 'root',
+          name: 'Notes',
+          path: '',
+          isFolder: true,
+          expanded: true,
+          children: [{
+            id: 'long-note',
+            name: 'a-markdown-file-name-that-needs-more-room',
+            path: 'a-markdown-file-name-that-needs-more-room.md',
+            isFolder: false,
+          }],
+        }}
+        isLoading={false}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(hoisted.uiState.setSidebarWidth).toHaveBeenCalledWith(expect.any(Number));
+    });
+    expect(hoisted.uiState.setSidebarWidth.mock.calls[0][0]).toBeGreaterThan(270);
+  });
+
+  it('widens the sidebar when a long file name arrives in the background tree load', async () => {
+    const createRootFolder = (children: Array<{
+      id: string;
+      name: string;
+      path: string;
+      isFolder: false;
+    }>) => ({
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children,
+    });
+    const props = {
+      isLoading: false,
+      createNote: vi.fn(async () => undefined),
+      createFolder: vi.fn(async () => null),
+      search: createSearchState({ isSearchOpen: false, searchQuery: '' }),
+    };
+    const { rerender } = render(
+      <SidebarContent rootFolder={createRootFolder([])} {...props} />,
+    );
+
+    rerender(
+      <SidebarContent
+        rootFolder={createRootFolder([{
+          id: 'background-note',
+          name: 'a-background-markdown-file-name-that-needs-more-room',
+          path: 'a-background-markdown-file-name-that-needs-more-room.md',
+          isFolder: false,
+        }])}
+        {...props}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(hoisted.uiState.setSidebarWidth).toHaveBeenCalledWith(expect.any(Number));
+    });
+    expect(hoisted.uiState.setSidebarWidth.mock.calls[0][0]).toBeGreaterThan(270);
   });
 
   it('shows the live preview title for an empty current draft in the sidebar tree', async () => {
