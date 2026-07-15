@@ -8,10 +8,19 @@ const IMAGE_HOVER_PREVIEW_ACTIVE_ATTRIBUTE = 'data-image-file-hover-preview-acti
 
 export function ImageFileHoverPreview() {
   const target = useImageFileHoverPreviewTarget();
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{
+    imagePath: string;
+    notesPath: string;
+    src: string;
+  } | null>(null);
+  const activePreview = target
+    && preview?.imagePath === target.imagePath
+    && preview.notesPath === target.notesPath
+    ? preview
+    : null;
 
   useEffect(() => {
-    if (!target) {
+    if (!activePreview) {
       document.documentElement.removeAttribute(IMAGE_HOVER_PREVIEW_ACTIVE_ATTRIBUTE);
       return;
     }
@@ -20,27 +29,27 @@ export function ImageFileHoverPreview() {
     return () => {
       document.documentElement.removeAttribute(IMAGE_HOVER_PREVIEW_ACTIVE_ATTRIBUTE);
     };
-  }, [target]);
+  }, [activePreview]);
 
   useEffect(() => {
     if (!target) {
-      setPreviewSrc(null);
+      setPreview(null);
       return;
     }
 
     let active = true;
-    setPreviewSrc(null);
+    setPreview(null);
     const timer = window.setTimeout(() => {
       void resolveNotesRootRelativeFullPath(target.notesPath, target.imagePath)
         .then(({ fullPath }) => loadImageAsBlob(fullPath))
         .then((src) => {
           if (active) {
-            setPreviewSrc(src);
+            setPreview({ ...target, src });
           }
         })
         .catch(() => {
           if (active) {
-            setPreviewSrc(null);
+            setPreview(null);
           }
         });
     }, themeFileTreeTokens.imageHoverPreviewDelayMs);
@@ -51,7 +60,7 @@ export function ImageFileHoverPreview() {
     };
   }, [target]);
 
-  if (!target) {
+  if (!activePreview) {
     return null;
   }
 
@@ -60,13 +69,11 @@ export function ImageFileHoverPreview() {
       className="pointer-events-none absolute inset-0 z-[var(--vlaina-z-40)] flex items-center justify-center bg-[var(--vlaina-bg-primary)] p-[var(--vlaina-size-32px)]"
       data-image-file-hover-preview="true"
     >
-      {previewSrc ? (
-        <img
-          src={previewSrc}
-          alt={target.imagePath}
-          className="max-h-full max-w-full object-contain"
-        />
-      ) : null}
+      <img
+        src={activePreview.src}
+        alt={activePreview.imagePath}
+        className="max-h-full max-w-full object-contain"
+      />
     </div>
   );
 }
