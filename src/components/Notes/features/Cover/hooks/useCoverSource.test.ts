@@ -305,6 +305,54 @@ describe('useCoverSource', () => {
     expect(result.current.isSelectionCommitting).toBe(false);
   });
 
+  it('keeps an active preview when the current cover finishes resolving', async () => {
+    let resolveDimensions: ((value: { width: number; height: number }) => void) | undefined;
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
+    hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
+      resolveDimensions = resolve;
+    }));
+
+    const { result } = renderHook(() =>
+      useCoverSource({ url: 'assets/a.png', notesRootPath: '/notes-root-a' })
+    );
+
+    await waitFor(() => expect(resolveDimensions).toBeDefined());
+    act(() => {
+      result.current.setPreviewSrc('/covers/preview.webp');
+    });
+
+    await act(async () => {
+      resolveDimensions?.({ width: 1000, height: 500 });
+    });
+
+    expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    expect(result.current.previewSrc).toBe('/covers/preview.webp');
+  });
+
+  it('keeps an active preview when the current cover fails to resolve', async () => {
+    let rejectResolution: ((reason: Error) => void) | undefined;
+    hoisted.resolveNotesRootAssetPath.mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectResolution = reject;
+    }));
+
+    const { result } = renderHook(() =>
+      useCoverSource({ url: 'assets/missing.png', notesRootPath: '/notes-root-a' })
+    );
+
+    await waitFor(() => expect(rejectResolution).toBeDefined());
+    act(() => {
+      result.current.setPreviewSrc('/covers/preview.webp');
+    });
+
+    await act(async () => {
+      rejectResolution?.(new Error('resolve failed'));
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.previewSrc).toBe('/covers/preview.webp');
+  });
+
   it('clears committing state after new cover resolves', async () => {
     hoisted.resolveNotesRootAssetPath.mockImplementation(async (_notesRootPath: string, assetPath: string) => {
       if (assetPath === 'assets/a.png') return '/notesRoot/assets/a.png';

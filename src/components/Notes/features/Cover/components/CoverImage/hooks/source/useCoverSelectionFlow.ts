@@ -79,7 +79,6 @@ export function useCoverSelectionFlow({
     if (assetPath === url) {
       setPreviewSrc(null);
       endSelectionCommit();
-      commitCoverUpdate(assetPath);
       setUniversalPreview(null, { cover: null });
       setShowPicker(false);
       return;
