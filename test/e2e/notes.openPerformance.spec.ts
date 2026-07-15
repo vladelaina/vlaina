@@ -290,6 +290,7 @@ test.describe('notes long markdown open performance', () => {
         ({ path: notesRootToOpen, name }) => (window as any).__vlainaE2E.openNotesRoot(notesRootToOpen, name),
         { path: fixture.notesRootPath, name: 'Large Notes Root Performance' },
       );
+      const openActionMs = Date.now() - openStartedAt;
 
       await expect.poll(async () => page.evaluate((expectedNotesRootPath) => {
         const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
@@ -316,6 +317,8 @@ test.describe('notes long markdown open performance', () => {
       )), { timeout: 30_000 }).toBe(1800);
       const treeMetrics = await page.evaluate(() => (window as any).__vlainaE2E.getNotesTreeMetrics());
       console.info('[notes-large-notes-root-open-performance]', {
+        openActionMs,
+        treeVisibleAfterOpenActionMs: firstTreeVisibleMs - openActionMs,
         firstTreeVisibleMs,
         ...treeMetrics,
       });

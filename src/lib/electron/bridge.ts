@@ -248,7 +248,7 @@ export interface ElectronFsApi {
   mkdir(filePath: string, recursive?: boolean): Promise<void>;
   deleteFile(filePath: string): Promise<void>;
   deleteDir(filePath: string, recursive?: boolean): Promise<void>;
-  listDir(filePath: string): Promise<Array<{
+  listDir(filePath: string, maxEntries?: number): Promise<Array<{
     name: string;
     path: string;
     isDirectory: boolean;

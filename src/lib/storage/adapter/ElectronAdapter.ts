@@ -90,7 +90,7 @@ export class ElectronAdapter implements StorageAdapter {
   }
 
   async listDir(path: string, options?: ListOptions): Promise<FileInfo[]> {
-    const entries = await getFs().listDir(path);
+    const entries = await getFs().listDir(path, options?.maxEntries);
     const filtered = options?.includeHidden
       ? entries
       : entries.filter((entry) => !entry.name.startsWith('.'));
