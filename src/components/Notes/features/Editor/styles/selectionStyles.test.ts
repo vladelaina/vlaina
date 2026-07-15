@@ -169,9 +169,9 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(\n  [data-type='math-inline'],\n  [data-type='math-block'],\n  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])\n).ProseMirror-selectednode * {");
     expect(css).toContain("color: var(--vlaina-editor-block-selection-fg) !important;");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .mermaid-block.ProseMirror-selectednode :is(text, tspan, .nodeLabel, .nodeLabel *, .label, .label *, .edgeLabel, .edgeLabel *) {");
-    expect(css).toContain("color: var(--vlaina-mermaid-text) !important;");
-    expect(css).toContain("-webkit-text-fill-color: var(--vlaina-mermaid-text) !important;");
-    expect(css).toContain("fill: var(--vlaina-mermaid-text) !important;");
+    expect(css).toContain("color: var(--vlaina-markdown-color-text) !important;");
+    expect(css).toContain("-webkit-text-fill-color: var(--vlaina-markdown-color-text) !important;");
+    expect(css).toContain("fill: var(--vlaina-markdown-color-text) !important;");
     expect(keyboardRichNodeRule).toContain(".ProseMirror-selectednode {");
     expect(keyboardRichNodeRule).toContain("background: var(--vlaina-math-hover-color) !important;");
     expect(keyboardRichNodeRule).toContain("box-shadow:");

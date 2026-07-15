@@ -650,6 +650,35 @@ describe('saveNoteDocument', () => {
     expect(result.nextCache.get('alpha.md')?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
   });
 
+  it('uses the original disk markdown as the conditional-write baseline after load normalization', async () => {
+    const diskContent = ['# Alpha', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n');
+    adapter.platform = 'electron';
+    adapter.readFile.mockResolvedValue(diskContent);
+    adapter.stat
+      .mockResolvedValueOnce({ modifiedAt: 123, size: diskContent.length })
+      .mockResolvedValueOnce({ modifiedAt: 123, size: diskContent.length })
+      .mockResolvedValueOnce({ modifiedAt: 124, size: diskContent.length + 8 });
+
+    const loaded = await loadNoteDocument({
+      notesPath: '/notesRoot',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+    const editedContent = `${loaded.content}\n\nEdited`;
+
+    await saveNoteDocument({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'alpha.md', content: editedContent },
+      cache: loaded.nextCache,
+    });
+
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledWith(
+      '/notesRoot/alpha.md',
+      diskContent,
+      editedContent,
+    );
+  });
+
   it('cleans serialized editor-only markdown artifacts when loading markdown', async () => {
     adapter.readFile.mockResolvedValue([
       '# Alpha',

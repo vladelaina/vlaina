@@ -786,8 +786,8 @@ test.describe("notes block selection syntax drag", () => {
 
       expect(styles).not.toBeNull();
       expect(styles!.footnoteClassName).toContain('editor-block-selected');
-      expect(styles!.fillBottom).toBe('0px');
-      expect(styles!.fillTop).toBe('0px');
+      expect(Number.parseFloat(styles!.fillBottom)).toBe(0);
+      expect(Number.parseFloat(styles!.fillTop)).toBe(0);
       expect(styles!.beforeBackground).toBe('rgba(0, 0, 0, 0)');
       expect(styles!.beforeBorderLeftColor).toBe(styles!.color);
       expect(styles!.beforeBorderLeftWidth).toBe('3px');

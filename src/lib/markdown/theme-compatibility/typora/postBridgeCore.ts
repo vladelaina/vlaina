@@ -16,7 +16,7 @@ export function buildTyporaRootBridge(root: string): CssLines {
       '--typora-heading-font: var(--v-fm-h, var(--v-fm-h-local, var(--v-fm-bd, inherit)));',
       '--typora-strong-font: var(--v-fm-bd, var(--v-fm-bd-local, inherit));',
       '--typora-tag-font: var(--v-fm-tag, var(--v-fm-tag-local, var(--font-interface, var(--font-sans))));',
-      '--typora-body-line-height: var(--typora-imported-body-line-height, var(--line-height-normal, var(--vlaina-line-height-markdown-body)));',
+      '--typora-body-line-height: var(--typora-imported-body-line-height, var(--line-height-normal, var(--vlaina-markdown-line-height-body)));',
       '--typora-block-bg: var(--bq-bg, var(--element-color-soo-shallow, var(--code-block-bg, var(--background-secondary, transparent))));',
       '--typora-block-border: var(--pn-c-a, var(--border-color, var(--element-color-shallow, var(--background-modifier-border, var(--vlaina-border)))));',
       '--typora-block-radius: var(--c-br-b, var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem)));',
