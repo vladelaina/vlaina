@@ -167,4 +167,23 @@ describe('workspace note open state races', () => {
     expect(betaCacheEntry).toEqual({ content: '# unsaved outside beta', modifiedAt: 2 });
     expect(betaCacheEntry?.savedContent).toBe('# disk outside beta');
   });
+
+  it('preserves the original disk baseline when opening normalized markdown', async () => {
+    const absolutePath = '/outside/alpha.md';
+    const diskContent = ['# Alpha', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n');
+    storageAdapter.stat.mockResolvedValue({
+      isFile: true,
+      modifiedAt: 2,
+      size: diskContent.length,
+    });
+    storageAdapter.readFile.mockResolvedValue(diskContent);
+    const store = createNotesStore();
+
+    await store.getState().openNoteByAbsolutePath(absolutePath);
+
+    const cacheEntry = store.getState().noteContentsCache.get(absolutePath);
+    expect(store.getState().currentNote?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
+    expect(cacheEntry?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
+    expect(cacheEntry?.savedContent).toBe(diskContent);
+  });
 });

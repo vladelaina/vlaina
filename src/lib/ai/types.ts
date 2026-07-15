@@ -76,6 +76,7 @@ export interface MessageVersion {
     kind: 'original' | 'regeneration' | 'edit';
     subsequentMessages: ChatMessage[]; 
     apiTranscript?: ApiTranscriptMessage[];
+    webSearchStatuses?: WebSearchStatus[];
 }
 
 export interface ChatMessage {
@@ -83,6 +84,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   apiTranscript?: ApiTranscriptMessage[]
+  webSearchStatuses?: WebSearchStatus[]
   imageSources?: string[]
   modelId: string
   timestamp: number

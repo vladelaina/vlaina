@@ -40,15 +40,15 @@
 }
 
 .milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg) !important;
+  background: var(--vlaina-markdown-color-selection) !important;
 }
 
 .milkdown .frontmatter-block-container:not(.ProseMirror-selectednode):not(.editor-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg) !important;
+  background: var(--vlaina-markdown-color-selection) !important;
 }
 
 .milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg) !important;
+  background: var(--vlaina-markdown-color-selection) !important;
 }
 
 .milkdown .ProseMirror.editor-toolbar-copy-feedback-active .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {

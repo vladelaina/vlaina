@@ -111,7 +111,8 @@ export function replaceRecentCompositionText(
     !staleText ||
     !committedText ||
     staleText === committedText ||
-    staleText.length > MAX_COMPOSITION_REPAIR_TEXT_LENGTH
+    staleText.length > MAX_COMPOSITION_REPAIR_TEXT_LENGTH ||
+    committedText.length > MAX_COMPOSITION_REPAIR_TEXT_LENGTH
   ) {
     return false;
   }
@@ -137,6 +138,14 @@ export function replaceRecentCompositionText(
       const searchedText = text.slice(fromOffset, toOffset);
       let index = searchedText.indexOf(staleText);
       while (index >= 0) {
+        const committedStart = searchedText.lastIndexOf(committedText, index);
+        const alreadyCommitted = committedStart >= 0 &&
+          committedStart + committedText.length >= index + staleText.length;
+        if (alreadyCommitted) {
+          index = searchedText.indexOf(staleText, index + 1);
+          continue;
+        }
+
         const from = pos + fromOffset + index;
         const to = from + staleText.length;
         const distance = Math.min(Math.abs(anchor - from), Math.abs(anchor - to));

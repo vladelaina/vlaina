@@ -77,6 +77,22 @@ export async function resolveUniqueRenamedPath(
   return resolveUniqueTargetPath(basePath, folderPath, fileName, isDirectory, normalizedCurrentPath);
 }
 
+export async function resolveUniqueRenamedAssetPath(
+  basePath: string,
+  currentPath: string,
+  nextName: string,
+) {
+  const normalizedCurrentPath = normalizeNotesRootRelativePath(currentPath);
+  if (!normalizedCurrentPath) {
+    throw new Error('Path must stay inside the opened folder.');
+  }
+  assertNonInternalNotePath(normalizedCurrentPath, 'Path must not be inside an internal notes folder.');
+
+  const folderPath = getParentPath(normalizedCurrentPath) || undefined;
+  const fileName = sanitizeFileName(nextName);
+  return resolveUniqueTargetPath(basePath, folderPath, fileName, false, normalizedCurrentPath);
+}
+
 export async function resolveUniqueMovedPath(
   basePath: string,
   sourcePath: string,

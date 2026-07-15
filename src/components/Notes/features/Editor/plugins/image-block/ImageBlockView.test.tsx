@@ -147,7 +147,9 @@ describe('ImageBlockView', () => {
     it('opens the shared image viewer with the original remote resource and cached preview when clicked', async () => {
         renderImageBlock();
 
-        fireEvent.click(screen.getByTestId('notes-image-content'));
+        const imageContent = screen.getByTestId('notes-image-content');
+        expect(imageContent.parentElement).toHaveClass('cursor-pointer');
+        fireEvent.click(imageContent);
 
         const viewer = await screen.findByTestId('notes-image-viewer');
         expect(viewer).toHaveAttribute('data-src', 'https://example.com/image.jpg');
@@ -172,7 +174,9 @@ describe('ImageBlockView', () => {
     it('does not open the viewer for failed image loads', () => {
         renderImageBlock({ loadError: new Error('failed') });
 
-        fireEvent.click(screen.getByTestId('notes-image-content'));
+        const imageContent = screen.getByTestId('notes-image-content');
+        expect(imageContent.parentElement).not.toHaveClass('cursor-pointer');
+        fireEvent.click(imageContent);
 
         expect(screen.queryByTestId('notes-image-viewer')).toBeNull();
     });

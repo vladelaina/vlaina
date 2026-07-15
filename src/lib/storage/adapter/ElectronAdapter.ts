@@ -52,6 +52,14 @@ export class ElectronAdapter implements StorageAdapter {
     await getFs().writeTextFile(path, content, options);
   }
 
+  async writeFileIfUnchanged(path: string, expectedContent: string | null, content: string): Promise<boolean> {
+    if (expectedContent !== null) {
+      assertElectronTextWriteBytes(expectedContent);
+    }
+    assertElectronTextWriteBytes(content);
+    return getFs().writeTextFileIfUnchanged(path, expectedContent, content);
+  }
+
   async writeBinaryFile(path: string, content: Uint8Array, options?: WriteOptions): Promise<void> {
     assertElectronWriteBytes(content.byteLength);
     if (options?.recursive) {
@@ -82,7 +90,7 @@ export class ElectronAdapter implements StorageAdapter {
   }
 
   async listDir(path: string, options?: ListOptions): Promise<FileInfo[]> {
-    const entries = await getFs().listDir(path);
+    const entries = await getFs().listDir(path, options?.maxEntries);
     const filtered = options?.includeHidden
       ? entries
       : entries.filter((entry) => !entry.name.startsWith('.'));

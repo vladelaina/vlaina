@@ -5,19 +5,31 @@ import { useResizableDivider } from './useResizableDivider';
 function DividerHarness({
   width = 280,
   onWidthChange,
+  onWidthCommit,
+  getDefaultWidth,
 }: {
   width?: number;
   onWidthChange: (width: number) => void;
+  onWidthCommit?: (width: number) => void;
+  getDefaultWidth?: () => number;
 }) {
-  const { handleDragStart } = useResizableDivider({
+  const { handleDragStart, handleDoubleClick } = useResizableDivider({
     width,
     minWidth: 240,
     maxWidth: 500,
     defaultWidth: 280,
+    getDefaultWidth,
     onWidthChange,
+    onWidthCommit,
   });
 
-  return <div data-testid="handle" onMouseDown={handleDragStart} />;
+  return (
+    <div
+      data-testid="handle"
+      onMouseDown={handleDragStart}
+      onDoubleClick={handleDoubleClick}
+    />
+  );
 }
 
 describe('useResizableDivider', () => {
@@ -52,5 +64,39 @@ describe('useResizableDivider', () => {
     expect(onWidthChange).toHaveBeenCalledWith(290);
 
     fireEvent.mouseUp(document);
+  });
+
+  it('resets to the default width on divider double click', () => {
+    const onWidthChange = vi.fn();
+    const onWidthCommit = vi.fn();
+    render(
+      <DividerHarness
+        width={420}
+        onWidthChange={onWidthChange}
+        onWidthCommit={onWidthCommit}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByTestId('handle'));
+
+    expect(onWidthChange).toHaveBeenCalledWith(280);
+    expect(onWidthCommit).toHaveBeenCalledWith(280);
+  });
+
+  it('reads a live default width when the divider is double clicked', () => {
+    const onWidthChange = vi.fn();
+    let defaultWidth = 360;
+    render(
+      <DividerHarness
+        width={420}
+        onWidthChange={onWidthChange}
+        getDefaultWidth={() => defaultWidth}
+      />,
+    );
+    defaultWidth = 330;
+
+    fireEvent.doubleClick(screen.getByTestId('handle'));
+
+    expect(onWidthChange).toHaveBeenCalledWith(330);
   });
 });

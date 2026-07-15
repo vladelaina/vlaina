@@ -1,5 +1,5 @@
 import { buildAllSourceHints } from '../sourceHints/index.mjs';
-import { getMeaningfulTerms, getQueryMatchScore } from '../searchRelevance.mjs';
+import { getMeaningfulTerms } from '../searchRelevance.mjs';
 import { boundedInternalQueryText } from './localSearchEngines.mjs';
 import { extractHtmlTitle } from './localSearchHtmlResults.mjs';
 import {
@@ -22,21 +22,6 @@ export function shouldUseFastOfficialHints(query, options, officialResults) {
   const normalizedQuery = boundedInternalQueryText(query).toLowerCase();
   const asksForFreshSearch = /(\b(today|breaking|current|recent|latest|updated|updates?|news|this week|this month|this year|just released|newly released|release notes?)\b|今天|今日|最新|最近|新闻|资讯|本周|本月|今年|刚发布|新发布|更新|版本说明|发布说明)/.test(normalizedQuery);
   return !asksForFreshSearch;
-}
-
-function hasStrongOfficialHint(query, officialResults) {
-  const terms = getMeaningfulTerms(query);
-  if (terms.length === 0) return false;
-
-  const minimumScore = Math.min(3, terms.length);
-  return officialResults.some((result) =>
-    getQueryMatchScore(query, `${result.title} ${result.snippet} ${result.url}`) >= minimumScore);
-}
-
-export function shouldUseOfficialHintGrace(query, options, officialResults) {
-  if (officialResults.length === 0) return false;
-  if (options.category === 'news' || options.timeRange) return false;
-  return hasStrongOfficialHint(query, officialResults);
 }
 
 export function getSingleBrandLikeTerm(query) {

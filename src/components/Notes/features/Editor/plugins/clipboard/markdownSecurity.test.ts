@@ -91,9 +91,9 @@ describe('markdown security when opening notes', () => {
     expect(hrefs.some((href) => href?.startsWith('data:'))).toBe(false);
     expect(hrefs.some((href) => href?.startsWith('file:'))).toBe(false);
     expect(hrefs.some((href) => href?.startsWith('//'))).toBe(false);
-    expect(result.persisted).not.toContain('javascript:alert');
-    expect(result.persisted).not.toContain('file:///etc/passwd');
-    expect(result.persisted).not.toContain('](//example.com');
+    expect(result.persisted).toContain('javascript:alert');
+    expect(result.persisted).toContain('file:///etc/passwd');
+    expect(result.persisted).toContain('](//example.com');
   });
 
   it('only auto-loads sanitized relative and public remote image sources', async () => {
@@ -133,7 +133,10 @@ describe('markdown security when opening notes', () => {
     expect(srcs.some((src) => src?.includes('127.1') || src?.includes('2130706433') || src?.includes('0177.'))).toBe(false);
     expect(srcs.some((src) => src?.includes('192.168.'))).toBe(false);
     expect(srcsets.some((srcset) => srcset?.includes('data:image') || srcset?.includes('127.0.0.1'))).toBe(false);
-    expect(result.persisted).toContain('<img src="https://example.com/safe.png" alt="safe" />');
+    expect(result.persisted).toContain('![safe](https://example.com/safe.png)');
+    expect(result.persisted).toContain('![javascript](javascript:alert');
+    expect(result.persisted).toContain('![file](file:///etc/passwd)');
+    expect(result.persisted).toContain('![localhost](http://127.0.0.1:3000/secret.png)');
   });
 
   it('sanitizes unsafe link marks before rendering DOM anchors', async () => {
@@ -195,10 +198,8 @@ describe('markdown security when opening notes', () => {
       'url(',
     ];
 
-    for (const needle of unsafeNeedles) {
-      expect(html).not.toContain(needle);
-      expect(persisted).not.toContain(needle);
-    }
+    for (const needle of unsafeNeedles) expect(html).not.toContain(needle);
+    for (const needle of unsafeNeedles) expect(persisted).toContain(needle);
 
     expect(result.dom.querySelector('.image-block-container[src="https://example.com/safe.png"]')).toBeInstanceOf(HTMLElement);
     expect(result.dom.querySelector('a[href="https://example.com/safe"]')?.textContent).toBe('safe link');
@@ -246,7 +247,7 @@ describe('markdown security when opening notes', () => {
       'cdata-sandwich',
     ]) {
       expect(result.dom.innerHTML).not.toContain(needle);
-      expect(result.persisted).not.toContain(needle);
+      expect(result.persisted).toContain(needle);
     }
   });
 });

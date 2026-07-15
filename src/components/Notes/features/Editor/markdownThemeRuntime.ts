@@ -4,6 +4,13 @@ import {
   type MarkdownThemeColorSchemeMode,
 } from '@/lib/markdown/theme-compatibility/colorScheme';
 import type { MarkdownThemePlatform } from '@/lib/markdown/theme-compatibility/types';
+import {
+  TYPORA_DOCUMENT_CLASSES,
+  TYPORA_OS_CLASSES,
+  resolveTyporaRuntimePlatformClasses,
+} from './theme-compatibility/typora/runtimeClasses';
+
+export { resolveTyporaRuntimePlatformClasses };
 
 export type {
   MarkdownThemeColorScheme,
@@ -20,19 +27,6 @@ export interface MarkdownThemeRuntimeState {
   typewriterMode: boolean;
 }
 
-const TYPORA_DOCUMENT_CLASSES = [
-  'typora-export',
-  'typora-export-content',
-  'typora-node',
-] as const;
-
-const TYPORA_OS_CLASSES = [
-  'html-for-mac',
-  'os-linux',
-  'os-mac',
-  'os-windows',
-] as const;
-
 export function resolveMarkdownThemeViewport(width: number): MarkdownThemeViewport {
   if (width < 768) return 'mobile';
   if (width < 1024) return 'tablet';
@@ -40,25 +34,6 @@ export function resolveMarkdownThemeViewport(width: number): MarkdownThemeViewpo
 }
 
 export const resolveMarkdownThemeRuntimeColorScheme = resolveImportedMarkdownThemeColorScheme;
-
-export function resolveTyporaRuntimePlatformClasses(
-  platform = globalThis.navigator?.platform ?? '',
-  userAgent = globalThis.navigator?.userAgent ?? ''
-): string[] {
-  const fingerprint = `${platform} ${userAgent}`.toLowerCase();
-
-  if (/\bmac|darwin|iphone|ipad|ipod/.test(fingerprint)) {
-    return ['html-for-mac', 'os-mac'];
-  }
-  if (/\bwin/.test(fingerprint)) {
-    return ['os-windows'];
-  }
-  if (/\blinux|x11|wayland/.test(fingerprint)) {
-    return ['os-linux'];
-  }
-
-  return [];
-}
 
 export function applyMarkdownThemeRuntimeAttributes(
   element: HTMLElement,

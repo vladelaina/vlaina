@@ -253,8 +253,8 @@
   [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ):not(.editor-block-selected):not(.editor-block-drag-source):not(.ProseMirror-selectednode):is(:hover, :focus-visible, .editor-preview-context-menu-active) * {
-  color: var(--vlaina-text-primary) !important;
-  -webkit-text-fill-color: var(--vlaina-text-primary) !important;
+  color: var(--vlaina-markdown-color-text) !important;
+  -webkit-text-fill-color: var(--vlaina-markdown-color-text) !important;
 }
 
 .milkdown .ProseMirror :is(
@@ -275,8 +275,8 @@
   [data-type='math-inline'],
   [data-type='math-block']
 ):not(.editor-block-selected):not(.editor-block-drag-source):not(.ProseMirror-selectednode):is(:hover, :focus-visible, .editor-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon) {
-  fill: var(--vlaina-text-primary) !important;
-  stroke: var(--vlaina-text-primary) !important;
+  fill: var(--vlaina-markdown-color-text) !important;
+  stroke: var(--vlaina-markdown-color-text) !important;
 }
 
 .milkdown .ProseMirror :is(
@@ -290,15 +290,15 @@
 .milkdown .ProseMirror .editor-block-selected :is(
   .mermaid-block
 ):not(.editor-block-selected):not(.editor-block-drag-source):not(.ProseMirror-selectednode):is(:hover, :focus-visible, .editor-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel) {
-  fill: var(--vlaina-text-primary) !important;
+  fill: var(--vlaina-markdown-color-text) !important;
 }
 
 .milkdown .ProseMirror :is(
   .mermaid-block
 ):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(text, tspan, .nodeLabel, .nodeLabel *, .label, .label *, .edgeLabel, .edgeLabel *) {
-  color: var(--vlaina-mermaid-text) !important;
-  -webkit-text-fill-color: var(--vlaina-mermaid-text) !important;
-  fill: var(--vlaina-mermaid-text) !important;
+  color: var(--vlaina-markdown-color-text) !important;
+  -webkit-text-fill-color: var(--vlaina-markdown-color-text) !important;
+  fill: var(--vlaina-markdown-color-text) !important;
 }
 
 .milkdown [data-type='math-block'].math-block-wrapper {

@@ -41,6 +41,7 @@ interface ChatInputComposerFrameProps {
   handleTextareaPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   handleTriggerFileSelect: () => void;
   handleTriggerMentionSelect: () => void;
+  hasMentionCandidates: boolean;
   hasSelectedModel: boolean;
   isBlockDropActive: boolean;
   isDragging: boolean;
@@ -71,6 +72,7 @@ interface ChatInputComposerFrameProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   textareaScrollTop: number;
   webSearchEnabled: boolean;
+  webSearchAvailable?: boolean;
 }
 
 export function ChatInputComposerFrame({
@@ -89,6 +91,7 @@ export function ChatInputComposerFrame({
   handleTextareaPaste,
   handleTriggerFileSelect,
   handleTriggerMentionSelect,
+  hasMentionCandidates,
   hasSelectedModel,
   isBlockDropActive,
   isDragging,
@@ -119,6 +122,7 @@ export function ChatInputComposerFrame({
   textareaRef,
   textareaScrollTop,
   webSearchEnabled,
+  webSearchAvailable = true,
 }: ChatInputComposerFrameProps) {
   const { t } = useI18n();
 
@@ -217,11 +221,13 @@ export function ChatInputComposerFrame({
             <ChatInputActions
               onTriggerFileSelect={handleTriggerFileSelect}
               onTriggerMentionSelect={handleTriggerMentionSelect}
+              hasMentionCandidates={hasMentionCandidates}
               isLoading={isLoading}
               canSend={canSend}
               canSubmit={canSubmit}
               showSendReadyState={!isQuotaSendBlocked && canSend}
               webSearchEnabled={webSearchEnabled}
+              webSearchAvailable={webSearchAvailable}
               onToggleWebSearch={onToggleWebSearch}
               onRequestComposerFocus={onRequestComposerFocus}
               onStop={handleStopButton}

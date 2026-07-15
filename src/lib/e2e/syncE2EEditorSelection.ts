@@ -1,6 +1,7 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
+import { getFreshCachedEditorBlockTargets } from '@/components/Notes/features/Editor/utils/editorBlockPositionCache';
 import { floatingToolbarKey } from '@/components/Notes/features/Editor/plugins/floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '@/components/Notes/features/Editor/plugins/floating-toolbar/types';
 import type { EditorSelectionSummary } from './syncE2EBridgeTypes';
@@ -156,7 +157,8 @@ export function editorTextHasMark(text: string, markName: string, anchorText?: s
 }
 
 export function getSelectableBlockTargetsForE2E(view: NonNullable<ReturnType<typeof getCurrentEditorView>>) {
-  return collectSelectableBlockTargets(view);
+  const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+  return getFreshCachedEditorBlockTargets(view, scrollRoot) ?? collectSelectableBlockTargets(view);
 }
 
 export function getSelectableBlockRangeTextForE2E(

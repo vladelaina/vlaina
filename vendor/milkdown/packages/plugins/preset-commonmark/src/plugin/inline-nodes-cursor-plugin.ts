@@ -22,6 +22,8 @@ function shouldShowInlineNodeCursor(pos: { parentOffset: number; parent: { conte
 /// This plugin is to solve the [chrome 98 bug](https://discuss.prosemirror.net/t/cursor-jumps-at-the-end-of-line-when-it-betweens-two-inline-nodes/4641).
 export const inlineNodesCursorPlugin = $prose(() => {
   let lock = false
+  let compositionSession = 0
+  let pendingCompositionFrame: number | null = null
   const inlineNodesCursorPluginKey = new PluginKey(
     'MILKDOWN_INLINE_NODES_CURSOR'
   )
@@ -43,12 +45,16 @@ export const inlineNodesCursorPlugin = $prose(() => {
         compositionend: (view, e) => {
           if (lock) {
             lock = false
-            requestAnimationFrame(() => {
+            const session = compositionSession
+            const from = view.state.selection.from
+            const data = e.data || ''
+            e.preventDefault()
+            pendingCompositionFrame = requestAnimationFrame(() => {
+              pendingCompositionFrame = null
+              if (session !== compositionSession || lock) return
               const active = inlineNodesCursorPlugin.getState(view.state)
-              if (active) {
-                const from = view.state.selection.from
-                e.preventDefault()
-                view.dispatch(view.state.tr.insertText(e.data || '', from))
+              if (active && view.state.selection.empty && view.state.selection.from === from) {
+                view.dispatch(view.state.tr.insertText(data, from))
               }
             })
 
@@ -57,8 +63,13 @@ export const inlineNodesCursorPlugin = $prose(() => {
           return false
         },
         compositionstart: (view) => {
+          compositionSession += 1
+          if (pendingCompositionFrame !== null) {
+            cancelAnimationFrame(pendingCompositionFrame)
+            pendingCompositionFrame = null
+          }
           const active = inlineNodesCursorPlugin.getState(view.state)
-          if (active) lock = true
+          lock = Boolean(active)
 
           return false
         },
@@ -95,6 +106,16 @@ export const inlineNodesCursorPlugin = $prose(() => {
         return DecorationSet.empty
       },
     },
+    view: () => ({
+      destroy: () => {
+        compositionSession += 1
+        lock = false
+        if (pendingCompositionFrame !== null) {
+          cancelAnimationFrame(pendingCompositionFrame)
+          pendingCompositionFrame = null
+        }
+      },
+    }),
   })
 
   return inlineNodesCursorPlugin

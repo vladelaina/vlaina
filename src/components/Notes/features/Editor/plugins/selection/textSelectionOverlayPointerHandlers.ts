@@ -1,4 +1,4 @@
-import { isTextSelectionOverlayEligible, textSelectionOverlayPluginKey } from './textSelectionOverlayState';
+import { isTextSelectionOverlayEligible } from './textSelectionOverlayState';
 import { getNativeSelectionMetrics } from './textSelectionOverlayState';
 import { getCaretTargetFromPoint, syncNativeSelectionToCaretTarget } from './textSelectionOverlayCaret';
 import {
@@ -6,7 +6,6 @@ import {
   clearTextSelectionFromBlankPointerDown,
   collapsePointerNativeSelectionAt,
   getPointerNativeSelectionEnabled,
-  restorePointerClickSelectionRange,
   schedulePointerClickCollapseReassertion,
 } from './textSelectionOverlayPointerClick';
 import type { TextSelectionOverlayViewContext } from './textSelectionOverlayViewTypes';
@@ -25,7 +24,6 @@ export function handleTextSelectionOverlayMouseDown(
   session.lastPointerSelectionY = event.clientY;
   session.pointerClickCollapseTarget = null;
   session.pendingPointerClickCollapseTarget = null;
-  session.pointerClickRestoreSelectionRange = null;
   const shouldMaybeCollapseTextSelectionClick =
     isTextSelectionOverlayEligible(view.state) &&
     (event.clientX !== 0 || event.clientY !== 0) &&
@@ -34,28 +32,23 @@ export function handleTextSelectionOverlayMouseDown(
     !event.metaKey &&
     !event.altKey;
   if (shouldMaybeCollapseTextSelectionClick) {
-    const restoreSelectionRange = {
-      from: view.state.selection.from,
-      to: view.state.selection.to,
-      usePointerNativeSelection: Boolean(
-        textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection
-      ),
-    };
     const clickedTarget = getCaretTargetFromPoint(view, event);
     if (clickedTarget !== null) {
       session.pointerClickCollapseTarget = clickedTarget;
       session.pendingPointerClickCollapseTarget = clickedTarget;
-      session.pointerClickRestoreSelectionRange = restoreSelectionRange;
-      event.preventDefault();
-      event.stopImmediatePropagation();
       collapsePointerNativeSelectionAt(context, clickedTarget);
-      schedulePointerClickCollapseReassertion(context, clickedTarget);
       return;
     }
 
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    clearTextSelectionFromBlankPointerDown(context);
+    if (event.target === view.dom) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      clearTextSelectionFromBlankPointerDown(context);
+      return;
+    }
+
+    session.setPointerNativeSelection(true);
+    session.syncActiveClass();
     return;
   }
   if (!session.pointerClickCollapseTarget) {
@@ -77,7 +70,6 @@ export function handleTextSelectionOverlayMouseMove(
   session.pointerMovedSinceDown = Math.hypot(deltaX, deltaY) > 4;
   if (session.pointerMovedSinceDown) {
     cancelPointerClickCollapseReassertion(context);
-    restorePointerClickSelectionRange(context);
     session.pointerClickCollapseTarget = null;
     session.pendingPointerClickCollapseTarget = null;
     session.pointerSelectionAutoScroll.start();
@@ -106,14 +98,12 @@ export function handleTextSelectionOverlayMouseUp(
     event.preventDefault();
     event.stopImmediatePropagation();
     session.pendingPointerClickCollapseTarget = clickCollapseTarget;
-    session.pointerClickRestoreSelectionRange = null;
     collapsePointerNativeSelectionAt(context, clickCollapseTarget);
     schedulePointerClickCollapseReassertion(context, clickCollapseTarget);
     return;
   }
 
   session.pendingPointerClickCollapseTarget = null;
-  session.pointerClickRestoreSelectionRange = null;
   cancelPointerClickCollapseReassertion(context);
   session.pointerNativeReleaseFrame = requestAnimationFrame(() => {
     session.pointerNativeReleaseFrame = null;
@@ -157,7 +147,6 @@ export function handleTextSelectionOverlayWindowBlur(context: TextSelectionOverl
   session.lastPointerSelectionY = null;
   session.pointerSelectionAutoScroll.stop();
   session.pendingPointerClickCollapseTarget = null;
-  session.pointerClickRestoreSelectionRange = null;
   cancelPointerClickCollapseReassertion(context);
   session.preserveNativeSelectionForKeyboard = false;
   session.syncActiveClass();

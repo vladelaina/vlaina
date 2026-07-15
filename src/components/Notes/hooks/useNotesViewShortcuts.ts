@@ -17,6 +17,7 @@ import {
 } from '@/components/Notes/features/Editor/plugins/floating-toolbar/ai/sidebarDiscussion';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { dispatchNoteSourceModeToggleEvent } from '@/components/Notes/features/Editor/sourceMode/sourceModeEvents';
+import { dispatchEditorFindOpenEvent } from '@/components/Notes/features/Editor/find/editorFindEvents';
 
 interface UseNotesViewShortcutsOptions {
   active: boolean;
@@ -33,6 +34,7 @@ interface UseNotesViewShortcutsOptions {
   openFloatingChat: () => void;
   focusNotesChatComposer: () => void;
   focusSidebarPath: (path: string) => void;
+  saveNote: (options?: { explicit?: boolean }) => Promise<void>;
 }
 
 export function useNotesViewShortcuts({
@@ -50,6 +52,7 @@ export function useNotesViewShortcuts({
   openFloatingChat,
   focusNotesChatComposer,
   focusSidebarPath,
+  saveNote,
 }: UseNotesViewShortcutsOptions) {
   useEffect(() => {
     if (!active) {
@@ -66,11 +69,30 @@ export function useNotesViewShortcuts({
       }
 
       const isInsideNotesChatSurface = isEventInsideNotesChatSurface(event.target);
-      if (isEditableShortcutTarget(event.target) && !isInsideNotesChatSurface) {
+      const isInsideNoteEditor = event.target instanceof Element && Boolean(
+        event.target.closest('[data-note-content-root="true"]')
+      );
+      if (
+        isInsideNoteEditor &&
+        matchesShortcutBinding(event, 'toggleNoteSourceMode')
+      ) {
+        event.preventDefault();
+        dispatchNoteSourceModeToggleEvent();
         return;
       }
-
-      if (!isInsideNotesChatSurface && matchesShortcutBinding(event, 'toggleEmbeddedChat')) {
+      if (
+        isInsideNoteEditor &&
+        matchesShortcutBinding(event, 'editorFind')
+      ) {
+        event.preventDefault();
+        dispatchEditorFindOpenEvent();
+        return;
+      }
+      if (
+        !isInsideNotesChatSurface &&
+        (!isEditableShortcutTarget(event.target) || isInsideNoteEditor) &&
+        matchesShortcutBinding(event, 'toggleEmbeddedChat')
+      ) {
         event.preventDefault();
         if (!chatPanelCollapsed) {
           closeChatPanel();
@@ -89,6 +111,17 @@ export function useNotesViewShortcuts({
         }
 
         openFloatingChat();
+        return;
+      }
+      if (
+        isInsideNoteEditor &&
+        matchesShortcutBinding(event, 'saveNote')
+      ) {
+        event.preventDefault();
+        void saveNote({ explicit: true });
+        return;
+      }
+      if (isEditableShortcutTarget(event.target) && !isInsideNotesChatSurface) {
         return;
       }
 
@@ -210,5 +243,6 @@ export function useNotesViewShortcuts({
     openNote,
     openFloatingChat,
     openTabs,
+    saveNote,
   ]);
 }

@@ -24,8 +24,6 @@ import {
 } from './blockSelectionUtils';
 import { createVerticalEdgeAutoScroll } from './edgeAutoScroll';
 
-const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
-
 export {
   blurActiveEditableElement,
   filterExternalBlankAreaSelectionEdgeGrazes,
@@ -95,10 +93,6 @@ export function startBlankAreaSelectionSession(
   });
 
   const handleGeometryResize: ResizeObserverCallback = (entries) => {
-    if (entries.length > 0 && view.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS)) {
-      return;
-    }
-
     if (entries.length > 0) {
       let hasMeaningfulResize = false;
       for (const entry of entries) {

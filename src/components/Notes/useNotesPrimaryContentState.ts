@@ -11,7 +11,6 @@ export function useNotesPrimaryContentState(args: {
   active: boolean;
   applyPendingSplitEditorFocus: () => void;
   currentDraftMetadata: NoteMetadataEntry | undefined;
-  currentNoteContent: string;
   currentNotePath: string | undefined;
   currentNotesRoot: { path: string } | null | undefined;
   draftNotes: ReturnType<typeof useNotesStore.getState>['draftNotes'];
@@ -25,7 +24,6 @@ export function useNotesPrimaryContentState(args: {
     active,
     applyPendingSplitEditorFocus,
     currentDraftMetadata,
-    currentNoteContent,
     currentNotePath,
     currentNotesRoot,
     draftNotes,
@@ -38,6 +36,14 @@ export function useNotesPrimaryContentState(args: {
   const previousActiveRef = useRef(active);
   const [canLoadMarkdownEditor, setCanLoadMarkdownEditor] = useState(() => active);
   const [primaryContentReadyPath, setPrimaryContentReadyPath] = useState<string | null>(null);
+  const firstPaintNoteContent = useNotesStore(
+    useCallback((state) => {
+      if (!active || !currentNotePath || primaryContentReadyPath === currentNotePath) {
+        return '';
+      }
+      return state.currentNote?.path === currentNotePath ? state.currentNote.content : '';
+    }, [active, currentNotePath, primaryContentReadyPath]),
+  );
 
   useEffect(() => {
     onStartupReady?.();
@@ -64,11 +70,12 @@ export function useNotesPrimaryContentState(args: {
       return;
     }
 
+    const currentNote = useNotesStore.getState().currentNote;
     if (
       openTabs.length !== 1 ||
       openTabs[0]?.path !== currentNotePath ||
       !isEmptyUntitledDraft({
-        content: currentNoteContent,
+        content: currentNote?.path === currentNotePath ? currentNote.content : '',
         draftMetadata: currentDraftMetadata,
         draftNotes,
         path: currentNotePath,
@@ -97,7 +104,7 @@ export function useNotesPrimaryContentState(args: {
         window.cancelAnimationFrame(nextFrameId);
       }
     };
-  }, [active, currentDraftMetadata, currentNoteContent, currentNotePath, draftNotes, notesViewRef, openTabs]);
+  }, [active, currentDraftMetadata, currentNotePath, draftNotes, notesViewRef, openTabs]);
 
   const reportNotesPrimaryContentReady = useCallback(() => {
     setPrimaryContentReadyPath(currentNotePath ?? null);
@@ -118,8 +125,8 @@ export function useNotesPrimaryContentState(args: {
       return [];
     }
 
-    return createLargeMarkdownFirstPaintPreviewBlocks(currentNoteContent);
-  }, [active, currentNoteContent, currentNotePath, primaryContentReadyPath]);
+    return createLargeMarkdownFirstPaintPreviewBlocks(firstPaintNoteContent);
+  }, [active, currentNotePath, firstPaintNoteContent, primaryContentReadyPath]);
 
   useEffect(() => {
     setCanLoadMarkdownEditor(active || Boolean(currentNotePath));

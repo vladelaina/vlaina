@@ -82,10 +82,13 @@ export function mergeNoteMetadataWithFileInfo(
   });
 }
 
-export async function loadNoteMetadata(notesRootPath: string): Promise<MetadataFile> {
+export async function loadNoteMetadata(
+  notesRootPath: string,
+  knownNotePaths?: readonly string[],
+): Promise<MetadataFile> {
   try {
     const storage = getStorageAdapter();
-    const notePaths = await collectMarkdownPaths(notesRootPath);
+    const notePaths = knownNotePaths ?? await collectMarkdownPaths(notesRootPath);
     const notes: MetadataFile['notes'] = {};
     const notesRootCache = metadataCacheByNotesRoot.get(notesRootPath) ?? new Map<string, CachedMetadataEntry>();
     setMetadataNotesRootCache(notesRootPath, notesRootCache);

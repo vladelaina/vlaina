@@ -1,7 +1,7 @@
 import type { AIModel } from '@/lib/ai/types';
 import { Icon } from '@/components/ui/icons';
 import { buildScopedModelId } from '@/lib/ai/utils';
-import type { HealthStatus } from '../components/ModelListItem';
+import { formatBenchmarkLatency, type HealthStatus } from '../components/ModelListItem';
 import {
   ActionButton,
   ModelRow,
@@ -33,8 +33,10 @@ interface ProviderModelsPanelProps {
   canBenchmarkAvailable: boolean;
   isHealthChecking: boolean;
   benchmarkAllActive: boolean;
+  benchmarkAllQueued: boolean;
   selectedBenchmarkActive: boolean;
   availableBenchmarkActive: boolean;
+  queuedBenchmarkModelIds: string[];
   healthCheckOverall: 'idle' | 'success' | 'error';
   healthStatus: Record<string, HealthStatus>;
   onQuickAddModelIdChange: (value: string) => void;
@@ -43,6 +45,7 @@ interface ProviderModelsPanelProps {
   onBenchmark: () => void | Promise<void>;
   onBenchmarkSelected: () => void | Promise<void>;
   onBenchmarkAvailable: () => void | Promise<void>;
+  onBenchmarkModel: (modelId: string) => void | Promise<void>;
   onClearAllModels: () => void;
   onDeleteModel: (modelId: string) => void;
   onAddModel: (modelId: string) => boolean;
@@ -94,6 +97,37 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
   const handleAddVisibleAvailableModels = () => {
     if (availableModels.length === 0) return;
     props.onAddAllVisible(availableModels);
+  };
+  const renderBenchmarkButton = (modelId: string) => {
+    const health = props.healthStatus[modelId];
+    const isLoading = health?.status === 'loading' ||
+      props.benchmarkAllQueued ||
+      props.queuedBenchmarkModelIds.includes(modelId);
+    return (
+      <button
+        type="button"
+        aria-label={t('settings.ai.benchmarkAll')}
+        disabled={!props.canUseConnectionActions || isLoading}
+        onClick={(event) => {
+          event.stopPropagation();
+          void props.onBenchmarkModel(modelId);
+        }}
+        className={cn(
+          'flex h-8 min-w-8 items-center justify-center px-1 text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]',
+          health?.status === 'error' && 'text-[var(--vlaina-color-status-danger-fg)]'
+        )}
+      >
+        {isLoading ? (
+          <span className="h-3 w-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-accent)] animate-spin" />
+        ) : health?.status === 'success' ? (
+          <span className="text-[var(--vlaina-font-10)] font-medium">{formatBenchmarkLatency(health.latency)}</span>
+        ) : health?.status === 'error' ? (
+          <span className="text-[var(--vlaina-font-10)] font-medium">{t('settings.ai.failed')}</span>
+        ) : (
+          <Icon name="misc.activity" size="xs" />
+        )}
+      </button>
+    );
   };
   return (
     <section className="min-w-0 space-y-4">
@@ -199,7 +233,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                       selected
                       health={props.healthStatus[model.id]}
                       onClick={() => props.onDeleteModel(model.id)}
-                      trailing={null}
+                      trailing={renderBenchmarkButton(model.id)}
                     />
                   )}
                   emptyState={t('settings.ai.noSelectedModels')}
@@ -226,7 +260,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                       onClick={() => {
                         props.onAddModel(modelId);
                       }}
-                      trailing={null}
+                      trailing={renderBenchmarkButton(buildScopedModelId(props.providerId, modelId))}
                     />
                   )}
                   emptyState={t('settings.ai.noAvailableModels')}

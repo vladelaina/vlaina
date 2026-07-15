@@ -430,11 +430,12 @@ describe('requestContext', () => {
     ]);
   });
 
-  it('removes web search status markup from model history', () => {
+  it('does not serialize web search status metadata into model history', () => {
     const history = [
       createMessage({
         role: 'assistant',
-        content: '<web-search-status>{"phase":"results","query":"x"}</web-search-status>\n\nFinal answer',
+        content: 'Final answer',
+        webSearchStatuses: [{ phase: 'results', query: 'x' }],
       }),
     ];
 
@@ -442,7 +443,7 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toBe('Final answer');
   });
 
-  it('removes leaked web search request markup from model history', () => {
+  it('treats legacy web search request text as ordinary history content', () => {
     const history = [
       createMessage({
         role: 'assistant',
@@ -455,7 +456,7 @@ describe('requestContext', () => {
     ];
 
     const sanitized = sanitizeHistory(history);
-    expect(sanitized[0].content).toBe('Final answer');
+    expect(sanitized[0].content).toBe(history[0].content);
   });
 
   it('removes rendered thinking markup from fallback model history', () => {

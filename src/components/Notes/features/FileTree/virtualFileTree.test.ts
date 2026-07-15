@@ -4,10 +4,12 @@ import {
   countVisibleFileTreeRows,
   estimateVirtualFileTreeRowHeight,
   flattenVisibleFileTreeRows,
+  getRecommendedFileTreeSidebarWidth,
   getVirtualFileTreeWindow,
   VIRTUAL_FILE_TREE_ROW_HEIGHT,
 } from './virtualFileTree';
 import type { FileTreeNode } from '@/stores/useNotesStore';
+import { SIDEBAR_DEFAULT_WIDTH, SIDEBAR_MAX_WIDTH } from '@/lib/layout/sidebarWidth';
 
 function file(name: string): FileTreeNode {
   return {
@@ -18,7 +20,7 @@ function file(name: string): FileTreeNode {
   };
 }
 
-function folder(name: string, children: FileTreeNode[] = []): FileTreeNode {
+function folder(name: string, children: FileTreeNode[] = []): Extract<FileTreeNode, { isFolder: true }> {
   return {
     id: name,
     name,
@@ -40,6 +42,54 @@ function deepVisibleTree(depth: number): FileTreeNode[] {
 }
 
 describe('virtualFileTree', () => {
+  it('recommends a wider sidebar for long visible file names', () => {
+    expect(getRecommendedFileTreeSidebarWidth([
+      file('a-markdown-file-name-that-needs-more-room'),
+    ])).toBeGreaterThan(SIDEBAR_DEFAULT_WIDTH);
+  });
+
+  it('reserves space for the file icon, row padding, and more-actions button', () => {
+    expect(getRecommendedFileTreeSidebarWidth([
+      file('12345678901234567890'),
+    ])).toBe(312);
+  });
+
+  it('uses rendered text measurements when they exceed the character estimate', () => {
+    expect(getRecommendedFileTreeSidebarWidth(
+      [file('wide-name')],
+      () => 240,
+    )).toBe(392);
+  });
+
+  it('ignores long names inside collapsed folders', () => {
+    const collapsedFolder = folder('folder', [file('\u4e00'.repeat(32))]);
+    collapsedFolder.expanded = false;
+
+    expect(getRecommendedFileTreeSidebarWidth([
+      collapsedFolder,
+    ])).toBe(SIDEBAR_DEFAULT_WIDTH);
+  });
+
+  it('accounts for nested wide-character names after their folder is expanded', () => {
+    expect(getRecommendedFileTreeSidebarWidth([
+      folder('folder', [file('\u4e00'.repeat(32))]),
+    ])).toBe(SIDEBAR_MAX_WIDTH);
+  });
+
+  it('can freeze traversal to the folders that were initially expanded', () => {
+    const expandedLater = folder('folder', [file('\u4e00'.repeat(32))]);
+
+    expect(getRecommendedFileTreeSidebarWidth(
+      [expandedLater],
+      undefined,
+      () => false,
+    )).toBe(SIDEBAR_DEFAULT_WIDTH);
+  });
+
+  it('keeps the default width when visible file names already fit', () => {
+    expect(getRecommendedFileTreeSidebarWidth([file('short')])).toBe(SIDEBAR_DEFAULT_WIDTH);
+  });
+
   it('estimates taller rows for long names so wrapped sidebar labels are not overlapped', () => {
     const shortHeight = estimateVirtualFileTreeRowHeight({ node: file('short'), depth: 1, parentFolderPath: '' });
     const mediumHeight = estimateVirtualFileTreeRowHeight({
@@ -56,6 +106,18 @@ describe('virtualFileTree', () => {
     expect(shortHeight).toBe(VIRTUAL_FILE_TREE_ROW_HEIGHT);
     expect(mediumHeight).toBeGreaterThan(VIRTUAL_FILE_TREE_ROW_HEIGHT * 2);
     expect(longHeight).toBeGreaterThan(VIRTUAL_FILE_TREE_ROW_HEIGHT);
+  });
+
+  it('reduces wrapped row height when the sidebar is wider', () => {
+    const row = {
+      node: file('b6aaf51dac026c53249b1b5cf4f77ca68c29b060.gif'),
+      depth: 1,
+      parentFolderPath: '',
+    };
+
+    expect(estimateVirtualFileTreeRowHeight(row, 560)).toBeLessThan(
+      estimateVirtualFileTreeRowHeight(row, 270),
+    );
   });
 
   it('uses variable row offsets for virtual windows', () => {

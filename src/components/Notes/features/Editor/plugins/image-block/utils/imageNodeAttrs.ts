@@ -49,6 +49,8 @@ export function mergeImageNodeAttrs(latestAttrs: NodeAttrs, incomingAttrs: NodeA
     const mergedSrc = incomingSrc ?? getSrc(latestAttrs);
 
     const nextAttrs: NodeAttrs = { ...latestAttrs, ...incomingAttrs };
+    nextAttrs.markdownSource = null;
+    nextAttrs.persistedSrc = null;
     nextAttrs.src = mergedSrc;
     nextAttrs.align = mergedAlign ?? 'center';
     nextAttrs.width = mergedWidth;

@@ -1,7 +1,5 @@
 import { stripErrorTags } from '@/lib/ai/errorTag';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
-import { stripWebSearchRequestMarkup } from '@/lib/ai/webSearch/requestMarkup';
-import { stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup';
 import { normalizeClipboardImageDataUrl, writeImageBlobToClipboard, writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
@@ -107,9 +105,7 @@ function isBlobByteLengthWithinLimit(size: number, maxBytes: number): boolean {
 }
 
 export function formatMessageCopyText(content: string, options?: ImageTokenParseOptions): string {
-  const normalizedContent = stripWebSearchRequestMarkup(
-    stripThinkingContent(stripWebSearchStatusMarkup(stripErrorTags(content)))
-  );
+  const normalizedContent = stripThinkingContent(stripErrorTags(content));
   const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(normalizedContent, options));
   const tokenLimit = getBoundedImageTokenLimit(options);
   if (tokens.length === 0) {

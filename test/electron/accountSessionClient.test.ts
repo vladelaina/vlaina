@@ -27,8 +27,10 @@ function createHarness(overrides: Partial<Parameters<typeof createDesktopAccount
     apiBaseUrl: 'https://api.example.com',
     readStoredAccountCredentials: vi.fn(async () => credentials),
     clearStoredAccountCredentials: vi.fn(async () => undefined),
+    clearStoredAccountCredentialsIfCurrent: vi.fn(async () => true),
     rotateStoredSessionToken: vi.fn(async () => undefined),
     writeStoredAccountCredentials: vi.fn(async () => undefined),
+    writeStoredAccountCredentialsIfCurrent: vi.fn(async () => true),
     ...overrides,
   };
   return {
@@ -156,6 +158,56 @@ describe('desktop account session client', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example.com/auth/session');
+  });
+
+  it('ignores an older session probe after newer credentials are stored', async () => {
+    const newerCredentials = {
+      ...credentials,
+      appSessionToken: 'nts_new_session',
+      username: 'new-user',
+      primaryEmail: 'new@example.com',
+    };
+    const readStoredAccountCredentials = vi.fn()
+      .mockResolvedValueOnce(credentials)
+      .mockResolvedValue(newerCredentials);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      connected: true,
+      provider: 'google',
+      username: 'old-user',
+      primaryEmail: 'old@example.com',
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { client, options } = createHarness({ readStoredAccountCredentials });
+
+    await expect(client.getDesktopAccountSessionStatus()).resolves.toMatchObject({
+      connected: true,
+      username: 'new-user',
+      primaryEmail: 'new@example.com',
+    });
+
+    expect(options.rotateStoredSessionToken).not.toHaveBeenCalled();
+    expect(options.writeStoredAccountCredentialsIfCurrent).not.toHaveBeenCalled();
+    expect(options.clearStoredAccountCredentialsIfCurrent).not.toHaveBeenCalled();
+  });
+
+  it('uses current credentials when an older session probe fails', async () => {
+    const newerCredentials = {
+      ...credentials,
+      appSessionToken: 'nts_new_session',
+      username: 'new-user',
+      primaryEmail: 'new@example.com',
+    };
+    const readStoredAccountCredentials = vi.fn()
+      .mockResolvedValueOnce(credentials)
+      .mockResolvedValue(newerCredentials);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    const { client } = createHarness({ readStoredAccountCredentials });
+
+    await expect(client.getDesktopAccountSessionStatus()).resolves.toMatchObject({
+      connected: true,
+      username: 'new-user',
+      primaryEmail: 'new@example.com',
+    });
   });
 
   it('uses the injected Electron fetch implementation for session probes', async () => {

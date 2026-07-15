@@ -21,7 +21,8 @@ const mocks = vi.hoisted(() => ({
   listImportedMarkdownThemesFromDirectory: vi.fn(),
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
-  refreshManagedProviderInBackground: vi.fn(),
+  prewarmManagedStartupDataInBackground: vi.fn(),
+  unifiedLoaded: true,
   settingsModuleImports: 0,
   temporaryChatToggleModuleImports: 0,
   fontSize: 17,
@@ -251,7 +252,7 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
   };
 
   const getState = (): UnifiedState => ({
-    loaded: true,
+    loaded: mocks.unifiedLoaded,
     data: {
       settings: {
         ui: {
@@ -323,7 +324,7 @@ vi.mock('@/lib/appVersion', () => ({
 vi.mock('@/stores/useAIStore', () => ({
   startAIStoreRuntimeEffects: mocks.startAIStoreRuntimeEffects,
   actions: {
-    refreshManagedProviderInBackground: mocks.refreshManagedProviderInBackground,
+    prewarmManagedStartupDataInBackground: mocks.prewarmManagedStartupDataInBackground,
   },
 }));
 
@@ -360,6 +361,7 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.notesSidebarUnmounts = 0;
     mocks.whiteboardMounts = 0;
     mocks.whiteboardSidebarMounts = 0;
+    mocks.unifiedLoaded = true;
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([importedTheme]);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
       directoryPath: '/app/.vlaina/app/themes',
@@ -385,14 +387,29 @@ describe('AppContent view switching chrome readiness', () => {
     });
   });
 
-  it('prewarms the managed model catalog after the initial notes view is ready', async () => {
+  it('prewarms managed models and account entitlements after the initial notes view is ready', async () => {
     render(<AppContent />);
 
     expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
     await waitFor(() => {
-      expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledWith();
+      expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledWith();
     });
-    expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledTimes(1);
+    expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for unified data before prewarming managed startup data', async () => {
+    mocks.unifiedLoaded = false;
+    const { rerender } = render(<AppContent />);
+
+    expect(mocks.prewarmManagedStartupDataInBackground).not.toHaveBeenCalled();
+
+    mocks.unifiedLoaded = true;
+    rerender(<AppContent />);
+
+    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    await waitFor(() => {
+      expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {
@@ -487,7 +504,7 @@ describe('AppContent view switching chrome readiness', () => {
 
     await waitFor(() => {
       expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent).toContain(
-        '--vlaina-markdown-font-size: 17px',
+        '--vlaina-markdown-font-body-size: 17px',
       );
     });
     expect(document.documentElement.style.fontSize).toBe('');

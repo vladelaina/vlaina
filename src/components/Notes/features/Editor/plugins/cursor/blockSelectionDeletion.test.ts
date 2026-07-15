@@ -210,6 +210,131 @@ describe('deleteSelectedBlocks', () => {
     await editor.destroy();
   });
 
+  it('places the cursor on the following markdown blank line after deleting an ordered list block', async () => {
+    const editor = await createSerializableEditor([
+      '16. 文字宽高比改为100%',
+      '',
+      '',
+      '',
+      '我[xs](ds)',
+      'i',
+      '的',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const targetBlock = findBlockByText(view, '文字宽高比改为100%');
+
+    expect(targetBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [targetBlock!], (tr) => tr)).toBe(true);
+
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+    expect(view.state.selection.$from.parentOffset).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+    expect(view.state.doc.lastChild?.textContent).toContain('我xs');
+    expect(view.state.doc.lastChild?.textContent).toContain('的');
+
+    await editor.destroy();
+  });
+
+  it('places the cursor on the blank line after deleting the last item from a remaining ordered list', async () => {
+    const markdown = [
+      '15. 保留',
+      '16. 文字宽高比改为100%',
+      '',
+      '',
+      '我[xs](ds)',
+      'i',
+      '的',
+    ].join('\n');
+    const editor = await createSerializableEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const targetBlock = findBlockByText(view, '文字宽高比改为100%');
+
+    expect(serializeNormalizedEditorMarkdown(editor)).toBe(markdown);
+    expect(targetBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [targetBlock!], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(0).textContent).toBe('保留');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+    expect(view.state.selection.$from.parentOffset).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length);
+
+    const persisted = serializeNormalizedEditorMarkdown(editor);
+    expect(persisted).toContain('保留');
+    expect(persisted).not.toContain('文字宽高比改为100%');
+    expect(persisted).not.toContain(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+    expect(persisted).toMatch(/保留\n\n\n我\[xs\]\(ds\)/);
+
+    const reopened = await createSerializableEditor(persisted);
+    const reopenedView = reopened.ctx.get(editorViewCtx);
+    expect(reopenedView.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(reopenedView.state.doc.child(1).type.name).toBe('html_block');
+    expect(reopenedView.state.doc.child(2).type.name).toBe('html_block');
+    expect(reopenedView.state.doc.lastChild?.textContent).toContain('我xs');
+
+    await reopened.destroy();
+    await editor.destroy();
+  });
+
+  it('keeps the cursor in the list when a later item remains before the following blank line', async () => {
+    const editor = await createSerializableEditor([
+      '1. 一',
+      '2. 删除',
+      '3. 三',
+      '',
+      '',
+      '列表后正文',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const targetBlock = findBlockByText(view, '删除');
+
+    expect(targetBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [targetBlock!], (tr) => tr)).toBe(true);
+
+    expect(view.state.selection.$from.parent.textContent).toBe('三');
+    expect(view.state.selection.$from.parentOffset).toBe(1);
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(0).childCount).toBe(2);
+    expect(view.state.doc.child(1).type.name).toBe('html_block');
+
+    await editor.destroy();
+  });
+
+  it('keeps the cursor at the deleted line boundary inside a hard-break paragraph', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const hardbreakType = schema.nodes.hardbreak ?? schema.nodes.hard_break;
+
+    expect(hardbreakType).toBeDefined();
+    replaceDocument(view, [
+      schema.nodes.paragraph.create(null, [
+        schema.text('16. 文字宽高比改为100%'),
+        hardbreakType.create(),
+        hardbreakType.create(),
+        schema.text('我'),
+        hardbreakType.create(),
+        schema.text('i'),
+        hardbreakType.create(),
+        schema.text('的'),
+      ]),
+    ]);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(5);
+    expect(deleteSelectedBlocks(view, [blocks[0]], (tr) => tr)).toBe(true);
+
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+    expect(view.state.selection.$from.parentOffset).toBe(0);
+    expect(view.state.selection.$from.parent.textContent).toContain('我');
+    expect(view.state.selection.$from.parent.textContent).toContain('的');
+
+    await editor.destroy();
+  });
+
   it('places the cursor at the next paragraph tail after deleting adjacent middle blocks', async () => {
     const editor = await createEditor('A\n\nB\n\nC\n\nD');
     const view = editor.ctx.get(editorViewCtx);

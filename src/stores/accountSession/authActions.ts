@@ -10,21 +10,16 @@ import {
   clearAuthIntent,
   isEmailCodeRequestCooldownError,
   normalizeAuthError,
-  normalizePersistedUser,
-  persistUser,
-  refreshAvatar,
 } from './authSupport';
 import { applyDisconnectedAccount } from './sessionState';
 import {
   getCurrentEmailAuthLocale,
   isAuthorizationCancellation,
-  normalizeEmailCodeInput,
   normalizeEmailInput,
   readStoredAuthIntentValue,
 } from './authInput';
 import { selectRelevantElectronAuthEntries } from './electronAuthDebug';
 import {
-  invalidateAccountAuthAttempts,
   invalidateAccountSessionChecks,
   isCurrentAccountAuthAttempt,
   startAccountAuthAttempt,
@@ -35,10 +30,13 @@ type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
 
 export { createCheckStatus } from './checkStatusAction';
 export { createSignIn } from './signInAction';
+export { createVerifyEmailCode } from './verifyEmailCodeAction';
 export { invalidateAccountSessionAuthState } from './authFlowState';
 export { selectRelevantElectronAuthEntries };
 
 export function createRequestEmailCode(set: Set, get: Get): (email: string) => Promise<boolean> {
+  let inFlightRequest: { email: string; promise: Promise<boolean> } | null = null;
+
   return async (email: string) => {
     const normalizedEmail = normalizeEmailInput(email);
     if (!normalizedEmail) {
@@ -52,129 +50,45 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
       return false;
     }
 
-    const authAttemptVersion = startAccountAuthAttempt();
-    set({ error: null });
-    try {
-      const ok = hasElectronDesktopBridge()
-        ? await accountCommands.requestEmailAuthCode(normalizedEmail, getCurrentEmailAuthLocale())
-        : await webAccountCommands.requestEmailCode(normalizedEmail, getCurrentEmailAuthLocale());
-      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
-        return false;
-      }
-      if (!ok) {
-        set({ error: normalizeAuthError('Failed to send verification code') });
-      }
-      return ok;
-    } catch (error) {
-      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
-        return false;
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      if (isEmailCodeRequestCooldownError(message)) {
-        set({ error: null });
-        return true;
-      }
-      set({ error: normalizeAuthError(message) });
-      return false;
-    }
-  };
-}
-
-export function createVerifyEmailCode(set: Set, get: Get): (email: string, code: string) => Promise<boolean> {
-  return async (email: string, code: string) => {
-    const normalizedEmail = normalizeEmailInput(email);
-    if (!normalizedEmail) {
-      set({ error: normalizeAuthError('Invalid email address') });
-      return false;
+    if (inFlightRequest?.email === normalizedEmail) {
+      return await inFlightRequest.promise;
     }
 
-    const normalizedCode = normalizeEmailCodeInput(code);
-    if (!normalizedCode) {
-      set({ error: normalizeAuthError('Invalid verification code') });
-      return false;
-    }
-
-    const authAttemptVersion = startAccountAuthAttempt();
-    set({ error: null });
-    try {
-      if (hasElectronDesktopBridge()) {
-        const result = await accountCommands.verifyEmailAuthCode(normalizedEmail, normalizedCode);
+    const requestPromise = (async () => {
+      const authAttemptVersion = startAccountAuthAttempt();
+      set({ error: null });
+      try {
+        const ok = hasElectronDesktopBridge()
+          ? await accountCommands.requestEmailAuthCode(normalizedEmail, getCurrentEmailAuthLocale())
+          : await webAccountCommands.requestEmailCode(normalizedEmail, getCurrentEmailAuthLocale());
         if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
           return false;
         }
-        if (result?.success) {
-          const normalizedIdentity = normalizePersistedUser({
-            isConnected: true,
-            provider: normalizeAccountProvider(result.provider) ?? 'email',
-            username: result.username ?? null,
-            primaryEmail: result.primaryEmail ?? normalizedEmail,
-            avatarUrl: result.avatarUrl ?? null,
-            membershipTier: null,
-            membershipName: null,
-          });
-          const provider = normalizeAccountProvider(normalizedIdentity.provider);
-          const username = normalizedIdentity.username ?? null;
-          const primaryEmail = normalizedIdentity.primaryEmail ?? null;
-          const avatarUrl = normalizedIdentity.avatarUrl ?? null;
-          if (!provider || !username) {
-            set({ error: normalizeAuthError('Email sign-in failed') });
-            return false;
-          }
-
-          invalidateAccountSessionChecks();
-          set({
-            isConnected: true,
-            provider,
-            username,
-            primaryEmail,
-            avatarUrl,
-            membershipTier: null,
-            membershipName: null,
-            isConnecting: false,
-            isLoading: false,
-            hasCheckedStatus: true,
-            error: null,
-          });
-          persistUser({
-            isConnected: true,
-            provider,
-            username,
-            primaryEmail,
-            avatarUrl,
-            membershipTier: null,
-            membershipName: null,
-          });
-          void get().checkStatus({ force: true }).catch(() => undefined);
-          void refreshAvatar(set, get, username, avatarUrl);
+        if (!ok) {
+          set({ error: normalizeAuthError('Failed to send verification code') });
+        }
+        return ok;
+      } catch (error) {
+        if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+          return false;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        if (isEmailCodeRequestCooldownError(message)) {
+          set({ error: null });
           return true;
         }
-        set({ error: normalizeAuthError(result?.error || 'Email sign-in failed') });
+        set({ error: normalizeAuthError(message) });
         return false;
       }
+    })();
+    inFlightRequest = { email: normalizedEmail, promise: requestPromise };
 
-      const result = await webAccountCommands.verifyEmailCode(normalizedEmail, normalizedCode);
-      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
-        return false;
+    try {
+      return await requestPromise;
+    } finally {
+      if (inFlightRequest?.promise === requestPromise) {
+        inFlightRequest = null;
       }
-      if (result.success && result.username) {
-        invalidateAccountSessionChecks();
-        await get().checkStatus({ force: true });
-        if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
-          return false;
-        }
-        set({ isConnecting: false, error: null });
-        return true;
-      }
-
-      set({ error: normalizeAuthError(result.error || 'Email sign-in failed') });
-      return false;
-    } catch (error) {
-      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
-        return false;
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      set({ error: normalizeAuthError(message) });
-      return false;
     }
   };
 }
@@ -250,7 +164,7 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
 
 export function createSignOut(set: Set, _get: Get): () => Promise<void> {
   return async () => {
-    invalidateAccountAuthAttempts();
+    const authAttemptVersion = startAccountAuthAttempt();
     const win = window as Window & { __authTimeout?: number | ReturnType<typeof setTimeout> | null };
     if (win.__authTimeout) {
       clearTimeout(win.__authTimeout);
@@ -258,25 +172,35 @@ export function createSignOut(set: Set, _get: Get): () => Promise<void> {
     }
     clearAuthIntent();
 
+    const isDesktop = hasElectronDesktopBridge();
     try {
-      if (hasElectronDesktopBridge()) {
+      if (isDesktop) {
         await accountCommands.accountDisconnect();
       } else {
         await webAccountCommands.disconnect();
       }
     } catch (error) {
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       set({ error: normalizeAuthError(message) });
       return;
     }
 
+    if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+      return;
+    }
+    if (!isDesktop) {
+      webAccountCommands.clearLocalSession();
+    }
     applyDisconnectedAccount(set);
   };
 }
 
 export function createCancelConnect(set: Set, _get: Get): () => Promise<void> {
   return async () => {
-    invalidateAccountAuthAttempts();
+    const authAttemptVersion = startAccountAuthAttempt();
     const win = window as Window & { __authTimeout?: number | ReturnType<typeof setTimeout> | null };
     if (win.__authTimeout) {
       clearTimeout(win.__authTimeout);
@@ -288,6 +212,8 @@ export function createCancelConnect(set: Set, _get: Get): () => Promise<void> {
       await accountCommands.cancelAccountAuth().catch(() => undefined);
     }
 
-    set({ isConnecting: false, error: null });
+    if (isCurrentAccountAuthAttempt(authAttemptVersion)) {
+      set({ isConnecting: false, error: null });
+    }
   };
 }

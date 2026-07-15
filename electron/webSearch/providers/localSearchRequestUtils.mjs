@@ -3,8 +3,6 @@ import { WebSearchError } from '../types.mjs';
 export const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 export const SEARCH_TIMEOUT_MS = 8000;
-export const OFFICIAL_HINT_GRACE_MS = 500;
-export const ENGINE_FALLBACK_GRACE_MS = 500;
 export const MAX_SEARCH_RESPONSE_TEXT_BYTES = 1_000_000;
 export const MAX_SEARCH_TIMEOUT_INPUT_CHARS = 16;
 export const MAX_SEARCH_TIMEOUT_MS = 30_000;

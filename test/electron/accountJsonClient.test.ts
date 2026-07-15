@@ -10,7 +10,6 @@ describe('desktop account json client', () => {
 
   it('logs only payload summaries for debug fetch responses', async () => {
     const logDesktopAuth = vi.fn();
-    const client = createDesktopAccountJsonClient({ logDesktopAuth });
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({
@@ -24,6 +23,7 @@ describe('desktop account json client', () => {
         },
       })),
     );
+    const client = createDesktopAccountJsonClient({ logDesktopAuth });
 
     const result = await client.fetchJsonWithDebug('https://api.example.com/auth/session', {
       method: 'POST',
@@ -60,7 +60,6 @@ describe('desktop account json client', () => {
 
   it('does not log raw account data on successful json requests', async () => {
     const logDesktopAuth = vi.fn();
-    const client = createDesktopAccountJsonClient({ logDesktopAuth });
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({
@@ -74,6 +73,7 @@ describe('desktop account json client', () => {
         },
       })),
     );
+    const client = createDesktopAccountJsonClient({ logDesktopAuth });
 
     const result = await client.fetchDesktopJson('https://api.example.com/desktop/result', {
       method: 'POST',
@@ -104,9 +104,9 @@ describe('desktop account json client', () => {
   });
 
   it('rejects promptly when fetch ignores abort for json requests', async () => {
-    const client = createDesktopAccountJsonClient();
     const controller = new AbortController();
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+    const client = createDesktopAccountJsonClient();
 
     const request = client.fetchJson('https://api.example.com/auth/session', {
       signal: controller.signal,
@@ -117,11 +117,11 @@ describe('desktop account json client', () => {
   });
 
   it('does not start json requests when already aborted', async () => {
-    const client = createDesktopAccountJsonClient();
     const controller = new AbortController();
     controller.abort();
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    const client = createDesktopAccountJsonClient();
 
     await expect(client.fetchJson('https://api.example.com/auth/session', {
       signal: controller.signal,
@@ -130,7 +130,6 @@ describe('desktop account json client', () => {
   });
 
   it('rejects promptly when response text ignores abort', async () => {
-    const client = createDesktopAccountJsonClient();
     const controller = new AbortController();
     const reader = {
       read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
@@ -145,6 +144,7 @@ describe('desktop account json client', () => {
       },
       headers: new Headers(),
     })));
+    const client = createDesktopAccountJsonClient();
 
     const request = client.fetchDesktopJson('https://api.example.com/desktop/result', {
       signal: controller.signal,
@@ -161,7 +161,6 @@ describe('desktop account json client', () => {
   });
 
   it('rejects oversized successful account json responses', async () => {
-    const client = createDesktopAccountJsonClient();
     const cancel = vi.fn();
     const response = new Response(
       new ReadableStream({
@@ -173,6 +172,7 @@ describe('desktop account json client', () => {
       { status: 200 },
     );
     vi.stubGlobal('fetch', vi.fn(async () => response));
+    const client = createDesktopAccountJsonClient();
 
     await expect(client.fetchJson('https://api.example.com/auth/session')).rejects.toThrow(
       'Desktop account API response body is too large.'

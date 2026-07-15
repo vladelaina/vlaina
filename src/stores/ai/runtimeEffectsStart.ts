@@ -134,10 +134,13 @@ export function startAIStoreRuntimeEffects(): void {
   syncManagedService();
 
   let wasUnifiedLoaded = useUnifiedStore.getState().loaded;
+  let previousModels = useUnifiedStore.getState().data.ai?.models;
   useUnifiedStore.subscribe(() => {
     const store = useUnifiedStore.getState();
     const loadedChangedToReady = !wasUnifiedLoaded && store.loaded;
+    const modelsChanged = previousModels !== store.data.ai?.models;
     wasUnifiedLoaded = store.loaded;
+    previousModels = store.data.ai?.models;
 
     ensureLoaded();
     syncSelection();
@@ -145,6 +148,8 @@ export function startAIStoreRuntimeEffects(): void {
     syncManagedProvider();
     if (loadedChangedToReady) {
       syncManagedService();
+    } else if (store.loaded && modelsChanged) {
+      managedProviderSync.reconcileAfterStoreChange();
     }
   });
 

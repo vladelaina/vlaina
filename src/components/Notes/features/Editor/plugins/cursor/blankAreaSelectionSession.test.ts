@@ -253,7 +253,7 @@ describe('startBlankAreaSelectionSession', () => {
     session.stop();
   });
 
-  it('remeasures block geometry after selection decorations change during a drag', () => {
+  it('reuses block geometry when selection decorations do not resize the editor', () => {
     const animationFrames: FrameRequestCallback[] = [];
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
       animationFrames.push(callback);
@@ -315,11 +315,8 @@ describe('startBlankAreaSelectionSession', () => {
       buttons: 1,
     }));
 
-    expect(rectResolverMockState.invalidate).toHaveBeenCalled();
-    expect(selectionChanges).toHaveBeenLastCalledWith([
-      { from: 1, to: 6 },
-      { from: 7, to: 12 },
-    ]);
+    expect(rectResolverMockState.invalidate).not.toHaveBeenCalled();
+    expect(selectionChanges).toHaveBeenLastCalledWith([{ from: 1, to: 6 }]);
 
     session.stop();
   });

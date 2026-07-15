@@ -4,7 +4,8 @@ export type NotesOverlaySource =
   | 'selection-toolbar'
   | 'emoji-shortcut'
   | 'slash-menu'
-  | 'slash-emoji-picker';
+  | 'slash-emoji-picker'
+  | 'slash-image-library';
 
 const NOTES_OVERLAY_OPEN_EVENT = 'app:notes-overlay-open';
 

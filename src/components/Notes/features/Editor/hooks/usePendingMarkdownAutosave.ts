@@ -50,6 +50,7 @@ export function usePendingMarkdownAutosave({
   const latestCompositionResidueDataRef = useRef<string | null>(null);
   const hasCompositionEndedRef = useRef(false);
   const compositionStartSelectionRef = useRef<CompositionStartSelection | null>(null);
+  const compositionSessionRef = useRef(0);
   const compositionAppendPositionRef = useRef<number | null>(null);
   const lastCompositionAppendPositionRef = useRef<number | null>(null);
   const lastCompositionAppendAtRef = useRef(0);
@@ -66,6 +67,7 @@ export function usePendingMarkdownAutosave({
   }, []);
 
   useEffect(() => {
+    compositionSessionRef.current += 1;
     hasIgnoredInitNoise.current = false;
     hasEditorUserInput.current = false;
     userInputVersionRef.current = 0;
@@ -103,6 +105,7 @@ export function usePendingMarkdownAutosave({
     }
     pendingLivePreviewRef.current = null;
     return () => {
+      compositionSessionRef.current += 1;
       if (compositionSettleTimeoutRef.current !== null) {
         clearTimeout(compositionSettleTimeoutRef.current);
         compositionSettleTimeoutRef.current = null;
@@ -248,6 +251,7 @@ export function usePendingMarkdownAutosave({
     latestCompositionResidueDataRef,
     hasCompositionEndedRef,
     compositionStartSelectionRef,
+    compositionSessionRef,
     compositionAppendPositionRef,
     lastCompositionAppendPositionRef,
     lastCompositionAppendAtRef,

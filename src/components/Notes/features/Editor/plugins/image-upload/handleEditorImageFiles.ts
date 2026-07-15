@@ -4,6 +4,7 @@ import type { NotesStore } from '@/stores/notes/useNotesStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import type { Selection } from '@milkdown/kit/prose/state';
 import { canInsertImageNodeAtSelection, insertImageNodeAtSelection } from './imageNodeInsertion';
 import { MAX_IMAGE_UPLOAD_INPUT_FILES } from './imageFileExtraction';
 
@@ -53,8 +54,9 @@ export async function uploadImageFileAndInsert(
     file: File,
     view: EditorView,
     getStoreState: () => ImageUploadStoreState = useNotesStore.getState,
+    insertionSelection?: Selection,
 ): Promise<boolean> {
-    if (!canInsertImageNodeAtSelection(view)) {
+    if (!canInsertImageNodeAtSelection(view, insertionSelection)) {
         useToastStore.getState().addToast(translate('editor.imageCannotInsertHere'), 'error');
         return false;
     }
@@ -77,7 +79,7 @@ export async function uploadImageFileAndInsert(
             return false;
         }
 
-        const inserted = insertImageNodeAtSelection(view, result.path);
+        const inserted = insertImageNodeAtSelection(view, result.path, insertionSelection);
         if (!inserted) {
             useToastStore.getState().addToast(translate('editor.imageUploadedCannotInsert'), 'error');
         }
@@ -92,12 +94,13 @@ export async function handleEditorImageFiles(
     files: readonly File[],
     view: EditorView,
     getStoreState: () => ImageUploadStoreState = useNotesStore.getState,
+    insertionSelection?: Selection,
 ): Promise<boolean> {
     if (files.length === 0) {
         return false;
     }
 
-    if (!canInsertImageNodeAtSelection(view)) {
+    if (!canInsertImageNodeAtSelection(view, insertionSelection)) {
         useToastStore.getState().addToast(translate('editor.imageCannotInsertHere'), 'error');
         return false;
     }
@@ -105,7 +108,7 @@ export async function handleEditorImageFiles(
     let handled = false;
 
     for (const file of files.slice(0, MAX_IMAGE_UPLOAD_INPUT_FILES)) {
-        const inserted = await uploadImageFileAndInsert(file, view, getStoreState);
+        const inserted = await uploadImageFileAndInsert(file, view, getStoreState, insertionSelection);
         handled = inserted || handled;
     }
 

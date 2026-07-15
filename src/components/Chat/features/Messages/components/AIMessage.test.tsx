@@ -462,15 +462,17 @@ describe("AIMessage", () => {
   });
 
   it("keeps web search results visible after sources are read", () => {
-    const content = [
-      '<web-search-status>{"phase":"results","query":"react","results":[{"title":"React Docs","url":"https://react.dev","snippet":"Official docs","publishedAt":null}]}</web-search-status>',
-      '<web-search-status>{"phase":"complete","urls":["https://react.dev"],"failedSources":[{"url":"https://fail.example","message":"Unable to read this page."}],"metrics":{"successCount":1,"failureCount":1,"durationMs":12}}</web-search-status>',
-      "Answer with source.",
-    ].join("\n");
+    const message = {
+      ...createMessage("Answer with source."),
+      webSearchStatuses: [
+        { phase: 'results' as const, query: 'react', results: [{ title: 'React Docs', url: 'https://react.dev', snippet: 'Official docs', publishedAt: null }] },
+        { phase: 'complete' as const, urls: ['https://react.dev'], failedSources: [{ url: 'https://fail.example', message: 'Unable to read this page.' }], metrics: { successCount: 1, failureCount: 1, durationMs: 12 } },
+      ],
+    };
 
     render(
       <AIMessage
-        msg={createMessage(content)}
+        msg={message}
         imageGallery={[]}
         isLoading={false}
         onCopy={() => {}}
@@ -491,17 +493,19 @@ describe("AIMessage", () => {
   });
 
   it("keeps source links from every web search step visible", () => {
-    const content = [
-      '<web-search-status>{"phase":"results","query":"first","results":[{"title":"First Source","url":"https://first.example","snippet":"First","publishedAt":null}]}</web-search-status>',
-      '<web-search-status>{"phase":"complete","urls":["https://first.example"],"metrics":{"successCount":1,"durationMs":12}}</web-search-status>',
-      '<web-search-status>{"phase":"results","query":"second","results":[{"title":"Second Source","url":"https://second.example","snippet":"Second","publishedAt":null}]}</web-search-status>',
-      '<web-search-status>{"phase":"complete","urls":["https://second.example"],"metrics":{"successCount":1,"durationMs":12}}</web-search-status>',
-      "Answer with multiple sources.",
-    ].join("\n");
+    const message = {
+      ...createMessage("Answer with multiple sources."),
+      webSearchStatuses: [
+        { phase: 'results' as const, query: 'first', results: [{ title: 'First Source', url: 'https://first.example', snippet: 'First', publishedAt: null }] },
+        { phase: 'complete' as const, urls: ['https://first.example'], metrics: { successCount: 1, durationMs: 12 } },
+        { phase: 'results' as const, query: 'second', results: [{ title: 'Second Source', url: 'https://second.example', snippet: 'Second', publishedAt: null }] },
+        { phase: 'complete' as const, urls: ['https://second.example'], metrics: { successCount: 1, durationMs: 12 } },
+      ],
+    };
 
     render(
       <AIMessage
-        msg={createMessage(content)}
+        msg={message}
         imageGallery={[]}
         isLoading={false}
         onCopy={() => {}}
@@ -516,15 +520,24 @@ describe("AIMessage", () => {
   });
 
   it("drops unsafe web search status source URLs before rendering links", () => {
-    const content = [
-      '<web-search-status>{"phase":"results","query":"security","urls":["https://safe.example/from-url","http://router/admin"],"results":[{"title":"Local Admin","url":"http://127.0.0.1:3000/admin","snippet":"Bad","publishedAt":null},{"title":"Safe Source","url":"https://safe.example/article","snippet":"Good","publishedAt":null},{"title":"Bidi Source","url":"https://example.com/\\u202Ecod.exe","snippet":"Bad","publishedAt":null}]}</web-search-status>',
-      '<web-search-status>{"phase":"complete","failedSources":[{"url":"http://localhost/debug","message":"Unsafe skipped"},{"url":"https://safe.example/fail","message":"Safe skipped"}]}</web-search-status>',
-      "Answer with filtered sources.",
-    ].join("\n");
+    const message = {
+      ...createMessage("Answer with filtered sources."),
+      webSearchStatuses: [
+        { phase: 'results' as const, query: 'security', results: [
+          { title: 'Local Admin', url: 'http://127.0.0.1:3000/admin', snippet: 'Bad', publishedAt: null },
+          { title: 'Safe Source', url: 'https://safe.example/article', snippet: 'Good', publishedAt: null },
+          { title: 'Bidi Source', url: 'https://example.com/\u202Ecod.exe', snippet: 'Bad', publishedAt: null },
+        ] },
+        { phase: 'complete' as const, urls: ['https://safe.example/article', 'https://safe.example/from-url', 'http://router/admin'], failedSources: [
+          { url: 'http://localhost/debug', message: 'Unsafe skipped' },
+          { url: 'https://safe.example/fail', message: 'Safe skipped' },
+        ] },
+      ],
+    };
 
     render(
       <AIMessage
-        msg={createMessage(content)}
+        msg={message}
         imageGallery={[]}
         isLoading={false}
         onCopy={() => {}}
@@ -549,7 +562,7 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with filtered sources.");
   });
 
-  it("does not render unterminated web search status metadata", () => {
+  it("does not interpret legacy web search status text as message metadata", () => {
     const content = 'Visible answer.\n<web-search-status>{"phase":"searching","query":"catime"';
 
     render(
@@ -563,11 +576,10 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Visible answer.");
-    expect(screen.queryByText(/web-search-status/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", content);
   });
 
-  it("does not render leaked web search request metadata", () => {
+  it("does not interpret legacy web search request text as control data", () => {
     const content = [
       'We need to search.',
       '<web_search_request>{"query":"catime","reason":"current info"}</web_search_request>',
@@ -585,9 +597,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Catime answer.");
-    expect(screen.queryByText(/web_search_request/)).not.toBeInTheDocument();
-    expect(screen.queryByText("We need to search.")).not.toBeInTheDocument();
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", content);
   });
 
   it("stores copied code block feedback above the markdown renderer", () => {

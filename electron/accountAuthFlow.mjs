@@ -23,7 +23,8 @@ export function createDesktopAccountService({ apiBaseUrl, fetchImpl = fetch }) {
   const {
     readStoredAccountCredentials,
     writeStoredAccountCredentials,
-    clearStoredAccountCredentials,
+    writeStoredAccountCredentialsIfCurrent,
+    clearStoredAccountCredentialsIfCurrent,
     rotateStoredSessionToken,
   } = createAccountCredentialStore({
     desktopLegacySessionHeader,
@@ -33,9 +34,9 @@ export function createDesktopAccountService({ apiBaseUrl, fetchImpl = fetch }) {
     apiBaseUrl,
     fetchImpl,
     readStoredAccountCredentials,
-    clearStoredAccountCredentials,
+    clearStoredAccountCredentialsIfCurrent,
     rotateStoredSessionToken,
-    writeStoredAccountCredentials,
+    writeStoredAccountCredentialsIfCurrent,
   });
   const {
     fetchDesktopJson,
@@ -53,6 +54,36 @@ export function createDesktopAccountService({ apiBaseUrl, fetchImpl = fetch }) {
     fetchDesktopJson,
     persistDesktopAuthResult,
   });
+  let inFlightEmailVerification = null;
+
+  async function verifyDesktopEmailCode(email, code) {
+    let data;
+    try {
+      ({ data } = await withAccountRequestTimeout((signal) =>
+        fetchDesktopJson(`${apiBaseUrl}/auth/email/verify-code`, {
+          method: 'POST',
+          signal,
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            code,
+            target: 'desktop',
+          }),
+        }))
+      );
+    } catch (error) {
+      return accountErrorResult(getErrorMessage(error));
+    }
+
+    if (!data?.success) {
+      return accountErrorResult(data?.error || 'Email sign-in failed');
+    }
+
+    return await persistDesktopAuthResult('email', data);
+  }
 
   function registerAccountIpc({ handleIpc }) {
     handleIpc('desktop:account:get-session-status', async () => {
@@ -103,32 +134,27 @@ export function createDesktopAccountService({ apiBaseUrl, fetchImpl = fetch }) {
         return accountErrorResult('Invalid verification code');
       }
 
-      let data;
+      if (
+        inFlightEmailVerification?.email === normalizedEmail &&
+        inFlightEmailVerification.code === normalizedCode
+      ) {
+        return await inFlightEmailVerification.promise;
+      }
+
+      const verificationPromise = verifyDesktopEmailCode(normalizedEmail, normalizedCode);
+      inFlightEmailVerification = {
+        email: normalizedEmail,
+        code: normalizedCode,
+        promise: verificationPromise,
+      };
+
       try {
-        ({ data } = await withAccountRequestTimeout((signal) =>
-          fetchDesktopJson(`${apiBaseUrl}/auth/email/verify-code`, {
-            method: 'POST',
-            signal,
-            headers: {
-              Accept: 'application/json',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: normalizedEmail,
-              code: normalizedCode,
-              target: 'desktop',
-            }),
-          }))
-        );
-      } catch (error) {
-        return accountErrorResult(getErrorMessage(error));
+        return await verificationPromise;
+      } finally {
+        if (inFlightEmailVerification?.promise === verificationPromise) {
+          inFlightEmailVerification = null;
+        }
       }
-
-      if (!data?.success) {
-        return accountErrorResult(data?.error || 'Email sign-in failed');
-      }
-
-      return await persistDesktopAuthResult('email', data);
     });
 
     handleIpc('desktop:account:disconnect', async () => {
@@ -146,7 +172,9 @@ export function createDesktopAccountService({ apiBaseUrl, fetchImpl = fetch }) {
         }
       }
 
-      await clearStoredAccountCredentials();
+      if (credentials?.appSessionToken) {
+        await clearStoredAccountCredentialsIfCurrent(credentials.appSessionToken);
+      }
     });
   }
 

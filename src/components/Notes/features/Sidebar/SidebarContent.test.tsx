@@ -1,5 +1,5 @@
 import type { KeyboardEventHandler, ReactNode } from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarContent } from './SidebarContent';
 import type { NotesSidebarSearchEntry, NotesSidebarSearchResult } from './notesSidebarSearchResults';
@@ -34,27 +34,34 @@ const hoisted = vi.hoisted(() => ({
   recentNotesRoots: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
   uiState: {
     sidebarCollapsed: false,
+    sidebarWidth: 270,
+    setSidebarWidth: vi.fn(),
     notesPreviewTitle: null as { path: string; title: string } | null,
   },
+  currentNote: null as { path: string; content: string } | null,
   openNote: vi.fn(() => Promise.resolve()),
   openNoteByAbsolutePath: vi.fn(() => Promise.resolve()),
   openNotesRoot: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: (selector: (state: any) => unknown) => selector({
-    openNote: hoisted.openNote,
-    openNoteByAbsolutePath: hoisted.openNoteByAbsolutePath,
-    draftNotes: hoisted.draftNotes,
-    getDisplayName: vi.fn((path: string) => path),
-    noteContentsCache: hoisted.noteContentsCache,
-    notesPath: hoisted.notesPath,
-    cancelNoteContentScan: hoisted.cancelNoteContentScan,
-    pruneNoteContentsCacheToOpenNotes: hoisted.pruneNoteContentsCacheToOpenNotes,
-    revealFolder: hoisted.revealFolder,
-    scanAllNotes: hoisted.scanAllNotes,
-    starredEntries: [],
-  }),
+  useNotesStore: Object.assign(
+    (selector: (state: any) => unknown) => selector({
+      currentNote: hoisted.currentNote,
+      openNote: hoisted.openNote,
+      openNoteByAbsolutePath: hoisted.openNoteByAbsolutePath,
+      draftNotes: hoisted.draftNotes,
+      getDisplayName: vi.fn((path: string) => path),
+      noteContentsCache: hoisted.noteContentsCache,
+      notesPath: hoisted.notesPath,
+      cancelNoteContentScan: hoisted.cancelNoteContentScan,
+      pruneNoteContentsCacheToOpenNotes: hoisted.pruneNoteContentsCacheToOpenNotes,
+      revealFolder: hoisted.revealFolder,
+      scanAllNotes: hoisted.scanAllNotes,
+      starredEntries: [],
+    }),
+    { getState: () => ({ currentNote: hoisted.currentNote }) },
+  ),
 }));
 
 vi.mock('@/stores/useNotesRootStore', () => ({
@@ -66,7 +73,10 @@ vi.mock('@/stores/useNotesRootStore', () => ({
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
-  useUIStore: (selector: (state: any) => unknown) => selector(hoisted.uiState),
+  useUIStore: Object.assign(
+    (selector: (state: any) => unknown) => selector(hoisted.uiState),
+    { getState: () => hoisted.uiState },
+  ),
 }));
 
 vi.mock('@/hooks/useTitleSync', () => ({
@@ -293,12 +303,14 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.shouldShowSearchResults = false;
     hoisted.buildNotesSidebarSearchIndex.mockReturnValue([]);
     hoisted.countNotesSidebarSearchEntries.mockReturnValue(0);
+    hoisted.currentNote = null;
     hoisted.draftNotes = {};
     hoisted.noteContentsCache = new Map();
     hoisted.notesPath = '';
     hoisted.currentNotesRoot = null;
     hoisted.recentNotesRoots = [];
     hoisted.uiState.sidebarCollapsed = false;
+    hoisted.uiState.sidebarWidth = 270;
     hoisted.uiState.notesPreviewTitle = null;
     hoisted.openNote.mockClear();
     hoisted.openNote.mockResolvedValue(undefined);
@@ -316,6 +328,113 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
+  });
+
+  it('widens the sidebar when a loaded file name needs more room', async () => {
+    render(
+      <SidebarContent
+        rootFolder={{
+          id: 'root',
+          name: 'Notes',
+          path: '',
+          isFolder: true,
+          expanded: true,
+          children: [{
+            id: 'long-note',
+            name: 'a-markdown-file-name-that-needs-more-room',
+            path: 'a-markdown-file-name-that-needs-more-room.md',
+            isFolder: false,
+          }],
+        }}
+        isLoading={false}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(hoisted.uiState.setSidebarWidth).toHaveBeenCalledWith(expect.any(Number));
+    });
+    expect(hoisted.uiState.setSidebarWidth.mock.calls[0][0]).toBeGreaterThan(270);
+  });
+
+  it('does not resize when a long file name arrives after the initial calculation', async () => {
+    const createRootFolder = (children: Array<{
+      id: string;
+      name: string;
+      path: string;
+      isFolder: false;
+    }>) => ({
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children,
+    });
+    const props = {
+      isLoading: false,
+      createNote: vi.fn(async () => undefined),
+      createFolder: vi.fn(async () => null),
+      search: createSearchState({ isSearchOpen: false, searchQuery: '' }),
+    };
+    const { rerender } = render(
+      <SidebarContent rootFolder={createRootFolder([])} {...props} />,
+    );
+
+    rerender(
+      <SidebarContent
+        rootFolder={createRootFolder([{
+          id: 'background-note',
+          name: 'a-background-markdown-file-name-that-needs-more-room',
+          path: 'a-background-markdown-file-name-that-needs-more-room.md',
+          isFolder: false,
+        }])}
+        {...props}
+      />,
+    );
+
+    await act(async () => undefined);
+    expect(hoisted.uiState.setSidebarWidth).not.toHaveBeenCalled();
+  });
+
+  it('does not resize when a folder is expanded after the initial calculation', async () => {
+    const longFile = {
+      id: 'nested-long-note',
+      name: 'a-nested-markdown-file-name-that-needs-more-room',
+      path: 'folder/a-nested-markdown-file-name-that-needs-more-room.md',
+      isFolder: false as const,
+    };
+    const createRootFolder = (expanded: boolean) => ({
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [{
+        id: 'folder',
+        name: 'folder',
+        path: 'folder',
+        isFolder: true as const,
+        expanded,
+        children: [longFile],
+      }],
+    });
+    const props = {
+      isLoading: false,
+      createNote: vi.fn(async () => undefined),
+      createFolder: vi.fn(async () => null),
+      search: createSearchState({ isSearchOpen: false, searchQuery: '' }),
+    };
+    const { rerender } = render(
+      <SidebarContent rootFolder={createRootFolder(false)} {...props} />,
+    );
+
+    rerender(<SidebarContent rootFolder={createRootFolder(true)} {...props} />);
+
+    await act(async () => undefined);
+    expect(hoisted.uiState.setSidebarWidth).not.toHaveBeenCalled();
   });
 
   it('shows the live preview title for an empty current draft in the sidebar tree', async () => {
@@ -913,6 +1032,43 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(hoisted.scanAllNotes).toHaveBeenCalledTimes(1);
+  });
+
+  it('debounces consecutive multi-character content queries', async () => {
+    vi.useFakeTimers();
+    hoisted.shouldShowSearchResults = true;
+    hoisted.buildNotesSidebarSearchIndex.mockReturnValue(createSearchEntries());
+
+    try {
+      const createProps = (searchQuery: string) => ({
+        rootFolder: null,
+        isLoading: false,
+        currentNotePath: 'docs/alpha.md',
+        createNote: vi.fn(async () => undefined),
+        createFolder: vi.fn(async () => null),
+        search: createSearchState({ isSearchOpen: true, searchQuery }),
+      });
+      const { rerender } = render(<SidebarContent {...createProps('alpha')} />);
+      hoisted.queryNotesSidebarStructuralSearch.mockClear();
+
+      rerender(<SidebarContent {...createProps('alphabet')} />);
+
+      expect(hoisted.queryNotesSidebarStructuralSearch).not.toHaveBeenCalledWith(
+        expect.anything(),
+        'alphabet',
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(120);
+      });
+
+      expect(hoisted.queryNotesSidebarStructuralSearch).toHaveBeenCalledWith(
+        expect.anything(),
+        'alphabet',
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not rescan note contents when every current search entry is cached', () => {

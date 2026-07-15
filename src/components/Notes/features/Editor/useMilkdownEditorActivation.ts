@@ -14,6 +14,7 @@ import {
   createCurrentEditorBlockPositionController,
 } from './utils/editorBlockPositionCache';
 import { clearBlockSelection } from './plugins/cursor/blockSelectionPluginState';
+import { handleLeadingEmptyParagraphBackspace } from './plugins/cursor/leadingEmptyParagraphBackspace';
 import { normalizeInitialEditorSelection } from './milkdownEditorMarkdownReplacement';
 import type { ActiveMilkdownEditor } from './MilkdownEditorInnerTypes';
 
@@ -117,6 +118,10 @@ export function useMilkdownEditorActivation(args: {
       const markScopedUserInput = (event: Event) => {
         const target = event.target;
         if (!(target instanceof Node) || (target !== view.dom && !view.dom.contains(target))) {
+          return;
+        }
+        if (event instanceof KeyboardEvent && handleLeadingEmptyParagraphBackspace(view, event)) {
+          markUserInput(event);
           return;
         }
         markUserInput(event);

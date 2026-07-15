@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import {
   READONLY_MARKDOWN_REMARK_PLUGINS,
 } from '@/components/common/markdown/markdownPipeline';
-import { remarkObsidianImageEmbeds } from '@/components/common/markdown/obsidianImageEmbed';
+import { remarkObsidianImageEmbeds } from '@/components/common/markdown/theme-compatibility/obsidian/imageEmbed';
 
 type MarkdownAstNode = {
   children?: MarkdownAstNode[];

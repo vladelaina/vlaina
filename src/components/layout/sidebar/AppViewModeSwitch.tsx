@@ -102,8 +102,8 @@ export function AppViewModeSwitch() {
               className={cn(
                 'relative inline-flex min-w-0 items-center truncate whitespace-nowrap leading-none transition-[max-width,opacity,transform] duration-[var(--vlaina-duration-300)] ease-[var(--vlaina-ease-feedback)] motion-reduce:transition-none',
                 selected
-                  ? 'max-w-[var(--vlaina-size-128px)] translate-x-0 opacity-100'
-                  : 'max-w-0 -translate-x-1 opacity-0',
+                  ? 'max-w-[var(--vlaina-size-128px)] translate-x-0 opacity-[var(--vlaina-opacity-100)]'
+                  : 'max-w-0 -translate-x-1 opacity-[var(--vlaina-opacity-0)]',
               )}
             >
               {option.label}

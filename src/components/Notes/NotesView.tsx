@@ -5,7 +5,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { useNotesViewShortcuts } from './hooks/useNotesViewShortcuts';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
-import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { subscribeDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
 import { useI18n } from '@/lib/i18n';
@@ -29,7 +29,6 @@ export function NotesView({
 }) {
   const { t } = useI18n();
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
-  const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
@@ -79,16 +78,23 @@ export function NotesView({
   const confirmPendingDraftDiscard = useNotesStore(s => s.confirmPendingDraftDiscard);
   const getDisplayName = useNotesStore(s => s.getDisplayName);
   const notesError = useNotesStore(s => s.error);
-  const noteContentsCache = useNotesStore(s => s.noteContentsCache);
-  const blankDropDraftContent = useNotesStore(
+  const blankDropDraftHasUnsavedChanges = useNotesStore(
     useCallback((state) => {
       if (!currentNotePath || !isDraftNotePath(currentNotePath)) {
-        return '';
+        return false;
       }
       if (openTabs.length !== 1 || openTabs[0]?.path !== currentNotePath) {
-        return '';
+        return false;
       }
-      return state.currentNote?.path === currentNotePath ? state.currentNote.content : '';
+      const draftEntry = state.draftNotes[currentNotePath];
+      if (!draftEntry) {
+        return false;
+      }
+      return hasDraftUnsavedChanges({
+        draftName: draftEntry.name,
+        content: state.currentNote?.path === currentNotePath ? state.currentNote.content : '',
+        metadata: state.noteMetadata?.notes[currentNotePath],
+      });
     }, [currentNotePath, openTabs])
   );
   const currentNotesRoot = useNotesRootStore((state) => state.currentNotesRoot);
@@ -155,7 +161,6 @@ export function NotesView({
     active,
     applyPendingSplitEditorFocus,
     currentDraftMetadata,
-    currentNoteContent,
     currentNotePath,
     currentNotesRoot,
     draftNotes,
@@ -169,11 +174,10 @@ export function NotesView({
   const { focusSidebarPath, isBlankWorkspaceDropActive } = useNotesWorkspaceLifecycle({
     active,
     adoptAbsoluteNoteIntoNotesRoot,
-    blankDropDraftContent,
+    blankDropDraftHasUnsavedChanges,
     cancelNoteContentScan,
     cleanupAssetTempFiles,
     clearAssetUrlCache,
-    currentDraftMetadata,
     currentNotePath,
     currentNotesRoot,
     draftNotes,
@@ -224,6 +228,7 @@ export function NotesView({
     openFloatingChat,
     focusNotesChatComposer,
     focusSidebarPath,
+    saveNote,
   });
 
   return (
@@ -270,7 +275,6 @@ export function NotesView({
         closeActiveSplitPane={closeActiveSplitPane}
         closePrimaryPreviewPane={closePrimaryPreviewPane}
         closeSplitPane={closeSplitPane}
-        currentNoteContent={currentNoteContent}
         currentNoteMetadata={currentNoteMetadata}
         currentNotePath={currentNotePath}
         currentNoteStarred={currentNoteStarred}
@@ -278,7 +282,6 @@ export function NotesView({
         getDisplayName={getDisplayName}
         hasSplitPanes={hasSplitPanes}
         isPrimaryContentReady={isPrimaryContentReady}
-        noteContentsCache={noteContentsCache}
         notesPath={notesPath}
         onPrimaryContentReady={reportNotesPrimaryContentReady}
         primaryPreviewLeaf={primaryPreviewLeaf}

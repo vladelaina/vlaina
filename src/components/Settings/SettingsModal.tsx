@@ -24,7 +24,6 @@ import {
 import { useI18n } from '@/lib/i18n';
 import type { CommunitySettings } from './tabs/aboutCommunitySettings';
 import { themeBackdropTokens, themeMotionTokens } from '@/styles/themeTokens';
-import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 import { useDesktopUpdateIndicatorVersion } from '@/components/desktop/DesktopUpdateIndicator';
 import { useNativeTitleBarOverlayHidden } from '@/hooks/useNativeTitleBarOverlayHidden';
 
@@ -132,7 +131,7 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                 ease: themeMotionTokens.settingsModalEase,
               }}
               className={cn(
-                "relative flex h-[var(--vlaina-size-720px)] max-h-[calc(100vh_-_var(--vlaina-size-32px))] w-[var(--vlaina-size-1080px)] max-w-full min-w-0 overflow-hidden rounded-[var(--vlaina-radius-32px)] pointer-events-auto select-none transition-[background-color,box-shadow] duration-[var(--vlaina-duration-100)] max-[900px]:flex-col max-[640px]:max-h-[calc(100vh_-_var(--vlaina-size-16px))] max-[640px]:rounded-[var(--vlaina-radius-24px)]",
+                "relative flex h-[var(--vlaina-size-720px)] max-h-[var(--vlaina-height-settings-modal-max)] w-[var(--vlaina-size-1080px)] max-w-full min-w-0 overflow-hidden rounded-[var(--vlaina-radius-32px)] pointer-events-auto select-none transition-[background-color,box-shadow] duration-[var(--vlaina-duration-100)] max-[900px]:flex-col max-[640px]:max-h-[var(--vlaina-height-settings-modal-compact-max)] max-[640px]:rounded-[var(--vlaina-radius-24px)]",
                 isAppearanceFontPreviewing
                   ? "bg-transparent shadow-[var(--vlaina-shadow-none)] ring-0"
                   : "bg-[var(--vlaina-color-setting-panel)] shadow-[var(--vlaina-shadow-2xl)] ring-1 ring-[var(--vlaina-color-subtle-border)]",
@@ -181,7 +180,6 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                 <div
                   className="flex-1 overflow-y-auto w-full app-scrollbar"
                   data-settings-scroll-root="content"
-                  onWheel={handleScrollableWheel}
                 >
                   <div className={cn(
                     "w-full mx-auto",

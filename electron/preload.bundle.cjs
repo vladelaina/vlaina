@@ -271,6 +271,9 @@
           setLanguage(language) {
             return ipcRenderer.invoke('desktop:app:set-language', language);
           },
+          findMarkdownGitRoot(filePath) {
+            return ipcRenderer.invoke('desktop:app:find-markdown-git-root', filePath);
+          },
           onOpenMarkdownFile(callback) {
             return onOpenMarkdownFile(callback, callIpcCallback);
           },
@@ -346,6 +349,14 @@
           writeTextFile(filePath, content, options) {
             return ipcRenderer.invoke('desktop:fs:write-text', filePath, normalizeDesktopTextWritePayload(content), options);
           },
+          writeTextFileIfUnchanged(filePath, expectedContent, content) {
+            return ipcRenderer.invoke(
+              'desktop:fs:write-text-if-unchanged',
+              filePath,
+              expectedContent === null ? null : normalizeDesktopTextWritePayload(expectedContent),
+              normalizeDesktopTextWritePayload(content),
+            );
+          },
           exists(filePath) {
             return ipcRenderer.invoke('desktop:fs:exists', filePath);
           },
@@ -358,8 +369,8 @@
           deleteDir(filePath, recursive) {
             return ipcRenderer.invoke('desktop:fs:delete-dir', filePath, recursive);
           },
-          listDir(filePath) {
-            return ipcRenderer.invoke('desktop:fs:list-dir', filePath);
+          listDir(filePath, maxEntries) {
+            return ipcRenderer.invoke('desktop:fs:list-dir', filePath, maxEntries);
           },
           rename(oldPath, newPath) {
             return ipcRenderer.invoke('desktop:fs:rename', oldPath, newPath);

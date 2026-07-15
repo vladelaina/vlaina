@@ -135,7 +135,7 @@ describe('checkModelHealth', () => {
     expect(body).toMatchObject({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: 'say 6' }],
-      max_tokens: 1,
+      max_completion_tokens: 1,
       stream: false,
     });
   });

@@ -130,14 +130,14 @@ describe('clipboard paste markdown persistence', () => {
     [
       'image',
       '![A < B](image.png "Title & More")',
-      '<img src="image.png" alt="A &lt; B" title="Title &amp; More" />',
+      '![A < B](image.png "Title & More")',
     ],
     [
       'video',
       '![video](https://example.com/video.mp4 "Demo video")',
       '![video](https://example.com/video.mp4 "Demo video")',
     ],
-  ] as const)('persists pasted %s markdown as html image syntax', async (_name, markdown, expected) => {
+  ] as const)('persists pasted %s markdown syntax', async (_name, markdown, expected) => {
     await expect(pasteAndPersist(markdown)).resolves.toBe(expected);
   });
 
@@ -336,7 +336,7 @@ describe('clipboard paste markdown persistence', () => {
 
     const persisted = await pasteAndPersist(pasted);
 
-    expect(persisted).toContain('<iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
+    expect(persisted).toContain('<iframe src="https://example.com/embed"></iframe>');
     expect(persisted).toContain('<video src="https://example.com/demo.mp4"></video>');
     expect(persisted).not.toContain('\\<iframe');
     expect(persisted).not.toContain('\\<video');
@@ -353,7 +353,7 @@ describe('clipboard paste markdown persistence', () => {
 
     const persisted = await pasteAndPersist(pasted);
 
-    expect(persisted).toContain('<img src="https://example.com/cover.png" alt="cover" />');
+    expect(persisted).toContain('<div><img src="https://example.com/cover.png" alt="cover"></div>');
     expect(persisted).toContain('<p>editor 支持 <video src="https://example.com/demo.mp4"></video></p>');
     expect(persisted).not.toContain('\\<img');
     expect(persisted).not.toContain('\\<video');
@@ -372,7 +372,7 @@ describe('clipboard paste markdown persistence', () => {
 
     expect(persisted).toContain('<video src="https://example.com/demo.mp4"></video>');
     expect(persisted).toContain('<img src="https://example.com/cover.png"');
-    expect(persisted).toContain('<video controls=""><source src="https://example.com/demo.mp4" type="video/mp4"></video>');
+    expect(persisted).toContain('<video controls><source src="https://example.com/demo.mp4" type="video/mp4"></video>');
     expect(persisted).not.toContain('\\<video');
     expect(persisted).not.toContain('\\<img');
     expect(persisted).not.toContain('\\<source');
@@ -460,7 +460,7 @@ describe('clipboard paste markdown persistence', () => {
     const markdown = '![百度](https://www.baidu.com/img/PCfb_5bf082d29588c07f842ccde3f97243ea.png "百度一下，你就知道")';
 
     await expect(pasteAndPersistWithEditor(editor, markdown)).resolves.toBe(
-      '<img src="https://www.baidu.com/img/PCfb_5bf082d29588c07f842ccde3f97243ea.png" alt="百度" title="百度一下，你就知道" />'
+      markdown
     );
   });
 });

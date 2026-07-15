@@ -179,7 +179,7 @@ export function ProviderConnectionFields({
               {t('settings.ai.channelName')}
             </div>
           </div>
-          <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1">
+          <div className="min-w-[var(--vlaina-width-provider-field-min)] flex-1">
             <SettingsTextInput
               type="text"
               data-settings-provider-field="name"
@@ -204,7 +204,7 @@ export function ProviderConnectionFields({
               {t('settings.ai.baseUrl', { url: '' }).replace(/[:：]\s*$/, '')}
             </div>
           </div>
-          <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1">
+          <div className="min-w-[var(--vlaina-width-provider-field-min)] flex-1">
             <SettingsTextInput
               ref={apiHostInputRef}
               type="text"
@@ -235,7 +235,7 @@ export function ProviderConnectionFields({
               {t('settings.ai.apiKey')}
             </div>
           </div>
-          <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1">
+          <div className="min-w-[var(--vlaina-width-provider-field-min)] flex-1">
             <SettingsTextInput
               ref={apiKeyInputRef}
               type="text"

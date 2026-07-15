@@ -77,8 +77,21 @@ function collectDefinedCssVariables() {
 function collectUndefinedThemeReferences() {
   const defined = collectDefinedCssVariables();
   const runtimeProtocolVars = new Set([
+    '--vlaina-bg-color-mark-bg',
     '--vlaina-hero-icon-header-size',
+    '--vlaina-imported-app-background',
+    '--vlaina-imported-app-background-attachment',
+    '--vlaina-imported-app-background-clip',
+    '--vlaina-imported-app-background-layer',
+    '--vlaina-imported-app-background-origin',
+    '--vlaina-imported-app-background-position',
+    '--vlaina-imported-app-background-repeat',
+    '--vlaina-imported-app-background-size',
+    '--vlaina-imported-app-document-background-image',
     '--vlaina-math-editor-width',
+    '--vlaina-text-editor-popup-width',
+    '--vlaina-toolbar-preview-bg-color',
+    '--vlaina-toolbar-preview-text-color',
     '--vlaina-toolbar-ai-review-result-predicted-height',
     '--vlaina-toolbar-ai-review-width',
   ]);
@@ -123,6 +136,10 @@ const isScript = (file) => scriptExtensions.has(path.extname(file)) && !isTestOr
 const isScriptIncludingTests = (file) => scriptExtensions.has(path.extname(file));
 const isCss = (file) => cssExtensions.has(path.extname(file));
 const isNonThemeCss = (file) => isCss(file) && file !== 'src/styles/theme.css';
+const frameworkThemeCssFiles = new Set([
+  'src/index.css',
+  'src/styles/theme.css',
+]);
 
 const rawColorAllowlist = new Set([
   'src/styles/themeTokens.ts',
@@ -136,13 +153,27 @@ const languageDetectorAllowlist = [
   'src/components/Notes/features/Editor/utils/languageDetection/detectors/',
 ];
 
+function isRawColorAllowlisted({ file, source, match, index }) {
+  if (rawColorAllowlist.has(file) || languageDetectorAllowlist.some((prefix) => file.startsWith(prefix))) {
+    return true;
+  }
+
+  const end = index + match[0].length;
+  return match[0].startsWith('#') && /^[wh]$/i.test(source[end] ?? '');
+}
+
+function isCentralizedInlineStyle({ match }) {
+  return match[0].includes('var(--vlaina-');
+}
+
 const markdownThemeCompatibilityCssFile = 'src/components/Notes/features/Editor/styles/theme-compatibility.css';
+const markdownThemeCompatibilityCssPrefix = 'src/components/Notes/features/Editor/styles/theme-compatibility/';
 const markdownThemeCompatibilityRuntimeCustomProperties = new Set([
   '--callout-color',
 ]);
 
 function isMarkdownThemeCompatibilityCustomPropertyDefinition({ file, match }) {
-  return file === markdownThemeCompatibilityCssFile
+  return (file === markdownThemeCompatibilityCssFile || file.startsWith(markdownThemeCompatibilityCssPrefix))
     && typeof match?.[0] === 'string'
     && /^\s*--[A-Za-z0-9_-]+\s*:/.test(match[0]);
 }
@@ -156,6 +187,22 @@ function isMarkdownThemeCompatibilityRuntimeCustomPropertyWrite({ match }) {
 // Standard Tailwind utilities are allowed because src/index.css maps them through
 // Tailwind v4 @theme inline variables backed by the centralized --vlaina-* tokens.
 const legacyVarPattern = /--(?:notes-sidebar|chat-sidebar|sidebar-row-selected|toolbar-tooltip|toolbar-submenu|block-dropdown|collapse-pos|collapse-gutter|collapse-marker|header-icon-size|track-color|slider-percentage|appearance-font-size-progress|math-editor-width|ai-review-width|ai-dropdown-panel)-[A-Za-z0-9_-]+/g;
+const deprecatedMarkdownThemeVarPattern = /--vlaina-(?:markdown-font-size|markdown-heading-h[1-6]-font-size|markdown-heading-line-extra(?:-(?:default|large))?|line-height-markdown-(?:body|heading)|height-markdown-blank-line|width-markdown-video|mermaid-text)\b/g;
+const deprecatedNativeMarkdownColorVarPattern = /--vlaina-(?:code-(?:block-background|inline-background|inline-foreground|syntax-[a-z-]+|block-copy-color)|selection-bg)\b/g;
+const nativeMarkdownContractFiles = new Set([
+  'src/components/Notes/features/Editor/styles/core.css',
+  'src/components/Notes/features/Editor/styles/markdown.css',
+  'src/components/Notes/features/Editor/styles/code-block.css',
+  'src/components/Notes/features/Editor/styles/frontmatter.css',
+  'src/components/Notes/features/Editor/styles/selection-width.css',
+]);
+
+function isNativeMarkdownContractConsumer(file) {
+  return nativeMarkdownContractFiles.has(file) ||
+    file.startsWith('src/components/common/markdown/') ||
+    file.startsWith('src/components/common/code-block/') ||
+    file.startsWith('src/components/Notes/features/Editor/plugins/code/');
+}
 
 const checks = [
   {
@@ -165,9 +212,9 @@ const checks = [
     ignoreMatch: isMarkdownThemeCompatibilityRuntimeCustomPropertyWrite,
   },
   {
-    name: 'CSS custom property definitions outside the theme contract must be protocol/framework scoped',
-    fileFilter: (file) => isCss(file),
-    pattern: /^\s*--(?!vlaina-|crepe-|font-|radius|shadow|blur|color-|text-|default-|spacing|background|foreground|card|popover|primary|secondary|muted|accent|destructive|border|input|ring|chart|sidebar|tw-|tracking-|leading-|ease-)[A-Za-z0-9_-]+\s*:/gm,
+    name: 'App-owned CSS custom properties must use the Vlaina namespace',
+    fileFilter: (file) => isCss(file) && !frameworkThemeCssFiles.has(file),
+    pattern: /^\s*--(?!vlaina-|crepe-)[A-Za-z0-9_-]+\s*:/gm,
     ignoreMatch: isMarkdownThemeCompatibilityCustomPropertyDefinition,
   },
   {
@@ -176,9 +223,28 @@ const checks = [
     pattern: legacyVarPattern,
   },
   {
+    name: 'Native Markdown styles must use the canonical Markdown theme contract',
+    fileFilter: (file) => sourceExtensions.has(path.extname(file)) &&
+      !isTestOrFixture(file) &&
+      file !== 'src/styles/theme.css' &&
+      file !== 'src/lib/markdown/markdownFontSize.ts',
+    pattern: deprecatedMarkdownThemeVarPattern,
+  },
+  {
+    name: 'Native Markdown colors must use the canonical Markdown theme contract',
+    fileFilter: (file) => isNativeMarkdownContractConsumer(file) && !isTestOrFixture(file),
+    pattern: deprecatedNativeMarkdownColorVarPattern,
+  },
+  {
+    name: 'Milkdown framework theme aliases must derive from centralized tokens',
+    fileFilter: (file) => file === 'src/components/Notes/features/Editor/styles/crepe-theme.css',
+    pattern: /^\s*--crepe-[A-Za-z0-9_-]+\s*:\s*(?![^;]*var\()[^;]+;/gm,
+  },
+  {
     name: 'Inline style string literals should use centralized tokens',
     fileFilter: (file) => isScript(file),
     pattern: /\.style\.[A-Za-z]+\s*=\s*'[^']+'|style=\{\{[^\n]*'[^']+'/g,
+    ignoreMatch: isCentralizedInlineStyle,
   },
   {
     name: 'SVG protocol constants should use theme icon/style tokens',
@@ -199,7 +265,7 @@ const checks = [
     name: 'Raw colors should live in themeTokens or non-theme parser/fixture code',
     fileFilter: (file) => isScript(file),
     pattern: /#[0-9A-Fa-f]{3,8}|rgba?\(|hsla?\(/g,
-    ignoreMatch: ({ file }) => rawColorAllowlist.has(file) || languageDetectorAllowlist.some((prefix) => file.startsWith(prefix)),
+    ignoreMatch: isRawColorAllowlisted,
   },
   {
     name: 'CSS appearance declarations outside theme.css should not introduce raw values',

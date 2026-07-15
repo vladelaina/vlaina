@@ -39,7 +39,11 @@ export function VirtualizedFileTree({
     () => flattenVisibleFileTreeRows(nodes, startDepth, parentFolderPath),
     [nodes, parentFolderPath, startDepth],
   );
-  const rowHeights = useMemo(() => rows.map(estimateVirtualFileTreeRowHeight), [rows]);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const rowHeights = useMemo(
+    () => rows.map((row) => estimateVirtualFileTreeRowHeight(row, containerWidth)),
+    [containerWidth, rows],
+  );
   const rowOffsets = useMemo(() => buildVirtualFileTreeRowOffsets(rowHeights), [rowHeights]);
   const [viewport, setViewport] = useState({ start: 0, height: 0 });
 
@@ -93,6 +97,8 @@ export function VirtualizedFileTree({
     }
 
     measureContainerTopInScroll();
+    const nextContainerWidth = Math.round(containerRef.current?.clientWidth ?? 0);
+    setContainerWidth((previous) => previous === nextContainerWidth ? previous : nextContainerWidth);
     commitViewport();
   }, [commitViewport, measureContainerTopInScroll]);
 

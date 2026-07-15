@@ -149,13 +149,11 @@ export const webAccountCommands = {
       const endpoint = new URL(`${API_BASE}${webResultPath(provider)}`);
       endpoint.searchParams.set('state', state);
       for (let attempt = 0; attempt < WEB_RESULT_POLL_ATTEMPTS; attempt += 1) {
-        const { data } = await retryTransientAccountNetworkError(() =>
-          fetchAccountJson<WebAuthResult>(endpoint, {
-            method: 'GET',
-            cache: 'no-store',
-            credentials: 'include',
-          })
-        );
+        const { data } = await fetchAccountJson<WebAuthResult>(endpoint, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+        });
         if (data.pending === true && !data.success) {
           await delay(WEB_RESULT_POLL_DELAY_MS);
           continue;
@@ -285,6 +283,9 @@ export const webAccountCommands = {
 
   async disconnect(): Promise<void> {
     await revokeWebSession();
+  },
+
+  clearLocalSession(): void {
     clearWebAccountCredentials();
   },
 };

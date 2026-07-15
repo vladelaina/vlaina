@@ -31,7 +31,7 @@ export const chatComposerTextareaClass = [
   "w-full resize-none bg-transparent",
   "select-none focus:select-text",
   "text-[var(--vlaina-font-15)] leading-6 text-[var(--vlaina-text-primary)]",
-  "placeholder:text-[color-mix(in_srgb,var(--vlaina-color-brand-pink)_58%,transparent)] placeholder:select-none",
+  "placeholder:text-[var(--vlaina-color-brand-pink-muted-text)] placeholder:select-none",
   "focus:outline-none",
   "max-h-[var(--vlaina-size-320px)] min-h-[var(--vlaina-size-24px)]"
 ].join(" ");

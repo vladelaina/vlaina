@@ -20,12 +20,15 @@ import {
   remapStarredForNoteRename,
 } from './fileSystemSliceRenameShared';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
+import { renameImageAction } from './fileSystemSliceRenameImageAction';
 
 export function createFileSystemRenameActions(
   set: FileSystemSliceSet,
   get: FileSystemSliceGet,
-): Pick<FileSystemSlice, 'renameNote' | 'renameAbsoluteNote' | 'renameFolder' | 'moveItem'> {
+): Pick<FileSystemSlice, 'renameNote' | 'renameImage' | 'renameAbsoluteNote' | 'renameFolder' | 'moveItem'> {
   return {
+    renameImage: (path: string, newName: string) => renameImageAction(set, get, path, newName),
+
     renameNote: async (path: string, newName: string) => {
       flushCurrentPendingEditorMarkdown();
       const {

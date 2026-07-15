@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { backgroundBenchmarkRunner } from '@/lib/ai/healthCheck';
 import type { AIModel, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
 import { toHealthStatusMap, useProviderBenchmarkSnapshot } from './useProviderBenchmarkSnapshot';
@@ -36,6 +36,8 @@ export function useProviderBenchmark({
   setProviderBenchmarkResults: (providerId: string, record: ProviderBenchmarkRecord) => void;
 }) {
   const providerId = provider?.id;
+  const [queuedBenchmarkModelIds, setQueuedBenchmarkModelIds] = useState<string[]>([]);
+  const individualBenchmarkRunRef = useRef(false);
   const {
     healthStatus,
     setHealthStatus,
@@ -132,6 +134,7 @@ export function useProviderBenchmark({
     if (nextModels.length === 0) return;
 
     clearBenchmarkScopes(normalizedScopes);
+    individualBenchmarkRunRef.current = false;
     setBenchmarkingModelIds([]);
     syncActiveBenchmarkScopes(normalizedScopes);
     backgroundBenchmarkRunner.start(tempProvider, nextModels);
@@ -140,6 +143,7 @@ export function useProviderBenchmark({
   const stopBenchmarkRun = () => {
     if (!provider) return;
 
+    individualBenchmarkRunRef.current = false;
     const nextRecord = persistBenchmarkHealthStatus(healthStatus);
     if (nextRecord) {
       setHealthStatus(toHealthStatusMap(nextRecord));
@@ -148,6 +152,7 @@ export function useProviderBenchmark({
     setIsHealthChecking(false);
     setBenchmarkingModelIds([]);
     setQueuedBenchmarkScopes([]);
+    setQueuedBenchmarkModelIds([]);
     syncActiveBenchmarkScopes([]);
     backgroundBenchmarkRunner.stop(provider.id);
   };
@@ -232,7 +237,29 @@ export function useProviderBenchmark({
       stopBenchmarkRun();
       return;
     }
-    if (canBenchmarkAll) queueOrStartBenchmark('all');
+    if (canBenchmarkAll) {
+      setQueuedBenchmarkModelIds([]);
+      queueOrStartBenchmark('all');
+    }
+  };
+
+  const handleBenchmarkModel = async (modelId: string) => {
+    if (!canUseConnectionActions || queuedBenchmarkModelIds.includes(modelId)) return;
+
+    const model = [...selectedBenchmarkModels, ...availableBenchmarkModels]
+      .find((candidate) => candidate.id === modelId);
+    const tempProvider = buildTempProvider();
+    if (!model || !tempProvider) return;
+
+    if (backgroundBenchmarkRunner.getSnapshot(provider?.id || '')?.isRunning) {
+      setQueuedBenchmarkModelIds((previous) => previous.includes(modelId) ? previous : [...previous, modelId]);
+      return;
+    }
+
+    setQueuedBenchmarkScopes([]);
+    individualBenchmarkRunRef.current = true;
+    syncActiveBenchmarkScopes([]);
+    backgroundBenchmarkRunner.start(tempProvider, [model]);
   };
 
   useEffect(() => {
@@ -244,14 +271,40 @@ export function useProviderBenchmark({
   }, [provider, isHealthChecking, queuedBenchmarkScopes, draft.name, draft.apiHost, draft.apiKey]);
 
   useEffect(() => {
-    if (isHealthChecking || queuedBenchmarkScopes.length > 0 || activeBenchmarkScopesRef.current.length === 0) return;
+    if (!provider || isHealthChecking || queuedBenchmarkModelIds.length === 0) return;
+    if (backgroundBenchmarkRunner.getSnapshot(provider.id)?.isRunning) return;
+
+    const queuedIds = new Set(queuedBenchmarkModelIds);
+    const queuedModels = [...selectedBenchmarkModels, ...availableBenchmarkModels]
+      .filter((model) => queuedIds.has(model.id));
+    setQueuedBenchmarkModelIds([]);
+    if (queuedModels.length === 0) return;
+
+    const tempProvider = buildTempProvider();
+    if (!tempProvider) return;
+    individualBenchmarkRunRef.current = true;
+    syncActiveBenchmarkScopes([]);
+    backgroundBenchmarkRunner.start(tempProvider, queuedModels);
+  }, [provider, isHealthChecking, queuedBenchmarkModelIds, selectedBenchmarkModels, availableBenchmarkModels, draft.name, draft.apiHost, draft.apiKey]);
+
+  useEffect(() => {
+    if (
+      isHealthChecking ||
+      queuedBenchmarkScopes.length > 0 ||
+      queuedBenchmarkModelIds.length > 0 ||
+      activeBenchmarkScopesRef.current.length === 0
+    ) return;
 
     setActiveBenchmarkScopes([]);
     activeBenchmarkScopesRef.current = [];
-  }, [isHealthChecking, queuedBenchmarkScopes]);
+  }, [isHealthChecking, queuedBenchmarkScopes, queuedBenchmarkModelIds]);
 
   useEffect(() => {
     if (!isHealthChecking) return;
+    if (individualBenchmarkRunRef.current) {
+      syncActiveBenchmarkScopes([]);
+      return;
+    }
     syncActiveBenchmarkScopes(resolveActiveBenchmarkScopes(benchmarkingModelIds, selectedBenchmarkModels, availableBenchmarkModels));
   }, [isHealthChecking, benchmarkingModelIds, selectedBenchmarkModels, availableBenchmarkModels]);
 
@@ -270,10 +323,12 @@ export function useProviderBenchmark({
   }, [provider, isHealthChecking, healthStatus, healthCheckOverall, benchmarkResults, setProviderBenchmarkResults]);
 
   const resetBenchmarkState = () => {
+    individualBenchmarkRunRef.current = false;
     setHealthStatus({});
     setHealthCheckOverall('idle');
     setIsHealthChecking(false);
     setQueuedBenchmarkScopes([]);
+    setQueuedBenchmarkModelIds([]);
     syncActiveBenchmarkScopes([]);
     if (provider) {
       backgroundBenchmarkRunner.stop(provider.id);
@@ -288,11 +343,14 @@ export function useProviderBenchmark({
     canBenchmarkAvailable,
     canBenchmarkAll,
     benchmarkAllActive,
+    benchmarkAllQueued: queuedBenchmarkScopes.includes('all'),
     selectedBenchmarkActive,
     availableBenchmarkActive,
+    queuedBenchmarkModelIds,
     handleBenchmarkModels,
     handleBenchmarkAvailableModels,
     handleBenchmarkAllModels,
+    handleBenchmarkModel,
     resetBenchmarkState,
   };
 }

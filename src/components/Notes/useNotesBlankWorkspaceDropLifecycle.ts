@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { themeEditorLayoutTokens } from '@/styles/themeTokens';
 import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
@@ -8,8 +8,7 @@ import { hasFileTreeNoteFiles, shouldAutoCreateBlankDraft } from './autoCreateBl
 
 export function useNotesBlankWorkspaceDropLifecycle(args: {
   active: boolean;
-  blankDropDraftContent: string;
-  currentDraftMetadata: NonNullable<ReturnType<typeof useNotesStore.getState>['noteMetadata']>['notes'][string] | undefined;
+  blankDropDraftHasUnsavedChanges: boolean;
   currentNotePath: string | undefined;
   currentNotesRoot: { path: string } | null | undefined;
   draftNotes: ReturnType<typeof useNotesStore.getState>['draftNotes'];
@@ -31,8 +30,7 @@ export function useNotesBlankWorkspaceDropLifecycle(args: {
 }) {
   const {
     active,
-    blankDropDraftContent,
-    currentDraftMetadata,
+    blankDropDraftHasUnsavedChanges,
     currentNotePath,
     currentNotesRoot,
     draftNotes,
@@ -74,11 +72,7 @@ export function useNotesBlankWorkspaceDropLifecycle(args: {
       return false;
     }
 
-    return !hasDraftUnsavedChanges({
-      draftName: draftEntry.name,
-      content: blankDropDraftContent,
-      metadata: currentDraftMetadata,
-    });
+    return !blankDropDraftHasUnsavedChanges;
   })();
 
   const isBlankWorkspaceDropActive = useBlankWorkspaceDropOpen({

@@ -142,6 +142,29 @@ function createDirectoryHandle(entries: MockDirectoryEntry[]) {
 }
 
 describe('desktop filesystem list directory budget', () => {
+  it('honors a small caller limit without scanning the entire directory', async () => {
+    const directoryHandle = createDirectoryHandle([
+      ...Array.from({ length: 1023 }, (_value, index) =>
+        createFileDirent(`asset-${String(index).padStart(4, '0')}.png`)
+      ),
+      createFileDirent('late.md'),
+      createFileDirent('unscanned.md'),
+    ]);
+    mocks.opendir.mockResolvedValueOnce(directoryHandle);
+    const { handlers } = registerHarness();
+
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/notesRoot', 256);
+
+    expect(entries).toHaveLength(256);
+    expect(directoryHandle.yieldedCount).toBe(1024);
+    expect(entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'late.md' }),
+    ]));
+    expect(entries).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'unscanned.md' }),
+    ]));
+  });
+
   it('caps single-directory listings before describing overflow entries', async () => {
     mocks.opendir.mockResolvedValueOnce(createDirectoryHandle([
       ...Array.from({ length: 20_000 }, (_value, index) =>

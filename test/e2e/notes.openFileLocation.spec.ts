@@ -88,7 +88,6 @@ test.describe('notes open file location', () => {
       await targetRow.click({ button: 'right' });
       await expect(page.locator('[data-sidebar-context-menu-layer="true"]').first()).toBeVisible();
 
-      await page.getByRole('button', { name: /^(More|更多)$/ }).hover();
       await expect(page.locator('[data-sidebar-context-menu-item="open-location"]')).toBeVisible();
       await page.locator('[data-sidebar-context-menu-item="open-location"]').click();
 
@@ -100,9 +99,7 @@ test.describe('notes open file location', () => {
       expect(shellLog).toContain('cmd=gdbus');
       expect(shellLog).toContain('arg=org.freedesktop.FileManager1.ShowItems');
       expect(shellLog).toContain(expectedFileUrlArgument);
-      expect(shellLog).toContain('cmd=nautilus');
-      expect(shellLog).toContain('arg=--select');
-      expect(shellLog).toContain(`arg=${expectedNotePath}`);
+      expect(shellLog).not.toContain('cmd=nautilus');
       expect(shellLog).not.toContain('arg=--new-window');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);

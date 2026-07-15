@@ -33,6 +33,8 @@ interface FileTreeLevelEntry {
   kind: 'folder' | 'note' | 'image';
 }
 
+export const INITIAL_FILE_TREE_ENTRY_LIMIT = 256;
+
 function isLowPriorityDirectory(name: string) {
   return LOW_PRIORITY_DIRECTORY_NAMES.has(name.toLowerCase());
 }
@@ -169,11 +171,14 @@ export async function buildFileTreeLevel(
   basePath: string,
   relativePath: string = '',
   budget?: FileTreeBuildBudget,
-  options: { detectGitRepositories?: boolean } = {},
+  options: { detectGitRepositories?: boolean; maxEntries?: number } = {},
 ): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
-  const entries = await storage.listDir(fullPath, { includeHidden: true });
+  const entries = await storage.listDir(fullPath, {
+    includeHidden: true,
+    ...(options.maxEntries ? { maxEntries: options.maxEntries } : {}),
+  });
   const detectGitRepositories = options.detectGitRepositories !== false;
 
   const levelEntries: FileTreeLevelEntry[] = [];

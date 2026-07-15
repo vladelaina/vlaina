@@ -1,6 +1,7 @@
 import { NoteEditorFindBar } from './find/NoteEditorFindBar';
 import type { NoteEditorFindController } from './find/types';
 import { NoteToolbarActions } from './NoteToolbarActions';
+import { NoteSaveStatus } from './NoteSaveStatus';
 
 export interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
@@ -40,6 +41,8 @@ export function EditorTopRightToolbar({
       data-no-editor-drag-box="true"
     >
       <NoteEditorFindBar controller={editorFind} />
+
+      {!editorFind.isOpen ? <NoteSaveStatus notePath={currentNotePath} /> : null}
 
       {!editorFind.isOpen && showNoteActions ? (
         <NoteToolbarActions

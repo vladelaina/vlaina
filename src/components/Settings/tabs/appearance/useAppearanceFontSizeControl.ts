@@ -6,6 +6,8 @@ import {
   UI_FONT_SIZE_MIN,
   useUIStore,
 } from '@/stores/uiSlice';
+import { applyMarkdownFontSize } from '@/lib/markdown/markdownFontSize';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 const FONT_SIZE_WHEEL_COMMIT_DELAY_MS = 180;
 
@@ -15,7 +17,6 @@ function clampFontSize(fontSize: number): number {
 
 export function useAppearanceFontSizeControl(onPreviewingChange?: (previewing: boolean) => void) {
   const fontSize = useUIStore((state) => state.fontSize);
-  const setFontSizePreview = useUIStore((state) => state.setFontSizePreview);
   const setFontSize = useUIStore((state) => state.setFontSize);
   const resetFontSize = useUIStore((state) => state.resetFontSize);
   const [isPreviewingFontSize, setIsPreviewingFontSize] = useState(false);
@@ -24,6 +25,7 @@ export function useAppearanceFontSizeControl(onPreviewingChange?: (previewing: b
   const previewingFontSizeRef = useRef(false);
   const pendingFontSizeFrameRef = useRef<number | null>(null);
   const pendingFontSizeRef = useRef(fontSize);
+  const lastPreviewFontSizeRef = useRef<number | null>(fontSize);
   const pendingFontSizeCommitTimerRef = useRef<number | null>(null);
   const pendingFontSizeCommitRef = useRef(fontSize);
 
@@ -83,7 +85,7 @@ export function useAppearanceFontSizeControl(onPreviewingChange?: (previewing: b
       if (!previewingFontSizeRef.current) return;
       previewingFontSizeRef.current = false;
       cancelScheduledFontSizePreview();
-      setFontSizePreview(draftFontSizeRef.current);
+      applyMarkdownFontSize(draftFontSizeRef.current);
       setIsPreviewingFontSize(false);
       setFontSize(draftFontSizeRef.current);
     };
@@ -100,31 +102,41 @@ export function useAppearanceFontSizeControl(onPreviewingChange?: (previewing: b
       if (previewingFontSizeRef.current) {
         previewingFontSizeRef.current = false;
         cancelScheduledFontSizePreview();
-        setFontSizePreview(draftFontSizeRef.current);
+        applyMarkdownFontSize(draftFontSizeRef.current);
         setFontSize(draftFontSizeRef.current);
       }
       onPreviewingChange?.(false);
     };
-  }, [cancelScheduledFontSizePreview, isPreviewingFontSize, onPreviewingChange, setFontSize, setFontSizePreview]);
+  }, [cancelScheduledFontSizePreview, isPreviewingFontSize, onPreviewingChange, setFontSize]);
 
   const progressPercent = useMemo(() => {
     const bounded = clampFontSize(displayedFontSize);
     return `${((bounded - UI_FONT_SIZE_MIN) / (UI_FONT_SIZE_MAX - UI_FONT_SIZE_MIN)) * 100}%`;
   }, [displayedFontSize]);
 
-  const scheduleFontSizePreview = useCallback((next: number) => {
+  const scheduleFontSizePreview = useCallback((next: number, force = false) => {
     pendingFontSizeRef.current = next;
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
-      setFontSizePreview(next);
+      applyMarkdownFontSize(next);
       return;
     }
 
     if (pendingFontSizeFrameRef.current !== null) return;
     pendingFontSizeFrameRef.current = window.requestAnimationFrame(() => {
       pendingFontSizeFrameRef.current = null;
-      setFontSizePreview(pendingFontSizeRef.current);
+      const pending = pendingFontSizeRef.current;
+      if (
+        !force &&
+        lastPreviewFontSizeRef.current !== null &&
+        Math.abs(pending - lastPreviewFontSizeRef.current) <
+        themeUiFeedbackTokens.markdownFontSizePreviewStepPx
+      ) {
+        return;
+      }
+      lastPreviewFontSizeRef.current = pending;
+      applyMarkdownFontSize(pending);
     });
-  }, [setFontSizePreview]);
+  }, []);
 
   const scheduleFontSizeCommit = useCallback((next: number) => {
     pendingFontSizeCommitRef.current = next;
@@ -173,7 +185,7 @@ export function useAppearanceFontSizeControl(onPreviewingChange?: (previewing: b
 
     draftFontSizeRef.current = next;
     setDraftFontSize(next);
-    scheduleFontSizePreview(next);
+    scheduleFontSizePreview(next, true);
     scheduleFontSizeCommit(next);
   };
 
@@ -182,6 +194,7 @@ export function useAppearanceFontSizeControl(onPreviewingChange?: (previewing: b
     if (previewingFontSizeRef.current) return;
     cancelScheduledFontSizeCommit();
     draftFontSizeRef.current = fontSize;
+    lastPreviewFontSizeRef.current = null;
     setDraftFontSize(fontSize);
     previewingFontSizeRef.current = true;
     setIsPreviewingFontSize(true);

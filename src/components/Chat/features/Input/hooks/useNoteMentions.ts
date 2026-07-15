@@ -18,6 +18,10 @@ export function useNoteMentions({
     mentions: Array<{ path: string; title: string; kind?: 'note' | 'folder' }>;
     value: string;
   }) => {
+    if (!value.includes('@')) {
+      return [];
+    }
+
     const syncedMentions = new Map<string, { path: string; title: string; kind: 'note' | 'folder' }>();
     const candidatesByPath = new Map<string, { path: string; title: string; kind: 'note' | 'folder' }>();
     for (const candidate of allNoteCandidates) {
@@ -76,6 +80,7 @@ export function useNoteMentions({
 
   const {
     mentions,
+    hasMentionCandidates,
     clearMentions,
     currentPageCandidates,
     folderCandidates,
@@ -103,6 +108,7 @@ export function useNoteMentions({
 
   return {
     noteMentions: mentions,
+    hasMentionCandidates,
     clearNoteMentions: clearMentions,
     currentPageCandidates,
     folderCandidates,

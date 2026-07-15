@@ -5,7 +5,6 @@ import { AIBehaviorSettings } from './ai/AIBehaviorSettings';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useI18n } from '@/lib/i18n';
-import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 import { useAIChannelOrder } from './ai/AIChannelOrder';
 import { AIChannelsSection } from './ai/AIChannelsSection';
 import type { PendingDeleteProvider, ProviderCardDraft } from './ai/AIChannelTypes';
@@ -192,7 +191,6 @@ export function AITab() {
       <div
         className="h-full min-h-0 overflow-y-auto px-6 py-6 max-[900px]:px-4 max-[900px]:py-5"
         data-settings-scroll-root="ai"
-        onWheel={handleScrollableWheel}
       >
         <AIBehaviorSettings />
 

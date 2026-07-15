@@ -1,11 +1,10 @@
-import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
-import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { getEmptyWorkspaceRecentNotesRoots } from './SidebarEmptyWorkspacePanel';
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 import { useI18n } from '@/lib/i18n';
@@ -16,6 +15,8 @@ import { useSidebarDisplayRootFolder } from './useSidebarDisplayRootFolder';
 import { useSidebarLiveNoteContent } from './useSidebarLiveNoteContent';
 import { useSidebarRenameShortcut } from './useSidebarRenameShortcut';
 import { SidebarContentView } from './SidebarContentView';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { useNotesSidebarAutoWidth } from './useNotesSidebarAutoWidth';
 
 const EMPTY_NOTE_CONTENTS_CACHE = new Map<string, { content: string; modifiedAt: number | null }>();
 interface SidebarContentProps {
@@ -44,14 +45,6 @@ export function SidebarContent({
   const { t } = useI18n();
   const openNote = useNotesStore((s) => s.openNote);
   const openNoteByAbsolutePath = useNotesStore((s) => s.openNoteByAbsolutePath);
-  const currentNoteTagContent = useNotesStore(
-    useCallback((state) => {
-      if (!currentNotePath || state.currentNote?.path !== currentNotePath) {
-        return null;
-      }
-      return stripManagedFrontmatter(state.currentNote.content);
-    }, [currentNotePath])
-  );
   const draftNotes = useNotesStore((s) => s.draftNotes);
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
@@ -64,6 +57,7 @@ export function SidebarContent({
   const recentNotesRoots = useNotesRootStore((s) => s.recentNotesRoots);
   const openNotesRoot = useNotesRootStore((s) => s.openNotesRoot);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const setSidebarWidth = useUIStore((s) => s.setSidebarWidth);
   const currentDraftPreviewTitle = useUIStore((s) => {
     if (!currentNotePath || s.notesPreviewTitle?.path !== currentNotePath) {
       return '';
@@ -73,7 +67,19 @@ export function SidebarContent({
   });
   const effectiveSearchOpen = active && search.isSearchOpen;
   const effectiveSearchQuery = active ? search.searchQuery : '';
-  const deferredSearchQuery = useDeferredValue(effectiveSearchQuery);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(effectiveSearchQuery);
+  useEffect(() => {
+    if (!effectiveSearchOpen || effectiveSearchQuery.trim().length < 2) {
+      setDebouncedSearchQuery(effectiveSearchQuery);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchQuery(effectiveSearchQuery);
+    }, themeUiFeedbackTokens.notesSidebarSearchDebounceMs);
+    return () => window.clearTimeout(timeoutId);
+  }, [effectiveSearchOpen, effectiveSearchQuery]);
+  const deferredSearchQuery = useDeferredValue(debouncedSearchQuery);
   const shouldSubscribeToSearchContents =
     active || (effectiveSearchOpen && deferredSearchQuery.trim().length >= 2);
   const noteContentsCache = useNotesStore((s) =>
@@ -96,6 +102,15 @@ export function SidebarContent({
     currentDraftPreviewTitle,
     currentDraftContent,
   });
+  useNotesSidebarAutoWidth({
+    active,
+    displayRootFolder,
+    isLoading,
+    notesPath,
+    notesRootPath: currentNotesRoot?.path ?? null,
+    rootRef: sidebarRootRef,
+    setSidebarWidth,
+  });
   const {
     inputRef,
     scrollRootRef,
@@ -112,6 +127,10 @@ export function SidebarContent({
   });
   const hasNotesRootPendingRoot = Boolean(currentNotesRoot && notesPath === currentNotesRoot.path && !displayRootFolder);
   const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
+  const liveNoteContent = useSidebarLiveNoteContent({
+    active,
+    currentNotePath,
+  });
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
     rootFolder: displayRootFolder,
     getDisplayName,
@@ -124,22 +143,13 @@ export function SidebarContent({
     isSearchOpen: effectiveSearchOpen,
     starredEntries,
     currentNotesRootPath: currentNotesRoot?.path ?? notesPath,
-  });
-  const liveNoteContent = useSidebarLiveNoteContent({
-    active,
-    currentNotePath,
-    currentNoteTagContent,
+    liveNoteContent,
   });
   const { tags } = useNotesSidebarTags({
     rootFolder: displayRootFolder,
     noteContentsCache,
     noteContentsCacheRevision,
-    liveNoteContent:
-      liveNoteContent?.path === currentNotePath
-        ? liveNoteContent
-        : currentNotePath && currentNoteTagContent !== null
-          ? { path: currentNotePath, content: currentNoteTagContent }
-          : null,
+    liveNoteContent: liveNoteContent?.path === currentNotePath ? liveNoteContent : null,
     scanAllNotes,
     starredEntries,
     currentNotesRootPath: currentNotesRoot?.path ?? notesPath,

@@ -1,17 +1,14 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
-import { TextSelection } from '@milkdown/kit/prose/state';
 import { getMimeType, isImageFilename } from '@/lib/assets/core/naming';
 import { translate } from '@/lib/i18n';
 import { getBaseName, getStorageAdapter } from '@/lib/storage/adapter';
 import { openDialog } from '@/lib/storage/dialog';
 import { handleEditorImageFiles } from '../image-upload/handleEditorImageFiles';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { isEditorInsertionContextCurrent } from './slashInsertUtils';
 
 const MAX_PICKED_IMAGE_BYTES = 50 * 1024 * 1024;
-
-function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
-}
 
 function isInsertableImagePath(path: string) {
   return isImageFilename(path);
@@ -28,6 +25,9 @@ function isInsertableImageSize(size: number | null | undefined) {
 export async function insertImageFromFilePicker(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);
   const insertionBookmark = view.state.selection.getBookmark();
+  const insertionDoc = view.state.doc;
+  const insertionSelection = view.state.selection;
+  const insertionNotePath = useNotesStore.getState().currentNote?.path;
 
   try {
     const selected = await openDialog({
@@ -55,12 +55,13 @@ export async function insertImageFromFilePicker(ctx: Ctx) {
       type: getMimeType(fileName),
     });
 
-    view.dispatch(
-      view.state.tr
-        .setSelection(insertionBookmark.resolve(view.state.doc))
-        .scrollIntoView()
-    );
-    await handleEditorImageFiles([file], view);
+    if (
+      !isEditorInsertionContextCurrent(view, insertionDoc, insertionSelection)
+      || useNotesStore.getState().currentNote?.path !== insertionNotePath
+    ) return;
+
+    const resolvedInsertionSelection = insertionBookmark.resolve(view.state.doc);
+    await handleEditorImageFiles([file], view, useNotesStore.getState, resolvedInsertionSelection);
   } catch (error) {
   }
 }
@@ -69,22 +70,3 @@ export const __testing__ = {
   isInsertableImagePath,
   isInsertableImageSize,
 };
-
-export function insertFrontmatter(ctx: Ctx) {
-  const view = ctx.get(editorViewCtx);
-  const { state, dispatch } = view;
-  const frontmatter = state.schema.nodes.frontmatter;
-  if (!frontmatter) return;
-
-  const firstNode = state.doc.firstChild;
-  if (firstNode?.type === frontmatter) {
-    dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1)).scrollIntoView());
-    return;
-  }
-
-  const node = frontmatter.create();
-  const tr = state.tr.insert(0, node);
-  tr.setSelection(TextSelection.create(tr.doc, 1)).scrollIntoView();
-  markSlashUserInput(view);
-  dispatch(tr);
-}

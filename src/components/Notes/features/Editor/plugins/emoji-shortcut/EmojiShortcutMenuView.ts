@@ -1,6 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import React from 'react';
-import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import { UniversalIconPicker } from '@/components/common/UniversalIconPicker';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
@@ -74,21 +73,19 @@ export class EmojiShortcutMenuView {
 
     this.ensureMenu();
 
-    flushSync(() => {
-      this.root?.render(
-        React.createElement(UniversalIconPicker, {
-          onSelect: this.insertSelectedIcon,
-          onClose: this.closeMenu,
-          embedded: true,
-          emojiOnly: true,
-          surface: true,
-          emojiSearchQuery: state.query,
-          alwaysShowEmojiCategories: true,
-        })
-      );
-    });
+    this.root?.render(
+      React.createElement(UniversalIconPicker, {
+        onSelect: this.insertSelectedIcon,
+        onClose: this.closeMenu,
+        embedded: true,
+        emojiOnly: true,
+        surface: true,
+        emojiSearchQuery: state.query,
+        alwaysShowEmojiCategories: true,
+      })
+    );
 
-    this.syncPosition();
+    this.scheduleViewportChange();
   }
 
   destroy() {

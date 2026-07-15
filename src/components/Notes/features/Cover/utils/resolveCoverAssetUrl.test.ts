@@ -331,6 +331,47 @@ describe('resolveCoverAssetUrl', () => {
     }
   });
 
+  it('keeps one animated playback url for the same note cover and header icon', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    try {
+      hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.gif');
+      hoisted.loadImageAsBlob.mockResolvedValue('blob:animated');
+
+      const headerIcon = await resolveCoverAssetUrl({
+        assetPath: 'assets/a.gif',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+        replayAnimated: true,
+        animatedPlaybackKey: 'notes/today.md',
+      });
+
+      vi.advanceTimersByTime(501);
+
+      const cover = await resolveCoverAssetUrl({
+        assetPath: './assets/a.gif',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+        replayAnimated: true,
+        animatedPlaybackKey: 'notes/today.md',
+      });
+
+      expect(headerIcon).toMatch(/^blob:animated#vlaina-replay=/);
+      expect(cover).toBe(headerIcon);
+
+      const otherNoteCover = await resolveCoverAssetUrl({
+        assetPath: 'assets/a.gif',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/other.md',
+        replayAnimated: true,
+        animatedPlaybackKey: 'notes/other.md',
+      });
+      expect(otherNoteCover).not.toBe(headerIcon);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not add replay tokens to non-animated image assets', async () => {
     hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:static');
@@ -421,6 +462,34 @@ describe('resolveCoverAssetUrl', () => {
     await expect(Promise.all([first, second])).resolves.toEqual(['blob:a', 'blob:a']);
     expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps coalescing the same cover while a slow resolve is pending', async () => {
+    vi.useFakeTimers();
+    let resolveBlob: ((url: string) => void) | undefined;
+    try {
+      hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/slow.webp');
+      hoisted.loadImageAsBlob.mockImplementation(() => new Promise<string>((resolve) => {
+        resolveBlob = resolve;
+      }));
+
+      const first = resolveCoverAssetUrl({
+        assetPath: 'assets/slow.webp',
+        notesRootPath: '/notes-root-a',
+      });
+      await vi.advanceTimersByTimeAsync(250);
+      const second = resolveCoverAssetUrl({
+        assetPath: 'assets/slow.webp',
+        notesRootPath: '/notes-root-a',
+      });
+
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+      resolveBlob?.('blob:slow');
+      await expect(Promise.all([first, second])).resolves.toEqual(['blob:slow', 'blob:slow']);
+      expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('bounds concurrent resolves for different covers', async () => {

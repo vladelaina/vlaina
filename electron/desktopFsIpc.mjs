@@ -6,12 +6,12 @@ import {
   updateAuthorizedRootRename,
 } from './fsAccess.mjs';
 import { notifyDesktopWatchRename } from './desktopWatchIpc.mjs';
-import { writeFileAtomically } from './desktopAtomicFile.mjs';
+import { writeFileAtomically, writeFileAtomicallyIfUnchanged } from './desktopAtomicFile.mjs';
 import {
   assertCopyableDesktopFile,
   assertWritableDesktopByteLength,
   describeDesktopDirectoryEntry,
-  MAX_DESKTOP_FS_LIST_DIR_ENTRIES,
+  normalizeDesktopListEntryLimit,
   normalizeDesktopBinaryWriteBytes,
   normalizeDesktopTextWriteContent,
   prioritizeDesktopDirectoryEntriesForListing,
@@ -67,6 +67,15 @@ export function registerDesktopFsIpc({ handleIpc }) {
     await writeFileAtomically(resolvedPath, text);
   });
 
+  handleIpc('desktop:fs:write-text-if-unchanged', async (_event, filePath, expectedContent, content) => {
+    const resolvedPath = await assertAuthorizedFsPath(filePath);
+    const expectedText = expectedContent === null
+      ? null
+      : normalizeDesktopTextWriteContent(expectedContent);
+    const text = normalizeDesktopTextWriteContent(content);
+    return writeFileAtomicallyIfUnchanged(resolvedPath, expectedText, text);
+  });
+
   handleIpc('desktop:fs:exists', async (_event, filePath) => {
     if (typeof filePath !== 'string' || !filePath.trim()) {
       return false;
@@ -92,12 +101,13 @@ export function registerDesktopFsIpc({ handleIpc }) {
     await rm(await assertAuthorizedFsPath(filePath), { recursive: Boolean(recursive), force: true });
   });
 
-  handleIpc('desktop:fs:list-dir', async (_event, filePath) => {
+  handleIpc('desktop:fs:list-dir', async (_event, filePath, maxEntries) => {
     const resolvedPath = await assertAuthorizedFsPath(filePath);
+    const resultLimit = normalizeDesktopListEntryLimit(maxEntries);
 
     let entries;
     try {
-      entries = await readDesktopDirectoryEntriesForListing(resolvedPath);
+      entries = await readDesktopDirectoryEntriesForListing(resolvedPath, resultLimit);
     } catch (error) {
       if (error && typeof error === 'object' && error.code === 'ENOENT') {
         return [];
@@ -105,14 +115,15 @@ export function registerDesktopFsIpc({ handleIpc }) {
       throw error;
     }
     const result = [];
-    const prioritizedEntries = entries.length > MAX_DESKTOP_FS_LIST_DIR_ENTRIES
+    const prioritizedEntries = entries.length > resultLimit
       ? prioritizeDesktopDirectoryEntriesForListing(entries)
       : entries;
     for (const entry of prioritizedEntries) {
-      if (result.length >= MAX_DESKTOP_FS_LIST_DIR_ENTRIES) {
+      if (result.length >= resultLimit) {
         break;
       }
-      result.push(await describeDesktopDirectoryEntry(resolvedPath, entry));
+      const describedEntry = describeDesktopDirectoryEntry(resolvedPath, entry);
+      result.push(describedEntry instanceof Promise ? await describedEntry : describedEntry);
     }
     return result;
   });

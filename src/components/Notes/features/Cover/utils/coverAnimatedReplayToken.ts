@@ -8,6 +8,7 @@ interface AnimatedReplayTokenEntry {
 }
 
 const animatedReplayTokenCache = new Map<string, AnimatedReplayTokenEntry>();
+const sharedAnimatedPlaybackTokenCache = new Map<string, string>();
 
 function getNowMs(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -48,13 +49,37 @@ function getAnimatedReplayToken(url: string): string {
   return entry.token;
 }
 
-function appendAnimatedReplayToken(url: string): string {
-  const token = getAnimatedReplayToken(url);
+function getSharedAnimatedPlaybackToken(url: string, playbackKey: string): string {
+  const cacheKey = `${playbackKey}\0${url}`;
+  const cached = sharedAnimatedPlaybackTokenCache.get(cacheKey);
+  if (cached) {
+    sharedAnimatedPlaybackTokenCache.delete(cacheKey);
+    sharedAnimatedPlaybackTokenCache.set(cacheKey, cached);
+    return cached;
+  }
+
+  const token = createAnimatedReplayToken();
+  sharedAnimatedPlaybackTokenCache.set(cacheKey, token);
+  while (sharedAnimatedPlaybackTokenCache.size > MAX_ANIMATED_REPLAY_TOKEN_CACHE_ENTRIES) {
+    const oldestKey = sharedAnimatedPlaybackTokenCache.keys().next().value;
+    if (oldestKey === undefined) {
+      break;
+    }
+    sharedAnimatedPlaybackTokenCache.delete(oldestKey);
+  }
+  return token;
+}
+
+function appendAnimatedReplayToken(url: string, playbackKey?: string): string {
+  const token = playbackKey
+    ? getSharedAnimatedPlaybackToken(url, playbackKey)
+    : getAnimatedReplayToken(url);
   return `${url}${url.includes('#') ? '&' : '#'}vlaina-replay=${token}`;
 }
 
 export function clearAnimatedReplayTokenCache(): void {
   animatedReplayTokenCache.clear();
+  sharedAnimatedPlaybackTokenCache.clear();
 }
 
 export function shouldPreserveAssetAnimation(assetPath: string) {
@@ -62,8 +87,13 @@ export function shouldPreserveAssetAnimation(assetPath: string) {
   return pathname.endsWith('.gif') || pathname.endsWith('.apng') || pathname.endsWith('.webp');
 }
 
-export function applyAnimatedReplayToken(url: string, assetPath: string, replayAnimated: boolean | undefined): string {
+export function applyAnimatedReplayToken(
+  url: string,
+  assetPath: string,
+  replayAnimated: boolean | undefined,
+  playbackKey?: string,
+): string {
   return replayAnimated && shouldPreserveAssetAnimation(assetPath)
-    ? appendAnimatedReplayToken(url)
+    ? appendAnimatedReplayToken(url, playbackKey)
     : url;
 }

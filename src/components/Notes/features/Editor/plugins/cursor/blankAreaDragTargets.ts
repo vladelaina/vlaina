@@ -29,6 +29,7 @@ import {
   isExternalChatReadableTextTarget,
   isPointInSameEditorLayoutBlankArea,
 } from './blankAreaExternalTargets';
+import { resolveTaskCheckboxTarget } from '../task-list/taskCheckboxHitArea';
 
 export {
   MAX_BLANK_AREA_TEXT_HIT_CHARS,
@@ -160,7 +161,8 @@ export function isExternalTextLineGutterNativeSelectionTarget(view: EditorView, 
     event.clientX,
     event.clientY,
   );
-  return hit?.type === 'gutter' || hit?.type === 'measurement-limit';
+  return (hit?.type === 'gutter' && hit.edge === 'trailing')
+    || hit?.type === 'measurement-limit';
 }
 
 function isTextBlockBlankSurfaceTarget(view: EditorView, target: HTMLElement): boolean {
@@ -187,9 +189,21 @@ function isNativeEditableEmptyTextBlockTarget(view: EditorView, target: HTMLElem
   return textBlock.matches('p, li, blockquote, h1, h2, h3, h4, h5, h6');
 }
 
+function isNativeTextSelectionHit(hit: TextLinePointerHit | null): boolean {
+  return hit?.type === 'content'
+    || hit?.type === 'measurement-limit'
+    || (hit?.type === 'gutter' && hit.edge === 'trailing');
+}
+
 export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
   if (!(event.target instanceof HTMLElement)) return null;
   const target = event.target;
+  if (
+    view.dom.contains(target) &&
+    resolveTaskCheckboxTarget(view.dom, target, event.clientX, event.clientY)
+  ) {
+    return null;
+  }
 
   const editorScrollRoot = getScrollRoot(view.dom);
   const targetScrollRoot = getScrollRoot(target);
@@ -222,7 +236,7 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     const targetTextBlock = target.closest(TEXT_BLOCK_SURFACE_SELECTOR);
     if (targetTextBlock instanceof HTMLElement && view.dom.contains(targetTextBlock)) {
       const textLineHit = resolveTextLinePointerHit(targetTextBlock, event.clientX, event.clientY);
-      if (textLineHit) {
+      if (isNativeTextSelectionHit(textLineHit)) {
         return null;
       }
       if (isNativeEditableEmptyTextBlockTarget(view, target)) {
@@ -241,7 +255,7 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
       ? cachedTextLineHit.hit
       : resolveTargetTextLinePointerHit(view, target, event.clientX, event.clientY);
 
-    if (textLineHit) {
+    if (isNativeTextSelectionHit(textLineHit)) {
       return null;
     }
     if (isNativeEditableEmptyTextBlockTarget(view, target)) {
@@ -265,7 +279,7 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
       event.clientY,
     )
     : null;
-  if (externalTextLineHit?.type === 'gutter' || externalTextLineHit?.type === 'measurement-limit') {
+  if (isNativeTextSelectionHit(externalTextLineHit)) {
     return null;
   }
 

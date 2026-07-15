@@ -159,7 +159,7 @@ describe('ChatImageViewer', () => {
 
     const closeButton = await screen.findByRole('button', { name: 'Close preview' });
 
-    expect(closeButton).toHaveClass('top-[4.5rem]');
+    expect(closeButton).toHaveClass('top-[var(--vlaina-size-72px)]');
     for (const buttonName of ['Close preview', 'Zoom out', 'Zoom in', 'Copy image', 'Download image']) {
       const button = screen.getByRole('button', { name: buttonName });
       for (const className of dialogCloseIconButtonClassName.split(' ')) {

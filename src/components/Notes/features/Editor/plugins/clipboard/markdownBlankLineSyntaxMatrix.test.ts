@@ -412,7 +412,6 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'image keeps surrounding blank lines',
       markdown: lines(['Before', '', '![Alt text](image.png "Title")', '', '', 'After']),
-      expected: lines(['Before', '', '<img src="image.png" alt="Alt text" title="Title" />', '', '', 'After']),
     },
     {
       name: 'video image syntax keeps surrounding blank lines',
@@ -443,7 +442,6 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'raw script html keeps markdown-like blank lines protected',
       markdown: lines(['Before', '', '<script>', 'const text = "- item";', '', 'console.log(text);', '</script>', '', 'After']),
-      expected: lines(['Before', '', '', 'After']),
     },
     {
       name: 'html block between list items stays structural not list gap',

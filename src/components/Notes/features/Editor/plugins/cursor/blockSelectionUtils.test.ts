@@ -1111,7 +1111,7 @@ describe('blockSelectionUtils', () => {
     const editor = await createEditor('');
     const view = editor.ctx.get(editorViewCtx);
     const { schema } = view.state;
-    const list = schema.nodes.bullet_list.create(null, Array.from({ length: 40 }, (_, index) =>
+    const list = schema.nodes.bullet_list.create(null, Array.from({ length: 24 }, (_, index) =>
       schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
         schema.nodes.paragraph.create(null, schema.text(`item ${index}`)),
         schema.nodes.code_block.create(null, schema.text(`code ${index}`)),

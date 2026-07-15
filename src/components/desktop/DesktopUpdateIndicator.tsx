@@ -41,7 +41,7 @@ export function DesktopUpdateBadge({
     <span
       data-desktop-update-indicator="badge"
       className={cn(
-        'inline-flex h-5 max-w-[7.5rem] shrink-0 items-center rounded-[var(--vlaina-radius-pill)] bg-[var(--vlaina-accent)] px-2 text-[var(--vlaina-font-10)] font-bold leading-none text-[var(--vlaina-color-white)] tabular-nums shadow-[var(--vlaina-shadow-selection-soft)]',
+        'inline-flex h-5 max-w-[var(--vlaina-size-120px)] shrink-0 items-center rounded-[var(--vlaina-radius-pill)] bg-[var(--vlaina-accent)] px-2 text-[var(--vlaina-font-10)] font-bold leading-none text-[var(--vlaina-color-white)] tabular-nums shadow-[var(--vlaina-shadow-selection-soft)]',
         className
       )}
       title={t('settings.updateIndicator')}

@@ -11,15 +11,19 @@ export function useChatViewMessageActions(args: {
   currentSessionId: string | null;
   editMessage: (messageId: string, newContent: string) => void;
   imageGallery: ChatImageGalleryItem[];
+  onBeforeEdit?: (messageId: string) => void;
+  onBeforeRegenerate?: (messageId: string) => void;
   regenerate: (messageId: string) => void;
   switchMessageVersion: (sessionId: string, messageId: string, versionIndex: number) => void;
 }) {
-  const { currentSessionId, editMessage, imageGallery, regenerate, switchMessageVersion } = args;
+  const { currentSessionId, editMessage, imageGallery, onBeforeEdit, onBeforeRegenerate, regenerate, switchMessageVersion } = args;
   const regenerateRef = useRef(regenerate);
   const editMessageRef = useRef(editMessage);
   const switchMessageVersionRef = useRef(switchMessageVersion);
   const currentSessionIdRef = useRef(currentSessionId);
   const imageGalleryRef = useRef(imageGallery);
+  const onBeforeEditRef = useRef(onBeforeEdit);
+  const onBeforeRegenerateRef = useRef(onBeforeRegenerate);
 
   useEffect(() => {
     regenerateRef.current = regenerate;
@@ -41,9 +45,15 @@ export function useChatViewMessageActions(args: {
     imageGalleryRef.current = imageGallery;
   }, [imageGallery]);
 
+  useEffect(() => {
+    onBeforeEditRef.current = onBeforeEdit;
+    onBeforeRegenerateRef.current = onBeforeRegenerate;
+  }, [onBeforeEdit, onBeforeRegenerate]);
+
   const copyToClipboard = useCallback((text: string) => copyMessageContentToClipboard(text), []);
   const getImageGallery = useCallback(() => imageGalleryRef.current, []);
   const handleRegenerate = useCallback((messageId: string) => {
+    onBeforeRegenerateRef.current?.(messageId);
     regenerateRef.current(messageId);
   }, []);
   const handleFork = useCallback((messageId: string) => {
@@ -54,6 +64,7 @@ export function useChatViewMessageActions(args: {
     aiActions.forkSessionFromMessage(sessionId, messageId);
   }, []);
   const handleEdit = useCallback((messageId: string, newContent: string) => {
+    onBeforeEditRef.current?.(messageId);
     editMessageRef.current(messageId, newContent);
   }, []);
   const handleSwitchVersion = useCallback((messageId: string, versionIndex: number) => {

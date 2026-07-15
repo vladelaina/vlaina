@@ -87,12 +87,14 @@ export interface UIStore {
   universalPreviewColor: string | null;
   universalPreviewTone: number | null;
   universalPreviewIconSize: number | null;
+  universalPreviewCover: string | null;
 
   setUniversalPreview: (targetId: string | null, state: {
     icon?: string | null;
     color?: string | null;
     tone?: number | null;
     size?: number | null;
+    cover?: string | null;
   }) => void;
 
   imageStorageMode: ImageStorageMode;

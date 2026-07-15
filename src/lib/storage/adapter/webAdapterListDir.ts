@@ -96,9 +96,14 @@ export function buildWebAdapterListDirEntries({
     }
   }
 
-  if (results.length <= MAX_WEB_ADAPTER_LIST_ENTRIES) {
+  const requestedLimit = options?.maxEntries;
+  const resultLimit = typeof requestedLimit === 'number' && Number.isSafeInteger(requestedLimit) && requestedLimit > 0
+    ? Math.min(requestedLimit, MAX_WEB_ADAPTER_LIST_ENTRIES)
+    : MAX_WEB_ADAPTER_LIST_ENTRIES;
+
+  if (results.length <= resultLimit) {
     return results;
   }
 
-  return prioritizeListEntries(results).slice(0, MAX_WEB_ADAPTER_LIST_ENTRIES);
+  return prioritizeListEntries(results).slice(0, resultLimit);
 }

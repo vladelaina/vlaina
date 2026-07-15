@@ -229,6 +229,30 @@ describe('desktop filesystem ipc', () => {
     );
   });
 
+  it('resolves and authorizes the Git root for an opened Markdown file', async () => {
+    const projectPath = path.join(tempDir, 'project');
+    const docsPath = path.join(projectPath, 'docs', 'guides');
+    const filePath = path.join(docsPath, 'setup.md');
+    await mkdir(path.join(projectPath, '.git'), { recursive: true });
+    await mkdir(docsPath, { recursive: true });
+    await writeFile(filePath, '# Setup', 'utf8');
+    await authorizeFsPath(filePath, 'file');
+    const { handlers } = registerHarness();
+
+    await expect(
+      handlers.get('desktop:app:find-markdown-git-root')?.({}, filePath),
+    ).resolves.toBe(projectPath);
+    await expect(handlers.get('desktop:fs:list-dir')?.({}, projectPath)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'docs',
+          path: path.join(projectPath, 'docs'),
+          isDirectory: true,
+        }),
+      ]),
+    );
+  });
+
   it('lists authorized symlinked markdown files as readable files', async () => {
     const rootPath = path.join(tempDir, 'notesRoot');
     const targetPath = path.join(rootPath, 'target.md');

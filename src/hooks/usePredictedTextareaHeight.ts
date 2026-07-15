@@ -47,41 +47,13 @@ export function usePredictedTextareaHeight(
     value: string;
     width: number;
   } | null>(null);
-  const retryFrameRef = useRef<number | null>(null);
-  const retryTimeoutRef = useRef<number | null>(null);
   const observedResizeFrameRef = useRef<number | null>(null);
-
-  const clearPendingRetry = () => {
-    if (retryFrameRef.current !== null) {
-      cancelAnimationFrame(retryFrameRef.current);
-      retryFrameRef.current = null;
-    }
-    if (retryTimeoutRef.current !== null) {
-      window.clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
-    }
-  };
 
   const clearPendingObservedResize = () => {
     if (observedResizeFrameRef.current !== null) {
       cancelAnimationFrame(observedResizeFrameRef.current);
       observedResizeFrameRef.current = null;
     }
-  };
-
-  const scheduleRetry = () => {
-    if (retryFrameRef.current !== null || retryTimeoutRef.current !== null) {
-      return;
-    }
-
-    retryFrameRef.current = requestAnimationFrame(() => {
-      retryFrameRef.current = null;
-      applyHeightRef.current();
-    });
-    retryTimeoutRef.current = window.setTimeout(() => {
-      retryTimeoutRef.current = null;
-      applyHeightRef.current();
-    }, 120);
   };
 
   const scheduleObservedResize = () => {
@@ -139,13 +111,9 @@ export function usePredictedTextareaHeight(
 
       const width = current.clientWidth;
       if (width <= 0) {
-        current.style.height = '';
-        lastAppliedRef.current = null;
-        scheduleRetry();
         return;
       }
 
-      clearPendingRetry();
       try {
         const lastApplied = lastAppliedRef.current;
         if (
@@ -226,7 +194,6 @@ export function usePredictedTextareaHeight(
 
   useEffect(() => {
     return () => {
-      clearPendingRetry();
       clearPendingObservedResize();
       observerRef.current?.disconnect();
       observerRef.current = null;

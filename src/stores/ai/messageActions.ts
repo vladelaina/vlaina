@@ -22,6 +22,7 @@ import { retractPendingUserRequestAction } from './messageRetractAction'
 import {
   updateMessageAction,
   updateMessageApiTranscriptAction,
+  updateMessageWebSearchStatusAction,
 } from './messageUpdateActions'
 
 interface AddMessageOptions {
@@ -54,7 +55,13 @@ export function createMessageActions() {
         imageSources: getNewMessageImageSources(message),
         id,
         timestamp: createdAt,
-        versions: [createMessageVersion(message.content || '', createdAt, 'original', message.apiTranscript)],
+        versions: [createMessageVersion(
+          message.content || '',
+          createdAt,
+          'original',
+          message.apiTranscript,
+          message.webSearchStatuses,
+        )],
         currentVersionIndex: 0
       }
 
@@ -78,6 +85,8 @@ export function createMessageActions() {
     updateMessage: updateMessageAction,
 
     updateMessageApiTranscript: updateMessageApiTranscriptAction,
+
+    updateMessageWebSearchStatus: updateMessageWebSearchStatusAction,
 
     completeMessage: (sessionId: string, id: string) => {
       const targetSessionId = resolveSessionIdAlias(sessionId)
@@ -114,6 +123,7 @@ export function createMessageActions() {
           ...message,
           content: '',
           apiTranscript: undefined,
+          webSearchStatuses: undefined,
           imageSources: extractStoredImageSources(''),
           versions: limited.versions,
           currentVersionIndex: limited.currentVersionIndex
@@ -210,6 +220,7 @@ export function createMessageActions() {
         ...targetMessage,
         content: targetVersion.content,
         apiTranscript: targetVersion.apiTranscript,
+        webSearchStatuses: targetVersion.webSearchStatuses,
         imageSources: extractStoredImageSources(targetVersion.content),
         currentVersionIndex: limited.currentVersionIndex,
         versions: limited.versions

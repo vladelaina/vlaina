@@ -69,7 +69,8 @@ describe("editor block selection styles", () => {
     expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-textlike.editor-tag-token,');
     expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-tag-token,');
     expect(tagRule).toContain('.milkdown .ProseMirror .editor-native-selected-textlike.editor-tag-token,');
-    expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-large-textlike.editor-tag-token {');
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-large-textlike.editor-tag-token,');
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-tag-token :is(');
     expect(tagRule).toContain('color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
     expect(tagRule).toContain('-webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
   });
@@ -178,8 +179,8 @@ describe("editor block selection styles", () => {
     expect(css).toContain(') .footnote-def {');
     expect(css).toContain('position: relative;');
     expect(css).toContain('border-left-color: var(--vlaina-editor-block-selection-fg) !important;');
-    expect(css).toContain('--vlaina-block-selection-fill-top: 0px !important;');
-    expect(css).toContain('--vlaina-block-selection-fill-bottom: 0px !important;');
+    expect(css).toContain('--vlaina-block-selection-fill-top: var(--vlaina-space-0) !important;');
+    expect(css).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-space-0) !important;');
     expect(css).toContain(') .footnote-def::before {');
     expect(css).toContain('border-left: var(--vlaina-size-3px) solid var(--vlaina-editor-block-selection-fg) !important;');
     expect(css).toContain('border-radius: inherit !important;');
@@ -348,13 +349,13 @@ describe("editor block selection styles", () => {
       '.milkdown .ProseMirror > p.editor-empty-paragraph:not(.is-editor-empty)'
     );
 
-    expect(editorBlankLineRule).toContain('min-height: var(--vlaina-height-markdown-blank-line);');
+    expect(editorBlankLineRule).toContain('min-height: var(--vlaina-markdown-size-blank-line);');
     expect(editorBlankLineRule).toContain('margin: var(--vlaina-space-0);');
     expect(editorBlankLineRule).toContain('padding: var(--vlaina-space-0);');
-    expect(editableBlankLineRule).toContain('min-height: var(--vlaina-height-markdown-blank-line);');
+    expect(editableBlankLineRule).toContain('min-height: var(--vlaina-markdown-size-blank-line);');
     expect(editableBlankLineRule).toContain('margin: var(--vlaina-space-0);');
     expect(editableBlankLineRule).toContain('padding: var(--vlaina-space-0);');
-    expect(trailingBreakBlankLineRule).toContain('min-height: var(--vlaina-height-markdown-blank-line);');
+    expect(trailingBreakBlankLineRule).toContain('min-height: var(--vlaina-markdown-size-blank-line);');
     expect(trailingBreakBlankLineRule).toContain('margin: var(--vlaina-space-0);');
     expect(trailingBreakBlankLineRule).toContain('padding: var(--vlaina-space-0);');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-native-selected-textlike {');

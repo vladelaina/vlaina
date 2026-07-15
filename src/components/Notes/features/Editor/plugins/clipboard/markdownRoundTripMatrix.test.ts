@@ -183,7 +183,6 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'custom inline color html with nested inline markdown',
       markdown: '<span style="color : #123456"><em>nested</em></span> <mark style="background-color : #ecf6ff"><strong>bold</strong></mark>',
-      expected: '<span style="color: #123456"><em>nested</em></span> <mark style="background-color: #ecf6ff"><strong>bold</strong></mark>',
       expectedText: 'nested bold',
     },
     {
@@ -201,7 +200,6 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'unsupported inline span html stays standard markdown html',
       markdown: '<span data-note="keep">plain &lt; text</span>',
-      expected: '<span>plain &lt; text</span>',
       expectedText: 'plain < text',
     },
     {
@@ -339,7 +337,7 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'markdown image attrs with escaped text',
       markdown: '![A < B](image.png?a=1&b=2 "Title & More")',
-      expected: '<img src="image.png?a=1&amp;b=2" alt="A &lt; B" title="Title &amp; More" />',
+      expected: '![A < B](image.png?a=1\\&b=2 "Title & More")',
       expectedText: 'A < BTitle & More',
     },
     {
@@ -351,7 +349,6 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'html image single-quoted attrs and escaped quotes',
       markdown: '<img src=\'image one.png?a=1&amp;b=2\' alt=\'A &quot;quote&quot;\' width=\'50%\' align=\'left\' title=\'Title &#39;One&#39;\' />',
-      expected: '<img src="image one.png?a=1&amp;b=2" alt="A &quot;quote&quot;" width="50%" align="left" title="Title &#39;One&#39;" />',
       expectedText: 'A "quote"',
     },
     {

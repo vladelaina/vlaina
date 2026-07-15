@@ -15,11 +15,11 @@ interface ResolveCoverAssetUrlOptions {
   thumbnail?: boolean;
   thumbnailMaxEdgePx?: number;
   replayAnimated?: boolean;
+  animatedPlaybackKey?: string;
 }
 
 interface PendingCoverAssetUrlResolve {
   promise: Promise<string>;
-  startedAt: number;
 }
 
 interface CompletedCoverAssetUrlResolve {
@@ -30,7 +30,6 @@ interface CompletedCoverAssetUrlResolve {
 const pendingCoverAssetUrlResolves = new Map<string, PendingCoverAssetUrlResolve>();
 const completedCoverAssetUrlResolves = new Map<string, CompletedCoverAssetUrlResolve>();
 const displayedCoverAssetUrlResolves = new Map<string, string>();
-const COVER_RESOLVE_JOIN_WINDOW_MS = 50;
 const COVER_RESOLVE_REUSE_WINDOW_MS = 30_000;
 export const MAX_PENDING_COVER_ASSET_URL_RESOLVES = 100;
 const MAX_COMPLETED_COVER_ASSET_URL_RESOLVES = 500;
@@ -109,6 +108,7 @@ export async function resolveCoverAssetUrl({
   thumbnail,
   thumbnailMaxEdgePx,
   replayAnimated,
+  animatedPlaybackKey,
 }: ResolveCoverAssetUrlOptions): Promise<string> {
   const resolveKey = getCoverResolveKey({
     assetPath,
@@ -124,16 +124,18 @@ export async function resolveCoverAssetUrl({
     return displayedResolve;
   }
 
-  if (pendingResolve && now - pendingResolve.startedAt <= COVER_RESOLVE_JOIN_WINDOW_MS) {
-    return applyAnimatedReplayToken(await pendingResolve.promise, assetPath, replayAnimated);
-  }
   if (pendingResolve) {
-    pendingCoverAssetUrlResolves.delete(resolveKey);
+    return applyAnimatedReplayToken(
+      await pendingResolve.promise,
+      assetPath,
+      replayAnimated,
+      animatedPlaybackKey,
+    );
   }
 
   const completedResolve = getCompletedCoverAssetUrlResolve(resolveKey, now);
   if (completedResolve) {
-    return applyAnimatedReplayToken(completedResolve, assetPath, replayAnimated);
+    return applyAnimatedReplayToken(completedResolve, assetPath, replayAnimated, animatedPlaybackKey);
   }
 
   if (pendingCoverAssetUrlResolves.size >= MAX_PENDING_COVER_ASSET_URL_RESOLVES) {
@@ -147,14 +149,11 @@ export async function resolveCoverAssetUrl({
     thumbnail,
     thumbnailMaxEdgePx,
   });
-  pendingCoverAssetUrlResolves.set(resolveKey, {
-    promise: resolvePromise,
-    startedAt: now,
-  });
+  pendingCoverAssetUrlResolves.set(resolveKey, { promise: resolvePromise });
   try {
     const resolvedUrl = await resolvePromise;
     setCompletedCoverAssetUrlResolve(resolveKey, resolvedUrl, getNowMs());
-    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated);
+    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated, animatedPlaybackKey);
   } finally {
     if (pendingCoverAssetUrlResolves.get(resolveKey)?.promise === resolvePromise) {
       pendingCoverAssetUrlResolves.delete(resolveKey);
@@ -169,6 +168,7 @@ export function getCachedResolvedCoverAssetUrl({
   thumbnail,
   thumbnailMaxEdgePx,
   replayAnimated,
+  animatedPlaybackKey,
 }: ResolveCoverAssetUrlOptions): string | null {
   const resolveKey = getCoverResolveKey({
     assetPath,
@@ -184,7 +184,7 @@ export function getCachedResolvedCoverAssetUrl({
 
   const resolvedUrl = getCompletedCoverAssetUrlResolve(resolveKey, getNowMs());
   if (resolvedUrl) {
-    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated);
+    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated, animatedPlaybackKey);
   }
 
   return null;

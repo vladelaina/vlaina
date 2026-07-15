@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
 import { AppearanceTab } from './AppearanceTab';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
 
 const mocks = vi.hoisted(() => ({
   uiState: {
@@ -187,6 +188,7 @@ describe('AppearanceTab theme entry', () => {
     cleanup();
     vi.clearAllMocks();
     document.documentElement.style.removeProperty('--vlaina-markdown-font-size');
+    document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.remove();
   });
 
   it('shows directory themes without exposing a compatibility-layer selector', async () => {
@@ -248,7 +250,7 @@ describe('AppearanceTab theme entry', () => {
     expect(mocks.uiState.setFontSize).not.toHaveBeenCalled();
 
     await waitFor(() => {
-      expect(mocks.uiState.setFontSizePreview).toHaveBeenCalledWith(20);
+      expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)).toHaveAttribute('data-font-size-px', '20px');
     });
     const updatedProgress = slider!.style.getPropertyValue('--vlaina-appearance-font-size-progress');
     expect(slider!.style.getPropertyValue('--vlaina-gradient-appearance-font-size-slider')).toContain(updatedProgress);
@@ -285,7 +287,7 @@ describe('AppearanceTab theme entry', () => {
         vi.advanceTimersByTime(20);
       });
 
-      expect(mocks.uiState.setFontSizePreview).toHaveBeenLastCalledWith(19);
+      expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)).toHaveAttribute('data-font-size-px', '19px');
       expect(mocks.uiState.setFontSize).not.toHaveBeenCalled();
 
       act(() => {

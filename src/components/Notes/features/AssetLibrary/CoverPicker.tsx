@@ -64,7 +64,7 @@ export function CoverPicker({
   const anchorClassName = cn(
     'absolute w-1 h-1 pointer-events-none',
     anchorPlacement === 'empty-cover-option'
-      ? 'top-[var(--vlaina-size-80px)] right-[max(var(--vlaina-size-16px),calc((100%_-_var(--vlaina-width-editor-content-max))_/_2))]'
+      ? 'top-[var(--vlaina-size-80px)] right-[var(--vlaina-width-cover-picker-inset)]'
       : 'bottom-4 right-4'
   );
   const isUnrefreshedAssetScope =
@@ -147,6 +147,7 @@ export function CoverPicker({
     }
 
     if (!assetPath) {
+      onPreview?.(null);
       return;
     }
 
@@ -272,7 +273,10 @@ export function CoverPicker({
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('upload')}
+                onClick={() => {
+                  handleAssetHover(null);
+                  setActiveTab('upload');
+                }}
                 className={cn(
                   "text-xs font-medium px-2 py-1 rounded transition-colors",
                   activeTab === 'upload'

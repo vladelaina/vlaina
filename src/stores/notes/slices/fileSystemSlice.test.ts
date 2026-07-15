@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   persistWorkspaceSnapshot: vi.fn(),
   flushCurrentPendingEditorMarkdown: vi.fn(),
+  moveDesktopItemToTrash: vi.fn(async () => undefined),
+  revokeImageBlob: vi.fn(),
   storageAdapter: {
     exists: vi.fn(),
     mkdir: vi.fn(),
@@ -10,6 +12,14 @@ const hoisted = vi.hoisted(() => ({
     stat: vi.fn(),
     readFile: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/desktop/trash', () => ({
+  moveDesktopItemToTrash: hoisted.moveDesktopItemToTrash,
+}));
+
+vi.mock('@/lib/assets/io/reader', () => ({
+  revokeImageBlob: hoisted.revokeImageBlob,
 }));
 
 vi.mock('../workspacePersistence', () => ({
@@ -109,6 +119,34 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.openTabs).toEqual([]);
     expect(state.draftNotes).toEqual({});
     expect(state.displayNames.size).toBe(0);
+  });
+
+  it('moves an image to system trash and removes it from the file tree', async () => {
+    const harness = createSliceHarness({
+      notesPath: '/notesRoot',
+      rootFolderPath: '/notesRoot',
+      fileTreeSortMode: 'name-asc',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{
+          id: 'assets/cover.png',
+          name: 'cover.png',
+          path: 'assets/cover.png',
+          isFolder: false,
+          kind: 'image',
+        }],
+      },
+    });
+
+    await harness.getState().deleteImage('assets/cover.png');
+
+    expect(hoisted.moveDesktopItemToTrash).toHaveBeenCalledWith('/notesRoot/assets/cover.png');
+    expect(hoisted.revokeImageBlob).toHaveBeenCalledWith('/notesRoot/assets/cover.png');
+    expect(harness.getState().rootFolder.children).toEqual([]);
   });
 
   it('does not surface a notes error when loading the file tree without a selected folder', async () => {
@@ -251,6 +289,7 @@ describe('createFileSystemSlice tree flows', () => {
   afterEach(() => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('expands folders immediately and defers workspace persistence', () => {
@@ -416,7 +455,10 @@ describe('createFileSystemSlice tree flows', () => {
     await harness.getState().loadFileTree();
 
     expect(newNotesRootRootListCalls).toBe(1);
-    expect(hoisted.storageAdapter.listDir).toHaveBeenCalledWith('/notes-root-new', { includeHidden: true });
+    expect(hoisted.storageAdapter.listDir).toHaveBeenCalledWith('/notes-root-new', {
+      includeHidden: true,
+      maxEntries: 256,
+    });
     expect(hoisted.storageAdapter.listDir).not.toHaveBeenCalledWith('/notes-root-new/deep', { includeHidden: true });
     expect(harness.getState().rootFolderPath).toBe('/notes-root-new');
     expect(harness.getState().rootFolder.children).toEqual([
@@ -434,6 +476,82 @@ describe('createFileSystemSlice tree flows', () => {
 
     await vi.advanceTimersByTimeAsync(100);
     expect(newNotesRootRootListCalls).toBe(2);
+  });
+
+  it('fills the complete tree in the background after a capped initial listing', async () => {
+    let runIdleTask: IdleRequestCallback | undefined;
+    vi.stubGlobal('requestIdleCallback', vi.fn((callback: IdleRequestCallback) => {
+      runIdleTask = callback;
+      return 1;
+    }));
+    setCurrentNotesRootPath('/notes-root-large');
+    const entries = Array.from({ length: 300 }, (_, index) => ({
+      name: `note-${String(index).padStart(3, '0')}.md`,
+      path: `/notes-root-large/note-${String(index).padStart(3, '0')}.md`,
+      isDirectory: false,
+      isFile: true,
+    }));
+    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => path === '/notes-root-large');
+    hoisted.storageAdapter.listDir.mockImplementation(async (
+      path: string,
+      options?: { maxEntries?: number },
+    ) => {
+      if (path !== '/notes-root-large') return [];
+      return options?.maxEntries ? entries.slice(0, options.maxEntries) : entries;
+    });
+
+    const harness = createSliceHarness();
+
+    await harness.getState().loadFileTree();
+    expect(harness.getState().rootFolder.children).toHaveLength(256);
+    expect(hoisted.storageAdapter.listDir).toHaveBeenCalledTimes(1);
+
+    runIdleTask?.({ didTimeout: false, timeRemaining: () => 50 });
+    await vi.runAllTimersAsync();
+    expect(harness.getState().rootFolder.children).toHaveLength(300);
+    expect(hoisted.storageAdapter.listDir).toHaveBeenCalledTimes(2);
+  });
+
+  it('detects the root Git repository after the initial tree is available', async () => {
+    setCurrentNotesRootPath('/notes-root-git');
+    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => (
+      path === '/notes-root-git' || path === '/notes-root-git/.git'
+    ));
+
+    const harness = createSliceHarness();
+
+    await harness.getState().loadFileTree();
+    expect(harness.getState().rootFolder.isGitRepository).toBeUndefined();
+    expect(hoisted.storageAdapter.exists).not.toHaveBeenCalledWith('/notes-root-git/.git');
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(harness.getState().rootFolder.isGitRepository).toBe(true);
+  });
+
+  it('keeps the existing Git marker until a background refresh confirms removal', async () => {
+    setCurrentNotesRootPath('/notes-root-git-removed');
+    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => (
+      path === '/notes-root-git-removed'
+    ));
+    const harness = createSliceHarness({
+      notesPath: '/notes-root-git-removed',
+      rootFolderPath: '/notes-root-git-removed',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        children: [],
+        expanded: true,
+        isGitRepository: true,
+      },
+    });
+
+    await harness.getState().loadFileTree(true);
+    expect(harness.getState().rootFolder.isGitRepository).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(harness.getState().rootFolder.isGitRepository).toBeUndefined();
   });
 
   it('keeps the root folder reference stable when background metadata does not affect name sorting', async () => {
@@ -527,7 +645,11 @@ describe('createFileSystemSlice tree flows', () => {
       ];
     });
     hoisted.storageAdapter.stat.mockResolvedValue({ isFile: true, isDirectory: false, modifiedAt: 1, size: 7 });
-    hoisted.storageAdapter.readFile.mockResolvedValue('# Alpha');
+    hoisted.storageAdapter.readFile.mockImplementation(async (path: string) => (
+      path.endsWith('/alpha.md')
+        ? ['---', 'vlaina_cover: "assets/alpha.webp"', '---', '', '# Alpha'].join('\n')
+        : '# Beta'
+    ));
 
     const harness = createSliceHarness({
       rootFolder: null,
@@ -541,6 +663,7 @@ describe('createFileSystemSlice tree flows', () => {
     await vi.advanceTimersByTimeAsync(100);
 
     expect(harness.getState().rootFolder).toBe(rootAfterInitialTree);
+    expect(harness.getState().noteMetadata.notes['alpha.md']?.cover?.assetPath).toBe('assets/alpha.webp');
   });
 
   it('keeps the root folder reference stable for no-op tree actions', async () => {

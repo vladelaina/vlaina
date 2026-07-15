@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     verifyEmailCode: vi.fn(),
     completeAuth: vi.fn(),
     disconnect: vi.fn(),
+    clearLocalSession: vi.fn(),
     handleAuthCallback: vi.fn(),
   },
   normalizeAccountProvider: vi.fn((value) => value ?? null),
@@ -998,6 +999,27 @@ describe('accountSession auth actions', () => {
     expect(mocks.webAccountCommands.requestEmailCode).toHaveBeenCalledWith('vla@example.com', 'zh-CN');
   });
 
+  it('requestEmailCode coalesces concurrent requests for the same address', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    let resolveRequest!: (value: boolean) => void;
+    mocks.webAccountCommands.requestEmailCode.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      })
+    );
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnected: false, primaryEmail: null }));
+    const requestEmailCode = createRequestEmailCode(set as never, get as never);
+
+    const first = requestEmailCode(' VLA@example.com ');
+    const second = requestEmailCode('vla@example.com');
+
+    expect(mocks.webAccountCommands.requestEmailCode).toHaveBeenCalledTimes(1);
+    resolveRequest(true);
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
+    expect(mocks.webAccountCommands.requestEmailCode).toHaveBeenCalledTimes(1);
+  });
+
   it('requestEmailCode sends the current app locale through the desktop bridge', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.useUIStoreGetState.mockReturnValue({ languagePreference: 'system' });
@@ -1143,6 +1165,43 @@ describe('accountSession auth actions', () => {
 
     resolveStatus();
     await statusPromise;
+  });
+
+  it('verifyEmailCode coalesces concurrent submissions of the same one-time code', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    let resolveVerification!: (value: {
+      success: boolean;
+      provider: 'email';
+      username: string;
+      primaryEmail: string;
+      avatarUrl: null;
+      error: null;
+    }) => void;
+    mocks.accountCommands.verifyEmailAuthCode.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVerification = resolve;
+      })
+    );
+    const checkStatus = vi.fn().mockResolvedValue(undefined);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ checkStatus }));
+    const verifyEmailCode = createVerifyEmailCode(set as never, get as never);
+
+    const first = verifyEmailCode(' VLA@example.com ', ' 123456 ');
+    const second = verifyEmailCode('vla@example.com', '123456');
+
+    expect(mocks.accountCommands.verifyEmailAuthCode).toHaveBeenCalledTimes(1);
+    resolveVerification({
+      success: true,
+      provider: 'email',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      error: null,
+    });
+
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
+    expect(mocks.accountCommands.verifyEmailAuthCode).toHaveBeenCalledTimes(1);
   });
 
   it('verifyEmailCode rejects invalid email or code values before any network call', async () => {
@@ -1335,6 +1394,39 @@ describe('accountSession auth actions', () => {
     expect(mocks.applyDisconnectedAccount).toHaveBeenCalledWith(set);
   });
 
+  it('signOut clears web identity only after the current revoke succeeds', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.webAccountCommands.disconnect.mockResolvedValue(undefined);
+    const set = vi.fn();
+
+    await createSignOut(set as never, vi.fn() as never)();
+
+    expect(mocks.webAccountCommands.disconnect).toHaveBeenCalledTimes(1);
+    expect(mocks.webAccountCommands.clearLocalSession).toHaveBeenCalledTimes(1);
+    expect(mocks.applyDisconnectedAccount).toHaveBeenCalledWith(set);
+  });
+
+  it('does not let an older web sign-out clear a newer authentication attempt', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    let resolveDisconnect!: () => void;
+    mocks.webAccountCommands.disconnect.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveDisconnect = resolve;
+      })
+    );
+    mocks.webAccountCommands.requestEmailCode.mockResolvedValue(true);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnected: false, primaryEmail: null }));
+
+    const signOut = createSignOut(set as never, get as never)();
+    await expect(createRequestEmailCode(set as never, get as never)('new@example.com')).resolves.toBe(true);
+    resolveDisconnect();
+    await signOut;
+
+    expect(mocks.webAccountCommands.clearLocalSession).not.toHaveBeenCalled();
+    expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
+  });
+
   it('cancelConnect clears pending desktop auth in the main process', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.accountCommands.cancelAccountAuth.mockResolvedValue(true);
@@ -1348,6 +1440,26 @@ describe('accountSession auth actions', () => {
     expect(mocks.clearAuthIntent).toHaveBeenCalledTimes(1);
     expect(mocks.accountCommands.cancelAccountAuth).toHaveBeenCalledTimes(1);
     expect(set).toHaveBeenCalledWith({ isConnecting: false, error: null });
+  });
+
+  it('does not let an older cancellation overwrite a newer authentication attempt', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    let resolveCancel!: () => void;
+    mocks.accountCommands.cancelAccountAuth.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        resolveCancel = () => resolve(true);
+      })
+    );
+    mocks.accountCommands.requestEmailAuthCode.mockResolvedValue(true);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnected: false, primaryEmail: null }));
+
+    const cancel = createCancelConnect(set as never, get as never)();
+    await expect(createRequestEmailCode(set as never, get as never)('new@example.com')).resolves.toBe(true);
+    resolveCancel();
+    await cancel;
+
+    expect(set).not.toHaveBeenCalledWith({ isConnecting: false, error: null });
   });
 
   it('keeps session retry and identity diagnostics in the filtered electron auth log', () => {

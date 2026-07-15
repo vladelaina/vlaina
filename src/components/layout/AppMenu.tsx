@@ -31,7 +31,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
             >
                 <Icon size="md" name="common.settings" className="text-[var(--vlaina-sidebar-chat-text)] transition-colors group-hover/item:text-[var(--vlaina-accent)]" />
                 <span className="min-w-0 flex-1 truncate">{t('account.settings')}</span>
-                <DesktopUpdateBadge version={updateIndicatorVersion} className="ml-auto max-w-[6rem]" />
+                <DesktopUpdateBadge version={updateIndicatorVersion} className="ml-auto max-w-[var(--vlaina-size-96px)]" />
             </button>
         </div>
     );

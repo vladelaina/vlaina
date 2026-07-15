@@ -12,6 +12,7 @@ import {
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { CLEAR_BLOCKS_ACTION, dispatchBlockSelectionAction, getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { dispatchBlankAreaPlainClick } from './forcedLineEdgeCaret';
+import { EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER } from './markdownBlankLineInteraction';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { listTabIndentPlugin } from '../task-list';
 import { clipboardPlugin } from '../clipboard/clipboardPlugin';
@@ -1453,29 +1454,81 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
     }
   });
 
-  it('replaces the visible block selection when inserting an image with a stale text selection', async () => {
-    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+  it('keeps replacement insertion on the markdown blank line after a selected list block', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('');
 
     try {
-      const { from: betaFrom, to: betaTo } = findTextRange(view.state.doc, 'Beta');
-      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
-      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
-      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+      const { schema } = view.state;
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+        schema.nodes.ordered_list.create(null, [
+          schema.nodes.list_item.create({ label: '15.', listType: 'ordered' }, [
+            schema.nodes.paragraph.create(null, schema.text('保留')),
+          ]),
+          schema.nodes.list_item.create({ label: '16.', listType: 'ordered' }, [
+            schema.nodes.paragraph.create(null, schema.text('文字宽高比改为100%')),
+          ]),
+        ]),
+        schema.nodes.html_block.create({ value: '<!--vlaina-markdown-blank-line-->' }),
+        schema.nodes.paragraph.create(null, schema.text('我')),
+      ]));
+      const [, listBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [listBlock] });
+
+      const paste = simulatePasteUntilHandled(view, '', '<strong>Gamma</strong>');
+
+      expect(paste.handled).toBe(false);
+      expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+      expect(view.state.doc.child(0).textContent).toBe('保留');
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+      expect(view.state.selection.$from.parentOffset).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length);
+      expect(view.state.doc.child(2).textContent).toBe('我');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('replaces the visible block selection when inserting an image with a stale text selection', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('');
+
+    try {
+      const { schema } = view.state;
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+        schema.nodes.ordered_list.create(null, [
+          schema.nodes.list_item.create({ label: '15.', listType: 'ordered' }, [
+            schema.nodes.paragraph.create(null, schema.text('保留')),
+          ]),
+          schema.nodes.list_item.create({ label: '16.', listType: 'ordered' }, [
+            schema.nodes.paragraph.create(null, schema.text('删除')),
+          ]),
+        ]),
+        schema.nodes.html_block.create({ value: '<!--vlaina-markdown-blank-line-->' }),
+        schema.nodes.paragraph.create(null, schema.text('我')),
+      ]));
+      const { from, to } = findTextRange(view.state.doc, '我');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+      const [, selectedItem] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [selectedItem] });
 
       expect(insertImageNodeAtSelection(view, './assets/demo-image.png')).toBe(true);
 
       const doc = view.state.doc.toJSON();
       expect(doc.content[0]).toMatchObject({
+        type: 'ordered_list',
+      });
+      expect(doc.content[1]).toMatchObject({
         type: 'paragraph',
       });
-      expect(doc.content[0].content[0]).toMatchObject({
+      expect(doc.content[1].content[0]).toMatchObject({
         type: 'image',
         attrs: {
           src: './assets/demo-image.png',
           alt: 'demo-image',
         },
       });
-      expect(view.state.doc.textContent).toBe('Beta');
+      expect(view.state.doc.child(0).textContent).toBe('保留');
+      expect(view.state.doc.child(2).textContent).toBe('我');
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
     } finally {
       await editor.destroy();
@@ -2015,7 +2068,7 @@ describe('blankAreaDragBoxPlugin text selection plain clicks', () => {
     }
   });
 
-  it('clears a text selection when clicking unclaimed blank space in the note scroll root', async () => {
+  it('claims left blank space in the note scroll root for block selection', async () => {
     const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
     const originalCreateRange = document.createRange;
 
@@ -2037,16 +2090,16 @@ describe('blankAreaDragBoxPlugin text selection plain clicks', () => {
       expect(view.state.selection.empty).toBe(false);
 
       const mouseDown = createMouseEvent('mousedown', {
-        clientX: 84,
+        clientX: 60,
         clientY: 52,
       });
       scrollRoot.dispatchEvent(mouseDown);
 
-      expect(mouseDown.defaultPrevented).toBe(false);
-      expect(view.state.selection.empty).toBe(false);
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.state.selection.empty).toBe(true);
 
       document.dispatchEvent(createMouseEvent('mouseup', {
-        clientX: 84,
+        clientX: 60,
         clientY: 52,
       }));
       await waitForPointerClickSettled();

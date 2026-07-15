@@ -3,12 +3,14 @@ import {
   getImportedThemePostBridgeStyleElementId,
   getImportedThemeStyleElementId,
   IMPORTED_APP_THEME_STYLE_ATTRIBUTE,
+  IMPORTED_APP_THEME_PLATFORM_ATTRIBUTE,
   IMPORTED_APP_THEME_STYLE_SELECTOR,
   IMPORTED_MARKDOWN_THEME_POST_BRIDGE_STYLE_ATTRIBUTE,
   IMPORTED_MARKDOWN_THEME_POST_BRIDGE_STYLE_SELECTOR,
   IMPORTED_MARKDOWN_THEME_STYLE_ATTRIBUTE,
   IMPORTED_MARKDOWN_THEME_STYLE_SELECTOR,
 } from '@/lib/markdown/theme-compatibility/dom';
+import type { MarkdownThemePlatform } from '@/lib/markdown/theme-compatibility/types';
 
 function removeStyleElements(selector: string): void {
   for (const element of Array.from(document.querySelectorAll(selector))) {
@@ -53,6 +55,7 @@ export function removeImportedThemeStyles(): void {
   removeStyleElements(IMPORTED_MARKDOWN_THEME_POST_BRIDGE_STYLE_SELECTOR);
   removeStyleElements(IMPORTED_APP_THEME_STYLE_SELECTOR);
   document.documentElement.removeAttribute('data-vlaina-imported-app-theme');
+  document.documentElement.removeAttribute(IMPORTED_APP_THEME_PLATFORM_ATTRIBUTE);
 }
 
 export function upsertImportedThemeStyle(id: string, css: string): void {
@@ -78,8 +81,13 @@ export function upsertImportedThemePostBridgeStyle(id: string, css: string): voi
   });
 }
 
-export function upsertImportedAppThemeStyle(id: string, css: string): void {
+export function upsertImportedAppThemeStyle(
+  id: string,
+  platform: MarkdownThemePlatform,
+  css: string
+): void {
   document.documentElement.setAttribute('data-vlaina-imported-app-theme', id);
+  document.documentElement.setAttribute(IMPORTED_APP_THEME_PLATFORM_ATTRIBUTE, platform);
 
   if (!css.trim()) {
     removeStyleElements(IMPORTED_APP_THEME_STYLE_SELECTOR);

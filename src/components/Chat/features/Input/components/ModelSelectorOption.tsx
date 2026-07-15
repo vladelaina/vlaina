@@ -100,7 +100,7 @@ export const ModelOption = memo(({
                 {model.priceTier && (
                     <span
                         className={cn(
-                            "ml-2 inline-flex items-center rounded-md border px-1 py-[var(--vlaina-space-1px)] text-[7px] font-medium leading-none tracking-normal",
+                            "ml-2 inline-flex items-center rounded-md border px-1 py-[var(--vlaina-space-1px)] text-[var(--vlaina-font-7)] font-medium leading-none tracking-normal",
                             isSelected || isFocused
                               ? "border-[var(--vlaina-color-sidebar-focus-ring)] text-[var(--vlaina-sidebar-row-selected-text)] opacity-[var(--vlaina-opacity-80)]"
                               : "border-[var(--vlaina-color-subtle-border)] text-[var(--vlaina-sidebar-chat-text-soft)] opacity-[var(--vlaina-opacity-60)]"

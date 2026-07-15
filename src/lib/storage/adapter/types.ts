@@ -20,6 +20,7 @@ export interface ReadOptions {
 export interface ListOptions {
   includeHidden?: boolean;
   recursive?: boolean;
+  maxEntries?: number;
 }
 
 export interface StorageAdapter {
@@ -27,6 +28,7 @@ export interface StorageAdapter {
   readFile(path: string, maxBytes?: number): Promise<string>;
   readBinaryFile(path: string, maxBytes?: number): Promise<Uint8Array>;
   writeFile(path: string, content: string, options?: WriteOptions): Promise<void>;
+  writeFileIfUnchanged?(path: string, expectedContent: string | null, content: string): Promise<boolean>;
   writeBinaryFile(path: string, content: Uint8Array, options?: WriteOptions): Promise<void>;
   deleteFile(path: string): Promise<void>;
   deleteDir(path: string, recursive?: boolean): Promise<void>;

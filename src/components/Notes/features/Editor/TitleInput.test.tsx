@@ -95,6 +95,12 @@ describe('TitleInput', () => {
     vi.useRealTimers();
   });
 
+  it('keeps system spelling assistance available for note titles', () => {
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
+
+    expect(screen.getByRole('textbox')).toHaveAttribute('spellcheck', 'true');
+  });
+
   it('does not lock a bogus title height when first measured before layout has width', () => {
     render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 
@@ -229,6 +235,27 @@ describe('TitleInput', () => {
 
     expect(notesState.renameNote).not.toHaveBeenCalled();
     expect(notesState.renameAbsoluteNote).not.toHaveBeenCalled();
+  });
+
+  it('does not commit the title when the application window loses focus', async () => {
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+    input.focus();
+    fireEvent.change(input, { target: { value: 'Renamed' } });
+
+    hasFocus.mockReturnValue(false);
+    await act(async () => {
+      fireEvent.blur(input);
+    });
+
+    expect(notesState.renameNote).not.toHaveBeenCalled();
+
+    hasFocus.mockReturnValue(true);
+    fireEvent.focus(window);
+
+    expect(input).toHaveFocus();
   });
 
   it('does not save a composing draft title on blur', async () => {

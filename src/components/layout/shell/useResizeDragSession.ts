@@ -31,6 +31,7 @@ interface ResizeDragComputeParams<TValue, TContext> {
 interface UseResizeDragSessionOptions<TValue, TContext = undefined> {
   value: TValue;
   defaultValue: TValue;
+  getDefaultValue?: () => TValue;
   onValueChange: (value: TValue) => void;
   onValueCommit?: (value: TValue) => void;
   onDragStateChange?: (isDragging: boolean) => void;
@@ -51,6 +52,7 @@ function defaultValuesEqual<TValue>(left: TValue, right: TValue): boolean {
 export function useResizeDragSession<TValue, TContext = undefined>({
   value,
   defaultValue,
+  getDefaultValue,
   onValueChange,
   onValueCommit,
   onDragStateChange,
@@ -73,6 +75,7 @@ export function useResizeDragSession<TValue, TContext = undefined>({
   const latestOptionsRef = useRef({
     value,
     defaultValue,
+    getDefaultValue,
     onValueChange,
     onValueCommit,
     onDragStateChange,
@@ -89,6 +92,7 @@ export function useResizeDragSession<TValue, TContext = undefined>({
   latestOptionsRef.current = {
     value,
     defaultValue,
+    getDefaultValue,
     onValueChange,
     onValueCommit,
     onDragStateChange,
@@ -130,7 +134,8 @@ export function useResizeDragSession<TValue, TContext = undefined>({
 
   const resetToDefaultValue = useCallback(() => {
     cleanupRef.current?.();
-    const nextValue = latestOptionsRef.current.defaultValue;
+    const nextValue = latestOptionsRef.current.getDefaultValue?.()
+      ?? latestOptionsRef.current.defaultValue;
     currentValueRef.current = nextValue;
     pendingValueRef.current = null;
     latestOptionsRef.current.onValueChange(nextValue);

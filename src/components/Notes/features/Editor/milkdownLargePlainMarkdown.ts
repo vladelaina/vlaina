@@ -2,7 +2,7 @@ import type { Node as ProseNode, Schema } from '@milkdown/kit/prose/model';
 import type { ProseMirrorJSONNode } from './MilkdownEditorInnerTypes';
 
 const LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH = 1_000_000;
-const LAZY_BLOCK_VISIBILITY_MIN_LENGTH = 100_000;
+const LAZY_BLOCK_VISIBILITY_MIN_LENGTH = 60_000;
 const LAZY_BLOCK_VISIBILITY_MIN_NON_EMPTY_LINES = 500;
 const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const FAST_PARSE_DISALLOWED_TEXT_PATTERN = /[`*_~[\]()<>\\|&]/;

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import postcss from 'postcss';
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { scopeImportedMarkdownThemeCss } from '../src/lib/markdown/theme-compatibility/cssScoping';
 import { detectMarkdownThemePlatform } from '../src/lib/markdown/theme-compatibility/platformDetection';
 import {
@@ -9,8 +9,10 @@ import {
   selectorTargetsKnownExternalExtension,
 } from '../src/lib/markdown/theme-compatibility/selectorClassification';
 import { codeBlockLanguages } from '../src/components/Notes/features/Editor/plugins/code/codeBlockLanguageLoader';
+import { buildImportedAppThemeCss } from '../src/lib/markdown/theme-compatibility/appThemeBridge';
 
-const referenceRoots = ['.reference/typora', '.reference/ob'];
+const typoraReferenceRoot = '.reference/typora-theme-phycat';
+const referenceRoots = [typoraReferenceRoot, '.reference/ob'];
 const sourceRoots = ['src/components/Notes/features/Editor', 'src/lib/markdown/theme-compatibility'];
 const rootScope = '[data-markdown-theme-root="true"][data-markdown-imported-theme="audit"]';
 
@@ -680,12 +682,35 @@ function loadCssWithLocalImports(file: string, seen = new Set<string>()): string
 }
 
 describe('markdown theme compatibility sample audit', () => {
+  it('loads and bridges the real Phycat Sky theme', () => {
+    const file = path.join(typoraReferenceRoot, 'phycat-sky.css');
+    const css = loadCssWithLocalImports(file);
+    const platform = detectMarkdownThemePlatform(css);
+    const scopedCss = scopeImportedMarkdownThemeCss(css, platform, rootScope);
+    const appCss = buildImportedAppThemeCss(css, 'phycat-sky', platform);
+
+    expect(platform).toBe('typora');
+    expect(css).toContain('font-family: "LXGW WenKai"');
+    expect(css).not.toContain('@import');
+    expect(scopedCss).toContain(`${rootScope}#write::before`);
+    expect(scopedCss).toContain(`${rootScope}#write h3:after`);
+    expect(appCss).toContain('--vlaina-sidebar-surface: var(--glass-bg-color);');
+    expect(appCss).toContain('--vlaina-sidebar-row-hover: var(--element-color-soo-shallow);');
+    expect(appCss).toContain('--vlaina-sidebar-row-active: var(--element-color);');
+    expect(appCss).toContain('--vlaina-sidebar-row-selected-text: var(--head-title-h2-color);');
+    expect(appCss).toContain('--vlaina-code-inline-background: var(--element-color-linecode-background);');
+  });
+
   it('prints utilization metrics for reference themes', () => {
     const printFullUnknown = process.env.VLAINA_THEME_COMPAT_AUDIT_FULL_UNKNOWN === '1';
     const localSignals = collectLocalDomSignals();
     const strictLocalSignals = collectStrictLocalDomSignals();
     const files = referenceRoots.flatMap((root) =>
-      walkFiles(root, (file) => file.endsWith('.css') && !file.includes('/vlook/pages-dev/') && !file.includes('/vlook/github-io/'))
+      walkFiles(root, (file) => {
+        if (!file.endsWith('.css')) return false;
+        if (root !== typoraReferenceRoot) return true;
+        return path.dirname(file) === typoraReferenceRoot && path.basename(file).startsWith('phycat-');
+      })
     );
 
     console.log(`\nTheme compatibility audit (${files.length} entry CSS files)`);

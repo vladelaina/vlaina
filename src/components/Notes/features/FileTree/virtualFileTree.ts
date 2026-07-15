@@ -1,4 +1,6 @@
 import type { FileTreeNode } from '@/stores/useNotesStore';
+import { clampSidebarWidth, SIDEBAR_DEFAULT_WIDTH } from '@/lib/layout/sidebarWidth';
+import { themeFileTreeTokens } from '@/styles/themeTokens';
 
 export interface VirtualFileTreeRow {
   node: FileTreeNode;
@@ -17,11 +19,59 @@ function getVisibleCharacterCount(value: string): number {
   return Array.from(value).length;
 }
 
-export function estimateVirtualFileTreeRowHeight(row: VirtualFileTreeRow): number {
-  const availableCharactersPerLine = Math.max(
-    4,
-    VIRTUAL_FILE_TREE_ROW_BASE_VISIBLE_CHARS - row.depth * 2,
-  );
+function getApproximateTextColumnCount(value: string): number {
+  return Array.from(value).reduce((columns, character) => (
+    columns + (character.codePointAt(0)! > 0xff ? 2 : 1)
+  ), 0);
+}
+
+export function getRecommendedFileTreeSidebarWidth(
+  nodes: FileTreeNode[],
+  measureTextWidth?: (value: string) => number,
+  shouldTraverseFolder?: (folder: Extract<FileTreeNode, { isFolder: true }>) => boolean,
+): number {
+  let requiredWidth = SIDEBAR_DEFAULT_WIDTH;
+  let measuredRows = 0;
+  const stack = nodes.map((node) => ({ node, depth: 0 })).reverse();
+
+  while (stack.length > 0 && measuredRows < MAX_DERIVED_FILE_TREE_ROWS) {
+    const { node, depth } = stack.pop()!;
+    measuredRows += 1;
+    const estimatedTextWidth = getApproximateTextColumnCount(node.name)
+      * themeFileTreeTokens.virtualRowAverageCharacterWidthPx;
+    const measuredTextWidth = measureTextWidth?.(node.name) ?? estimatedTextWidth;
+    const entryRequiredWidth = themeFileTreeTokens.sidebarRowHorizontalChromePx
+      + depth * themeFileTreeTokens.sidebarRowDepthIndentPx
+      + Math.max(estimatedTextWidth, measuredTextWidth)
+      + themeFileTreeTokens.sidebarMeasuredTextSafetyPx;
+    requiredWidth = Math.max(requiredWidth, entryRequiredWidth);
+
+    if (node.isFolder && (shouldTraverseFolder?.(node) ?? node.expanded)) {
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push({ node: node.children[index], depth: depth + 1 });
+      }
+    }
+  }
+
+  return clampSidebarWidth(Math.ceil(requiredWidth));
+}
+
+export function estimateVirtualFileTreeRowHeight(
+  row: VirtualFileTreeRow,
+  availableWidth?: number,
+): number {
+  const availableCharactersPerLine = availableWidth && availableWidth > 0
+    ? Math.max(
+        4,
+        Math.floor(
+          (
+            availableWidth
+            - themeFileTreeTokens.virtualRowHorizontalChromePx
+            - row.depth * themeFileTreeTokens.virtualRowDepthIndentPx
+          ) / themeFileTreeTokens.virtualRowAverageCharacterWidthPx,
+        ),
+      )
+    : Math.max(4, VIRTUAL_FILE_TREE_ROW_BASE_VISIBLE_CHARS - row.depth * 2);
   const lineCount = Math.max(
     1,
     Math.ceil(getVisibleCharacterCount(row.node.name) / availableCharactersPerLine),

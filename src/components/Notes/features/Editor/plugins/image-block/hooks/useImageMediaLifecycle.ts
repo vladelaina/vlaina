@@ -58,6 +58,7 @@ export function useImageMediaLifecycle({
         const nextWidth = width === 'auto' && containerWidth
             ? resolveInitialImageWidth(media.naturalWidth, containerWidth)
             : null;
+        const nextNodeAttrs: ImageNodeAttrs = {};
 
         if (media.naturalHeight > 0) {
             setNaturalRatio(media.naturalWidth / media.naturalHeight);
@@ -67,7 +68,7 @@ export function useImageMediaLifecycle({
             if (containerWidth) {
                 if (nextWidth) {
                     setWidth(nextWidth);
-                    updateNodeAttrs({ width: nextWidth });
+                    nextNodeAttrs.width = nextWidth;
                 }
             }
         }
@@ -76,8 +77,12 @@ export function useImageMediaLifecycle({
             const generatedCaption = extractFilenameCaption(nodeSrc);
             if (generatedCaption) {
                 setCaptionInput(generatedCaption);
-                updateNodeAttrs({ alt: generatedCaption });
+                nextNodeAttrs.alt = generatedCaption;
             }
+        }
+
+        if (Object.keys(nextNodeAttrs).length > 0) {
+            updateNodeAttrs(nextNodeAttrs);
         }
 
         setIsReady(true);

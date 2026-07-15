@@ -90,6 +90,7 @@ describe('MarkdownThemeLoader', () => {
       element.remove();
     });
     document.documentElement.removeAttribute('data-vlaina-imported-app-theme');
+    document.documentElement.removeAttribute('data-vlaina-imported-app-theme-platform');
     clearCompiledImportedMarkdownThemeStyles();
     setMarkdownTheme('clean-light');
     mocks.readImportedMarkdownTheme.mockResolvedValue(importedTheme({}));
@@ -140,9 +141,11 @@ describe('MarkdownThemeLoader', () => {
         'style[data-vlaina-imported-app-theme="true"]'
       );
       expect(document.documentElement.getAttribute('data-vlaina-imported-app-theme')).toBe('typora-sample');
+      expect(document.documentElement.getAttribute('data-vlaina-imported-app-theme-platform')).toBe('typora');
       expect(style?.textContent).toContain(':root[data-vlaina-imported-app-theme="typora-sample"]');
       expect(style?.textContent).toContain('--vlaina-color-surface-main: var(--db);');
       expect(style?.textContent).toContain('--vlaina-color-setting-panel: var(--db);');
+      expect(style?.textContent).toContain('--vlaina-sidebar-surface: var(--pn-c);');
       expect(style?.textContent).toContain('--vlaina-sidebar-row-selected-bg: var(--v-selected-c);');
       expect(style?.textContent).not.toContain('#write h1');
     }, importedThemeWaitForOptions);
@@ -177,7 +180,7 @@ describe('MarkdownThemeLoader', () => {
       expect(postBridgeStyle).toBeInstanceOf(HTMLStyleElement);
       expect(postBridgeStyle?.id).toBe('vlaina-imported-markdown-theme-post-bridge-typora-sample');
       expect(postBridgeStyle?.textContent).toContain('[data-markdown-imported-theme="typora-sample"].theme-typora');
-      expect(postBridgeStyle?.textContent).toContain('.done::before');
+      expect(postBridgeStyle?.textContent).not.toContain('.done::before');
       expect(postBridgeStyle?.textContent).toContain('.v-caption.full');
       expect(postBridgeStyle?.textContent).toContain('max-width: 100% !important;');
       expect(postBridgeStyle?.textContent).toContain('background: transparent !important;');
@@ -284,6 +287,7 @@ describe('MarkdownThemeLoader', () => {
       expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme-post-bridge="true"]')).toBeNull();
       expect(document.head.querySelector('style[data-vlaina-imported-app-theme="true"]')).toBeNull();
       expect(document.documentElement.hasAttribute('data-vlaina-imported-app-theme')).toBe(false);
+      expect(document.documentElement.hasAttribute('data-vlaina-imported-app-theme-platform')).toBe(false);
     }, importedThemeWaitForOptions);
   });
 
@@ -325,6 +329,7 @@ describe('MarkdownThemeLoader', () => {
       expect(style?.textContent).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"].markdown-preview-view h1');
       expect(style?.textContent).not.toContain('data-markdown-theme-platform="obsidian"');
       expect(style?.textContent).not.toContain('body.theme-dark');
+      expect(document.documentElement.getAttribute('data-vlaina-imported-app-theme-platform')).toBe('obsidian');
     }, importedThemeWaitForOptions);
   });
 });

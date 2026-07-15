@@ -18,6 +18,12 @@ const httpAuthorityUrlPattern = /^https?:\/\//i
 export const MAX_LINK_TITLE_CHARS = 4096
 export const MAX_LINK_UPDATE_SCAN_NODES = 20_000
 
+function getPersistedLinkHref(value: unknown) {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLinkHrefChars
+    ? value
+    : null
+}
+
 function hasUnsafeBackslashUrlSyntax(value: string) {
   return value.includes('\\') && (
     value.startsWith('\\') ||
@@ -90,7 +96,7 @@ export const linkSchema = $markSchema('link', (ctx) => ({
   parseMarkdown: {
     match: (node) => node.type === 'link',
     runner: (state, node, markType) => {
-      const url = sanitizeLinkHref(node.url)
+      const url = getPersistedLinkHref(node.url)
       if (!url) {
         state.next(node.children)
         return
@@ -104,7 +110,7 @@ export const linkSchema = $markSchema('link', (ctx) => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'link',
     runner: (state, mark) => {
-      const href = sanitizeLinkHref(mark.attrs.href)
+      const href = getPersistedLinkHref(mark.attrs.href)
       if (!href) return
       state.withMark(mark, 'link', undefined, {
         title: normalizeLinkTitle(mark.attrs.title),

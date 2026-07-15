@@ -81,7 +81,7 @@ export function assertWritableDesktopByteLength(byteLength) {
   }
 }
 
-export async function describeDesktopDirectoryEntry(parentPath, entry) {
+export function describeDesktopDirectoryEntry(parentPath, entry) {
   const entryPath = path.join(parentPath, entry.name);
   if (!entry.isSymbolicLink?.()) {
     return {
@@ -92,23 +92,25 @@ export async function describeDesktopDirectoryEntry(parentPath, entry) {
     };
   }
 
-  try {
-    const authorizedEntryPath = await assertAuthorizedFsPath(entryPath);
-    const info = await stat(authorizedEntryPath);
-    return {
-      name: entry.name,
-      path: entryPath,
-      isDirectory: info.isDirectory(),
-      isFile: info.isFile(),
-    };
-  } catch {
-    return {
-      name: entry.name,
-      path: entryPath,
-      isDirectory: false,
-      isFile: false,
-    };
-  }
+  return (async () => {
+    try {
+      const authorizedEntryPath = await assertAuthorizedFsPath(entryPath);
+      const info = await stat(authorizedEntryPath);
+      return {
+        name: entry.name,
+        path: entryPath,
+        isDirectory: info.isDirectory(),
+        isFile: info.isFile(),
+      };
+    } catch {
+      return {
+        name: entry.name,
+        path: entryPath,
+        isDirectory: false,
+        isFile: false,
+      };
+    }
+  })();
 }
 
 function getDesktopDirectoryEntryListPriority(entry) {
@@ -142,14 +144,28 @@ export function prioritizeDesktopDirectoryEntriesForListing(entries) {
     .map(({ entry }) => entry);
 }
 
-export async function readDesktopDirectoryEntriesForListing(directoryPath) {
+export function normalizeDesktopListEntryLimit(value) {
+  if (value == null) {
+    return MAX_DESKTOP_FS_LIST_DIR_ENTRIES;
+  }
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error('Desktop directory entry limit is invalid.');
+  }
+  return Math.min(value, MAX_DESKTOP_FS_LIST_DIR_ENTRIES);
+}
+
+export async function readDesktopDirectoryEntriesForListing(directoryPath, resultLimit) {
+  const scanLimit = Math.min(
+    MAX_DESKTOP_FS_LIST_DIR_SCAN_ENTRIES,
+    resultLimit * 4,
+  );
   let directory = null;
   const entries = [];
   try {
     directory = await opendir(directoryPath);
     for await (const entry of directory) {
       entries.push(entry);
-      if (entries.length >= MAX_DESKTOP_FS_LIST_DIR_SCAN_ENTRIES) {
+      if (entries.length >= scanLimit) {
         break;
       }
     }

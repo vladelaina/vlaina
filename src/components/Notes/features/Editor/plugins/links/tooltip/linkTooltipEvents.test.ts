@@ -8,9 +8,6 @@ const stateMocks = vi.hoisted(() => ({
     selectionNear: vi.fn(),
     textSelectionCreate: vi.fn(),
 }));
-const blockSelectionMocks = vi.hoisted(() => ({
-    hasSelectedBlocks: vi.fn(() => false),
-}));
 
 vi.mock('@milkdown/kit/prose/state', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@milkdown/kit/prose/state')>();
@@ -29,10 +26,6 @@ vi.mock('@milkdown/kit/prose/state', async (importOriginal) => {
 
 vi.mock('../utils/openEditorLinkHref', () => ({
     openEditorLinkHref: vi.fn(async () => undefined),
-}));
-
-vi.mock('../../cursor/blockSelectionPluginState', () => ({
-    hasSelectedBlocks: blockSelectionMocks.hasSelectedBlocks,
 }));
 
 function createHandlers() {
@@ -117,8 +110,6 @@ describe('installLinkTooltipEvents', () => {
         stateMocks.textSelectionCreate.mockReset();
         stateMocks.selectionNear.mockReturnValue({ type: 'near-selection' });
         stateMocks.textSelectionCreate.mockReturnValue({ type: 'text-selection' });
-        blockSelectionMocks.hasSelectedBlocks.mockReset();
-        blockSelectionMocks.hasSelectedBlocks.mockReturnValue(false);
     });
 
     it('opens keyboard-activated editor links through the shared link opener', async () => {
@@ -225,14 +216,13 @@ describe('installLinkTooltipEvents', () => {
         cleanup();
     });
 
-    it('does not show editor link tooltips while blocks are selected', () => {
+    it('shows editor link tooltips without changing an existing block selection', () => {
         const { editorDom, handlers } = createHandlers();
         const link = document.createElement('a');
         link.href = 'https://example.com/docs';
         link.textContent = 'docs';
         editorDom.appendChild(link);
-        blockSelectionMocks.hasSelectedBlocks.mockReturnValue(true);
-        handlers.hasActiveLink.mockReturnValue(true);
+        handlers.view.state = { selectedBlocks: [{ from: 1, to: 5 }] };
 
         const cleanup = installLinkTooltipEvents(handlers);
         link.dispatchEvent(new MouseEvent('mouseover', {
@@ -242,11 +232,66 @@ describe('installLinkTooltipEvents', () => {
             clientY: 12,
         }));
 
-        expect(handlers.showLinkWithDelay).not.toHaveBeenCalled();
-        expect(handlers.clearShowTimer).toHaveBeenCalled();
-        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(handlers.clearHideTimer).toHaveBeenCalled();
+        expect(handlers.showLinkWithDelay).toHaveBeenCalledWith(link, false);
+        expect(handlers.view.state.selectedBlocks).toEqual([{ from: 1, to: 5 }]);
+        expect(handlers.hide).not.toHaveBeenCalled();
 
         cleanup();
+    });
+
+    it('does not open or keep a link tooltip while block drag selection is pending', () => {
+        const { editorDom, handlers } = createHandlers();
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        editorDom.appendChild(link);
+        editorDom.classList.add('editor-block-selection-pending');
+        handlers.hasActiveLink.mockReturnValue(true);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        link.dispatchEvent(new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            buttons: 1,
+            clientX: 12,
+            clientY: 12,
+        }));
+
+        expect(handlers.clearShowTimer).toHaveBeenCalled();
+        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(handlers.showLinkWithDelay).not.toHaveBeenCalled();
+
+        cleanup();
+    });
+
+    it('lets an editor blank-area block selection start while the link tooltip is visible', () => {
+        const { editorDom, handlers } = createHandlers();
+        editorDom.setAttribute('data-note-scroll-root', 'true');
+        document.body.appendChild(editorDom);
+        handlers.hasActiveLink.mockReturnValue(true);
+        handlers.hide.mockImplementation(() => handlers.dom.classList.add('hidden'));
+        const blockSelectionStart = vi.fn();
+        editorDom.addEventListener('mousedown', blockSelectionStart);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        const mouseDown = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: 12,
+            clientY: 12,
+        });
+
+        editorDom.dispatchEvent(mouseDown);
+
+        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(mouseDown.defaultPrevented).toBe(false);
+        expect(blockSelectionStart).toHaveBeenCalledTimes(1);
+
+        cleanup();
+        editorDom.remove();
     });
 
     it('shows editor link tooltips when the pointer moves onto a link inside the same list item', () => {

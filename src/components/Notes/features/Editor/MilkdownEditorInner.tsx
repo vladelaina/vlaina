@@ -68,7 +68,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   onEditorViewReady,
 }: MilkdownEditorInnerProps) {
   const updateContent = useNotesStore(s => s.updateContent);
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -222,6 +222,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       const editor = get?.() as ActiveMilkdownEditor | undefined;
       if (!editor || editor.status !== 'Created') return;
       const view = editor.ctx.get(editorViewCtx) as EditorView;
+      view.dom.setAttribute('aria-label', t('editor.markdownEditor'));
+      view.dom.setAttribute('aria-multiline', 'true');
       view.dispatch(
         view.state.tr
           .setMeta(HEADING_PLACEHOLDER_I18N_REFRESH_META, language)
@@ -230,7 +232,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     } catch {
       return;
     }
-  }, [activatedRevision, get, language]);
+  }, [activatedRevision, get, language, t]);
 
   useEffect(() => {
     return () => {

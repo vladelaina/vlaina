@@ -96,6 +96,7 @@ export function joinSerializedBlockRanges(
   doc: EditorState['doc'],
   ranges: readonly BlockRange[],
   pieces: readonly string[],
+  compactPlainParagraphs = false,
 ): string {
   if (pieces.length === 0) return '';
   if (pieces.length === 1) return pieces[0] || '\n';
@@ -106,7 +107,21 @@ export function joinSerializedBlockRanges(
     const previous = previousEmitted;
     const next = pieces[index] ?? '';
 
-    let separator = '\n\n';
+    const previousTopLevel = typeof doc?.forEach === 'function'
+      ? resolveTopLevelBlockInfo(doc, ranges[index - 1].from)
+      : null;
+    const nextTopLevel = typeof doc?.forEach === 'function'
+      ? resolveTopLevelBlockInfo(doc, ranges[index].from)
+      : null;
+    const arePlainParagraphBlocks =
+      previousTopLevel?.name === 'paragraph'
+      && nextTopLevel?.name === 'paragraph'
+      && previousTopLevel.from === ranges[index - 1].from
+      && previousTopLevel.to === ranges[index - 1].to
+      && nextTopLevel.from === ranges[index].from
+      && nextTopLevel.to === ranges[index].to;
+
+    let separator = compactPlainParagraphs && arePlainParagraphBlocks ? '\n' : '\n\n';
     if (previous.length === 0 || next.length === 0) {
       separator = '\n';
     } else if (LIST_ITEM_MARKER_PATTERN.test(previous) && LIST_ITEM_MARKER_PATTERN.test(next)) {

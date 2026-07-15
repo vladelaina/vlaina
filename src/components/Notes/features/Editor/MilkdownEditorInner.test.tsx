@@ -207,7 +207,7 @@ function createMockActiveEditor() {
   const action = vi.fn((callback: (ctx: unknown) => unknown) => callback(ctx));
   const editor = { action, ctx, status: 'Created' };
   mocks.editorState.activeEditor = editor;
-  return { action, dispatch, parser, replace };
+  return { action, dispatch, parser, replace, view };
 }
 
 beforeEach(() => {
@@ -758,6 +758,18 @@ describe('MilkdownEditorInner shell focus', () => {
 });
 
 describe('MilkdownEditorInner external content sync', () => {
+  it('labels the rich-text surface as a multiline note body editor without changing shortcut semantics', async () => {
+    const { view } = createMockActiveEditor();
+
+    render(<MilkdownEditorInner />);
+
+    await waitFor(() => {
+      expect(view.dom).not.toHaveAttribute('role');
+      expect(view.dom).toHaveAttribute('aria-label', 'Note body editor');
+      expect(view.dom).toHaveAttribute('aria-multiline', 'true');
+    });
+  });
+
   it('reports ready when an already-created editor is available before the status callback is observed', async () => {
     createMockActiveEditor();
     const onEditorViewReady = vi.fn();
@@ -1175,6 +1187,20 @@ describe('shouldUseLazyBlockVisibility', () => {
 
     expect(markdown.length).toBeGreaterThan(16_000);
     expect(shouldUseLazyBlockVisibility(markdown)).toBe(false);
+  });
+
+  it('enables lazy block visibility for dense medium-size markdown', () => {
+    const markdown = [
+      '# Dense Manual',
+      '',
+      ...Array.from({ length: 800 }, (_, index) => (
+        `Section ${index} with **mixed** syntax and enough prose to create a rendered block.`
+      )),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(60_000);
+    expect(markdown.length).toBeLessThan(100_000);
+    expect(shouldUseLazyBlockVisibility(markdown)).toBe(true);
   });
 
   it('enables lazy block visibility for large multi-line mixed manuals', () => {

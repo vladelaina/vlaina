@@ -1,5 +1,6 @@
 import type { ChatMessage } from '@/lib/ai/types';
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
+import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/status';
 import {
   MAX_SESSION_MESSAGE_BRANCH_DEPTH,
   MAX_SESSION_MESSAGE_BRANCH_MESSAGES,
@@ -88,12 +89,14 @@ function normalizeMessageVersion(
       )
     : [];
   const apiTranscript = normalizeApiTranscriptMessages(value.apiTranscript);
+  const webSearchStatuses = sanitizeWebSearchStatuses(value.webSearchStatuses);
   return {
     content,
     createdAt,
     kind,
     subsequentMessages,
     ...(apiTranscript ? { apiTranscript } : {}),
+    ...(webSearchStatuses.length > 0 ? { webSearchStatuses } : {}),
   };
 }
 
@@ -181,13 +184,24 @@ function normalizeSessionMessage(
   const activeContent = activeVersion.content;
   const topLevelMatchesActiveVersion = content === activeContent;
   const normalizedTopLevelApiTranscript = normalizeApiTranscriptMessages(value.apiTranscript);
+  const normalizedTopLevelWebSearchStatuses = sanitizeWebSearchStatuses(value.webSearchStatuses);
   const apiTranscript = activeVersion.apiTranscript
     ?? (topLevelMatchesActiveVersion ? normalizedTopLevelApiTranscript : undefined);
+  const webSearchStatuses = activeVersion.webSearchStatuses
+    ?? (topLevelMatchesActiveVersion && normalizedTopLevelWebSearchStatuses.length > 0
+      ? normalizedTopLevelWebSearchStatuses
+      : undefined);
 
   if (apiTranscript && !normalizedVersions[currentVersionIndex]?.apiTranscript) {
     normalizedVersions[currentVersionIndex] = {
       ...normalizedVersions[currentVersionIndex],
       apiTranscript,
+    };
+  }
+  if (webSearchStatuses && !normalizedVersions[currentVersionIndex]?.webSearchStatuses) {
+    normalizedVersions[currentVersionIndex] = {
+      ...normalizedVersions[currentVersionIndex],
+      webSearchStatuses,
     };
   }
   const activeVersionImageSources = extractActiveVersionImageSources(role, activeContent);
@@ -197,6 +211,7 @@ function normalizeSessionMessage(
     role,
     content: activeContent,
     ...(apiTranscript ? { apiTranscript } : {}),
+    ...(webSearchStatuses ? { webSearchStatuses } : {}),
     ...(activeVersionImageSources ? { imageSources: activeVersionImageSources } : {}),
     modelId: typeof value.modelId === 'string'
       ? value.modelId.slice(0, MAX_SESSION_MESSAGE_MODEL_ID_CHARS)

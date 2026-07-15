@@ -32,6 +32,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
   const lastInvalidToastAtRef = useRef(0);
   const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
   const isComposingRef = useRef(false);
+  const restoreFocusOnWindowFocusRef = useRef(false);
   const renameNote = useNotesStore(s => s.renameNote);
   const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
   const updateDraftNoteName = useNotesStore(s => s.updateDraftNoteName);
@@ -61,6 +62,17 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
     lastInvalidToastAtRef.current = now;
     addToast(message, 'error', themeUiFeedbackTokens.invalidFileNameToastDurationMs);
   }, [addToast]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (!restoreFocusOnWindowFocusRef.current) return;
+      restoreFocusOnWindowFocusRef.current = false;
+      inputRef.current?.focus();
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, []);
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -170,6 +182,11 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
   }, []);
 
   const handleBlur = useCallback(async () => {
+    if (!document.hasFocus()) {
+      restoreFocusOnWindowFocusRef.current = true;
+      return;
+    }
+
     if (skipNextBlurCommitRef.current) {
       skipNextBlurCommitRef.current = false;
       setNotesPreviewTitle(null, null);
@@ -242,7 +259,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
       {...titleInputDataAttrs}
       rows={1}
       wrap="soft"
-      spellCheck={false}
+      spellCheck
       value={title}
       onChange={handleChange}
       onCompositionStart={() => {

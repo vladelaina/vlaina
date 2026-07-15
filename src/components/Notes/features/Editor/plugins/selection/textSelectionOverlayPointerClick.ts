@@ -80,31 +80,9 @@ export function schedulePointerClickCollapseReassertion(
   }, 0);
 }
 
-export function restorePointerClickSelectionRange(context: TextSelectionOverlayViewContext): void {
-  const { session, view } = context;
-  const range = session.pointerClickRestoreSelectionRange;
-  session.pointerClickRestoreSelectionRange = null;
-  if (!range) return;
-
-  const maxPos = view.state.doc.content.size;
-  const from = Math.max(0, Math.min(range.from, maxPos));
-  const to = Math.max(from, Math.min(range.to, maxPos));
-  try {
-    view.dispatch(
-      view.state.tr
-        .setSelection(TextSelection.create(view.state.doc, from, to))
-        .setMeta(POINTER_NATIVE_SELECTION_META, range.usePointerNativeSelection)
-        .setMeta('addToHistory', false)
-    );
-  } catch {
-  }
-  session.syncActiveClass();
-}
-
 export function clearTextSelectionFromBlankPointerDown(context: TextSelectionOverlayViewContext): void {
   const { session, view } = context;
   session.pendingPointerClickCollapseTarget = null;
-  session.pointerClickRestoreSelectionRange = null;
   cancelPointerClickCollapseReassertion(context);
   if (session.pointerNativeReleaseFrame !== null) {
     cancelAnimationFrame(session.pointerNativeReleaseFrame);

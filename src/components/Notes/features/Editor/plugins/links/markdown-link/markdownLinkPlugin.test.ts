@@ -451,7 +451,8 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     const view = editor.ctx.get(editorViewCtx);
 
     typeText(view, '[wx](weixin://)');
-    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(false);
+    expect(getFirstLinkHref(view)).toBe('weixin://');
     expect(pressEnter(view)).toBe(true);
 
     expect(view.state.doc.childCount).toBe(2);
@@ -466,7 +467,8 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     const view = editor.ctx.get(editorViewCtx);
 
     typeText(view, '[wx](weixin://)');
-    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(false);
+    expect(getFirstLinkHref(view)).toBe('weixin://');
     expect(pressEnter(view)).toBe(true);
 
     expect(view.state.doc.childCount).toBe(2);
@@ -481,7 +483,8 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     const view = editor.ctx.get(editorViewCtx);
 
     typeText(view, '[1](1)');
-    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(false);
+    expect(getFirstLinkHref(view)).toBe('1');
     expect(pressEnter(view)).toBe(true);
 
     expect(view.state.doc.childCount).toBe(2);
@@ -495,7 +498,11 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     const editor = await createFullStackEditor();
     const view = editor.ctx.get(editorViewCtx);
 
-    typeText(view, '[xs](ds)');
+    typeText(view, '[xs](ds');
+    const insertPos = view.state.selection.from;
+    const tr = view.state.tr.insertText(')', insertPos);
+    tr.setSelection(TextSelection.create(tr.doc, 2));
+    view.dispatch(tr);
 
     const rawLinkText = view.dom.querySelector<HTMLElement>(`.${RAW_MARKDOWN_LINK_TEXT_CLASS}`);
     expect(rawLinkText?.textContent).toBe('xs');
@@ -533,46 +540,53 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     ['[半全角]（1）', '半全角', '1'],
     ['【半全角】(1)', '半全角', '1'],
     ['【标题】（https://example.com "Docs"）', '标题', 'https://example.com'],
-  ])('collapses typed markdown link on Enter with the full editor stack: %s', async (source, text, href) => {
+  ])('collapses a completed typed markdown link without requiring Enter: %s', async (source, text, href) => {
     const editor = await createFullStackEditor();
     const view = editor.ctx.get(editorViewCtx);
 
     typeText(view, source);
-    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
-    expect(pressEnter(view)).toBe(true);
-
-    expect(view.state.doc.childCount).toBe(2);
-    expect(view.state.doc.child(0).textContent).toBe(text);
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(false);
+    expect(view.state.doc.childCount).toBe(1);
+    expect(view.state.doc.textContent).toBe(text);
     expect(getFirstLinkHref(view)).toBe(href);
 
     await editor.destroy();
   });
 
-  it('collapses typed unsafe markdown links on Enter as plain text with the full editor stack', async () => {
+  it('keeps text typed after an auto-collapsed markdown link outside the link mark', async () => {
+    const editor = await createFullStackEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, '[Docs](docs.md) after');
+
+    const link = view.dom.querySelector<HTMLAnchorElement>('a[href="docs.md"]');
+    expect(link?.textContent).toBe('Docs');
+    expect(view.state.doc.textContent).toBe('Docs after');
+
+    await editor.destroy();
+  });
+
+  it('collapses completed unsafe markdown links as plain text without requiring Enter', async () => {
     const editor = await createFullStackEditor();
     const view = editor.ctx.get(editorViewCtx);
 
     typeText(view, '[Bad](javascript:alert)');
-    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
-    expect(pressEnter(view)).toBe(true);
-
-    expect(view.state.doc.childCount).toBe(2);
-    expect(view.state.doc.child(0).textContent).toBe('Bad');
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(false);
+    expect(view.state.doc.childCount).toBe(1);
+    expect(view.state.doc.textContent).toBe('Bad');
     expect(getFirstLinkHref(view)).toBeNull();
 
     await editor.destroy();
   });
 
-  it('collapses typed unsafe localized markdown links on Enter as plain text with the full editor stack', async () => {
+  it('collapses completed unsafe localized markdown links as plain text without requiring Enter', async () => {
     const editor = await createFullStackEditor();
     const view = editor.ctx.get(editorViewCtx);
 
     typeText(view, '【Bad】（javascript:alert）');
-    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(true);
-    expect(pressEnter(view)).toBe(true);
-
-    expect(view.state.doc.childCount).toBe(2);
-    expect(view.state.doc.child(0).textContent).toBe('Bad');
+    expect(markdownLinkPluginKey.getState(view.state)?.hasRawMarkdownLink).toBe(false);
+    expect(view.state.doc.childCount).toBe(1);
+    expect(view.state.doc.textContent).toBe('Bad');
     expect(getFirstLinkHref(view)).toBeNull();
 
     await editor.destroy();

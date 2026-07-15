@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { useFileTreePointerDragState } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
-import { useAIStore } from '@/stores/useAIStore';
+import { actions as aiActions } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 import { ChatInputComposerFrame } from './components/ChatInputComposerFrame';
 import type { ChatInputProps } from './ChatInputTypes';
@@ -13,9 +14,11 @@ import { useChatInputBlockDrop } from './hooks/useChatInputBlockDrop';
 import { useChatInputDroppedNoteMentions } from './hooks/useChatInputDroppedNoteMentions';
 import { useChatInputEventHandlers } from './hooks/useChatInputEventHandlers';
 import { useChatInputFileTreeDrop } from './hooks/useChatInputFileTreeDrop';
+import { useChatInputCaretLayoutSync } from './hooks/useChatInputCaretLayoutSync';
 import { useChatInputFocus } from './hooks/useChatInputFocus';
 import { useChatInputRecall } from './hooks/useChatInputRecall';
 import { useNoteMentions } from './hooks/useNoteMentions';
+import { getWebSearchAvailability } from './webSearchAvailability';
 
 export const ChatInput = memo(function ChatInput({
   active = true,
@@ -35,7 +38,13 @@ export const ChatInput = memo(function ChatInput({
   const lastSubmittedMessageRef = useRef('');
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
-  const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
+  const webSearchEnabled = useUnifiedStore((state) => state.data.ai?.webSearchEnabled === true);
+  const webSearchAvailable = useUnifiedStore((state) => getWebSearchAvailability(state.data.ai));
+  useEffect(() => {
+    if (webSearchEnabled && webSearchAvailable === false) {
+      aiActions.setWebSearchEnabled(false);
+    }
+  }, [webSearchAvailable, webSearchEnabled]);
   const isQuotaSendBlocked = hasSelectedModel && isManagedQuotaExhausted;
   const {
     attachments,
@@ -88,10 +97,26 @@ export const ChatInput = memo(function ChatInput({
     canSubmit: hasSelectedModel,
     focusTrigger,
   });
-  const { scheduleComposerFocus, scheduleFocusOnWindowFocus } = useChatInputFocus(textareaRef);
+  const {
+    scheduleComposerFocus,
+    scheduleComposerRefocus,
+    scheduleFocusOnWindowFocus,
+  } = useChatInputFocus(textareaRef);
+  useChatInputCaretLayoutSync({
+    composerRootRef,
+    isComposing,
+    scheduleComposerRefocus,
+    textareaRef,
+  });
+  const handleRemoveAttachment = useCallback((attachmentId: string) => {
+    const caretPosition = textareaRef.current?.selectionStart;
+    removeAttachment(attachmentId);
+    scheduleComposerFocus(caretPosition);
+  }, [removeAttachment, scheduleComposerFocus, textareaRef]);
 
   const {
     noteMentions,
+    hasMentionCandidates,
     clearNoteMentions,
     currentPageCandidates,
     folderCandidates,
@@ -248,6 +273,7 @@ export const ChatInput = memo(function ChatInput({
       handleTextareaPaste={handleTextareaPaste}
       handleTriggerFileSelect={handleTriggerFileSelect}
       handleTriggerMentionSelect={handleTriggerMentionSelect}
+      hasMentionCandidates={hasMentionCandidates}
       hasSelectedModel={hasSelectedModel}
       isBlockDropActive={isBlockDropActive}
       isDragging={isDragging}
@@ -268,16 +294,17 @@ export const ChatInput = memo(function ChatInput({
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
-      onRemoveAttachment={removeAttachment}
+      onRemoveAttachment={handleRemoveAttachment}
       onRemoveNoteMention={removeNoteMention}
       onRequestComposerFocus={scheduleComposerFocus}
       onSend={() => handleSend()}
       onTextareaScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
-      onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
+      onToggleWebSearch={() => aiActions.setWebSearchEnabled(!webSearchEnabled)}
       showMentionPicker={showMentionPicker}
       textareaRef={textareaRef}
       textareaScrollTop={textareaScrollTop}
       webSearchEnabled={webSearchEnabled}
+      webSearchAvailable={webSearchAvailable}
     />
   );
 });

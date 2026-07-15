@@ -9,7 +9,7 @@ import {
   setCachedNoteContent,
   type NoteContentCache,
 } from './noteContentCache';
-import { markExpectedExternalChange } from './externalChangeRegistry';
+import { clearExpectedExternalChange, markExpectedExternalChange } from './externalChangeRegistry';
 import {
   readNoteMetadataFromMarkdown,
   stripUpdatedFrontmatter,
@@ -108,7 +108,7 @@ export async function loadNoteDocument({
           size: diskSize,
           metadata: mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedDiskContent), fileInfo),
           nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
-            updateBaseline: true,
+            baselineContent: diskContent,
             size: diskSize,
           }),
         };
@@ -124,7 +124,7 @@ export async function loadNoteDocument({
       nextCache: normalizedCachedContent === cachedContent
         ? cache
         : setCachedNoteContent(cache, notePath, normalizedCachedContent, cachedModifiedAt, {
-          updateBaseline: !allowStaleCachedContent,
+          baselineContent: cachedEntry?.savedContent ?? cachedContent,
         }),
     };
   }
@@ -145,7 +145,7 @@ export async function loadNoteDocument({
     size,
     metadata: mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedContent), fileInfo),
     nextCache: setCachedNoteContent(cache, notePath, normalizedContent, modifiedAt, {
-      updateBaseline: true,
+      baselineContent: content,
       size,
     }),
   };
@@ -167,6 +167,22 @@ export async function saveNoteDocument({
   const diskSize = getKnownFileSize(fileInfoBeforeWrite);
   const normalizedCurrentContent = normalizeEditorStateMarkdownDocument(currentNote.content);
   const cachedEntry = cache.get(notePath);
+  let verifiedDiskContent: string | undefined;
+  if (
+    storage.platform === 'electron' &&
+    storage.writeFileIfUnchanged &&
+    fileInfoBeforeWrite !== null &&
+    cachedEntry === undefined
+  ) {
+    assertReadableNoteFileInfo(fileInfoBeforeWrite);
+    const diskContent = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
+    assertEditorSafeMarkdownContent(diskContent);
+    const normalizedDiskContent = normalizeEditorStateMarkdownDocument(diskContent);
+    if (stripUpdatedFrontmatter(normalizedDiskContent) !== stripUpdatedFrontmatter(normalizedCurrentContent)) {
+      throw new NoteWriteConflictError();
+    }
+    verifiedDiskContent = diskContent;
+  }
   const cachedModifiedAt = cachedEntry?.modifiedAt ?? null;
   const knownFileSizeChanged = hasKnownFileSizeChanged(cachedEntry?.size, diskSize);
   const shouldVerifyMissingModifiedAt = shouldVerifyDiskContentWithoutModifiedAt(fileInfoBeforeWrite);
@@ -178,12 +194,23 @@ export async function saveNoteDocument({
       diskModifiedAt !== cachedModifiedAt ||
       knownFileSizeChanged ||
       shouldVerifyMissingModifiedAt);
-  const writeNormalizedContent = async (sourceContent: string): Promise<SavedNoteDocument> => {
+  const writeNormalizedContent = async (sourceContent: string, expectedDiskContent?: string | null): Promise<SavedNoteDocument> => {
     const { content } = updateNoteMetadataInMarkdown(sourceContent, {});
     assertEditorSafeMarkdownContent(content);
-
     markExpectedExternalChange(fullPath);
-    await safeWriteTextFile(fullPath, content);
+    try {
+      if (expectedDiskContent !== undefined && storage.writeFileIfUnchanged) {
+        const didWrite = await storage.writeFileIfUnchanged(fullPath, expectedDiskContent, content);
+        if (!didWrite) {
+          throw new NoteWriteConflictError();
+        }
+      } else {
+        await safeWriteTextFile(fullPath, content);
+      }
+    } catch (error) {
+      clearExpectedExternalChange(fullPath);
+      throw error;
+    }
     markExpectedExternalChange(fullPath);
 
     const fileInfo = await storage.stat(fullPath);
@@ -206,6 +233,7 @@ export async function saveNoteDocument({
   if (shouldCompareDiskContent && cachedEntry !== undefined) {
     assertReadableNoteFileInfo(fileInfoBeforeWrite);
     const diskContent = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
+    verifiedDiskContent = diskContent;
     assertEditorSafeMarkdownContent(diskContent);
     const normalizedDiskContent = normalizeEditorStateMarkdownDocument(diskContent);
     const normalizedCachedContent = normalizeEditorStateMarkdownDocument(
@@ -217,7 +245,7 @@ export async function saveNoteDocument({
     if (normalizedDiskContent === normalizedCurrentContent) {
       const cleanedDiskContent = updateNoteMetadataInMarkdown(normalizedDiskContent, {}).content;
       if (cleanedDiskContent !== normalizedDiskContent) {
-        return writeNormalizedContent(normalizedDiskContent);
+        return writeNormalizedContent(normalizedDiskContent, diskContent);
       }
       const metadata = mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedDiskContent), fileInfoBeforeWrite);
       return {
@@ -240,7 +268,7 @@ export async function saveNoteDocument({
     ) {
       const cleanedDiskContent = updateNoteMetadataInMarkdown(normalizedDiskContent, {}).content;
       if (cleanedDiskContent !== normalizedDiskContent) {
-        return writeNormalizedContent(normalizedDiskContent);
+        return writeNormalizedContent(normalizedDiskContent, diskContent);
       }
       const metadata = mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedDiskContent), fileInfoBeforeWrite);
       return {
@@ -262,9 +290,11 @@ export async function saveNoteDocument({
       if (mergedContent == null) {
         throw new NoteWriteConflictError();
       }
-      return writeNormalizedContent(mergedContent);
+      return writeNormalizedContent(mergedContent, diskContent);
     }
   }
 
-  return writeNormalizedContent(normalizedCurrentContent);
+  const expectedDiskContent = fileInfoBeforeWrite === null ? null
+    : verifiedDiskContent ?? cachedEntry?.savedContent ?? cachedEntry?.content;
+  return writeNormalizedContent(normalizedCurrentContent, expectedDiskContent);
 }

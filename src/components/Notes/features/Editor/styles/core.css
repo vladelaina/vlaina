@@ -20,7 +20,7 @@
 
 /* Editor container - clickable area */
 .milkdown-editor {
-  background-color: var(--vlaina-bg-primary);
+  background-color: var(--vlaina-markdown-color-canvas);
   min-height: var(--vlaina-height-editor-min);
   cursor: text;
   position: relative;
@@ -38,7 +38,7 @@
 [data-note-toolbar-root='true'] {
   isolation: isolate;
   overflow: hidden;
-  background: var(--vlaina-imported-app-background-layer, var(--vlaina-bg-primary));
+  background: var(--vlaina-imported-app-background-layer, var(--vlaina-markdown-color-canvas));
   background-attachment: var(--vlaina-imported-app-background-attachment);
   background-clip: var(--vlaina-imported-app-background-clip);
   background-origin: var(--vlaina-imported-app-background-origin);
@@ -154,7 +154,7 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
   [data-type='toc']
 ):not(.editor-block-selected):not(.ProseMirror-selectednode) {
   content-visibility: auto;
-  contain-intrinsic-size: auto var(--vlaina-height-block-intrinsic, 96px);
+  contain-intrinsic-size: auto var(--vlaina-height-block-intrinsic);
 }
 
 .milkdown-editor.markdown-body-line-numbers .body-line-number-gutter {
@@ -172,7 +172,7 @@ body.editor-block-drag-active .milkdown-editor.markdown-body-line-numbers .body-
 .milkdown-editor.markdown-body-line-numbers .body-line-number {
   position: absolute;
   width: var(--vlaina-width-body-line-number);
-  color: var(--vlaina-text-tertiary);
+  color: var(--vlaina-markdown-color-text-subtle);
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
   font-size: var(--vlaina-font-125);
   font-variant-numeric: tabular-nums;
@@ -193,13 +193,13 @@ body.editor-block-drag-active .milkdown-editor.markdown-body-line-numbers .body-
 
 /* Selection */
 .milkdown-editor.theme-vlaina .ProseMirror::selection {
-  background-color: var(--vlaina-selection-bg) !important;
+  background-color: var(--vlaina-markdown-color-selection) !important;
   color: var(--vlaina-color-white) !important;
   -webkit-text-fill-color: var(--vlaina-color-white) !important;
 }
 
 .milkdown-editor.theme-vlaina .ProseMirror::-moz-selection {
-  background-color: var(--vlaina-selection-bg) !important;
+  background-color: var(--vlaina-markdown-color-selection) !important;
   color: var(--vlaina-color-white) !important;
 }
 
@@ -226,7 +226,7 @@ body.editor-block-drag-active .milkdown-editor.markdown-body-line-numbers .body-
   height: var(--vlaina-size-24px);
   border: var(--vlaina-border-width-0);
   background: transparent;
-  color: var(--vlaina-text-tertiary);
+  color: var(--vlaina-markdown-color-text-subtle);
   border-radius: var(--vlaina-radius-0);
   display: inline-flex;
   align-items: center;

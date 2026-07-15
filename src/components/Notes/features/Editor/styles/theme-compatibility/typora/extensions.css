@@ -1,0 +1,10 @@
+/* Typora ecosystem extension fallbacks. These support semantic DOM/classes that
+   compatibility decorations may emit; they are not tied to a theme filename. */
+@import './extensions/variables.css';
+@import './extensions/semantics.css';
+@import './extensions/tokens.css';
+@import './extensions/blocks-and-tables.css';
+@import './extensions/images-and-cards.css';
+@import './extensions/columns-and-layout.css';
+@import './extensions/captions-and-figures.css';
+@import './extensions/controls.css';

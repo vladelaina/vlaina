@@ -29,24 +29,20 @@ export function createDesktopOauthFlow({ apiBaseUrl, fetchDesktopJson, persistDe
   }
 
   async function requestDesktopAuthResult(provider, state, verifier, resultToken, signal) {
-    const { data } = await retryTransientAccountNetworkError(
-      () =>
-        withAccountRequestTimeout((requestSignal) =>
-          fetchDesktopJson(buildDesktopAuthResultUrl(provider), {
-            method: 'POST',
-            signal: requestSignal,
-            headers: {
-              Accept: 'application/json',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              state,
-              verifier,
-              resultToken,
-            }),
-          }), signal),
-      signal,
-    );
+    const { data } = await withAccountRequestTimeout((requestSignal) =>
+      fetchDesktopJson(buildDesktopAuthResultUrl(provider), {
+        method: 'POST',
+        signal: requestSignal,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          state,
+          verifier,
+          resultToken,
+        }),
+      }), signal);
     return data;
   }
 

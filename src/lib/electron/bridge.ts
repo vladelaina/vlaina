@@ -85,6 +85,7 @@ export interface ElectronMediaApi {
 export interface ElectronAppApi {
   getVersion(): Promise<string>;
   setLanguage?(language: string): Promise<boolean>;
+  findMarkdownGitRoot?(filePath: string): Promise<string | null>;
   onOpenMarkdownFile?(callback: (filePath: string) => void): () => void;
   reportStartupReady?(): void;
   getErrorLogInfo?(): Promise<{
@@ -238,11 +239,16 @@ export interface ElectronFsApi {
     content: string,
     options?: { recursive?: boolean; append?: boolean }
   ): Promise<void>;
+  writeTextFileIfUnchanged(
+    filePath: string,
+    expectedContent: string | null,
+    content: string
+  ): Promise<boolean>;
   exists(filePath: string): Promise<boolean>;
   mkdir(filePath: string, recursive?: boolean): Promise<void>;
   deleteFile(filePath: string): Promise<void>;
   deleteDir(filePath: string, recursive?: boolean): Promise<void>;
-  listDir(filePath: string): Promise<Array<{
+  listDir(filePath: string, maxEntries?: number): Promise<Array<{
     name: string;
     path: string;
     isDirectory: boolean;

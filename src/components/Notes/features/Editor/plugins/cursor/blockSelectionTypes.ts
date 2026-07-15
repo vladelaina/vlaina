@@ -24,4 +24,4 @@ export interface BlockRectYIndex {
   sortedByTop: readonly BlockRect[];
 }
 
-export const LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD = 128;
+export const LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD = 64;

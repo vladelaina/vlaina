@@ -87,7 +87,7 @@ export function coverSourceReducer(state: CoverSourceState, action: CoverSourceA
         resolvedSrc: null,
         resolvedAssetPath: null,
         resolvedSourceKey: null,
-        previewSrc: null,
+        previewSrc: state.isSelectionCommitting ? null : state.previewSrc,
         isError: true,
         isSelectionCommitting: false,
       };
@@ -97,7 +97,7 @@ export function coverSourceReducer(state: CoverSourceState, action: CoverSourceA
         resolvedSrc: action.imageUrl,
         resolvedAssetPath: action.assetPath,
         resolvedSourceKey: action.sourceKey,
-        previewSrc: null,
+        previewSrc: state.isSelectionCommitting ? null : state.previewSrc,
         isError: false,
         isSelectionCommitting: false,
       };

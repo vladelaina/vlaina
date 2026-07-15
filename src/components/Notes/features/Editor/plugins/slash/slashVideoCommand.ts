@@ -2,11 +2,13 @@ import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getElectronBridge } from '@/lib/electron/bridge';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { parseVideoUrl, sanitizeVideoUrlInput } from '../video';
 import {
   findInsertedNodePos,
   moveSelectionAfterInsertedNode,
   replaceSelectionOrCurrentBlankTextBlockWithNode,
+  isEditorInsertionContextCurrent,
 } from './slashInsertUtils';
 import { openSlashVideoPrompt } from './slashVideoPrompt';
 
@@ -144,9 +146,18 @@ async function resolveVideoUrlForInsert(url: string) {
 
 export function openVideoPrompt(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);
+  const sourceDoc = view.state.doc;
+  const sourceSelection = view.state.selection;
+  const sourceNotePath = useNotesStore.getState().currentNote?.path;
   openSlashVideoPrompt({
     view,
     onSubmit: (url) => {
+      if (
+        useNotesStore.getState().currentNote?.path !== sourceNotePath
+        || !isEditorInsertionContextCurrent(view, sourceDoc, sourceSelection)
+      ) {
+        return;
+      }
       const insertedPos = insertVideoNode(ctx, url);
       void resolveVideoUrlForInsert(url).then((resolved) => {
         if (resolved.resolvedUrl !== url) {

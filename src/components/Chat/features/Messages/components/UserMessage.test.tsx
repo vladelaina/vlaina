@@ -134,10 +134,10 @@ describe('UserMessage', () => {
 
     const saveButton = container.querySelector('[data-chat-message-editor-action="save"]');
     expect(saveButton).not.toBeNull();
-    expect(saveButton?.className).toContain('bg-[#41a8ea]');
+    expect(saveButton?.className).toContain('bg-[var(--vlaina-color-user-message-editor-submit)]');
     expect(saveButton?.className).toContain('text-[length:var(--vlaina-font-13)]');
-    expect(saveButton?.className).toContain('text-[#ffffff]');
-    expect(saveButton?.className).toContain('rgba(65,168,234,0.16)');
+    expect(saveButton?.className).toContain('text-[var(--vlaina-color-white)]');
+    expect(saveButton?.className).toContain('shadow-[var(--vlaina-shadow-user-message-editor-submit)]');
     expect(saveButton?.className).not.toContain('dark:bg-');
   });
 

@@ -10,6 +10,12 @@ import { coverSourceReducer, initialCoverSourceState, type CoverSourceState } fr
 import { logNotesSplitDiagnostic } from '@/lib/diagnostics/notesSplitDiagnostics';
 
 const COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX = 1280;
+const ANIMATED_COVER_DIMENSION_PROBE_TOKEN = 'vlaina-dimension-probe=1';
+
+export function getCoverDimensionProbeSrc(assetPath: string, resolvedSrc: string): string {
+    if (!shouldPreserveAssetAnimation(assetPath)) return resolvedSrc;
+    return `${resolvedSrc}${resolvedSrc.includes('#') ? '&' : '#'}${ANIMATED_COVER_DIMENSION_PROBE_TOKEN}`;
+}
 
 export function getCoverResolveOptions({
     url,
@@ -28,6 +34,7 @@ export function getCoverResolveOptions({
         thumbnail: !preserveAnimation,
         thumbnailMaxEdgePx: preserveAnimation ? undefined : COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX,
         replayAnimated: preserveAnimation,
+        animatedPlaybackKey: currentNotePath,
     };
 }
 
@@ -208,7 +215,7 @@ export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCover
                 return;
             }
             if (ignore) return;
-            const dimensions = await loadImageWithDimensions(imageUrl);
+            const dimensions = await loadImageWithDimensions(getCoverDimensionProbeSrc(url, imageUrl));
             if (ignore) return;
             if (!dimensions) {
                 logNotesSplitDiagnostic('cover-source-dimension-error', {

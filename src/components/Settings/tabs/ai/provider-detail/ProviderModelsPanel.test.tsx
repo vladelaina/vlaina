@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type {
   ChangeEventHandler,
   ComponentProps,
@@ -9,6 +9,12 @@ import type {
 import { ProviderModelsPanel } from './ProviderModelsPanel';
 import type { AIModel } from '@/lib/ai/types';
 import type { HealthStatus } from '../components/ModelListItem';
+
+const clipboardMocks = vi.hoisted(() => ({ writeTextToClipboard: vi.fn() }));
+
+vi.mock('@/lib/clipboard', () => ({
+  writeTextToClipboard: clipboardMocks.writeTextToClipboard,
+}));
 
 vi.mock('@/components/ui/icons', () => ({
   Icon: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
@@ -71,8 +77,10 @@ function buildProps(overrides: Partial<ComponentProps<typeof ProviderModelsPanel
     canBenchmarkAvailable: true,
     isHealthChecking: false,
     benchmarkAllActive: false,
+    benchmarkAllQueued: false,
     selectedBenchmarkActive: false,
     availableBenchmarkActive: false,
+    queuedBenchmarkModelIds: [],
     healthCheckOverall: 'idle' as const,
     healthStatus: {} as Record<string, HealthStatus>,
     onQuickAddModelIdChange: vi.fn(),
@@ -81,6 +89,7 @@ function buildProps(overrides: Partial<ComponentProps<typeof ProviderModelsPanel
     onBenchmark: vi.fn(),
     onBenchmarkSelected: vi.fn(),
     onBenchmarkAvailable: vi.fn(),
+    onBenchmarkModel: vi.fn(),
     onClearAllModels: vi.fn(),
     onDeleteModel: vi.fn(),
     onAddModel: vi.fn(() => true),
@@ -159,6 +168,121 @@ describe('ProviderModelsPanel', () => {
     fireEvent.click(screen.getByText('beta'));
 
     expect(onAddModel).toHaveBeenCalledWith('beta');
+  });
+
+  it('benchmarks selected and available models without toggling their rows', () => {
+    const onBenchmarkModel = vi.fn();
+    const onAddModel = vi.fn(() => true);
+    const onDeleteModel = vi.fn();
+
+    render(<ProviderModelsPanel {...buildProps({ onBenchmarkModel, onAddModel, onDeleteModel })} />);
+
+    const benchmarkButtons = screen.getAllByRole('button', { name: 'Benchmark All' });
+    fireEvent.click(benchmarkButtons[1]);
+    fireEvent.click(benchmarkButtons[2]);
+
+    expect(onBenchmarkModel).toHaveBeenNthCalledWith(1, 'model-alpha');
+    expect(onBenchmarkModel).toHaveBeenNthCalledWith(2, 'provider-1::beta');
+    expect(onDeleteModel).not.toHaveBeenCalled();
+    expect(onAddModel).not.toHaveBeenCalled();
+  });
+
+  it('keeps a completed model benchmark button available for retesting', () => {
+    const onBenchmarkModel = vi.fn();
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          healthStatus: { 'model-alpha': { status: 'success', latency: 120 } },
+          onBenchmarkModel,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Benchmark All' })[1]);
+
+    expect(onBenchmarkModel).toHaveBeenCalledWith('model-alpha');
+  });
+
+  it('retests a model when its failed result is clicked', () => {
+    const onBenchmarkModel = vi.fn();
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          healthStatus: { 'model-alpha': { status: 'error', error: 'Unavailable' } },
+          onBenchmarkModel,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Failed'));
+
+    expect(onBenchmarkModel).toHaveBeenCalledWith('model-alpha');
+  });
+
+  it('copies a failed benchmark error from the info button without toggling the row', async () => {
+    clipboardMocks.writeTextToClipboard.mockResolvedValue(true);
+    const onDeleteModel = vi.fn();
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          healthStatus: { 'model-alpha': { status: 'error', error: 'Request timed out' } },
+          onDeleteModel,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy: Request timed out' }));
+
+    await waitFor(() => {
+      expect(clipboardMocks.writeTextToClipboard).toHaveBeenCalledWith('Request timed out');
+    });
+    expect(onDeleteModel).not.toHaveBeenCalled();
+  });
+
+  it('allows another model to be queued while a benchmark is running', () => {
+    const onBenchmarkModel = vi.fn();
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          isHealthChecking: true,
+          healthStatus: { 'model-alpha': { status: 'loading' } },
+          onBenchmarkModel,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Benchmark All' })[2]);
+
+    expect(onBenchmarkModel).toHaveBeenCalledWith('provider-1::beta');
+  });
+
+  it('keeps benchmark all available while a single model is running', () => {
+    const onBenchmark = vi.fn();
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          isHealthChecking: true,
+          benchmarkAllActive: false,
+          healthStatus: { 'model-alpha': { status: 'loading' } },
+          onBenchmark,
+        })}
+      />,
+    );
+
+    const benchmarkAll = screen.getAllByRole('button', { name: 'Benchmark All' })[0];
+    expect(benchmarkAll).toBeEnabled();
+    fireEvent.click(benchmarkAll);
+
+    expect(onBenchmark).toHaveBeenCalledTimes(1);
+  });
+
+  it('immediately marks every model as queued when benchmark all is queued', () => {
+    render(<ProviderModelsPanel {...buildProps({ benchmarkAllActive: true, benchmarkAllQueued: true })} />);
+
+    const selectedButton = screen.getByText('alpha').closest('[role="button"]')?.querySelector('button');
+    const availableButton = screen.getByText('beta').closest('[role="button"]')?.querySelector('button');
+    expect(selectedButton).toBeDisabled();
+    expect(availableButton).toBeDisabled();
   });
 
   it('adds a model directly when a quick add suggestion is clicked', () => {
