@@ -28,6 +28,7 @@ function getApproximateTextColumnCount(value: string): number {
 export function getRecommendedFileTreeSidebarWidth(
   nodes: FileTreeNode[],
   measureTextWidth?: (value: string) => number,
+  shouldTraverseFolder?: (folder: Extract<FileTreeNode, { isFolder: true }>) => boolean,
 ): number {
   let requiredWidth = SIDEBAR_DEFAULT_WIDTH;
   let measuredRows = 0;
@@ -45,7 +46,7 @@ export function getRecommendedFileTreeSidebarWidth(
       + themeFileTreeTokens.sidebarMeasuredTextSafetyPx;
     requiredWidth = Math.max(requiredWidth, entryRequiredWidth);
 
-    if (node.isFolder) {
+    if (node.isFolder && (shouldTraverseFolder?.(node) ?? node.expanded)) {
       for (let index = node.children.length - 1; index >= 0; index -= 1) {
         stack.push({ node: node.children[index], depth: depth + 1 });
       }

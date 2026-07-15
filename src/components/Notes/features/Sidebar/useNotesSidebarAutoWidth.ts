@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { setAutoSizedSidebarDefaultWidth } from '@/lib/layout/sidebarWidth';
 import { useUIStore } from '@/stores/uiSlice';
 import type { FolderNode } from '@/stores/useNotesStore';
@@ -22,28 +22,49 @@ export function useNotesSidebarAutoWidth(args: {
     rootRef,
     setSidebarWidth,
   } = args;
+  const sizedNotesRootRef = useRef<string | null>(null);
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!active || isLoading || !displayRootFolder || !root) return;
+    if (isLoading || !displayRootFolder) {
+      sizedNotesRootRef.current = null;
+      return;
+    }
+    if (!active || !root) return;
 
-    let measureTextWidth: ((value: string) => number) | undefined;
-    if (typeof OffscreenCanvas !== 'undefined') {
-      const context = new OffscreenCanvas(1, 1).getContext('2d');
-      if (context) {
-        const style = getComputedStyle(root);
-        context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-        measureTextWidth = (value) => context.measureText(value).width;
+    const notesRootKey = notesPath || notesRootPath || displayRootFolder.path || displayRootFolder.id;
+    if (sizedNotesRootRef.current === notesRootKey) return;
+    sizedNotesRootRef.current = notesRootKey;
+
+    const applyInitialWidth = () => {
+      if (sizedNotesRootRef.current !== notesRootKey || !root.isConnected) return;
+
+      let measureTextWidth: ((value: string) => number) | undefined;
+      if (typeof OffscreenCanvas !== 'undefined') {
+        const context = new OffscreenCanvas(1, 1).getContext('2d');
+        if (context) {
+          const style = getComputedStyle(root);
+          context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+          measureTextWidth = (value) => context.measureText(value).width;
+        }
       }
+
+      const recommendedWidth = getRecommendedFileTreeSidebarWidth(
+        displayRootFolder.children,
+        measureTextWidth,
+      );
+      setAutoSizedSidebarDefaultWidth(recommendedWidth);
+      if (recommendedWidth > useUIStore.getState().sidebarWidth) {
+        setSidebarWidth(recommendedWidth);
+      }
+    };
+
+    const fontsReady = document.fonts?.ready;
+    if (fontsReady) {
+      void fontsReady.then(applyInitialWidth);
+    } else {
+      applyInitialWidth();
     }
 
-    const recommendedWidth = getRecommendedFileTreeSidebarWidth(
-      displayRootFolder.children,
-      measureTextWidth,
-    );
-    setAutoSizedSidebarDefaultWidth(recommendedWidth);
-    if (recommendedWidth > useUIStore.getState().sidebarWidth) {
-      setSidebarWidth(recommendedWidth);
-    }
   }, [active, displayRootFolder, isLoading, notesPath, notesRootPath, rootRef, setSidebarWidth]);
 }

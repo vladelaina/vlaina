@@ -359,7 +359,7 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.uiState.setSidebarWidth.mock.calls[0][0]).toBeGreaterThan(270);
   });
 
-  it('widens the sidebar when a long file name arrives in the background tree load', async () => {
+  it('does not resize when a long file name arrives after the initial calculation', async () => {
     const createRootFolder = (children: Array<{
       id: string;
       name: string;
@@ -395,10 +395,46 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(hoisted.uiState.setSidebarWidth).toHaveBeenCalledWith(expect.any(Number));
+    await act(async () => undefined);
+    expect(hoisted.uiState.setSidebarWidth).not.toHaveBeenCalled();
+  });
+
+  it('does not resize when a folder is expanded after the initial calculation', async () => {
+    const longFile = {
+      id: 'nested-long-note',
+      name: 'a-nested-markdown-file-name-that-needs-more-room',
+      path: 'folder/a-nested-markdown-file-name-that-needs-more-room.md',
+      isFolder: false as const,
+    };
+    const createRootFolder = (expanded: boolean) => ({
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [{
+        id: 'folder',
+        name: 'folder',
+        path: 'folder',
+        isFolder: true as const,
+        expanded,
+        children: [longFile],
+      }],
     });
-    expect(hoisted.uiState.setSidebarWidth.mock.calls[0][0]).toBeGreaterThan(270);
+    const props = {
+      isLoading: false,
+      createNote: vi.fn(async () => undefined),
+      createFolder: vi.fn(async () => null),
+      search: createSearchState({ isSearchOpen: false, searchQuery: '' }),
+    };
+    const { rerender } = render(
+      <SidebarContent rootFolder={createRootFolder(false)} {...props} />,
+    );
+
+    rerender(<SidebarContent rootFolder={createRootFolder(true)} {...props} />);
+
+    await act(async () => undefined);
+    expect(hoisted.uiState.setSidebarWidth).not.toHaveBeenCalled();
   });
 
   it('shows the live preview title for an empty current draft in the sidebar tree', async () => {

@@ -10,6 +10,48 @@ import {
 const LONG_NOTE_NAME = 'a-markdown-file-name-that-must-stay-on-one-line';
 
 test.describe('notes sidebar automatic width', () => {
+  test('does not resize when a folder with long file names is expanded later', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-sidebar-collapsed-width');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.evaluate(() => (window as any).__vlainaE2E.setUIPreferences({
+        languagePreference: 'en',
+        sidebarWidth: 270,
+      }));
+      const fixture = await createNotesRootFilesFixture(page, {
+        name: 'Collapsed Sidebar Width Notes Root',
+        files: [
+          {
+            filename: `collapsed/${LONG_NOTE_NAME}.md`,
+            content: '# Collapsed sidebar width sentinel',
+          },
+          { filename: 'short.md', content: '# Short note' },
+        ],
+      });
+
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        minFileCount: 1,
+      });
+      await expect.poll(() => page.evaluate(() => (
+        (window as any).__vlainaE2E.getUIState().sidebarWidth
+      ))).toBe(270);
+
+      await page.locator('[data-file-tree-kind="folder"][data-file-tree-path="collapsed"]').click();
+      await expect(page.locator(
+        `[data-file-tree-kind="file"][data-file-tree-path="collapsed/${LONG_NOTE_NAME}.md"]`,
+      )).toBeVisible();
+      await expect.poll(() => page.evaluate(() => (
+        (window as any).__vlainaE2E.getUIState().sidebarWidth
+      ))).toBe(270);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('widens enough to keep the file name clear of the more-actions button', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-sidebar-automatic-width');
 
@@ -56,7 +98,7 @@ test.describe('notes sidebar automatic width', () => {
         return {
           storedWidth: (window as any).__vlainaE2E.getUIState().sidebarWidth,
           renderedWidth: sidebar.getBoundingClientRect().width,
-          titleLineCount: titleRects.length,
+          titleLineCount: new Set(titleRects.map((rect) => Math.round(rect.top * 100) / 100)).size,
           titleLeft: titleRect.left,
           titleRight: titleRect.right,
           buttonLeft: buttonRect.left,

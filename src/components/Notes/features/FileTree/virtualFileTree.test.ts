@@ -61,13 +61,29 @@ describe('virtualFileTree', () => {
     )).toBe(392);
   });
 
-  it('accounts for nested wide-character names without exceeding the sidebar maximum', () => {
+  it('ignores long names inside collapsed folders', () => {
     const collapsedFolder = folder('folder', [file('\u4e00'.repeat(32))]);
     collapsedFolder.expanded = false;
 
     expect(getRecommendedFileTreeSidebarWidth([
       collapsedFolder,
+    ])).toBe(SIDEBAR_DEFAULT_WIDTH);
+  });
+
+  it('accounts for nested wide-character names after their folder is expanded', () => {
+    expect(getRecommendedFileTreeSidebarWidth([
+      folder('folder', [file('\u4e00'.repeat(32))]),
     ])).toBe(SIDEBAR_MAX_WIDTH);
+  });
+
+  it('can freeze traversal to the folders that were initially expanded', () => {
+    const expandedLater = folder('folder', [file('\u4e00'.repeat(32))]);
+
+    expect(getRecommendedFileTreeSidebarWidth(
+      [expandedLater],
+      undefined,
+      () => false,
+    )).toBe(SIDEBAR_DEFAULT_WIDTH);
   });
 
   it('keeps the default width when visible file names already fit', () => {
