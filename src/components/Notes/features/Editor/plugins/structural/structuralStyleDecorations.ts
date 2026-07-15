@@ -225,7 +225,8 @@ export function applyStructuralStyleDecorationsState(
   let removedDecorationCount = 0;
 
   for (const range of affectedRanges) {
-    const staleDecorations = decorations.find(range.from, range.to) as ProseDecoration[];
+    const staleDecorations = (decorations.find(range.from, range.to) as ProseDecoration[])
+      .filter((decoration) => decoration.from < range.to && decoration.to > range.from);
     if (staleDecorations.length > 0) {
       decorations = decorations.remove(staleDecorations);
       removedDecorationCount += staleDecorations.length;

@@ -45,6 +45,13 @@ const schema = new SchemaCtor({
       toDOM: () => ['span', { class: 'image-block-container' }],
       parseDOM: [{ tag: 'span.image-block-container' }],
     },
+    html_block: {
+      group: 'block',
+      atom: true,
+      attrs: { value: { default: '' } },
+      toDOM: (node: any) => ['div', { 'data-value': node.attrs.value }],
+      parseDOM: [{ tag: 'div[data-value]' }],
+    },
     bullet_list: {
       group: 'block',
       content: 'list_item+',
@@ -320,5 +327,40 @@ describe('structuralStyleDecorations', () => {
     expect(next.decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toContain(
       STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
     );
+  });
+
+  it('keeps distant image paragraph classes when an HTML blank line becomes editable', () => {
+    const imageParagraph = () => paragraphWithChildren([image()]);
+    const state = EditorStateCtor.create({
+      schema,
+      doc: docWith([
+        imageParagraph(),
+        imageParagraph(),
+        schema.nodes.html_block.create({ value: '<!--vlaina-markdown-blank-line-->' }),
+        imageParagraph(),
+      ]),
+    });
+    const previousDecorations = createStructuralStyleDecorations(state.doc);
+    const blankLinePos = findNodePosition(state.doc, 'html_block');
+    const tr = state.tr.replaceWith(
+      blankLinePos,
+      blankLinePos + state.doc.nodeAt(blankLinePos)!.nodeSize,
+      paragraph('\u200B'),
+    );
+
+    const next = applyStructuralStyleDecorationsState(tr, {
+      decorationCount: previousDecorations.find().length,
+      decorations: previousDecorations,
+    }, tr.doc);
+
+    expect(next.decorations.find().map((decoration: Decoration) => ({
+      className: (decoration.type as any).attrs?.class,
+      from: decoration.from,
+      to: decoration.to,
+    }))).toEqual([
+      { className: STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS, from: 0, to: 3 },
+      { className: STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS, from: 3, to: 6 },
+      { className: STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS, from: 9, to: 12 },
+    ]);
   });
 });
