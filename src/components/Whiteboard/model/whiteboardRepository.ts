@@ -95,12 +95,19 @@ export async function createWhiteboardEntry(
   notesRootPath: string,
   title = DEFAULT_BOARD_TITLE,
 ): Promise<{ entry: WhiteboardIndexEntry; index: WhiteboardIndex }> {
+  const storage = getStorageAdapter();
   const index = await loadWhiteboardIndex(notesRootPath);
+  const { boardsPath } = await getWhiteboardStorageTree(notesRootPath);
+  const storedFolders = await storage.listDir(boardsPath).catch(() => []);
+  const usedFolders = [
+    ...index.boards.map((board) => board.folder),
+    ...storedFolders.filter((item) => item.isDirectory).map((item) => item.name),
+  ];
   const now = new Date().toISOString();
   const entry: WhiteboardIndexEntry = {
     createdAt: now,
-    folder: getAvailableFolder(index.boards, slugifyWhiteboardTitle(title) || 'board'),
-    id: `board-${Date.now()}`,
+    folder: getAvailableFolder(usedFolders, slugifyWhiteboardTitle(title) || 'board'),
+    id: `board-${crypto.randomUUID()}`,
     title,
     updatedAt: now,
   };
@@ -236,8 +243,8 @@ function normalizeBoardEntry(value: unknown): WhiteboardIndexEntry | null {
   };
 }
 
-function getAvailableFolder(boards: WhiteboardIndexEntry[], baseFolder: string): string {
-  const used = new Set(boards.map((board) => board.folder));
+function getAvailableFolder(usedFolders: string[], baseFolder: string): string {
+  const used = new Set(usedFolders);
   if (!used.has(baseFolder)) return baseFolder;
   for (let index = 2; index < 10000; index += 1) {
     const candidate = `${baseFolder}-${index}`;

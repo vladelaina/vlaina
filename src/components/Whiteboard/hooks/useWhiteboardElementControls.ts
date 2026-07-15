@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, type Dispatch, type PointerEvent, type SetStateAction } from 'react';
 import type { WhiteboardDragState } from '../model/whiteboardInteractions';
 import {
-  resizeWhiteboardElement,
   type WhiteboardElement,
   type WhiteboardPoint,
   type WhiteboardStroke,
@@ -44,9 +43,7 @@ export function useWhiteboardElementControls({
   strokes,
   tool,
 }: WhiteboardElementControlsOptions) {
-  const elementResizeFrameRef = useRef<number | null>(null);
   const selectionResizeFrameRef = useRef<number | null>(null);
-  const pendingElementResizeRef = useRef<{ point: WhiteboardPoint; state: WhiteboardDragState } | null>(null);
   const pendingSelectionResizeRef = useRef<{ point: WhiteboardPoint; state: Extract<WhiteboardDragState, { kind: 'resize-selection' }> } | null>(null);
 
   const selectElement = useCallback((id: string) => {
@@ -55,8 +52,8 @@ export function useWhiteboardElementControls({
   }, [setSelectedElementIds, setSelectedStrokeIds]);
 
   const handleElementPointerDown = useCallback((event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => {
-    event.stopPropagation();
     if (tool !== 'select' || event.button !== 0) return;
+    event.stopPropagation();
     const point = getBoardPoint(event.clientX, event.clientY);
     event.currentTarget.setPointerCapture(event.pointerId);
     const keepStrokeSelection = event.shiftKey || selectedElementIds.includes(element.id);
@@ -80,60 +77,9 @@ export function useWhiteboardElementControls({
     });
   }, [elements, getBoardPoint, pushHistory, selectedElementIds, selectedStrokeIds, setDragState, setSelectedElementIds, setSelectedStrokeIds, strokes, tool]);
 
-  const handleResizePointerDown = useCallback((event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => {
-    event.stopPropagation();
-    const point = getBoardPoint(event.clientX, event.clientY);
-    event.currentTarget.setPointerCapture(event.pointerId);
-    selectElement(element.id);
-    pushHistory();
-    setDragState({
-      aspectRatio: element.width / Math.max(1, element.height),
-      id: element.id,
-      kind: 'resize',
-      preserveAspectRatio: element.type === 'image' || event.shiftKey,
-      startHeight: element.height,
-      startPoint: point,
-      startWidth: element.width,
-    });
-  }, [getBoardPoint, pushHistory, selectElement, setDragState]);
-
-  const moveOrResizeElement = useCallback((element: WhiteboardElement, dragState: WhiteboardDragState, point: WhiteboardPoint) => {
-    if (dragState.kind === 'move') {
-      return element.id === dragState.id ? { ...element, x: Math.round(point.x - dragState.offsetX), y: Math.round(point.y - dragState.offsetY) } : element;
-    }
-    if (dragState.kind === 'move-elements') {
-      const original = dragState.originalElementsById.get(element.id);
-      return original ? { ...element, x: Math.round(original.x + point.x - dragState.startPoint.x), y: Math.round(original.y + point.y - dragState.startPoint.y) } : element;
-    }
-    if (dragState.kind !== 'resize') return element;
-    if (element.id !== dragState.id) return element;
-    const width = dragState.startWidth + point.x - dragState.startPoint.x;
-    const height = dragState.startHeight + point.y - dragState.startPoint.y;
-    if (!dragState.preserveAspectRatio) return resizeWhiteboardElement(element, width, height);
-    const useWidth = Math.abs(width - dragState.startWidth) >= Math.abs(height - dragState.startHeight);
-    return resizeWhiteboardElement(element, useWidth ? width : height * dragState.aspectRatio, useWidth ? width / dragState.aspectRatio : height);
-  }, []);
-
-  const applyPendingElementResize = useCallback(() => {
-    const pending = pendingElementResizeRef.current;
-    pendingElementResizeRef.current = null;
-    if (!pending) return;
-    setElements((current) => current.map((element) => moveOrResizeElement(element, pending.state, pending.point)));
-  }, [moveOrResizeElement, setElements]);
-
-  const publishElementResize = useCallback(() => {
-    elementResizeFrameRef.current = null;
-    applyPendingElementResize();
-  }, [applyPendingElementResize]);
-
-  const scheduleElementResize = useCallback((state: WhiteboardDragState, point: WhiteboardPoint) => {
-    pendingElementResizeRef.current = { point, state };
-    if (elementResizeFrameRef.current === null) elementResizeFrameRef.current = window.requestAnimationFrame(publishElementResize);
-  }, [publishElementResize]);
-
   const handleSelectionResizePointerDown = useCallback((event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => {
-    event.stopPropagation();
     if (tool !== 'select' || event.button !== 0) return;
+    event.stopPropagation();
     const bounds = getSelectionBounds(elements, strokes, selectedElementIds, selectedStrokeIds);
     if (!bounds) return;
     const point = getBoardPoint(event.clientX, event.clientY);
@@ -173,27 +119,20 @@ export function useWhiteboardElementControls({
   }, [publishSelectionResize]);
 
   const flushResizeDrags = useCallback(() => {
-    if (elementResizeFrameRef.current !== null) window.cancelAnimationFrame(elementResizeFrameRef.current);
-    elementResizeFrameRef.current = null;
-    applyPendingElementResize();
     if (selectionResizeFrameRef.current !== null) window.cancelAnimationFrame(selectionResizeFrameRef.current);
     selectionResizeFrameRef.current = null;
     applyPendingSelectionResize();
-  }, [applyPendingElementResize, applyPendingSelectionResize]);
+  }, [applyPendingSelectionResize]);
 
   useEffect(() => () => {
-    if (elementResizeFrameRef.current !== null) window.cancelAnimationFrame(elementResizeFrameRef.current);
     if (selectionResizeFrameRef.current !== null) window.cancelAnimationFrame(selectionResizeFrameRef.current);
   }, []);
 
   return {
     flushResizeDrags,
     handleElementPointerDown,
-    handleResizePointerDown,
     handleSelectionResizePointerDown,
-    moveOrResizeElement,
     resizeSelection: scheduleSelectionResize,
-    scheduleElementResize,
     selectElement,
   };
 }

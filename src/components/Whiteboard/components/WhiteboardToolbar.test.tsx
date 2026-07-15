@@ -27,14 +27,10 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof WhiteboardToolba
         brushColors={WHITEBOARD_DEFAULT_BRUSH_COLORS}
         brushSizes={WHITEBOARD_DEFAULT_BRUSH_SIZES}
         tool="select"
-        viewport={{ x: 0, y: 0, zoom: 1 }}
         onBrushColorChange={vi.fn()}
         onBrushSizeSelect={onBrushSizeSelect}
-        onFitView={vi.fn()}
         onImageAdd={vi.fn()}
-        onResetView={vi.fn()}
         onToolChange={onToolChange}
-        onZoomChange={vi.fn()}
         {...overrides}
     />,
   );
@@ -48,19 +44,15 @@ describe('WhiteboardToolbar', () => {
       brushColors: WHITEBOARD_DEFAULT_BRUSH_COLORS,
       brushSizes: WHITEBOARD_DEFAULT_BRUSH_SIZES,
       tool: 'select' as const,
-      viewport: { x: 0, y: 0, zoom: 1 },
       onBrushColorChange: vi.fn(),
       onBrushSizeSelect: vi.fn(),
-      onFitView: vi.fn(),
       onImageAdd: vi.fn(),
-      onResetView: vi.fn(),
       onToolChange: vi.fn(),
-      onZoomChange: vi.fn(),
     };
     const { rerender } = render(<WhiteboardToolbar {...props} active={false} />);
-    expect(screen.queryByRole('button', { name: 'whiteboard.zoomOut' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'whiteboard.tool.select' })).not.toBeInTheDocument();
     rerender(<WhiteboardToolbar {...props} />);
-    expect(screen.getByRole('button', { name: 'whiteboard.zoomOut' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'whiteboard.tool.select' }).length).toBeGreaterThan(0);
   });
 
   it('groups lasso and both erasers in one panel', () => {
@@ -103,7 +95,6 @@ describe('WhiteboardToolbar', () => {
     const interactionRegion = mainToolbar?.parentElement;
     const placementRegion = interactionRegion?.parentElement;
     expect(mainToolbar?.closest('[data-whiteboard-titlebar-slot="true"]')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'whiteboard.zoomOut' })).toBeInTheDocument();
     expect(interactionRegion).toHaveClass('app-no-drag', 'pointer-events-auto', 'max-w-full');
     expect(interactionRegion).not.toHaveClass('w-full');
     expect(placementRegion).toHaveClass('inset-x-0', 'bottom-4', 'justify-center');
@@ -111,16 +102,23 @@ describe('WhiteboardToolbar', () => {
     expect(panel?.parentElement?.parentElement).toHaveClass('bottom-full', 'left-1/2', '-translate-x-1/2', 'w-max');
     expect(panel?.parentElement?.parentElement).not.toHaveClass('inset-x-2');
     expect(mainToolbar).toHaveClass('h-10', 'gap-1.5', 'px-2');
-    expect(screen.getByRole('button', { name: 'whiteboard.zoomOut' })).toHaveClass('size-[var(--vlaina-size-36px)]');
   });
 
-  it('keeps the image action immediately after the ruler', () => {
+  it('keeps the image action in the drawing tools group without a ruler action', () => {
     const { container } = renderToolbar();
 
     const mainToolbar = container.querySelector('[data-whiteboard-main-toolbar="true"]');
     const buttons = Array.from(mainToolbar?.querySelectorAll('button') ?? []);
-    const rulerIndex = buttons.findIndex((button) => button.getAttribute('aria-label') === 'whiteboard.tool.ruler');
-    expect(buttons[rulerIndex + 1]).toHaveAccessibleName('whiteboard.addImage');
+    expect(buttons.some((button) => button.getAttribute('aria-label') === 'whiteboard.tool.ruler')).toBe(false);
+    expect(buttons.at(-1)).toHaveAccessibleName('whiteboard.addImage');
+  });
+
+  it('places the hand tool first in the main toolbar', () => {
+    const { container } = renderToolbar();
+    const mainToolbar = container.querySelector('[data-whiteboard-main-toolbar="true"]');
+    const firstButton = mainToolbar?.querySelector('button');
+
+    expect(firstButton).toHaveAccessibleName('whiteboard.tool.hand');
   });
 
   it('opens the native image picker from the add image action', () => {

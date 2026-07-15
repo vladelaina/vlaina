@@ -2,7 +2,6 @@ import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } 
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { WHITEBOARD_SYSTEM_STORAGE_SCOPE } from '@/lib/storage/whiteboardStoragePaths';
 import { getNextWhiteboardIdSequence } from '../model/whiteboardIds';
-import { WHITEBOARD_DEFAULT_RULER_STATE, type WhiteboardRulerState } from './useWhiteboardRuler';
 import type {
   WhiteboardElement,
   WhiteboardPaperStyle,
@@ -13,12 +12,11 @@ import { useWhiteboardStore } from '../stores/useWhiteboardStore';
 
 interface WhiteboardStorageBridgeOptions {
   active: boolean;
-  appliedBoardIdRef: MutableRefObject<string | null>;
+  appliedBoardKeyRef: MutableRefObject<string | null>;
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
   setPaper: Dispatch<SetStateAction<WhiteboardPaperStyle>>;
   setSelectedElementIds: Dispatch<SetStateAction<string[]>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
-  setRuler: Dispatch<SetStateAction<WhiteboardRulerState>>;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
   setViewport: Dispatch<SetStateAction<WhiteboardViewport>>;
   strokeIdRef: MutableRefObject<number>;
@@ -26,12 +24,11 @@ interface WhiteboardStorageBridgeOptions {
 
 export function useWhiteboardStorageBridge({
   active,
-  appliedBoardIdRef,
+  appliedBoardKeyRef,
   setElements,
   setPaper,
   setSelectedElementIds,
   setSelectedStrokeIds,
-  setRuler,
   setStrokes,
   setViewport,
   strokeIdRef,
@@ -39,6 +36,7 @@ export function useWhiteboardStorageBridge({
   const notesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? WHITEBOARD_SYSTEM_STORAGE_SCOPE);
   const activeBoardId = useWhiteboardStore((state) => state.activeBoardId);
   const activeSnapshot = useWhiteboardStore((state) => state.activeSnapshot);
+  const loadedNotesRootPath = useWhiteboardStore((state) => state.loadedNotesRootPath);
   const loadWhiteboards = useWhiteboardStore((state) => state.loadForNotesRoot);
 
   useEffect(() => {
@@ -47,19 +45,19 @@ export function useWhiteboardStorageBridge({
   }, [active, loadWhiteboards, notesRootPath]);
 
   useEffect(() => {
-    if (!activeSnapshot || !activeBoardId || appliedBoardIdRef.current === activeBoardId) return;
-    appliedBoardIdRef.current = activeBoardId;
+    const boardKey = activeBoardId && loadedNotesRootPath ? `${loadedNotesRootPath}\n${activeBoardId}` : null;
+    if (loadedNotesRootPath !== notesRootPath || !activeSnapshot || !boardKey || appliedBoardKeyRef.current === boardKey) return;
+    appliedBoardKeyRef.current = boardKey;
     setElements(activeSnapshot.elements);
     setPaper(activeSnapshot.paper ?? 'dots');
-    setRuler(activeSnapshot.ruler ?? WHITEBOARD_DEFAULT_RULER_STATE);
     setStrokes(activeSnapshot.strokes);
     setViewport(activeSnapshot.viewport);
     setSelectedElementIds([]);
     setSelectedStrokeIds([]);
     strokeIdRef.current = getNextWhiteboardIdSequence(activeSnapshot.strokes, 'wb-stroke-');
   }, [
-    activeBoardId, activeSnapshot, appliedBoardIdRef,
-    setElements, setPaper, setRuler, setSelectedElementIds, setSelectedStrokeIds, setStrokes,
+    activeBoardId, activeSnapshot, appliedBoardKeyRef, loadedNotesRootPath, notesRootPath,
+    setElements, setPaper, setSelectedElementIds, setSelectedStrokeIds, setStrokes,
     setViewport, strokeIdRef,
   ]);
 }

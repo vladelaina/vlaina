@@ -4,12 +4,6 @@ import type { WhiteboardResizeHandle, WhiteboardSelectionRect } from './whiteboa
 
 export type WhiteboardDragState =
   | {
-    kind: 'move';
-    id: string;
-    offsetX: number;
-    offsetY: number;
-  }
-  | {
     kind: 'move-elements';
     elementIds: string[];
     currentPoint: WhiteboardPoint;
@@ -17,15 +11,6 @@ export type WhiteboardDragState =
     originalStrokesById: Map<string, WhiteboardStroke>;
     startPoint: WhiteboardPoint;
     strokeIds: string[];
-  }
-  | {
-    kind: 'resize';
-    aspectRatio: number;
-    id: string;
-    preserveAspectRatio: boolean;
-    startPoint: WhiteboardPoint;
-    startWidth: number;
-    startHeight: number;
   }
   | {
     bounds: WhiteboardSelectionRect;
@@ -58,11 +43,6 @@ export type WhiteboardDragState =
   | {
     kind: 'lasso';
     points: WhiteboardPoint[];
-  }
-  | {
-    kind: 'marquee';
-    currentPoint: WhiteboardPoint;
-    startPoint: WhiteboardPoint;
   }
   | {
     kind: 'draw';

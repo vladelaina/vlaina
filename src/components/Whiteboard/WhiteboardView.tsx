@@ -2,6 +2,7 @@ import { useI18n } from '@/lib/i18n';
 import { WhiteboardSurface } from './components/WhiteboardSurface';
 import { WhiteboardMoreMenu } from './components/WhiteboardMoreMenu';
 import { WhiteboardToolbar } from './components/WhiteboardToolbar';
+import { WhiteboardZoomControls } from './components/WhiteboardZoomControls';
 import { useWhiteboardController } from './hooks/useWhiteboardController';
 
 interface WhiteboardViewProps {
@@ -35,14 +36,9 @@ export function WhiteboardView({
         isPanning={board.isPanning}
         movePreview={board.movePreview}
         paperStyle={board.paperStyle}
-        resizeLabel={t('whiteboard.resizeElement')}
-        ruler={board.ruler}
-        rulerCloseLabel={t('common.close')}
-        rulerRotateLabel={t('whiteboard.rotateRuler')}
         selectedElementIds={board.selectedElementIds}
         selectedStrokeIds={board.selectedStrokeIds}
         selectionPath={board.selectionPath}
-        selectionRect={board.selectionRect}
         spacePressed={board.spacePressed}
         strokes={board.strokes}
         tool={board.tool}
@@ -55,9 +51,6 @@ export function WhiteboardView({
         onPointerLeave={() => board.setBrushCursorPoint(null)}
         onPointerMove={board.handlePointerMove}
         onPointerUp={board.finishPointerAction}
-        onResizePointerDown={board.handleResizePointerDown}
-        onRulerClose={board.handleRulerClose}
-        onRulerPointerDown={board.handleRulerPointerDown}
         onSelectionResizePointerDown={board.handleSelectionResizePointerDown}
         onWheel={board.handleWheel}
       />
@@ -68,19 +61,23 @@ export function WhiteboardView({
         onPaperStyleChange={board.setPaperStyle}
       />
 
+      <WhiteboardZoomControls
+        active={active}
+        viewport={board.viewport}
+        onFitView={board.fitView}
+        onResetView={board.resetView}
+        onZoomChange={board.updateZoom}
+      />
+
       <WhiteboardToolbar
         active={active}
         brushColors={board.brushColors}
         brushSizes={board.brushSizes}
         tool={board.tool}
-        viewport={board.viewport}
         onBrushColorChange={board.setBrushColor}
         onBrushSizeSelect={board.setBrushSize}
-        onFitView={board.fitView}
         onImageAdd={board.importImage}
-        onResetView={board.resetView}
         onToolChange={board.setTool}
-        onZoomChange={board.updateZoom}
       />
     </section>
   );

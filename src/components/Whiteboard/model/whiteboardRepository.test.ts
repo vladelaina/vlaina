@@ -109,6 +109,19 @@ describe('whiteboardRepository', () => {
     expect(mocks.dirs.has(`${SYSTEM_ROOT}/boards/project-plan/assets`)).toBe(true);
   });
 
+  it('does not reuse an orphaned board folder left by failed cleanup', async () => {
+    mocks.storage.listDir.mockResolvedValueOnce([{
+      isDirectory: true,
+      isFile: false,
+      name: 'project-plan',
+      path: `${SYSTEM_ROOT}/boards/project-plan`,
+    }]);
+
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Project Plan');
+
+    expect(entry.folder).toBe('project-plan-2');
+  });
+
   it('writes board snapshots into the selected board folder', async () => {
     const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
     await writeWhiteboardBoard('/notesRoot', entry, normalizeWhiteboardSnapshot({

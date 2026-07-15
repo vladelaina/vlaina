@@ -11,23 +11,16 @@ import {
   type WhiteboardStrokePoint,
   type WhiteboardViewport,
 } from './whiteboardModel';
+import { splitWhiteboardStrokeSegments } from './whiteboardStrokeSegments';
 
 export const WHITEBOARD_DOCUMENT_FORMAT = 'vlaina.whiteboard';
 export const WHITEBOARD_DOCUMENT_MIME_TYPE = 'application/vnd.vlaina.whiteboard+json';
 export const WHITEBOARD_DOCUMENT_VERSION = 1;
 
-export interface WhiteboardRulerSnapshot {
-  angle: number;
-  visible: boolean;
-  x: number;
-  y: number;
-}
-
 export interface WhiteboardSnapshot {
   elements: WhiteboardElement[];
   strokes: WhiteboardStroke[];
   viewport: WhiteboardViewport;
-  ruler?: WhiteboardRulerSnapshot;
   paper?: WhiteboardPaperStyle;
 }
 
@@ -80,7 +73,6 @@ function normalizeSnapshot(value: unknown, runtimePoints: boolean): WhiteboardSn
   return {
     elements: readElements(value.elements),
     ...(typeof value.paper === 'string' && paperStyles.has(value.paper as WhiteboardPaperStyle) ? { paper: value.paper as WhiteboardPaperStyle } : {}),
-    ruler: readRuler(value.ruler),
     strokes: readStrokes(value.strokes, runtimePoints),
     viewport: readViewport(value.viewport) ?? { ...WHITEBOARD_INITIAL_VIEWPORT },
   };
@@ -110,7 +102,7 @@ function readElements(value: unknown): WhiteboardElement[] {
 
 function readStrokes(value: unknown, runtimePoints: boolean): WhiteboardStroke[] {
   if (!Array.isArray(value)) return [...WHITEBOARD_SEED_STROKES];
-  return value.flatMap((item) => {
+  const strokes = value.flatMap((item) => {
     if (!isRecord(item)) return [];
     const id = readString(item.id);
     const tool = typeof item.tool === 'string' && drawingTools.has(item.tool as WhiteboardDrawingTool) ? item.tool as WhiteboardDrawingTool : null;
@@ -119,6 +111,7 @@ function readStrokes(value: unknown, runtimePoints: boolean): WhiteboardStroke[]
     const points = readStrokePoints(item.points, runtimePoints);
     return id && tool && color && size !== null && points.length > 0 ? [{ color, id, points, size, tool }] : [];
   });
+  return splitWhiteboardStrokeSegments(strokes);
 }
 
 function readStrokePoints(value: unknown, runtimePoints: boolean): WhiteboardStrokePoint[] {
@@ -156,14 +149,6 @@ function readViewport(value: unknown): WhiteboardViewport | null {
   const y = readFiniteNumber(value.y);
   const zoom = readPositiveNumber(value.zoom);
   return x === null || y === null || zoom === null ? null : { x, y, zoom: clampWhiteboardZoom(zoom) };
-}
-
-function readRuler(value: unknown): WhiteboardRulerSnapshot | undefined {
-  if (!isRecord(value)) return undefined;
-  const angle = readFiniteNumber(value.angle);
-  const x = readFiniteNumber(value.x);
-  const y = readFiniteNumber(value.y);
-  return angle === null || x === null || y === null ? undefined : { angle, visible: value.visible === true, x, y };
 }
 
 function isSafeImageAssetPath(value: unknown): value is string {

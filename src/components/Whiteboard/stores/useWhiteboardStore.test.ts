@@ -90,6 +90,17 @@ describe('useWhiteboardStore', () => {
     expect(mocks.files.get(`${SYSTEM_ROOT}/boards/default/board.vlwb.json`)).toContain('image-before-create');
   });
 
+  it('serializes rapid board creation requests', async () => {
+    await useWhiteboardStore.getState().loadForNotesRoot('/notesRoot');
+
+    await Promise.all([
+      useWhiteboardStore.getState().createBoard(),
+      useWhiteboardStore.getState().createBoard(),
+    ]);
+
+    expect(useWhiteboardStore.getState().boards).toHaveLength(2);
+  });
+
   it('renames a board without changing its storage folder', async () => {
     await useWhiteboardStore.getState().loadForNotesRoot('/notesRoot');
     const board = useWhiteboardStore.getState().boards[0];
@@ -102,6 +113,19 @@ describe('useWhiteboardStore', () => {
       title: 'Project sketch',
     });
     expect(mocks.files.get(`${SYSTEM_ROOT}/index.json`)).toContain('Project sketch');
+  });
+
+  it('serializes rapid board rename requests', async () => {
+    await useWhiteboardStore.getState().loadForNotesRoot('/notesRoot');
+    const board = useWhiteboardStore.getState().boards[0];
+
+    await Promise.all([
+      useWhiteboardStore.getState().renameBoard(board.id, 'First title'),
+      useWhiteboardStore.getState().renameBoard(board.id, 'Second title'),
+    ]);
+
+    expect(useWhiteboardStore.getState().boards[0].title).toBe('First title');
+    expect(mocks.files.get(`${SYSTEM_ROOT}/index.json`)).toContain('First title');
   });
 
   it('selects the neighboring board after deleting the active board', async () => {
@@ -128,6 +152,22 @@ describe('useWhiteboardStore', () => {
     expect(state.boards).toHaveLength(1);
     expect(state.activeBoardId).not.toBe(deletedBoardId);
     expect(state.boards[0].title).toBe('Board');
+  });
+
+  it('keeps the index and UI consistent when deleted board cleanup fails', async () => {
+    await useWhiteboardStore.getState().loadForNotesRoot('/notesRoot');
+    await useWhiteboardStore.getState().createBoard();
+    const deletedBoardId = useWhiteboardStore.getState().activeBoardId!;
+    mocks.storage.deleteDir.mockRejectedValueOnce(new Error('cleanup failed'));
+
+    await useWhiteboardStore.getState().deleteBoard(deletedBoardId);
+
+    const state = useWhiteboardStore.getState();
+    const index = JSON.parse(mocks.files.get(`${SYSTEM_ROOT}/index.json`)!);
+    expect(state.boards.some((board) => board.id === deletedBoardId)).toBe(false);
+    expect(index.boards.some((board: { id: string }) => board.id === deletedBoardId)).toBe(false);
+    expect(state.error).toBeNull();
+    expect(mocks.storage.deleteDir).toHaveBeenCalledTimes(2);
   });
 
   it('flushes the latest draft before switching notes roots', async () => {

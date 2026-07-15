@@ -6,7 +6,6 @@ import type {
   WhiteboardBrushSizes,
   WhiteboardDrawingTool,
   WhiteboardPoint,
-  WhiteboardStrokePoint,
   WhiteboardTool,
   WhiteboardViewport,
 } from '../model/whiteboardModel';
@@ -14,7 +13,6 @@ import type {
 interface WhiteboardPointerSamplesOptions {
   brushSizes: WhiteboardBrushSizes;
   getBoardPointFromRect: (clientX: number, clientY: number, rect: DOMRectReadOnly) => WhiteboardPoint;
-  snapStrokePointsToRuler: (points: WhiteboardStrokePoint[], zoom: number) => WhiteboardStrokePoint[];
   tool: WhiteboardTool;
   viewport: WhiteboardViewport;
   viewportRef: RefObject<HTMLDivElement | null>;
@@ -23,7 +21,6 @@ interface WhiteboardPointerSamplesOptions {
 export function useWhiteboardPointerSamples({
   brushSizes,
   getBoardPointFromRect,
-  snapStrokePointsToRuler,
   tool,
   viewport,
   viewportRef,
@@ -41,8 +38,8 @@ export function useWhiteboardPointerSamples({
       timeStamp: coalescedEvent.timeStamp,
     })), strokeInputStateRef.current);
     strokeInputStateRef.current = result.state;
-    return snapStrokePointsToRuler(result.points, viewport.zoom);
-  }, [getBoardPointFromRect, snapStrokePointsToRuler, viewport.zoom, viewportRef]);
+    return result.points;
+  }, [getBoardPointFromRect, viewportRef]);
 
   const collectEraserSamples = useCallback((event: PointerEvent, rect?: DOMRectReadOnly): WhiteboardEraserSample[] => {
     const viewportRect = rect ?? viewportRef.current?.getBoundingClientRect();

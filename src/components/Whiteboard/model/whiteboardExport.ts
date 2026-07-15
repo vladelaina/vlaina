@@ -95,8 +95,8 @@ function buildExportSvg({
     `<rect width="100%" height="100%" fill="${escapeAttr(background)}"/>`,
     paperPattern.defs,
     paperPattern.fill,
-    `<g transform="translate(${-bounds.x} ${-bounds.y})">${strokes.map(renderWhiteboardStrokeSvg).join('')}</g>`,
     ...elements.map((element) => renderElement(element, bounds)),
+    `<g transform="translate(${-bounds.x} ${-bounds.y})">${strokes.map(renderWhiteboardStrokeSvg).join('')}</g>`,
   ].join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="0 0 ${bounds.width} ${bounds.height}">${content}</svg>`;
 }

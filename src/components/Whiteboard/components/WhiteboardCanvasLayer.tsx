@@ -3,7 +3,6 @@ import { WhiteboardBrushCursor } from './WhiteboardBrushCursor';
 import { WhiteboardElementNode } from './WhiteboardElementNode';
 import { WhiteboardEraserTrail } from './WhiteboardEraserTrail';
 import { WhiteboardSelectionOverlay } from './WhiteboardSelectionOverlay';
-import { WhiteboardRulerOverlay } from './WhiteboardRulerOverlay';
 import { WhiteboardDraftStrokeLayer, WhiteboardStrokeLayer } from './WhiteboardStrokeLayer';
 import type {
   WhiteboardBrushTool,
@@ -22,7 +21,6 @@ import {
   type WhiteboardSelectionRect,
 } from '../model/whiteboardSelection';
 import { getVisibleBoardRect } from '../model/whiteboardViewport';
-import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
 import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
 import type { WhiteboardEraserPreview } from '../model/whiteboardEraser';
 
@@ -37,22 +35,14 @@ interface WhiteboardCanvasLayerProps {
   elements: WhiteboardElement[];
   eraserPreview: WhiteboardEraserPreview;
   movePreview: WhiteboardMovePreview | null;
-  resizeLabel: string;
-  ruler: WhiteboardRulerState;
-  rulerCloseLabel: string;
-  rulerRotateLabel: string;
   selectedElementIds: string[];
   selectedStrokeIds: string[];
   selectionPath: WhiteboardLassoPath | null;
-  selectionRect: WhiteboardSelectionRect | null;
   strokes: WhiteboardStroke[];
   tool: WhiteboardTool;
   viewport: WhiteboardViewport;
   viewportSize: WhiteboardPoint;
   onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
-  onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => void;
-  onRulerClose: () => void;
-  onRulerPointerDown: (event: PointerEvent<HTMLDivElement | HTMLButtonElement>, mode: 'move' | 'rotate') => void;
   onSelectionResizePointerDown: (event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => void;
 }
 
@@ -85,22 +75,13 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
   elements,
   eraserPreview,
   movePreview,
-  resizeLabel,
-  ruler,
-  rulerCloseLabel,
-  rulerRotateLabel,
   selectedElementIds,
   selectedStrokeIds,
   selectionPath,
-  selectionRect,
   strokes,
   tool,
-  viewport,
   visibleRect,
   onElementPointerDown,
-  onResizePointerDown,
-  onRulerClose,
-  onRulerPointerDown,
   onSelectionResizePointerDown,
 }: WhiteboardCanvasLayerProps & { visibleRect: WhiteboardSelectionRect | null }) {
   const selectedElementIdSet = useMemo(() => new Set(selectedElementIds), [selectedElementIds]);
@@ -122,16 +103,17 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
   const movingElements = visibleElements.filter((element) => movingElementIdSet.has(element.id));
   const transform = movePreview ? `translate(${movePreview.dx}px, ${movePreview.dy}px)` : undefined;
   const selectedItemCount = selectedElementIds.length + selectedStrokeIds.length;
-  const elementProps = { erasingElementIdSet, onElementPointerDown, onResizePointerDown, resizeLabel, selectedElementIds, selectedItemCount, tool };
+  const elementProps = { erasingElementIdSet, onElementPointerDown, selectedElementIds, selectedItemCount, tool };
 
   return (
     <>
-      <WhiteboardStrokeLayer erasingStrokeIds={eraserPreview.strokeIds} strokes={staticStrokes} />
-      {movingStrokes.length > 0 ? <WhiteboardStrokeLayer cssTransform={transform} erasingStrokeIds={eraserPreview.strokeIds} strokes={movingStrokes} /> : null}
-      <WhiteboardSelectionOverlay elements={elements} movePreview={movePreview} selectedElementIds={selectedElementIds} selectedStrokeIds={selectedStrokeIds} selectionPath={selectionPath} selectionRect={selectionRect} strokes={strokes} onSelectionResizePointerDown={onSelectionResizePointerDown} />
-      <WhiteboardRulerOverlay ruler={ruler} closeLabel={rulerCloseLabel} interactive={tool === 'ruler'} rotateLabel={rulerRotateLabel} zoom={viewport.zoom} onClose={onRulerClose} onPointerDown={onRulerPointerDown} />
       <WhiteboardElementList {...elementProps} elements={staticElements} />
       <WhiteboardElementList {...elementProps} elements={movingElements} transform={transform} />
+      <WhiteboardStrokeLayer erasingStrokeIds={eraserPreview.strokeIds} strokes={staticStrokes} />
+      {movingStrokes.length > 0 ? <WhiteboardStrokeLayer cssTransform={transform} erasingStrokeIds={eraserPreview.strokeIds} strokes={movingStrokes} /> : null}
+      {tool === 'select' ? (
+        <WhiteboardSelectionOverlay elements={elements} movePreview={movePreview} selectedElementIds={selectedElementIds} selectedStrokeIds={selectedStrokeIds} selectionPath={selectionPath} strokes={strokes} onSelectionResizePointerDown={onSelectionResizePointerDown} />
+      ) : null}
     </>
   );
 });
@@ -139,13 +121,11 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
 interface WhiteboardElementListProps {
   elements: WhiteboardElement[];
   erasingElementIdSet: Set<string>;
-  resizeLabel: string;
   selectedElementIds: string[];
   selectedItemCount: number;
   tool: WhiteboardTool;
   transform?: string;
   onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
-  onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => void;
 }
 
 const WhiteboardElementList = memo(function WhiteboardElementList(props: WhiteboardElementListProps) {
@@ -154,11 +134,9 @@ const WhiteboardElementList = memo(function WhiteboardElementList(props: Whitebo
       key={element.id}
       element={element}
       erasing={props.erasingElementIdSet.has(element.id)}
-      resizeLabel={props.resizeLabel}
-      selected={props.selectedItemCount <= 1 && props.selectedElementIds.includes(element.id)}
+      selected={props.tool === 'select' && props.selectedItemCount <= 1 && props.selectedElementIds.includes(element.id)}
       tool={props.tool}
       onPointerDown={props.onElementPointerDown}
-      onResizePointerDown={props.onResizePointerDown}
     />
   ));
   return props.transform ? <div className="absolute inset-0 overflow-visible" style={{ transform: props.transform }}>{nodes}</div> : nodes;

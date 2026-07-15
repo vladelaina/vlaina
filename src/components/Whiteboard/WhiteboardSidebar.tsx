@@ -33,6 +33,7 @@ export function WhiteboardSidebar() {
   const createBoard = useWhiteboardStore((state) => state.createBoard);
   const deleteBoard = useWhiteboardStore((state) => state.deleteBoard);
   const loadWhiteboards = useWhiteboardStore((state) => state.loadForNotesRoot);
+  const loading = useWhiteboardStore((state) => state.loading);
   const renameBoard = useWhiteboardStore((state) => state.renameBoard);
   const selectBoard = useWhiteboardStore((state) => state.selectBoard);
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
@@ -76,6 +77,7 @@ export function WhiteboardSidebar() {
           <AppViewModeSwitch />
           <SidebarActionButton
             tone="notes"
+            disabled={loading}
             label={t('common.create')}
             icon={<Icon name="common.add" size={themeIconTokens.sizeCompact} />}
             onClick={() => {
@@ -115,6 +117,7 @@ export function WhiteboardSidebar() {
                   ) : (
                     <button
                       type="button"
+                      disabled={loading}
                       className="min-w-0 flex-1 cursor-pointer truncate px-1.5 py-2 text-left"
                       onClick={() => {
                         void selectBoard(board.id).catch(() => undefined);

@@ -15,14 +15,20 @@ const image = {
 };
 
 describe('WhiteboardElementNode', () => {
-  it('renders an imported image with resize controls when selected', () => {
-    render(<WhiteboardElementNode element={image} resizeLabel="Resize" selected tool="select" onPointerDown={vi.fn()} onResizePointerDown={vi.fn()} />);
+  it('renders an imported image without a bottom-right resize control', () => {
+    render(<WhiteboardElementNode element={image} selected tool="select" onPointerDown={vi.fn()} />);
     expect(screen.getByRole('img', { name: 'demo.png' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Resize' })).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('dims an image selected by an active erase gesture', () => {
-    render(<WhiteboardElementNode element={image} erasing resizeLabel="Resize" selected tool="select" onPointerDown={vi.fn()} onResizePointerDown={vi.fn()} />);
+    render(<WhiteboardElementNode element={image} erasing selected tool="select" onPointerDown={vi.fn()} />);
     expect(screen.getByLabelText('demo.png')).toHaveStyle({ opacity: themeWhiteboardTokens.eraserTargetPreviewOpacity });
+  });
+
+  it('does not intercept drawing input above an image', () => {
+    render(<WhiteboardElementNode element={image} selected={false} tool="pen" onPointerDown={vi.fn()} />);
+
+    expect(screen.getByLabelText('demo.png')).toHaveClass('pointer-events-none');
   });
 });

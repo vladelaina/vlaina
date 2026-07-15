@@ -46,7 +46,7 @@ export function useWhiteboardPersistence(snapshot: WhiteboardSnapshot, paused = 
       if (retryTimeoutId !== null) window.clearTimeout(retryTimeoutId);
       if (idleId !== null) (window as IdleWindow).cancelIdleCallback?.(idleId);
     };
-  }, [paused, saveActiveSnapshot, setActiveSnapshotDraft, snapshot.elements, snapshot.paper, snapshot.ruler, snapshot.strokes, snapshot.viewport]);
+  }, [paused, saveActiveSnapshot, setActiveSnapshotDraft, snapshot.elements, snapshot.paper, snapshot.strokes, snapshot.viewport]);
 
   return status;
 }

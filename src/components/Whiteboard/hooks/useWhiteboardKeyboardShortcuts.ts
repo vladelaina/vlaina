@@ -27,12 +27,10 @@ const TOOL_KEYS: Partial<Record<string, WhiteboardTool>> = {
   '4': 'pencil',
   '5': 'marker',
   '6': 'eraser',
-  '7': 'ruler',
   e: 'eraser',
   h: 'hand',
   m: 'marker',
   p: 'pen',
-  r: 'ruler',
   v: 'select',
 };
 

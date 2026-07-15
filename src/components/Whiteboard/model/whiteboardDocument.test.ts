@@ -21,11 +21,10 @@ const snapshot: WhiteboardSnapshot = {
     y: 20,
   }],
   paper: 'ruled',
-  ruler: { angle: 12, visible: true, x: 50, y: 60 },
   strokes: [{
     color: '#111111',
     id: 'stroke-1',
-    points: [{ pressure: 0.4, x: 1, y: 2 }, { breakBefore: true, pressure: 0.8, x: 3, y: 4 }],
+    points: [{ pressure: 0.4, x: 1, y: 2 }, { pressure: 0.8, x: 3, y: 4 }],
     size: 2,
     tool: 'pen',
   }],
@@ -59,6 +58,7 @@ describe('whiteboard document format', () => {
           { height: 80, id: 'old-note', text: 'Old', type: 'note', width: 100, x: 0, y: 0 },
           { height: 80, id: 'old-shape', text: '', type: 'rect', width: 100, x: 0, y: 0 },
         ],
+        ruler: { angle: 12, visible: true, x: 50, y: 60 },
         strokes: [],
         viewport: WHITEBOARD_INITIAL_VIEWPORT,
       },
@@ -67,6 +67,43 @@ describe('whiteboard document format', () => {
     }));
     expect(parsed?.elements).toEqual([snapshot.elements[0]]);
     expect(parsed).not.toHaveProperty('connectors');
+    expect(parsed).not.toHaveProperty('ruler');
+  });
+
+  it('loads legacy visually split strokes as independently selectable strokes', () => {
+    const parsed = deserializeWhiteboardSnapshot(JSON.stringify({
+      content: {
+        elements: [],
+        strokes: [{
+          color: '#111111',
+          id: 'legacy-stroke',
+          points: [[0, 0, 0.5], [40, 0, 0.5], [60, 0, 0.5, true], [100, 0, 0.5]],
+          size: 1,
+          tool: 'pen',
+        }],
+        viewport: WHITEBOARD_INITIAL_VIEWPORT,
+      },
+      format: WHITEBOARD_DOCUMENT_FORMAT,
+      version: WHITEBOARD_DOCUMENT_VERSION,
+    }));
+
+    expect(parsed?.strokes).toHaveLength(2);
+    expect(new Set(parsed?.strokes.map((stroke) => stroke.id)).size).toBe(2);
+    expect(parsed?.strokes.flatMap((stroke) => stroke.points).some((point) => point.breakBefore)).toBe(false);
+  });
+
+  it('removes a redundant legacy break marker from the first stroke point', () => {
+    const parsed = deserializeWhiteboardSnapshot(JSON.stringify({
+      content: {
+        elements: [],
+        strokes: [{ color: '#111111', id: 'legacy-stroke', points: [[0, 0, 0.5, true]], size: 1, tool: 'pen' }],
+        viewport: WHITEBOARD_INITIAL_VIEWPORT,
+      },
+      format: WHITEBOARD_DOCUMENT_FORMAT,
+      version: WHITEBOARD_DOCUMENT_VERSION,
+    }));
+
+    expect(parsed?.strokes[0].points[0]).toEqual({ pressure: 0.5, x: 0, y: 0 });
   });
 
   it('rejects raw snapshots, unknown documents, and malformed JSON', () => {

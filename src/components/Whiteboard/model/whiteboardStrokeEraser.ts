@@ -6,6 +6,7 @@ import {
   type WhiteboardStroke,
 } from './whiteboardModel';
 import type { WhiteboardEraserSample } from './whiteboardEraser';
+import { splitWhiteboardStrokeSegments } from './whiteboardStrokeSegments';
 
 interface StrokeEraserSweep {
   end: WhiteboardEraserSample;
@@ -26,7 +27,7 @@ export function eraseWhiteboardStrokes(
     changed = true;
     return erased.points.length > 0 ? [erased] : [];
   });
-  return changed ? next : strokes;
+  return changed ? splitWhiteboardStrokeSegments(next) : strokes;
 }
 
 function eraseStroke(stroke: WhiteboardStroke, sweeps: StrokeEraserSweep[]): WhiteboardStroke {

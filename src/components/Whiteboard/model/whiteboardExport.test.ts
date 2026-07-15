@@ -58,4 +58,27 @@ describe('whiteboard export appearance', () => {
     }
   });
 
+  it('exports strokes above images like the live canvas', async () => {
+    const root = document.createElement('div');
+    root.style.setProperty('--vlaina-bg-primary', '#ffffff');
+    document.body.appendChild(root);
+
+    try {
+      const blob = await createWhiteboardExportBlob({
+        elements: [{ id: 'image-1', imageSrc: 'data:image/png;base64,demo', type: 'image', x: 0, y: 0, width: 100, height: 80, text: 'demo.png' }],
+        paper: 'blank',
+        root,
+        strokes: [{
+          color: '#111111', id: 'stroke-1', points: [{ pressure: 0.5, x: 0, y: 0 }, { pressure: 0.5, x: 80, y: 40 }], size: 1, tool: 'pen',
+        }],
+      }, 'svg');
+      const svg = await blob?.text() ?? '';
+
+      expect(svg.indexOf('<image ')).toBeGreaterThan(-1);
+      expect(svg.indexOf('<image ')).toBeLessThan(svg.indexOf('data-whiteboard-brush="pen"'));
+    } finally {
+      root.remove();
+    }
+  });
+
 });

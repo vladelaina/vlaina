@@ -374,22 +374,6 @@ export const themeWhiteboardTokens = {
   imageDefaultWidthPx: 360,
   imageDefaultHeightPx: 240,
   fitViewPaddingPx: 96,
-  rulerWidthPx: 560,
-  rulerHeightPx: 72,
-  rulerCaptureDistancePx: 14,
-  rulerSnapDistancePx: 32,
-  rulerTickCount: 29,
-  rulerMajorTickEvery: 4,
-  rulerHalfTickEvery: 2,
-  rulerMajorTickHeightPx: 28,
-  rulerHalfTickHeightPx: 22,
-  rulerMinorTickHeightPx: 16,
-  rulerTickInsetPx: 12,
-  rulerLabelInsetPx: 24,
-  rulerCenterLineInsetPx: 12,
-  rulerGripWidthPx: 96,
-  rulerGripHeightPx: 14,
-  rulerGripTickCount: 9,
 } as const;
 
 export const themeBackdropTokens = {

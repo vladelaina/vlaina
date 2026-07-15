@@ -34,6 +34,7 @@ export function useWhiteboardImageImport({
     const imageSrc = await readImageFile(file);
     const size = await getImageSize(imageSrc);
     const imageAssetPath = await writeActiveAsset(file);
+    if (!imageAssetPath) return;
     const rect = viewportRef.current?.getBoundingClientRect();
     const viewportPoint = clientPoint && rect
       ? { x: clientPoint.x - rect.left, y: clientPoint.y - rect.top }
@@ -42,8 +43,8 @@ export function useWhiteboardImageImport({
     const fittedSize = fitImageSize(size.width, size.height);
     const nextElement: WhiteboardElement = {
       height: fittedSize.height,
-      id: `wb-image-${Date.now()}`,
-      ...(imageAssetPath ? { imageAssetPath } : {}),
+      id: `wb-image-${crypto.randomUUID()}`,
+      imageAssetPath,
       imageSrc,
       text: file.name,
       type: 'image',

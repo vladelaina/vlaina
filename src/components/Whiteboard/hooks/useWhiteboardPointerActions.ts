@@ -26,9 +26,6 @@ import {
   type WhiteboardTool,
   type WhiteboardViewport,
 } from '../model/whiteboardModel';
-import {
-  getRectFromPoints,
-} from '../model/whiteboardSelection';
 import { getStrokePointMinDistance } from '../model/whiteboardStrokeGeometry';
 import {
   useWhiteboardLassoDragScheduler,
@@ -39,7 +36,6 @@ import { useWhiteboardPointerSamples } from './useWhiteboardPointerSamples';
 interface WhiteboardPointerActionsOptions {
   activePenPointerRef: MutableRefObject<number | null>;
   appendDraftPoints: (tool: WhiteboardDrawingTool, points: WhiteboardStrokePoint[], minDistance?: number) => void;
-  beginRulerStroke: () => void;
   brushColors: WhiteboardBrushColors;
   brushSizes: WhiteboardBrushSizes;
   clearDraftStroke: () => void;
@@ -55,7 +51,6 @@ interface WhiteboardPointerActionsOptions {
     update: (points: WhiteboardEraserSample[]) => void;
   };
   resizeSelection: (state: Extract<WhiteboardDragState, { kind: 'resize-selection' }>, point: WhiteboardPoint) => void;
-  scheduleElementResize: (state: WhiteboardDragState, point: WhiteboardPoint) => void;
   scheduleViewport: (update: SetStateAction<WhiteboardViewport>) => void;
   setBrushCursorPoint: (point: WhiteboardPoint | null) => void;
   setDragState: Dispatch<SetStateAction<WhiteboardDragState | null>>;
@@ -63,13 +58,10 @@ interface WhiteboardPointerActionsOptions {
   setPointer: (pointerId: number, clientX: number, clientY: number) => WhiteboardPoint;
   setSelectedElementId: Dispatch<SetStateAction<string | null>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
-  showRulerAt: (point: WhiteboardPoint) => void;
-  snapStrokePointsToRuler: (points: WhiteboardStrokePoint[], zoom: number) => WhiteboardStrokePoint[];
   spacePressedRef: MutableRefObject<boolean>;
   startStrokeSelection: (point: WhiteboardPoint, event: PointerEvent<HTMLDivElement>) => void;
   strokeIdRef: MutableRefObject<number>;
   tool: WhiteboardTool;
-  updateRulerDrag: (point: WhiteboardPoint) => boolean;
   viewport: WhiteboardViewport;
   viewportRef: RefObject<HTMLDivElement | null>;
 }
@@ -77,7 +69,6 @@ interface WhiteboardPointerActionsOptions {
 export function useWhiteboardPointerActions({
   activePenPointerRef,
   appendDraftPoints,
-  beginRulerStroke,
   brushColors,
   brushSizes,
   clearDraftStroke,
@@ -86,7 +77,6 @@ export function useWhiteboardPointerActions({
   getBoardPointFromRect,
   getPinchMetrics,
   resizeSelection,
-  scheduleElementResize,
   scheduleViewport,
   setBrushCursorPoint,
   setDragState,
@@ -94,21 +84,18 @@ export function useWhiteboardPointerActions({
   setPointer,
   setSelectedElementId,
   setSelectedStrokeIds,
-  showRulerAt,
-  snapStrokePointsToRuler,
   spacePressedRef,
   startStrokeSelection,
   strokeEraserActions,
   strokeIdRef,
   tool,
-  updateRulerDrag,
   viewport,
   viewportRef,
 }: WhiteboardPointerActionsOptions) {
   const scheduleMoveDragPoint = useWhiteboardMoveDragScheduler(setDragState);
   const scheduleLassoPoint = useWhiteboardLassoDragScheduler(setDragState);
   const { collectEraserSamples, collectStrokePoints, resetStrokeInput } = useWhiteboardPointerSamples({
-    brushSizes, getBoardPointFromRect, snapStrokePointsToRuler, tool, viewport, viewportRef,
+    brushSizes, getBoardPointFromRect, tool, viewport, viewportRef,
   });
 
   const startPan = useCallback((event: PointerEvent<HTMLDivElement>) => {
@@ -151,16 +138,9 @@ export function useWhiteboardPointerActions({
     }
     const rect = viewportRef.current?.getBoundingClientRect();
     const point = rect ? getBoardPointFromRect(event.clientX, event.clientY, rect) : { x: 0, y: 0 };
-    if (tool === 'ruler' && event.button === 0) {
-      setSelectedElementId(null);
-      setSelectedStrokeIds([]);
-      showRulerAt(point);
-      return;
-    }
     if (isDrawingTool(tool) && event.button === 0) {
       setSelectedElementId(null);
       setSelectedStrokeIds([]);
-      beginRulerStroke();
       resetStrokeInput();
       setDraftStroke({
         color: brushColors[tool],
@@ -186,9 +166,9 @@ export function useWhiteboardPointerActions({
       return;
     }
   }, [
-    activePenPointerRef, beginRulerStroke, brushColors, brushSizes, collectEraserSamples, collectStrokePoints,
+    activePenPointerRef, brushColors, brushSizes, collectEraserSamples, collectStrokePoints,
     eraserActions, getBoardPointFromRect, setDraftStroke, setDragState, setPointer,
-    resetStrokeInput, setSelectedElementId, setSelectedStrokeIds, showRulerAt, spacePressedRef, startPan, startPinch,
+    resetStrokeInput, setSelectedElementId, setSelectedStrokeIds, spacePressedRef, startPan, startPinch,
     startStrokeSelection, strokeEraserActions, strokeIdRef, tool, viewportRef,
   ]);
 
@@ -197,7 +177,6 @@ export function useWhiteboardPointerActions({
     const rect = viewportRef.current?.getBoundingClientRect();
     const point = rect ? getBoardPointFromRect(event.clientX, event.clientY, rect) : { x: 0, y: 0 };
     if (!dragState || dragState.kind === 'draw') setBrushCursorPoint(point);
-    if (updateRulerDrag(point)) return;
     if (!dragState) return;
     if (dragState.kind === 'pinch') {
       const metrics = getPinchMetrics();
@@ -231,10 +210,6 @@ export function useWhiteboardPointerActions({
       }
       return;
     }
-    if (dragState.kind === 'marquee') {
-      setDragState({ ...dragState, currentPoint: point });
-      return;
-    }
     if (dragState.kind === 'lasso') {
       scheduleLassoPoint(point, viewport.zoom);
       return;
@@ -247,11 +222,10 @@ export function useWhiteboardPointerActions({
       scheduleMoveDragPoint(point);
       return;
     }
-    scheduleElementResize(dragState, point);
   }, [
     appendDraftPoints, collectEraserSamples, collectStrokePoints, dragState, eraserActions, getBoardPointFromRect,
-    getPinchMetrics, resizeSelection, scheduleElementResize, scheduleLassoPoint, scheduleMoveDragPoint,
-    scheduleViewport, setBrushCursorPoint, setDragState, setPointer, strokeEraserActions, tool, updateRulerDrag, viewport.zoom,
+    getPinchMetrics, resizeSelection, scheduleLassoPoint, scheduleMoveDragPoint,
+    scheduleViewport, setBrushCursorPoint, setDragState, setPointer, strokeEraserActions, tool, viewport.zoom,
     viewportRef,
   ]);
 
@@ -261,8 +235,5 @@ export function useWhiteboardPointerActions({
     isPanning: dragState?.kind === 'pan',
     movePreview: getWhiteboardMovePreview(dragState),
     selectionPath: dragState?.kind === 'lasso' ? dragState.points : null,
-    selectionRect: dragState?.kind === 'marquee'
-      ? getRectFromPoints(dragState.startPoint, dragState.currentPoint)
-      : null,
   };
 }

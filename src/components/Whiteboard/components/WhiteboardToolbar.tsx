@@ -1,7 +1,6 @@
 import { memo, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { themeWhiteboardTokens } from '@/styles/themeTokens';
 import {
   WHITEBOARD_DRAWING_TOOLS,
   WHITEBOARD_ERASER_TOOLS,
@@ -11,7 +10,6 @@ import {
   type WhiteboardBrushTool,
   type WhiteboardDrawingTool,
   type WhiteboardTool,
-  type WhiteboardViewport,
 } from '../model/whiteboardModel';
 import { WhiteboardToolPanel, type WhiteboardToolPanelName } from './WhiteboardToolPanel';
 import {
@@ -25,14 +23,10 @@ interface WhiteboardToolbarProps {
   brushColors: WhiteboardBrushColors;
   brushSizes: WhiteboardBrushSizes;
   tool: WhiteboardTool;
-  viewport: WhiteboardViewport;
   onBrushColorChange: (tool: WhiteboardDrawingTool, color: string) => void;
   onBrushSizeSelect: (tool: WhiteboardBrushTool, size: number) => void;
-  onFitView: () => void;
   onImageAdd: (file: File) => void;
-  onResetView: () => void;
   onToolChange: (tool: WhiteboardTool) => void;
-  onZoomChange: (delta: number) => void;
 }
 
 export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: WhiteboardToolbarProps) {
@@ -110,22 +104,12 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: Whiteboa
           )}
         >
           <WhiteboardToolbarGroup>
-            <WhiteboardToolbarButton icon="common.remove" label={t('whiteboard.zoomOut')} onClick={() => props.onZoomChange(-themeWhiteboardTokens.zoomStep)} />
-            <button type="button" aria-label={`${Math.round(props.viewport.zoom * 100)}%`} onClick={props.onResetView} className="min-w-[var(--vlaina-size-56px)] cursor-pointer px-1 text-center text-[var(--vlaina-font-15)] font-semibold tabular-nums text-[var(--vlaina-color-text-secondary)]">
-              {Math.round(props.viewport.zoom * 100)}%
-            </button>
-            <WhiteboardToolbarButton icon="common.add" label={t('whiteboard.zoomIn')} onClick={() => props.onZoomChange(themeWhiteboardTokens.zoomStep)} />
-            <WhiteboardToolbarButton icon="nav.fullscreen" label={t('whiteboard.fitView')} onClick={props.onFitView} />
-          </WhiteboardToolbarGroup>
-          <WhiteboardToolbarGroup>
-            <span className="mx-0.5 h-5 w-px shrink-0 bg-[var(--vlaina-color-toolbar-border)]" />
-            <WhiteboardToolbarButton active={eraserActive} icon={eraserConfig.icon} label={t(eraserConfig.labelKey)} onClick={() => togglePanel('eraser', eraserActive, lastEraserTool)} />
             <WhiteboardToolbarButton active={props.tool === 'hand'} icon="whiteboard.hand" label={t('whiteboard.tool.hand')} onClick={() => chooseStandaloneTool('hand')} />
+            <WhiteboardToolbarButton active={eraserActive} icon={eraserConfig.icon} label={t(eraserConfig.labelKey)} onClick={() => togglePanel('eraser', eraserActive, lastEraserTool)} />
           </WhiteboardToolbarGroup>
           <WhiteboardToolbarGroup>
             <span className="mx-0.5 h-5 w-px shrink-0 bg-[var(--vlaina-color-toolbar-border)]" />
             <WhiteboardToolbarButton active={drawingActive} icon={drawingConfig.icon} indicatorColor={props.brushColors[drawingConfig.id as WhiteboardDrawingTool]} label={t(drawingConfig.labelKey)} onClick={() => togglePanel('brush', drawingActive, lastDrawingTool)} />
-            <WhiteboardToolbarButton active={props.tool === 'ruler'} icon="whiteboard.ruler" label={t('whiteboard.tool.ruler')} onClick={() => chooseStandaloneTool('ruler')} />
             <WhiteboardToolbarButton icon="whiteboard.image" label={t('whiteboard.addImage')} onClick={handleImageSelect} />
           </WhiteboardToolbarGroup>
         </div>

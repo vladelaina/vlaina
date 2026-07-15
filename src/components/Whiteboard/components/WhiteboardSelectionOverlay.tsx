@@ -19,7 +19,6 @@ interface WhiteboardSelectionOverlayProps {
   selectedElementIds: string[];
   selectedStrokeIds: string[];
   selectionPath: WhiteboardLassoPath | null;
-  selectionRect: WhiteboardSelectionRect | null;
   strokes: WhiteboardStroke[];
   onSelectionResizePointerDown: (event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => void;
 }
@@ -30,12 +29,11 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
   selectedElementIds,
   selectedStrokeIds,
   selectionPath,
-  selectionRect,
   strokes,
   onSelectionResizePointerDown,
 }: WhiteboardSelectionOverlayProps) {
-  if (selectionRect || selectionPath) {
-    return <WhiteboardActiveSelectionOverlay selectionPath={selectionPath} selectionRect={selectionRect} />;
+  if (selectionPath) {
+    return <WhiteboardActiveSelectionOverlay selectionPath={selectionPath} />;
   }
 
   return (
@@ -52,26 +50,13 @@ export const WhiteboardSelectionOverlay = memo(function WhiteboardSelectionOverl
 
 function WhiteboardActiveSelectionOverlay({
   selectionPath,
-  selectionRect,
-}: Pick<WhiteboardSelectionOverlayProps, 'selectionPath' | 'selectionRect'>) {
+}: Pick<WhiteboardSelectionOverlayProps, 'selectionPath'>) {
   const lassoPathData = useMemo(() => (selectionPath ? getLassoPathData(selectionPath) : ''), [selectionPath]);
   const lassoClosePathData = useMemo(() => (selectionPath ? getLassoClosePathData(selectionPath) : ''), [selectionPath]);
   const showLassoClosePath = Boolean(selectionPath && selectionPath.length >= 3);
 
   return (
     <svg aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-visible">
-      {selectionRect ? (
-        <rect
-          x={selectionRect.x}
-          y={selectionRect.y}
-          width={selectionRect.width}
-          height={selectionRect.height}
-          fill="var(--vlaina-color-whiteboard-selection-fill)"
-          stroke="var(--vlaina-color-whiteboard-selected)"
-          strokeWidth={themeWhiteboardTokens.brushCursorStrokeWidthPx}
-          vectorEffect="non-scaling-stroke"
-        />
-      ) : null}
       {selectionPath ? (
         <g>
           <path
@@ -127,7 +112,7 @@ const WhiteboardSelectedItemsOverlay = memo(function WhiteboardSelectedItemsOver
   selectedStrokeIds,
   strokes,
   onSelectionResizePointerDown,
-}: Omit<WhiteboardSelectionOverlayProps, 'selectionPath' | 'selectionRect'>) {
+}: Omit<WhiteboardSelectionOverlayProps, 'selectionPath'>) {
   const elementById = useMemo(() => new Map(elements.map((element) => [element.id, element])), [elements]);
   const strokeById = useMemo(() => new Map(strokes.map((stroke) => [stroke.id, stroke])), [strokes]);
   const movingElementIds = movePreview?.elementIds ?? EMPTY_MOVING_IDS;

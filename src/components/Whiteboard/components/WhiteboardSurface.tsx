@@ -13,9 +13,8 @@ import {
   type WhiteboardTool,
   type WhiteboardViewport,
 } from '../model/whiteboardModel';
-import type { WhiteboardLassoPath, WhiteboardSelectionRect } from '../model/whiteboardSelection';
+import type { WhiteboardLassoPath } from '../model/whiteboardSelection';
 import type { WhiteboardResizeHandle } from '../model/whiteboardSelection';
-import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
 import type { WhiteboardEraserPreview } from '../model/whiteboardEraser';
 import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
 
@@ -30,14 +29,9 @@ interface WhiteboardSurfaceProps {
   isPanning: boolean;
   movePreview: WhiteboardMovePreview | null;
   paperStyle: WhiteboardPaperStyle;
-  resizeLabel: string;
-  ruler: WhiteboardRulerState;
-  rulerCloseLabel: string;
-  rulerRotateLabel: string;
   selectedElementIds: string[];
   selectedStrokeIds: string[];
   selectionPath: WhiteboardLassoPath | null;
-  selectionRect: WhiteboardSelectionRect | null;
   spacePressed: boolean;
   strokes: WhiteboardStroke[];
   tool: WhiteboardTool;
@@ -50,9 +44,6 @@ interface WhiteboardSurfaceProps {
   onPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
   onPointerLeave: () => void;
   onPointerUp: (event: PointerEvent<HTMLDivElement>) => void;
-  onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => void;
-  onRulerClose: () => void;
-  onRulerPointerDown: (event: PointerEvent<HTMLDivElement | HTMLButtonElement>, mode: 'move' | 'rotate') => void;
   onSelectionResizePointerDown: (event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => void;
   onWheel: (event: WheelEvent<HTMLDivElement>) => void;
 }
@@ -68,14 +59,9 @@ export function WhiteboardSurface({
   isPanning,
   movePreview,
   paperStyle,
-  resizeLabel,
-  ruler,
-  rulerCloseLabel,
-  rulerRotateLabel,
   selectedElementIds,
   selectedStrokeIds,
   selectionPath,
-  selectionRect,
   spacePressed,
   strokes,
   tool,
@@ -88,9 +74,6 @@ export function WhiteboardSurface({
   onPointerMove,
   onPointerLeave,
   onPointerUp,
-  onResizePointerDown,
-  onRulerClose,
-  onRulerPointerDown,
   onSelectionResizePointerDown,
   onWheel,
 }: WhiteboardSurfaceProps) {
@@ -166,22 +149,14 @@ export function WhiteboardSurface({
         elements={elements}
         eraserPreview={eraserPreview}
         movePreview={movePreview}
-        resizeLabel={resizeLabel}
-        ruler={ruler}
-        rulerCloseLabel={rulerCloseLabel}
-        rulerRotateLabel={rulerRotateLabel}
         selectedElementIds={selectedElementIds}
         selectedStrokeIds={selectedStrokeIds}
         selectionPath={selectionPath}
-        selectionRect={selectionRect}
         strokes={strokes}
         tool={tool}
         viewport={viewport}
         viewportSize={viewportSize}
         onElementPointerDown={onElementPointerDown}
-        onResizePointerDown={onResizePointerDown}
-        onRulerClose={onRulerClose}
-        onRulerPointerDown={onRulerPointerDown}
         onSelectionResizePointerDown={onSelectionResizePointerDown}
       />
       {imageDragActive ? (

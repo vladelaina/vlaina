@@ -12,8 +12,7 @@ export type WhiteboardTool =
   | 'watercolor'
   | 'crayon'
   | 'eraser'
-  | 'stroke-eraser'
-  | 'ruler';
+  | 'stroke-eraser';
 export type WhiteboardElementType = 'image';
 export type WhiteboardPaperStyle = 'blank' | 'dots' | 'grid' | 'ruled';
 export type WhiteboardDrawingTool = Extract<WhiteboardTool, 'pen' | 'pencil' | 'marker' | 'fountain' | 'watercolor' | 'crayon'>;

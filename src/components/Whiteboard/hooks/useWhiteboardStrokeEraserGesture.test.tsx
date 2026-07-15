@@ -28,6 +28,9 @@ describe('useWhiteboardStrokeEraserGesture', () => {
 
     expect(options.pushHistory).toHaveBeenCalledTimes(1);
     expect(options.setStrokes).toHaveBeenCalledTimes(1);
+    const committed = options.setStrokes.mock.calls[0][0];
+    expect(committed).toHaveLength(2);
+    expect(new Set(committed.map((stroke: { id: string }) => stroke.id)).size).toBe(2);
   });
 
   it('discards the preview when cancelled', () => {
