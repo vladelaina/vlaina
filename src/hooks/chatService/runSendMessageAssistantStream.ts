@@ -85,6 +85,7 @@ export function runSendMessageAssistantStream({
             if (!isActiveRequest()) {
               return;
             }
+            aiActions.updateMessageWebSearchStatus(targetSessionId, assistantMessageId, status);
             addChatDebugLog('web-search', `status:${status.phase}`, {
               sessionId: targetSessionId,
               query: status.query,

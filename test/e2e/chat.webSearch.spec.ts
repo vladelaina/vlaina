@@ -75,13 +75,6 @@ async function cleanup(app: ElectronApplication, userDataDir: string): Promise<v
   await fs.rm(userDataDir, { recursive: true, force: true }).catch(() => {});
 }
 
-function webSearchStatusMarkup(status: Record<string, unknown>): string {
-  return `<web-search-status>${JSON.stringify(status)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')}</web-search-status>`;
-}
-
 async function enableWebSearchFromComposer(page: Page): Promise<void> {
   await page.locator('[data-chat-input-action="open-actions"]').click();
   await page.locator('[data-chat-input-action="enable-web-search"]').click();
@@ -124,9 +117,10 @@ test.describe('chat web search user flows', () => {
 
     try {
       await enableWebSearchFromComposer(page);
-      const searchedAnswer = [
-        webSearchStatusMarkup({ phase: 'searching', query: 'latest browser release notes' }),
-        webSearchStatusMarkup({
+      const searchedAnswer = 'The browser release notes mention a search quality fix.';
+      const webSearchStatuses = [
+        { phase: 'searching', query: 'latest browser release notes' },
+        {
           phase: 'results',
           query: 'latest browser release notes',
           results: [
@@ -138,19 +132,19 @@ test.describe('chat web search user flows', () => {
             },
           ],
           metrics: { resultCount: 1, durationMs: 25 },
-        }),
-        webSearchStatusMarkup({
+        },
+        {
           phase: 'complete',
           urls: ['https://example.com/browser-release-notes'],
           metrics: { successCount: 1, durationMs: 41 },
-        }),
-        '\n\nThe browser release notes mention a search quality fix.',
-      ].join('');
+        },
+      ];
 
-      await page.evaluate((final) => (window as any).__vlainaE2E.enqueueChatMockResponse({
+      await page.evaluate(({ final, statuses }) => (window as any).__vlainaE2E.enqueueChatMockResponse({
         final,
+        webSearchStatuses: statuses,
         apiTranscript: [{ role: 'assistant', content: 'The browser release notes mention a search quality fix.' }],
-      }), searchedAnswer);
+      }), { final: searchedAnswer, statuses: webSearchStatuses });
       await sendComposerMessage(page, 'Search the latest browser release notes');
 
       await expect(page.getByText('Sources read')).toBeVisible();
@@ -186,10 +180,10 @@ test.describe('chat web search user flows', () => {
 
     try {
       await enableWebSearchFromComposer(page);
-      await page.evaluate((chunk) => (window as any).__vlainaE2E.enqueueChatMockResponse({
-        chunks: [chunk],
+      await page.evaluate((status) => (window as any).__vlainaE2E.enqueueChatMockResponse({
+        webSearchStatuses: [status],
         hold: true,
-      }), webSearchStatusMarkup({ phase: 'searching', query: 'slow search query' }));
+      }), { phase: 'searching', query: 'slow search query' });
 
       await sendComposerMessage(page, 'Search slowly, then stop');
       await expect(page.getByText('Searching')).toBeVisible();

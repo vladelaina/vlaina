@@ -6,6 +6,7 @@ import type {
   ChatSendOptions,
   Provider,
 } from '@/lib/ai/types';
+import type { WebSearchStatus } from '@/lib/ai/webSearch/types';
 
 export interface ChatE2EMockResponse {
   chunks?: string[];
@@ -13,6 +14,7 @@ export interface ChatE2EMockResponse {
   delayMs?: number;
   hold?: boolean;
   apiTranscript?: ApiTranscriptMessage[];
+  webSearchStatuses?: WebSearchStatus[];
 }
 
 export interface ChatE2EMockRequest {
@@ -84,6 +86,7 @@ function cloneResponse(response: ChatE2EMockResponse): ChatE2EMockResponse {
     ...response,
     chunks: response.chunks ? [...response.chunks] : undefined,
     apiTranscript: response.apiTranscript ? structuredClone(response.apiTranscript) : undefined,
+    webSearchStatuses: response.webSearchStatuses ? structuredClone(response.webSearchStatuses) : undefined,
   };
 }
 
@@ -103,6 +106,13 @@ async function playResponse(
 ): Promise<string> {
   let lastChunk = '';
   const delayMs = Math.max(0, response.delayMs ?? 0);
+
+  for (const status of response.webSearchStatuses ?? []) {
+    await wait(delayMs, signal);
+    throwIfAborted(signal);
+    options?.onWebSearchStatus?.(structuredClone(status));
+    throwIfAborted(signal);
+  }
 
   for (const chunk of response.chunks ?? []) {
     await wait(delayMs, signal);
@@ -179,12 +189,19 @@ export async function resolveChatE2EMockPendingRequest(
   return true;
 }
 
-async function playInitialHeldChunks(
+async function playInitialHeldResponse(
   response: ChatE2EMockResponse,
   onChunk: (chunk: string) => void,
+  options?: ChatSendOptions,
   signal?: AbortSignal,
 ): Promise<void> {
   const delayMs = Math.max(0, response.delayMs ?? 0);
+  for (const status of response.webSearchStatuses ?? []) {
+    await wait(delayMs, signal);
+    throwIfAborted(signal);
+    options?.onWebSearchStatus?.(structuredClone(status));
+    throwIfAborted(signal);
+  }
   for (const chunk of response.chunks ?? []) {
     await wait(delayMs, signal);
     throwIfAborted(signal);
@@ -228,7 +245,7 @@ export async function maybeSendChatE2EMockMessage({
     };
   }
 
-  await playInitialHeldChunks(response, onChunk, signal);
+  await playInitialHeldResponse(response, onChunk, options, signal);
 
   const contentPromise = new Promise<string>((resolve, reject) => {
     const abort = () => {

@@ -12,6 +12,7 @@ import {
 import { chooseSessionAwareFallbackSelectedModelId } from './providerSelectionFallback'
 import { modelActions } from './providerModelActions'
 import {
+  prewarmManagedStartupDataInBackgroundAction,
   refreshManagedProviderAction,
   refreshManagedProviderInBackgroundAction,
 } from './providerManagedSync'
@@ -195,6 +196,7 @@ export const actions = {
   },
 
   ...modelActions,
+  prewarmManagedStartupDataInBackground: prewarmManagedStartupDataInBackgroundAction,
   refreshManagedProvider: refreshManagedProviderAction,
   refreshManagedProviderInBackground: refreshManagedProviderInBackgroundAction,
   ...createChatActions(),
