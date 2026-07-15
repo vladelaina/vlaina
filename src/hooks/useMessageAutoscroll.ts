@@ -17,6 +17,9 @@ import {
 import { scheduleActiveOutputFollow } from "./messageAutoscrollFollow";
 import { useMessageAutoscrollLifecycle } from "./messageAutoscrollLifecycle";
 import { useMessageAutoscrollObservers } from "./messageAutoscrollObservers";
+import {
+  useMessageAutoscrollActions,
+} from './messageAutoscrollActions';
 
 export const useMessageAutoscroll = ({
   active = true,
@@ -59,6 +62,11 @@ export const useMessageAutoscroll = ({
   const currentTurnTopSpacerHeightRef = useRef(0);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
   activeRef.current = active;
+
+  const currentTurnActionRefs = useMemo(() => ({
+    currentTurnAnchorModeRef, isAutoFollowRef, isCurrentTurnAnchoredRef, pendingChatCreationAnchorRef,
+    pendingScrollMessageCountRef, pendingScrollToCurrentTurnRef, userDetachedFromCurrentTurnRef,
+  }), []);
 
   const getLastUserMessageIndex = useCallback(() => {
     return findLastUserMessageIndex(messages);
@@ -170,15 +178,15 @@ export const useMessageAutoscroll = ({
     showLoading,
   ]);
 
-  const handleNewUserMessage = useCallback(() => {
-    pendingScrollToCurrentTurnRef.current = true;
-    pendingScrollMessageCountRef.current = messages.length;
-    pendingChatCreationAnchorRef.current = chatId === null;
-    isCurrentTurnAnchoredRef.current = true;
-    currentTurnAnchorModeRef.current = "top";
-    userDetachedFromCurrentTurnRef.current = false;
-    isAutoFollowRef.current = true;
-  }, [chatId, messages.length]);
+  const { handleEditMessage, handleNewUserMessage, handleRegenerateMessage } = useMessageAutoscrollActions({
+    active,
+    chatId,
+    isStreaming,
+    messages,
+    refs: currentTurnActionRefs,
+    scrollCurrentTurnIntoView,
+    updateSpacerHeight,
+  });
 
   useMessageAutoscrollLifecycle({
     active,
@@ -259,11 +267,13 @@ export const useMessageAutoscroll = ({
 
   return useMemo(
     () => ({
+      handleEditMessage,
       handleNewUserMessage,
+      handleRegenerateMessage,
       containerRef,
       spacerHeight: renderedSpacerHeight,
       currentTurnTopSpacerHeight,
     }),
-    [currentTurnTopSpacerHeight, handleNewUserMessage, renderedSpacerHeight],
+    [currentTurnTopSpacerHeight, handleEditMessage, handleNewUserMessage, handleRegenerateMessage, renderedSpacerHeight],
   );
 };

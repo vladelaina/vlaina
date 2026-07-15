@@ -162,6 +162,7 @@ export function useRegenerateMessage({
                   if (!isActiveRequest()) {
                     return;
                   }
+                  aiActions.updateMessageWebSearchStatus(sessionId, messageId, status);
                   addChatDebugLog('web-search', `status:${status.phase}`, {
                     sessionId,
                     query: status.query,

@@ -153,24 +153,30 @@ export function registerWebSearchIpc({
   services = createWebSearchServices(),
 }) {
   const pendingRequests = new Map();
-  const beginRequest = (requestId) => {
+  const requestKey = (event, requestId) => {
     const safeRequestId = normalizeRequestId(requestId);
-    if (!safeRequestId) return { signal: undefined, finish: () => {} };
-    pendingRequests.get(safeRequestId)?.abort();
+    if (!safeRequestId) return null;
+    const senderId = Number.isInteger(event?.sender?.id) ? event.sender.id : 'unknown';
+    return `${senderId}:${safeRequestId}`;
+  };
+  const beginRequest = (event, requestId) => {
+    const key = requestKey(event, requestId);
+    if (!key) return { signal: undefined, finish: () => {} };
+    pendingRequests.get(key)?.abort();
     const controller = new AbortController();
-    pendingRequests.set(safeRequestId, controller);
+    pendingRequests.set(key, controller);
     return {
       signal: controller.signal,
       finish: () => {
-        if (pendingRequests.get(safeRequestId) === controller) {
-          pendingRequests.delete(safeRequestId);
+        if (pendingRequests.get(key) === controller) {
+          pendingRequests.delete(key);
         }
       },
     };
   };
 
-  handleIpc('desktop:web-search:search', async (_event, query, options, requestId) => {
-    const request = beginRequest(requestId);
+  handleIpc('desktop:web-search:search', async (event, query, options, requestId) => {
+    const request = beginRequest(event, requestId);
     try {
       const result = await services.searchService.webSearch(normalizeSearchQuery(query), {
         ...normalizeSearchOptions(options),
@@ -183,8 +189,8 @@ export function registerWebSearchIpc({
     }
   });
 
-  handleIpc('desktop:web-search:read', async (_event, url, options, requestId) => {
-    const request = beginRequest(requestId);
+  handleIpc('desktop:web-search:read', async (event, url, options, requestId) => {
+    const request = beginRequest(event, requestId);
     try {
       const [result] = await readUrlsBatch(services.crawler, [normalizeReadUrl(url)], {
         ...normalizeReadOptions(options),
@@ -202,8 +208,8 @@ export function registerWebSearchIpc({
     }
   });
 
-  handleIpc('desktop:web-search:read-batch', async (_event, urls, options, requestId) => {
-    const request = beginRequest(requestId);
+  handleIpc('desktop:web-search:read-batch', async (event, urls, options, requestId) => {
+    const request = beginRequest(event, requestId);
     try {
       const results = await readUrlsBatch(services.crawler, normalizeReadUrls(urls), {
         ...normalizeReadOptions(options),
@@ -216,13 +222,13 @@ export function registerWebSearchIpc({
     }
   });
 
-  handleIpc('desktop:web-search:cancel', async (_event, requestId) => {
-    const safeRequestId = normalizeRequestId(requestId);
-    if (!safeRequestId) return false;
-    const controller = pendingRequests.get(safeRequestId);
+  handleIpc('desktop:web-search:cancel', async (event, requestId) => {
+    const key = requestKey(event, requestId);
+    if (!key) return false;
+    const controller = pendingRequests.get(key);
     if (!controller) return false;
     controller.abort();
-    pendingRequests.delete(safeRequestId);
+    pendingRequests.delete(key);
     return true;
   });
 }

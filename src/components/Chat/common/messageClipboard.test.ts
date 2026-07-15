@@ -431,30 +431,30 @@ describe("messageClipboard", () => {
     ].join("\n"));
   });
 
-  it("formats copy text without web search status metadata", () => {
+  it("treats legacy web search status text as ordinary copy content", () => {
     const content = [
       '<web-search-status>{"phase":"searching","query":"catime"}</web-search-status>',
       '<web-search-status>{"phase":"results","query":"catime","metrics":{"resultCount":1,"durationMs":25}}</web-search-status>',
       'Catime is a timer app.',
     ].join('');
 
-    expect(formatMessageCopyText(content)).toBe("Catime is a timer app.");
+    expect(formatMessageCopyText(content)).toBe(content);
   });
 
-  it("formats copy text without unterminated web search status metadata", () => {
+  it("keeps unterminated legacy status text", () => {
     const content = 'Visible answer.\n<web-search-status>{"phase":"searching","query":"catime"';
 
-    expect(formatMessageCopyText(content)).toBe("Visible answer.");
+    expect(formatMessageCopyText(content)).toBe(content);
   });
 
-  it("formats copy text without leaked web search request metadata", () => {
+  it("keeps legacy web search request text", () => {
     const content = [
       'We need to search.',
       '<web_search_request>{"query":"catime","reason":"current info"}</web_search_request>',
       'Catime answer.',
     ].join('\n');
 
-    expect(formatMessageCopyText(content)).toBe("Catime answer.");
+    expect(formatMessageCopyText(content)).toBe(content);
   });
 
   it("formats copy text without rendered thinking content", () => {

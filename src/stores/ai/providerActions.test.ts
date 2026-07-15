@@ -14,6 +14,7 @@ const { fetchManagedModelsMock, fetchManagedModelsVersionMock } = vi.hoisted(() 
 
 let managedRefreshTestNow = 1_700_000_000_000;
 const originalRefreshBudget = useManagedAIStore.getState().refreshBudget;
+const originalCheckStatus = useAccountSessionStore.getState().checkStatus;
 
 vi.mock('@/lib/storage/unifiedStorage', () => ({
   loadUnifiedData: vi.fn(async () => ({
@@ -403,7 +404,7 @@ describe('refreshManagedProviderInBackground', () => {
     fetchManagedModelsMock.mockReset();
     fetchManagedModelsVersionMock.mockReset();
     useManagedAIStore.setState({ refreshBudget: originalRefreshBudget });
-    useAccountSessionStore.setState({ isConnected: false });
+    useAccountSessionStore.setState({ isConnected: false, checkStatus: originalCheckStatus });
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     seedAI([
       buildProvider({
@@ -424,7 +425,7 @@ describe('refreshManagedProviderInBackground', () => {
 
   afterEach(() => {
     useManagedAIStore.setState({ refreshBudget: originalRefreshBudget });
-    useAccountSessionStore.setState({ isConnected: false });
+    useAccountSessionStore.setState({ isConnected: false, checkStatus: originalCheckStatus });
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -436,6 +437,46 @@ describe('refreshManagedProviderInBackground', () => {
     await vi.runAllTimersAsync();
 
     expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['old-model']);
+  });
+
+  it('prewarms account entitlements and managed models together at startup', async () => {
+    const checkStatus = vi.fn(async () => undefined);
+    useAccountSessionStore.setState({ checkStatus });
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::startup-model',
+        apiModelId: 'startup-model',
+        name: 'Startup Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+
+    actions.prewarmManagedStartupDataInBackground();
+    await vi.runAllTimersAsync();
+
+    expect(checkStatus).toHaveBeenCalledWith();
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps prewarming managed models when the account refresh fails', async () => {
+    const checkStatus = vi.fn(async () => {
+      throw new Error('account unavailable');
+    });
+    useAccountSessionStore.setState({ checkStatus });
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::startup-model',
+        apiModelId: 'startup-model',
+        name: 'Startup Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+
+    actions.prewarmManagedStartupDataInBackground();
+    await vi.runAllTimersAsync();
+
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['startup-model']);
   });
 
   it('deduplicates rapid background refresh attempts', async () => {

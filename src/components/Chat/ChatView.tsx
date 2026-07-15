@@ -113,7 +113,7 @@ export function ChatView({
   const { showInChatArea, showInTitleBar } = useTemporaryTogglePresentation();
   const showEmbeddedTemporaryToggle = isEmbedded && (showInChatArea || showInTitleBar);
 
-  const { containerRef, currentTurnTopSpacerHeight, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
+  const { containerRef, currentTurnTopSpacerHeight, handleEditMessage, handleNewUserMessage, handleRegenerateMessage, spacerHeight } = useMessageAutoscroll({
       active,
       messages,
       isStreaming: isSessionActive,
@@ -165,6 +165,8 @@ export function ChatView({
     currentSessionId,
     editMessage,
     imageGallery,
+    onBeforeEdit: handleEditMessage,
+    onBeforeRegenerate: handleRegenerateMessage,
     regenerate,
     switchMessageVersion,
   });

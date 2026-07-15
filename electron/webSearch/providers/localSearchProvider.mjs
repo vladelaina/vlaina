@@ -1,6 +1,4 @@
 import {
-  ENGINE_FALLBACK_GRACE_MS,
-  OFFICIAL_HINT_GRACE_MS,
   SEARCH_TIMEOUT_MS,
   normalizeSearchTimeoutMs,
 } from './localSearchRequestUtils.mjs';
@@ -25,24 +23,15 @@ import {
   getMeaningfulTerms,
   getSingleBrandLikeTerm,
   shouldUseFastOfficialHints,
-  shouldUseOfficialHintGrace,
 } from './localSearchOfficialCandidates.mjs';
 
 export class LocalSearchProvider {
   constructor({
     fetchImpl = fetch,
     timeoutMs = SEARCH_TIMEOUT_MS,
-    officialHintGraceMs = OFFICIAL_HINT_GRACE_MS,
-    engineFallbackGraceMs = ENGINE_FALLBACK_GRACE_MS,
   } = {}) {
     this.fetchImpl = fetchImpl;
     this.timeoutMs = normalizeSearchTimeoutMs(timeoutMs);
-    this.officialHintGraceMs = Number.isFinite(officialHintGraceMs)
-      ? Math.max(0, officialHintGraceMs)
-      : OFFICIAL_HINT_GRACE_MS;
-    this.engineFallbackGraceMs = Number.isFinite(engineFallbackGraceMs)
-      ? Math.max(0, engineFallbackGraceMs)
-      : ENGINE_FALLBACK_GRACE_MS;
   }
 
   isConfigured() {
@@ -67,7 +56,6 @@ export const localSearchInternals = {
   parseGoogleResults,
   parseResults,
   selectSearchEngines,
-  shouldUseOfficialHintGrace,
   shouldUseFastOfficialHints,
   getSingleBrandLikeTerm,
   fetchDirectOfficialSite,

@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   listImportedMarkdownThemesFromDirectory: vi.fn(),
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
-  refreshManagedProviderInBackground: vi.fn(),
+  prewarmManagedStartupDataInBackground: vi.fn(),
   unifiedLoaded: true,
   settingsModuleImports: 0,
   temporaryChatToggleModuleImports: 0,
@@ -322,7 +322,7 @@ vi.mock('@/lib/appVersion', () => ({
 vi.mock('@/stores/useAIStore', () => ({
   startAIStoreRuntimeEffects: mocks.startAIStoreRuntimeEffects,
   actions: {
-    refreshManagedProviderInBackground: mocks.refreshManagedProviderInBackground,
+    prewarmManagedStartupDataInBackground: mocks.prewarmManagedStartupDataInBackground,
   },
 }));
 
@@ -385,28 +385,28 @@ describe('AppContent view switching chrome readiness', () => {
     });
   });
 
-  it('prewarms the managed model catalog after the initial notes view is ready', async () => {
+  it('prewarms managed models and account entitlements after the initial notes view is ready', async () => {
     render(<AppContent />);
 
     expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
     await waitFor(() => {
-      expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledWith();
+      expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledWith();
     });
-    expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledTimes(1);
+    expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledTimes(1);
   });
 
-  it('waits for unified data before prewarming the managed model catalog', async () => {
+  it('waits for unified data before prewarming managed startup data', async () => {
     mocks.unifiedLoaded = false;
     const { rerender } = render(<AppContent />);
 
-    expect(mocks.refreshManagedProviderInBackground).not.toHaveBeenCalled();
+    expect(mocks.prewarmManagedStartupDataInBackground).not.toHaveBeenCalled();
 
     mocks.unifiedLoaded = true;
     rerender(<AppContent />);
 
     expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
     await waitFor(() => {
-      expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledTimes(1);
+      expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledTimes(1);
     });
   });
 
