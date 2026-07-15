@@ -273,7 +273,10 @@ export function CoverPicker({
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('upload')}
+                onClick={() => {
+                  handleAssetHover(null);
+                  setActiveTab('upload');
+                }}
                 className={cn(
                   "text-xs font-medium px-2 py-1 rounded transition-colors",
                   activeTab === 'upload'

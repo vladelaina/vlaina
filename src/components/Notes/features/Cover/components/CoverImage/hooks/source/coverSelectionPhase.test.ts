@@ -11,13 +11,13 @@ describe('resolveCoverFlowPhase', () => {
     })).toBe('idle');
   });
 
-  it('prioritizes error over other states', () => {
+  it('keeps a valid preview visible over a current-cover error', () => {
     expect(resolveCoverFlowPhase({
       url: 'assets/cover.png',
       previewSrc: '/preview.webp',
       isError: true,
-      isSelectionCommitting: true,
-    })).toBe('error');
+      isSelectionCommitting: false,
+    })).toBe('previewing');
   });
 
   it('returns committing before previewing when commit is active', () => {

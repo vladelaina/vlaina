@@ -274,6 +274,37 @@ describe('CoverPicker', () => {
     vi.useRealTimers();
   });
 
+  it('clears the visible preview when switching to upload', async () => {
+    hoisted.loadAssets.mockResolvedValue(undefined);
+    hoisted.assetList = [{ filename: 'a.png' }];
+    const onPreview = vi.fn();
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onPreview={onPreview}
+        notesRootPath="/notesRoot"
+        currentNotePath="note.md"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('asset-grid')).toBeInTheDocument());
+
+    vi.useFakeTimers();
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'hover a' }));
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+    expect(onPreview).toHaveBeenCalledWith('a.png');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    expect(onPreview).toHaveBeenLastCalledWith(null);
+    vi.useRealTimers();
+  });
+
   it.each(supportedImageFilenames)('uploads a pasted %s when clipboard MIME is missing', async (filename) => {
     hoisted.uploadAsset.mockResolvedValue({
       success: true,

@@ -148,7 +148,7 @@ describe('useCoverSelectionFlow', () => {
     expect(onUpdate).toHaveBeenCalledWith('covers/monet-5.png', 50, 50, 240, 1);
   });
 
-  it('selecting same cover clears preview and keeps non-committing state', async () => {
+  it('selecting the current cover preserves its saved layout', async () => {
     const onUpdate = vi.fn();
     const setShowPicker = vi.fn();
 
@@ -185,7 +185,7 @@ describe('useCoverSelectionFlow', () => {
     });
     expect(result.current.isSelectionCommitting).toBe(false);
     expect(result.current.phase).toBe('ready');
-    expect(onUpdate).toHaveBeenCalledWith('covers/monet-2.png', 50, 50, 320, 1);
+    expect(onUpdate).not.toHaveBeenCalled();
     expect(setShowPicker).toHaveBeenCalledWith(false);
   });
 
@@ -293,7 +293,7 @@ describe('useCoverSelectionFlow', () => {
     });
   });
 
-  it('does not let a late preview overwrite a committed cover selection', async () => {
+  it('does not restore a late preview after reselecting the current cover', async () => {
     const onUpdate = vi.fn();
     const setShowPicker = vi.fn();
     let resolvePreview: ((value: { width: number; height: number } | null) => void) | null = null;
@@ -328,7 +328,7 @@ describe('useCoverSelectionFlow', () => {
     });
 
     expect(result.current.previewSrc).toBeNull();
-    expect(onUpdate).toHaveBeenCalledWith('covers/a.png', 50, 50, 240, 1);
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 
   it('does not restore preview after picker close when a late request resolves', async () => {

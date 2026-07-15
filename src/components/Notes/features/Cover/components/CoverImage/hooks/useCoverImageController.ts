@@ -74,6 +74,7 @@ export function useCoverImageController({
 
   useCoverPreviewReset({
     previewSrc,
+    scale,
     setCrop,
     setZoom,
     setIsImageReady,
