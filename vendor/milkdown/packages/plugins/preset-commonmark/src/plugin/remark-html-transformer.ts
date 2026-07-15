@@ -96,8 +96,8 @@ function sanitizeRawHtmlNode(node: Node, state: RawHtmlState) {
     state.activeMode,
     {
       activeDepth: state.activeDepth,
-      gfmDisallowedRawHtmlTags,
-      sanitizerOnlyDropWithContentTags,
+      gfmDisallowedRawHtmlTags: noRawHtmlTags,
+      sanitizerOnlyDropWithContentTags: noRawHtmlTags,
     },
   )
   state.activeTag = result.activeTag

@@ -19,6 +19,34 @@ import { getMarkdownHtmlImageAttrs, normalizeMarkdownHtmlImageTextAttr } from '.
 import { escapeHtmlAttr, getDomAttrs, mergeDomClassNames, updateSchemaFactory } from './themeSchemaUtils';
 
 const MAX_LIST_ITEM_DOM_ATTR_CHARS = 128;
+const MAX_PERSISTED_IMAGE_SRC_CHARS = 64 * 1024;
+
+function getBoundedImageSrc(value: unknown): string | null {
+    return typeof value === 'string' && value.length > 0 && value.length <= MAX_PERSISTED_IMAGE_SRC_CHARS
+        ? value
+        : null;
+}
+
+function getRestorablePersistedImageSrc(attrs: Record<string, unknown>): string | null {
+    const persistedSrc = getBoundedImageSrc(attrs.persistedSrc);
+    if (!persistedSrc) return null;
+    return sanitizeNoteMediaSrc(persistedSrc) === (sanitizeNoteMediaSrc(attrs.src) ?? null)
+        ? persistedSrc
+        : null;
+}
+
+function canRestoreMarkdownHtmlImageSource(source: unknown, attrs: Record<string, unknown>): source is string {
+    if (typeof source !== 'string') return false;
+    const original = getMarkdownHtmlImageAttrs(source);
+    if (!original) return false;
+
+    return original.src === attrs.src
+        && original.alt === normalizeMarkdownHtmlImageTextAttr(attrs.alt)
+        && original.title === (attrs.title == null ? null : normalizeMarkdownHtmlImageTextAttr(attrs.title))
+        && original.align === (normalizeImageAlignment(attrs.align) || 'center')
+        && original.width === normalizeImageWidth(attrs.width)
+        && original.crop === serializeCropValue(attrs.crop);
+}
 
 function normalizeOrderedListOrder(value: unknown): number {
     return typeof value === 'number' && Number.isSafeInteger(value) ? value : 1;
@@ -114,7 +142,9 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             title: { default: null },
             align: { default: 'center' },
             width: { default: null },
-            crop: { default: null }
+            crop: { default: null },
+            markdownSource: { default: null },
+            persistedSrc: { default: null }
         },
         toDOM: (node: any) => {
             const safeSrc = sanitizeNoteMediaSrc(node.attrs.src);
@@ -168,16 +198,16 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                         const { wrapInParagraph, ...imageAttrs } = attrs;
                         const shouldWrapInParagraph = wrapInParagraph && state.top()?.type?.name !== 'paragraph';
                         if (shouldWrapInParagraph) state.openNode(state.schema.nodes.paragraph);
-                        state.addNode(type, imageAttrs);
+                        state.addNode(type, { ...imageAttrs, markdownSource: node.value });
                         if (shouldWrapInParagraph) state.closeNode();
                     }
                     return;
                 }
 
-                const safeSrc = sanitizeNoteMediaSrc(node.url);
-                if (!safeSrc) return;
+                const persistedSrc = getBoundedImageSrc(node.url);
+                if (!persistedSrc) return;
                 state.addNode(type, {
-                    src: safeSrc,
+                    src: sanitizeNoteMediaSrc(persistedSrc),
                     alt: normalizeMarkdownHtmlImageTextAttr(node.alt),
                     title: typeof node.title === 'string'
                         ? normalizeMarkdownHtmlImageTextAttr(node.title)
@@ -185,6 +215,7 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                     align: 'center',
                     width: null,
                     crop: null,
+                    persistedSrc,
                 });
             }
         },
@@ -192,9 +223,22 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             match: (node: any) => node.type.name === 'image',
             runner: (state: any, node: any) => {
                 const { src, alt, title, align, width, crop } = node.attrs;
-                const safeSrc = sanitizeNoteMediaSrc(src);
-                if (!safeSrc) return;
-                const srcStr = escapeHtmlAttr(safeSrc);
+                if (canRestoreMarkdownHtmlImageSource(node.attrs.markdownSource, node.attrs)) {
+                    state.addNode('html', undefined, node.attrs.markdownSource);
+                    return;
+                }
+                const restorablePersistedSrc = getRestorablePersistedImageSrc(node.attrs);
+                if (restorablePersistedSrc) {
+                    state.addNode('image', undefined, undefined, {
+                        title: typeof title === 'string' ? normalizeMarkdownHtmlImageTextAttr(title) : null,
+                        url: restorablePersistedSrc,
+                        alt: normalizeMarkdownHtmlImageTextAttr(alt),
+                    });
+                    return;
+                }
+                const persistedSrc = sanitizeNoteMediaSrc(src);
+                if (!persistedSrc) return;
+                const srcStr = escapeHtmlAttr(persistedSrc);
                 const effectiveAlign = normalizeImageAlignment(align);
                 const safeWidth = normalizeImageWidth(width);
                 const safeCrop = serializeCropValue(crop);

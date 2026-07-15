@@ -221,7 +221,7 @@ describe('image markdown persistence', () => {
     ]);
 
     await expect(serializeImageAttrs(attrs[0])).resolves.toBe(
-      '<img src="img:assets/demo.png" alt="demo" />'
+      '![demo](img:assets/demo.png)'
     );
   });
 
@@ -236,7 +236,7 @@ describe('image markdown persistence', () => {
     ]);
 
     await expect(serializeImageAttrs(attrs[0])).resolves.toBe(
-      '<img src="data:image/webp;base64,AQI=" alt="demo" />'
+      '![demo](DATA:IMAGE/WEBP;BASE64,AQI=)'
     );
   });
 
@@ -251,7 +251,7 @@ describe('image markdown persistence', () => {
     ]);
 
     await expect(serializeImageAttrs(attrs[0])).resolves.toBe(
-      '<img src="https://example.com/demo.png" alt="demo" />'
+      '![demo](//example.com/demo.png)'
     );
   });
 
@@ -332,9 +332,7 @@ describe('image markdown persistence', () => {
       },
     ]);
 
-    await expect(serializeImageAttrs(attrs[0])).resolves.toBe(
-      '<img src="https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg" alt="" width="100%" />'
-    );
+    await expect(serializeImageAttrs(attrs[0])).resolves.toBe(markdown);
   });
 
   it('reopens common single-image html wrappers as image nodes', async () => {
