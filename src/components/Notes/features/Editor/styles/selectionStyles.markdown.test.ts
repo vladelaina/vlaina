@@ -33,10 +33,10 @@ describe("editor markdown presentation styles", () => {
     expect(themeCss).toContain('--vlaina-note-title-compact-font-size: 1.176470588em;');
     expect(themeCss).toContain('--vlaina-note-title-padding-y: 0.08em;');
     expect(themeCss).toContain('--vlaina-note-title-margin-bottom: 0.941176471em;');
-    expect(themeCss).toContain('--vlaina-markdown-heading-h1-font-size: 2em;');
-    expect(themeCss).toContain('--vlaina-markdown-heading-h6-font-size: 1em;');
-    expect(commonCss).toContain('font-size: var(--vlaina-markdown-heading-h1-font-size, 2em);');
-    expect(commonCss).toContain('font-size: var(--vlaina-markdown-heading-h6-font-size, 1em);');
+    expect(themeCss).toContain('--vlaina-markdown-font-heading-h1-size: 2em;');
+    expect(themeCss).toContain('--vlaina-markdown-font-heading-h6-size: 1em;');
+    expect(commonCss).toContain('font-size: var(--vlaina-markdown-font-heading-h1-size);');
+    expect(commonCss).toContain('font-size: var(--vlaina-markdown-font-heading-h6-size);');
     expect(commonCss).not.toContain('font-size: var(--vlaina-font-h1, 34px);');
   });
 
@@ -104,9 +104,9 @@ describe("editor markdown presentation styles", () => {
     const css = readStyleFile('markdown.css');
     const commonCss = readCommonMarkdownSurfaceStyle();
 
-    expect(css).toContain('margin-top: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-16px)) / 2);');
+    expect(css).toContain('margin-top: calc((var(--vlaina-markdown-line-height-body) - var(--vlaina-size-16px)) / 2);');
     expect(css).not.toContain('margin-top: var(--vlaina-space-35px);');
-    expect(commonCss).toContain('margin: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-16px)) / 2) var(--vlaina-space-05rem) 0 calc(var(--vlaina-space-15rem) * -1);');
+    expect(commonCss).toContain('margin: calc((var(--vlaina-markdown-line-height-body) - var(--vlaina-size-16px)) / 2) var(--vlaina-space-05rem) 0 calc(var(--vlaina-markdown-space-list-indent) * -1);');
     expect(commonCss).not.toContain('margin: var(--vlaina-space-35px) var(--vlaina-space-05rem)');
   });
 
@@ -140,7 +140,7 @@ describe("editor markdown presentation styles", () => {
     const css = readStyleFile('extended.css');
 
     expect(css).toContain('.milkdown .editor-tag-token {');
-    expect(css).toContain('-webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));');
+    expect(css).toContain('-webkit-text-fill-color: var(--vlaina-markdown-color-link);');
     expect(css).toContain('.milkdown .ProseMirror .editor-tag-token.editor-tag-token-has-next {');
     expect(css).toContain('.milkdown .ProseMirror .editor-tag-token.editor-text-selection-overlay.editor-tag-token-has-next {');
     expect(css).not.toContain('.editor-tag-token:has(+ .editor-tag-token)');
@@ -160,7 +160,7 @@ describe("editor markdown presentation styles", () => {
     const notesCss = readStyleFile('markdown.css');
 
     expect(commonCss).toContain('border-bottom: var(--vlaina-border-width-1) solid transparent;');
-    expect(commonCss).toContain('border-bottom-color: var(--vlaina-accent);');
+    expect(commonCss).toContain('border-bottom-color: var(--vlaina-markdown-color-link-hover);');
     expect(notesCss).toContain('.markdown-surface .milkdown a,');
     expect(notesCss).toContain('.markdown-surface .milkdown a:hover {');
     expect(notesCss).toContain('border-bottom: none;');
@@ -277,8 +277,8 @@ describe("editor markdown presentation styles", () => {
     expect(css).toContain('-webkit-user-select: none;');
     expect(css).toContain('.milkdown .footnote-ref-label {');
     expect(css).toContain('background: var(--vlaina-color-footnote-ref-bg);');
-    expect(css).toContain('color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));');
-    expect(css).toContain('font-family: var(--crepe-font-code');
+    expect(css).toContain('color: var(--vlaina-markdown-color-link);');
+    expect(css).toContain('font-family: var(--vlaina-markdown-font-code-family);');
     expect(css).toContain('.milkdown .footnote-ref::after {');
     expect(css).toContain('content: attr(data-footnote-value);');
     expect(css).toContain('border-radius: var(--vlaina-radius-pill-lg);');

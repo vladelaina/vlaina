@@ -19,7 +19,7 @@ describe('applyMarkdownFontSize', () => {
 
     expect(removePropertySpy).not.toHaveBeenCalled();
     expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent).toContain(
-      '--vlaina-markdown-font-size: 18px',
+      '--vlaina-markdown-font-body-size: 18px',
     );
   });
 

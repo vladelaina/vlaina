@@ -7,15 +7,15 @@ import { themeCaretOverlayTokens, themeCodeBlockEditorTokens, themeStyleResetTok
 export function createCodeBlockEditorBaseTheme(selectionActiveClass: string) {
   return CodeMirror.theme({
     '&': {
-      backgroundColor: 'var(--vlaina-code-block-background)',
-      color: 'var(--vlaina-code-syntax-foreground)',
+      backgroundColor: 'var(--vlaina-markdown-color-code-block-bg)',
+      color: 'var(--vlaina-markdown-color-code-text)',
       fontSize: themeCodeBlockEditorTokens.fontSize,
     },
     '.cm-editor': {
-      backgroundColor: 'var(--vlaina-code-block-background)',
+      backgroundColor: 'var(--vlaina-markdown-color-code-block-bg)',
     },
     '.cm-scroller': {
-      fontFamily: 'var(--font-mono), monospace',
+      fontFamily: 'var(--vlaina-markdown-font-code-family), monospace',
       lineHeight: themeCodeBlockEditorTokens.lineHeight,
       overflowX: 'auto',
       textRendering: 'auto',
@@ -43,13 +43,13 @@ export function createCodeBlockEditorBaseTheme(selectionActiveClass: string) {
       left: themeCodeBlockEditorTokens.contentPadding,
       zIndex: themeCodeBlockEditorTokens.gutterZIndex,
       paddingLeft: themeCodeBlockEditorTokens.gutterPaddingLeft,
-      color: 'var(--vlaina-code-syntax-muted)',
-      backgroundColor: 'var(--vlaina-code-block-background) !important',
+      color: 'var(--vlaina-markdown-color-code-muted)',
+      backgroundColor: 'var(--vlaina-markdown-color-code-block-bg) !important',
       borderRight: themeStyleResetTokens.borderNoneImportant,
       border: themeStyleResetTokens.borderNoneImportant,
     },
     '.cm-gutter, .cm-lineNumbers, .cm-gutterElement, .cm-gutter-filler': {
-      backgroundColor: 'var(--vlaina-code-block-background) !important',
+      backgroundColor: 'var(--vlaina-markdown-color-code-block-bg) !important',
       borderRight: themeStyleResetTokens.borderNoneImportant,
       border: themeStyleResetTokens.borderNoneImportant,
     },
@@ -60,7 +60,7 @@ export function createCodeBlockEditorBaseTheme(selectionActiveClass: string) {
       outline: themeStyleResetTokens.outlineNone,
     },
     '&.cm-focused .cm-selectionBackground': {
-      backgroundColor: 'var(--vlaina-selection-bg)',
+      backgroundColor: 'var(--vlaina-markdown-color-selection)',
     },
     '.cm-selectionLayer, .cm-selectionBackground': {
       pointerEvents: 'none',

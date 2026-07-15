@@ -136,6 +136,10 @@ const isScript = (file) => scriptExtensions.has(path.extname(file)) && !isTestOr
 const isScriptIncludingTests = (file) => scriptExtensions.has(path.extname(file));
 const isCss = (file) => cssExtensions.has(path.extname(file));
 const isNonThemeCss = (file) => isCss(file) && file !== 'src/styles/theme.css';
+const frameworkThemeCssFiles = new Set([
+  'src/index.css',
+  'src/styles/theme.css',
+]);
 
 const rawColorAllowlist = new Set([
   'src/styles/themeTokens.ts',
@@ -183,6 +187,22 @@ function isMarkdownThemeCompatibilityRuntimeCustomPropertyWrite({ match }) {
 // Standard Tailwind utilities are allowed because src/index.css maps them through
 // Tailwind v4 @theme inline variables backed by the centralized --vlaina-* tokens.
 const legacyVarPattern = /--(?:notes-sidebar|chat-sidebar|sidebar-row-selected|toolbar-tooltip|toolbar-submenu|block-dropdown|collapse-pos|collapse-gutter|collapse-marker|header-icon-size|track-color|slider-percentage|appearance-font-size-progress|math-editor-width|ai-review-width|ai-dropdown-panel)-[A-Za-z0-9_-]+/g;
+const deprecatedMarkdownThemeVarPattern = /--vlaina-(?:markdown-font-size|markdown-heading-h[1-6]-font-size|markdown-heading-line-extra(?:-(?:default|large))?|line-height-markdown-(?:body|heading)|height-markdown-blank-line|width-markdown-video|mermaid-text)\b/g;
+const deprecatedNativeMarkdownColorVarPattern = /--vlaina-(?:code-(?:block-background|inline-background|inline-foreground|syntax-[a-z-]+|block-copy-color)|selection-bg)\b/g;
+const nativeMarkdownContractFiles = new Set([
+  'src/components/Notes/features/Editor/styles/core.css',
+  'src/components/Notes/features/Editor/styles/markdown.css',
+  'src/components/Notes/features/Editor/styles/code-block.css',
+  'src/components/Notes/features/Editor/styles/frontmatter.css',
+  'src/components/Notes/features/Editor/styles/selection-width.css',
+]);
+
+function isNativeMarkdownContractConsumer(file) {
+  return nativeMarkdownContractFiles.has(file) ||
+    file.startsWith('src/components/common/markdown/') ||
+    file.startsWith('src/components/common/code-block/') ||
+    file.startsWith('src/components/Notes/features/Editor/plugins/code/');
+}
 
 const checks = [
   {
@@ -192,15 +212,33 @@ const checks = [
     ignoreMatch: isMarkdownThemeCompatibilityRuntimeCustomPropertyWrite,
   },
   {
-    name: 'CSS custom property definitions outside the theme contract must be protocol/framework scoped',
-    fileFilter: (file) => isCss(file),
-    pattern: /^\s*--(?!vlaina-|crepe-|font-|radius|shadow|blur|color-|text-|default-|spacing|background|foreground|card|popover|primary|secondary|muted|accent|destructive|border|input|ring|chart|sidebar|tw-|tracking-|leading-|ease-)[A-Za-z0-9_-]+\s*:/gm,
+    name: 'App-owned CSS custom properties must use the Vlaina namespace',
+    fileFilter: (file) => isCss(file) && !frameworkThemeCssFiles.has(file),
+    pattern: /^\s*--(?!vlaina-|crepe-)[A-Za-z0-9_-]+\s*:/gm,
     ignoreMatch: isMarkdownThemeCompatibilityCustomPropertyDefinition,
   },
   {
     name: 'Legacy scattered theme variable names must not return',
     fileFilter: (file) => sourceExtensions.has(path.extname(file)) && !isTestOrFixture(file),
     pattern: legacyVarPattern,
+  },
+  {
+    name: 'Native Markdown styles must use the canonical Markdown theme contract',
+    fileFilter: (file) => sourceExtensions.has(path.extname(file)) &&
+      !isTestOrFixture(file) &&
+      file !== 'src/styles/theme.css' &&
+      file !== 'src/lib/markdown/markdownFontSize.ts',
+    pattern: deprecatedMarkdownThemeVarPattern,
+  },
+  {
+    name: 'Native Markdown colors must use the canonical Markdown theme contract',
+    fileFilter: (file) => isNativeMarkdownContractConsumer(file) && !isTestOrFixture(file),
+    pattern: deprecatedNativeMarkdownColorVarPattern,
+  },
+  {
+    name: 'Milkdown framework theme aliases must derive from centralized tokens',
+    fileFilter: (file) => file === 'src/components/Notes/features/Editor/styles/crepe-theme.css',
+    pattern: /^\s*--crepe-[A-Za-z0-9_-]+\s*:\s*(?![^;]*var\()[^;]+;/gm,
   },
   {
     name: 'Inline style string literals should use centralized tokens',

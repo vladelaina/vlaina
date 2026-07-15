@@ -62,7 +62,7 @@
 }
 
 .milkdown .ProseMirror .editor-text-selection-overlay {
-  background-color: var(--vlaina-selection-bg);
+  background-color: var(--vlaina-markdown-color-selection);
   box-shadow: none;
   border-radius: var(--vlaina-radius-3px);
   color: var(--vlaina-color-white) !important;
@@ -105,8 +105,8 @@
 }
 
 .milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay {
-  background: var(--vlaina-bg-primary, var(--background, transparent)) !important;
-  background-color: var(--vlaina-bg-primary, var(--background, transparent)) !important;
+  background: var(--vlaina-markdown-color-canvas, var(--background, transparent)) !important;
+  background-color: var(--vlaina-markdown-color-canvas, var(--background, transparent)) !important;
   border-radius: var(--vlaina-editor-inline-background-radius, var(--vlaina-radius-0)) !important;
   box-shadow: var(--vlaina-editor-inline-background-shadow, none) !important;
   padding: var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0)) !important;
@@ -137,6 +137,6 @@
 
 .milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="bg"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay,
 .milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="bg"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay :is(span[data-text-color]) {
-  color: var(--vlaina-sidebar-notes-text, var(--vlaina-text-primary, currentColor)) !important;
-  -webkit-text-fill-color: var(--vlaina-sidebar-notes-text, var(--vlaina-text-primary, currentColor)) !important;
+  color: var(--vlaina-markdown-color-text, currentColor) !important;
+  -webkit-text-fill-color: var(--vlaina-markdown-color-text, currentColor) !important;
 }

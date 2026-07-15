@@ -66,7 +66,7 @@ describe("editor text selection and link styles", () => {
       '}',
     ].join('\n'));
     expect(css).toContain('.milkdown .ProseMirror .editor-text-selection-overlay {');
-    expect(css).toContain('background-color: var(--vlaina-selection-bg);');
+    expect(css).toContain('background-color: var(--vlaina-markdown-color-selection);');
     expect(css).toContain('color: var(--vlaina-color-white) !important;');
     expect(css).toContain('-webkit-text-fill-color: var(--vlaina-color-white) !important;');
     expect(css).toContain('box-shadow: none;');
@@ -140,7 +140,7 @@ describe("editor text selection and link styles", () => {
     expect(css).toContain('color: var(--vlaina-toolbar-preview-text-color, inherit) !important;');
     expect(css).not.toContain('box-shadow: 0 0 0 1em');
     expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay {');
-    expect(css).toContain('background: var(--vlaina-bg-primary, var(--background, transparent)) !important;');
+    expect(css).toContain('background: var(--vlaina-markdown-color-canvas, var(--background, transparent)) !important;');
     expect(css).toContain('padding: var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0)) !important;');
     expect(css).not.toContain(':has(.editor-text-selection-overlay)');
     expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay :is(mark[data-bg-color], span[data-bg-color]) {');
@@ -152,7 +152,7 @@ describe("editor text selection and link styles", () => {
     expect(css).toContain('box-shadow: var(--vlaina-editor-inline-background-shadow, none) !important;');
     expect(css).toContain('padding: var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0)) !important;');
     expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="bg"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay,');
-    expect(css).toContain('color: var(--vlaina-sidebar-notes-text, var(--vlaina-text-primary, currentColor)) !important;');
+    expect(css).toContain('color: var(--vlaina-markdown-color-text, currentColor) !important;');
   });
 
   it('hides carets inside inline content while block selection is active', () => {

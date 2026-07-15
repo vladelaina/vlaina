@@ -500,7 +500,7 @@ describe('AppContent view switching chrome readiness', () => {
 
     await waitFor(() => {
       expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent).toContain(
-        '--vlaina-markdown-font-size: 17px',
+        '--vlaina-markdown-font-body-size: 17px',
       );
     });
     expect(document.documentElement.style.fontSize).toBe('');

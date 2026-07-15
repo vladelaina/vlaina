@@ -1,7 +1,8 @@
 .markdown-surface {
-  color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-font-size, var(--vlaina-size-17px));
-  line-height: var(--vlaina-line-height-markdown-body);
+  color: var(--vlaina-markdown-color-text);
+  font-family: var(--vlaina-markdown-font-body-family);
+  font-size: var(--vlaina-markdown-font-body-size);
+  line-height: var(--vlaina-markdown-line-height-body);
 }
 
 .markdown-surface :is(h1, h2, h3, h4, h5, h6, p, li, blockquote, td, th) {
@@ -15,13 +16,14 @@
 }
 
 .markdown-surface h1 {
-  --vlaina-markdown-heading-line-extra: var(--vlaina-markdown-heading-line-extra-large);
-  color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-heading-h1-font-size, 2em);
-  font-weight: var(--vlaina-font-weight-bold);
-  line-height: var(--vlaina-line-height-markdown-heading);
-  margin-top: var(--vlaina-space-24px);
-  margin-bottom: var(--vlaina-space-12px);
+  --vlaina-editor-heading-line-extra: var(--vlaina-editor-heading-line-extra-large);
+  color: var(--vlaina-markdown-color-heading);
+  font-family: var(--vlaina-markdown-font-heading-family);
+  font-size: var(--vlaina-markdown-font-heading-h1-size);
+  font-weight: var(--vlaina-markdown-font-heading-strong-weight);
+  line-height: var(--vlaina-markdown-line-height-heading);
+  margin-top: var(--vlaina-markdown-space-heading-h1-before);
+  margin-bottom: var(--vlaina-markdown-space-heading-h1-after);
   padding: 0;
 }
 
@@ -42,61 +44,66 @@
 }
 
 .markdown-surface h2 {
-  --vlaina-markdown-heading-line-extra: var(--vlaina-markdown-heading-line-extra-large);
-  color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-heading-h2-font-size, 1.705882353em);
-  font-weight: var(--vlaina-font-weight-bold);
-  line-height: var(--vlaina-line-height-markdown-heading);
-  margin-top: var(--vlaina-space-20px);
-  margin-bottom: var(--vlaina-space-10px);
+  --vlaina-editor-heading-line-extra: var(--vlaina-editor-heading-line-extra-large);
+  color: var(--vlaina-markdown-color-heading);
+  font-family: var(--vlaina-markdown-font-heading-family);
+  font-size: var(--vlaina-markdown-font-heading-h2-size);
+  font-weight: var(--vlaina-markdown-font-heading-strong-weight);
+  line-height: var(--vlaina-markdown-line-height-heading);
+  margin-top: var(--vlaina-markdown-space-heading-h2-before);
+  margin-bottom: var(--vlaina-markdown-space-heading-h2-after);
   padding: 0;
 }
 
 .markdown-surface h3 {
-  color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-heading-h3-font-size, 1.470588235em);
-  font-weight: var(--vlaina-font-weight-semibold);
-  line-height: var(--vlaina-line-height-markdown-body);
-  margin-top: var(--vlaina-space-16px);
-  margin-bottom: var(--vlaina-space-10px);
+  color: var(--vlaina-markdown-color-heading);
+  font-family: var(--vlaina-markdown-font-heading-family);
+  font-size: var(--vlaina-markdown-font-heading-h3-size);
+  font-weight: var(--vlaina-markdown-font-heading-weight);
+  line-height: var(--vlaina-markdown-line-height-body);
+  margin-top: var(--vlaina-markdown-space-heading-h3-before);
+  margin-bottom: var(--vlaina-markdown-space-heading-h3-after);
   padding: 0;
 }
 
 .markdown-surface h4 {
-  color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-heading-h4-font-size, 1.294117647em);
-  font-weight: var(--vlaina-font-weight-semibold);
-  line-height: var(--vlaina-line-height-markdown-body);
-  margin-top: var(--vlaina-space-14px);
-  margin-bottom: var(--vlaina-space-8px);
+  color: var(--vlaina-markdown-color-heading);
+  font-family: var(--vlaina-markdown-font-heading-family);
+  font-size: var(--vlaina-markdown-font-heading-h4-size);
+  font-weight: var(--vlaina-markdown-font-heading-weight);
+  line-height: var(--vlaina-markdown-line-height-body);
+  margin-top: var(--vlaina-markdown-space-heading-h4-before);
+  margin-bottom: var(--vlaina-markdown-space-heading-h4-after);
   padding: 0;
 }
 
 .markdown-surface h5 {
-  color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-heading-h5-font-size, 1.117647059em);
-  font-weight: var(--vlaina-font-weight-semibold);
-  line-height: var(--vlaina-line-height-markdown-body);
-  margin-top: var(--vlaina-space-12px);
-  margin-bottom: var(--vlaina-space-8px);
+  color: var(--vlaina-markdown-color-heading);
+  font-family: var(--vlaina-markdown-font-heading-family);
+  font-size: var(--vlaina-markdown-font-heading-h5-size);
+  font-weight: var(--vlaina-markdown-font-heading-weight);
+  line-height: var(--vlaina-markdown-line-height-body);
+  margin-top: var(--vlaina-markdown-space-heading-small-before);
+  margin-bottom: var(--vlaina-markdown-space-heading-small-after);
   padding: 0;
 }
 
 .markdown-surface h6 {
-  color: var(--vlaina-text-secondary);
-  font-size: var(--vlaina-markdown-heading-h6-font-size, 1em);
-  font-weight: var(--vlaina-font-weight-semibold);
-  line-height: var(--vlaina-line-height-markdown-body);
-  margin-top: var(--vlaina-space-12px);
-  margin-bottom: var(--vlaina-space-8px);
+  color: var(--vlaina-markdown-color-heading-muted);
+  font-family: var(--vlaina-markdown-font-heading-family);
+  font-size: var(--vlaina-markdown-font-heading-h6-size);
+  font-weight: var(--vlaina-markdown-font-heading-weight);
+  line-height: var(--vlaina-markdown-line-height-body);
+  margin-top: var(--vlaina-markdown-space-heading-small-before);
+  margin-bottom: var(--vlaina-markdown-space-heading-small-after);
   padding: 0;
 }
 
 .markdown-surface p {
-  color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-font-size, var(--vlaina-size-17px));
-  line-height: var(--vlaina-line-height-markdown-body);
-  margin-top: var(--vlaina-space-8px);
+  color: var(--vlaina-markdown-color-text);
+  font-size: var(--vlaina-markdown-font-body-size);
+  line-height: var(--vlaina-markdown-line-height-body);
+  margin-top: var(--vlaina-markdown-space-paragraph-before);
   margin-bottom: 0;
   padding: 0;
 }
@@ -106,7 +113,7 @@
 }
 
 .markdown-surface .notes-readonly-markdown-blank-line {
-  min-height: var(--vlaina-height-markdown-blank-line);
+  min-height: var(--vlaina-markdown-size-blank-line);
   margin: var(--vlaina-space-0);
   padding: var(--vlaina-space-0);
   pointer-events: none;
@@ -125,7 +132,7 @@
 }
 
 .markdown-surface a {
-  color: var(--vlaina-accent);
+  color: var(--vlaina-markdown-color-link);
   text-decoration: none;
   border-bottom: var(--vlaina-border-width-1) solid transparent;
   transition: border-color var(--vlaina-duration-150);
@@ -133,7 +140,7 @@
 }
 
 .markdown-surface a:hover {
-  border-bottom-color: var(--vlaina-accent);
+  border-bottom-color: var(--vlaina-markdown-color-link-hover);
 }
 
 .markdown-surface abbr {
@@ -157,12 +164,12 @@
 }
 
 .markdown-surface blockquote {
-  color: var(--vlaina-text-secondary);
+  color: var(--vlaina-markdown-color-blockquote-text);
   font-style: normal;
-  line-height: var(--vlaina-line-height-markdown-body);
+  line-height: var(--vlaina-markdown-line-height-body);
   margin-top: var(--vlaina-space-8px);
   margin-bottom: 0;
-  padding: var(--vlaina-space-10px) 0 var(--vlaina-space-10px) var(--vlaina-space-17px);
+  padding: var(--vlaina-markdown-space-blockquote-padding);
   position: relative;
 }
 
@@ -173,19 +180,19 @@
   position: absolute;
   left: 0;
   top: var(--vlaina-space-10px);
-  background: var(--vlaina-text-tertiary);
+  background: var(--vlaina-markdown-color-blockquote-border);
   border-radius: var(--vlaina-radius-18px);
 }
 
 .markdown-surface ul,
 .markdown-surface ol {
   margin: var(--vlaina-space-8px) 0;
-  padding-left: var(--vlaina-space-15rem);
+  padding-left: var(--vlaina-markdown-space-list-indent);
 }
 
 .markdown-surface li {
-  line-height: var(--vlaina-line-height-markdown-body);
-  margin: var(--vlaina-space-6px) 0;
+  line-height: var(--vlaina-markdown-line-height-body);
+  margin: var(--vlaina-markdown-space-list-item-block) 0;
   padding-left: var(--vlaina-space-05rem);
 }
 
@@ -250,9 +257,9 @@
 .markdown-surface .task-list-item > input[type='checkbox'] {
   width: var(--vlaina-size-16px);
   height: var(--vlaina-size-16px);
-  margin: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-16px)) / 2) var(--vlaina-space-05rem) 0 calc(var(--vlaina-space-15rem) * -1);
+  margin: calc((var(--vlaina-markdown-line-height-body) - var(--vlaina-size-16px)) / 2) var(--vlaina-space-05rem) 0 calc(var(--vlaina-markdown-space-list-indent) * -1);
   vertical-align: top;
-  accent-color: var(--vlaina-accent);
+  accent-color: var(--vlaina-markdown-color-link);
 }
 
 .markdown-surface .md-hr,
@@ -277,7 +284,7 @@
   left: 0;
   right: 0;
   top: var(--vlaina-size-50pct);
-  border-top: var(--vlaina-border-width-1) solid var(--vlaina-border);
+  border-top: var(--vlaina-border-width-1) solid var(--vlaina-markdown-color-border);
   transform: translateY(calc(var(--vlaina-border-width-hairline) * -1));
   pointer-events: none;
 }
@@ -288,14 +295,14 @@
   max-width: 100%;
   font-size: var(--vlaina-font-0875rem);
   line-height: var(--vlaina-leading-125rem);
-  padding: var(--vlaina-space-0125rem) var(--vlaina-space-025rem);
+  padding: var(--vlaina-markdown-space-code-inline-padding);
   margin: 0;
-  background-color: var(--vlaina-code-inline-background);
-  color: var(--vlaina-code-inline-foreground);
+  background-color: var(--vlaina-markdown-color-code-inline-bg);
+  color: var(--vlaina-markdown-color-code-inline-fg);
   caret-color: transparent;
   border: none;
-  border-radius: var(--vlaina-radius-025rem);
-  font-family: var(--font-mono);
+  border-radius: var(--vlaina-markdown-radius-inline-code);
+  font-family: var(--vlaina-markdown-font-code-family);
   font-weight: var(--vlaina-font-weight-medium);
   overflow-wrap: anywhere;
   white-space: break-spaces;
@@ -305,14 +312,14 @@
 }
 
 .dark .markdown-surface code:not(pre code) {
-  background-color: var(--vlaina-code-inline-background);
-  color: var(--vlaina-code-inline-foreground);
+  background-color: var(--vlaina-markdown-color-code-inline-bg);
+  color: var(--vlaina-markdown-color-code-inline-fg);
 }
 
 .markdown-surface img {
   max-width: 100%;
   height: auto;
-  border-radius: var(--vlaina-radius-05rem);
+  border-radius: var(--vlaina-markdown-radius-image);
 }
 
 .markdown-surface .markdown-table-scroll {
@@ -320,7 +327,7 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  margin: var(--vlaina-space-1rem) 0;
+  margin: var(--vlaina-markdown-space-block) 0;
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -330,10 +337,10 @@
   max-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  margin: var(--vlaina-space-1rem) 0;
-  font-size: var(--vlaina-markdown-font-size, var(--vlaina-size-17px));
-  border: var(--vlaina-border-width-1) solid var(--vlaina-border);
-  border-radius: var(--vlaina-radius-05rem);
+  margin: var(--vlaina-markdown-space-block) 0;
+  font-size: var(--vlaina-markdown-font-body-size);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-markdown-color-border);
+  border-radius: var(--vlaina-markdown-radius-table);
   overflow: hidden;
 }
 
@@ -343,10 +350,10 @@
 
 .markdown-surface th,
 .markdown-surface td {
-  border-bottom: var(--vlaina-border-width-1) solid var(--vlaina-border);
-  border-right: var(--vlaina-border-width-1) solid var(--vlaina-border);
+  border-bottom: var(--vlaina-border-width-1) solid var(--vlaina-markdown-color-border);
+  border-right: var(--vlaina-border-width-1) solid var(--vlaina-markdown-color-border);
   min-width: var(--vlaina-size-150px);
-  padding: var(--vlaina-space-05rem) var(--vlaina-space-075rem);
+  padding: var(--vlaina-markdown-space-table-cell-padding);
   text-align: left;
 }
 
@@ -364,13 +371,13 @@
 }
 
 .markdown-surface .definition-term {
-  color: var(--vlaina-text-primary);
+  color: var(--vlaina-markdown-color-text);
   font-weight: var(--vlaina-font-weight-semibold);
   margin-top: var(--vlaina-space-05rem);
 }
 
 .markdown-surface .definition-desc {
-  color: var(--vlaina-text-secondary);
+  color: var(--vlaina-markdown-color-text-muted);
   margin: var(--vlaina-space-025rem) 0 var(--vlaina-space-075rem) var(--vlaina-space-125rem);
 }
 
@@ -405,7 +412,7 @@
 }
 
 .markdown-surface .toc-link {
-  color: var(--vlaina-accent);
+  color: var(--vlaina-markdown-color-link);
 }
 
 .markdown-surface .toc-level-1 {
@@ -424,20 +431,20 @@
 }
 
 .markdown-surface .toc-empty {
-  color: var(--vlaina-text-tertiary);
+  color: var(--vlaina-markdown-color-text-subtle);
   font-size: var(--vlaina-font-09375rem);
   font-style: italic;
   line-height: var(--vlaina-leading-165);
 }
 
 .markdown-surface th {
-  background-color: var(--vlaina-bg-secondary);
+  background-color: var(--vlaina-markdown-color-surface-muted);
   font-weight: var(--vlaina-font-weight-semibold);
 }
 
 .markdown-surface strong {
-  color: var(--vlaina-text-primary);
-  font-weight: var(--vlaina-font-weight-semibold);
+  color: var(--vlaina-markdown-color-text);
+  font-weight: var(--vlaina-markdown-font-strong-weight);
 }
 
 .markdown-surface em {
@@ -446,14 +453,14 @@
 
 .markdown-surface del,
 .markdown-surface s {
-  color: var(--vlaina-text-secondary);
+  color: var(--vlaina-markdown-color-text-muted);
   text-decoration: line-through;
 }
 
 .markdown-surface mark,
 .markdown-surface .highlight {
   border-radius: var(--vlaina-radius-02em);
-  background: var(--vlaina-color-mark-highlight-surface-bg);
+  background: var(--vlaina-markdown-color-highlight-bg);
   color: inherit;
   padding: var(--vlaina-space-05em) var(--vlaina-space-015em);
 }
@@ -473,7 +480,7 @@
 }
 
 .markdown-surface .footnote-ref {
-  color: var(--vlaina-accent);
+  color: var(--vlaina-markdown-color-link);
   font-size: var(--vlaina-font-075em);
   line-height: var(--vlaina-leading-0);
   vertical-align: super;
@@ -484,13 +491,13 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--vlaina-space-05rem);
   margin-top: var(--vlaina-space-05rem);
-  color: var(--vlaina-text-secondary);
+  color: var(--vlaina-markdown-color-text-muted);
   font-size: var(--vlaina-font-092em);
 }
 
 .markdown-surface .footnote-def-label {
-  color: var(--vlaina-text-tertiary);
-  font-family: var(--font-mono);
+  color: var(--vlaina-markdown-color-text-subtle);
+  font-family: var(--vlaina-markdown-font-code-family);
 }
 
 .markdown-surface .footnote-def-content > :first-child {
@@ -505,15 +512,15 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--vlaina-space-075rem);
-  margin: var(--vlaina-space-1rem) 0;
-  padding: var(--vlaina-space-0875rem) var(--vlaina-space-1rem);
-  border: var(--vlaina-border-width-1) solid var(--vlaina-border);
-  border-radius: var(--vlaina-radius-075rem);
-  background: var(--vlaina-bg-secondary);
+  margin: var(--vlaina-markdown-space-block) 0;
+  padding: var(--vlaina-markdown-space-callout-padding);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-markdown-color-border);
+  border-radius: var(--vlaina-markdown-radius-callout);
+  background: var(--vlaina-markdown-color-surface-muted);
 }
 
 .markdown-surface .callout-icon {
-  line-height: var(--vlaina-line-height-markdown-body);
+  line-height: var(--vlaina-markdown-line-height-body);
 }
 
 .markdown-surface .callout-content > :first-child {
@@ -525,36 +532,36 @@
 }
 
 .markdown-surface .callout-yellow {
-  background: var(--vlaina-color-status-warning-bg);
+  background: var(--vlaina-markdown-color-callout-warning-bg);
 }
 
 .markdown-surface .callout-blue {
-  background: var(--vlaina-color-status-info-bg);
+  background: var(--vlaina-markdown-color-callout-info-bg);
 }
 
 .markdown-surface .callout-green {
-  background: var(--vlaina-color-status-success-bg);
+  background: var(--vlaina-markdown-color-callout-success-bg);
 }
 
 .markdown-surface .callout-red {
-  background: var(--vlaina-color-status-danger-bg);
+  background: var(--vlaina-markdown-color-callout-danger-bg);
 }
 
 .markdown-surface .callout-purple {
-  background: var(--vlaina-color-brand-pink-soft);
+  background: var(--vlaina-markdown-color-callout-accent-bg);
 }
 
 .markdown-surface .callout-gray {
-  background: var(--vlaina-color-callout-gray-bg);
+  background: var(--vlaina-markdown-color-callout-neutral-bg);
 }
 
 .markdown-surface .mermaid-block {
   display: block;
   max-width: 100%;
-  margin: var(--vlaina-space-1rem) 0;
+  margin: var(--vlaina-markdown-space-block) 0;
   overflow-x: auto;
-  border-radius: var(--vlaina-radius-075rem);
-  background: var(--vlaina-bg-secondary);
+  border-radius: var(--vlaina-markdown-radius-media);
+  background: var(--vlaina-markdown-color-surface-muted);
   padding: var(--vlaina-space-1rem);
 }
 
@@ -568,7 +575,7 @@
 
 .markdown-surface .mermaid-block svg text.journey-section,
 .markdown-surface .mermaid-block svg .venn-area text.label {
-  fill: var(--vlaina-text-primary) !important;
+  fill: var(--vlaina-markdown-color-text) !important;
 }
 
 .markdown-surface .mermaid-block[data-mermaid-diagram='gantt'] svg {
@@ -583,23 +590,23 @@
 .markdown-surface .mermaid-error,
 .markdown-surface .video-placeholder,
 .markdown-surface .video-error {
-  color: var(--vlaina-text-secondary);
+  color: var(--vlaina-markdown-color-text-muted);
   font-size: var(--vlaina-font-092em);
 }
 
 .markdown-surface .mermaid-error,
 .markdown-surface .video-error {
-  color: var(--vlaina-color-status-danger-fg);
+  color: var(--vlaina-markdown-color-error);
 }
 
 .markdown-surface .video-block {
   position: relative;
   display: block;
-  width: var(--vlaina-width-markdown-video);
-  margin: var(--vlaina-space-1rem) 0;
+  width: var(--vlaina-markdown-size-video-max-width);
+  margin: var(--vlaina-markdown-space-block) 0;
   overflow: hidden;
-  border-radius: var(--vlaina-radius-075rem);
-  background: var(--vlaina-bg-secondary);
+  border-radius: var(--vlaina-markdown-radius-media);
+  background: var(--vlaina-markdown-color-surface-muted);
 }
 
 .markdown-surface .video-block iframe,
@@ -618,9 +625,9 @@
 
 .markdown-surface .video-external-action {
   margin: 0 var(--vlaina-space-1rem) var(--vlaina-space-1rem);
-  border-radius: var(--vlaina-radius-0375rem);
-  background: var(--vlaina-accent);
-  color: var(--vlaina-color-white);
+  border-radius: var(--vlaina-markdown-radius-action);
+  background: var(--vlaina-markdown-color-action-bg);
+  color: var(--vlaina-markdown-color-action-fg);
   padding: var(--vlaina-space-0375rem) var(--vlaina-space-0625rem);
   font-size: var(--vlaina-font-0875rem);
 }

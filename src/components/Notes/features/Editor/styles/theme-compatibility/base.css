@@ -96,6 +96,34 @@
   --vlaina-code-syntax-markup: var(--cm-header, var(--text-code));
   --vlaina-code-syntax-list: var(--cm-quote, var(--text-code));
   --vlaina-code-syntax-invalid: var(--cm-negative, var(--text-code));
+  --vlaina-markdown-color-canvas: var(--background-primary);
+  --vlaina-markdown-color-text: var(--text-normal);
+  --vlaina-markdown-color-text-muted: var(--text-muted);
+  --vlaina-markdown-color-text-subtle: var(--text-faint);
+  --vlaina-markdown-color-heading: var(--text-normal);
+  --vlaina-markdown-color-heading-muted: var(--text-muted);
+  --vlaina-markdown-color-link: var(--text-accent);
+  --vlaina-markdown-color-link-hover: var(--text-accent-hover);
+  --vlaina-markdown-color-border: var(--background-modifier-border);
+  --vlaina-markdown-color-surface-muted: var(--background-secondary);
+  --vlaina-markdown-color-code-inline-bg: var(--vlaina-code-inline-background);
+  --vlaina-markdown-color-code-inline-fg: var(--vlaina-code-inline-foreground);
+  --vlaina-markdown-color-code-block-bg: var(--vlaina-code-block-background);
+  --vlaina-markdown-color-code-text: var(--vlaina-code-syntax-foreground);
+  --vlaina-markdown-color-code-muted: var(--vlaina-code-syntax-muted);
+  --vlaina-markdown-color-code-keyword: var(--vlaina-code-syntax-keyword);
+  --vlaina-markdown-color-code-name: var(--vlaina-code-syntax-name);
+  --vlaina-markdown-color-code-function: var(--vlaina-code-syntax-function);
+  --vlaina-markdown-color-code-constant: var(--vlaina-code-syntax-constant);
+  --vlaina-markdown-color-code-type: var(--vlaina-code-syntax-type);
+  --vlaina-markdown-color-code-operator: var(--vlaina-code-syntax-operator);
+  --vlaina-markdown-color-code-string: var(--vlaina-code-syntax-string);
+  --vlaina-markdown-color-code-variable: var(--vlaina-code-syntax-variable);
+  --vlaina-markdown-color-code-tag: var(--vlaina-code-syntax-tag);
+  --vlaina-markdown-color-code-markup: var(--vlaina-code-syntax-markup);
+  --vlaina-markdown-color-code-list: var(--vlaina-code-syntax-list);
+  --vlaina-markdown-color-code-invalid: var(--vlaina-code-syntax-invalid);
+  --vlaina-markdown-color-selection: var(--text-selection);
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -115,7 +143,7 @@
 .milkdown-editor[data-markdown-compat-layer='external'] .markdown-preview-view {
   color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
   background: transparent;
-  font-size: var(--vlaina-markdown-font-size, inherit);
+  font-size: var(--vlaina-markdown-font-body-size, inherit);
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] #write {
