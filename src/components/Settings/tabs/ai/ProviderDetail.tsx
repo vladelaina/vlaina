@@ -195,8 +195,10 @@ export function ProviderDetail({
         canBenchmarkAvailable={benchmark.canBenchmarkAvailable}
         isHealthChecking={benchmark.isHealthChecking}
         benchmarkAllActive={benchmark.benchmarkAllActive}
+        benchmarkAllQueued={benchmark.benchmarkAllQueued}
         selectedBenchmarkActive={benchmark.selectedBenchmarkActive}
         availableBenchmarkActive={benchmark.availableBenchmarkActive}
+        queuedBenchmarkModelIds={benchmark.queuedBenchmarkModelIds}
         healthCheckOverall={benchmark.healthCheckOverall}
         healthStatus={benchmark.healthStatus}
         onQuickAddModelIdChange={setQuickAddModelId}
@@ -205,6 +207,7 @@ export function ProviderDetail({
         onBenchmark={benchmark.handleBenchmarkAllModels}
         onBenchmarkSelected={benchmark.handleBenchmarkModels}
         onBenchmarkAvailable={benchmark.handleBenchmarkAvailableModels}
+        onBenchmarkModel={benchmark.handleBenchmarkModel}
         onClearAllModels={modelActions.handleClearAllModels}
         onDeleteModel={deleteModel}
         onAddModel={modelActions.handleAddModel}

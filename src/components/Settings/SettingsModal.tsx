@@ -24,7 +24,6 @@ import {
 import { useI18n } from '@/lib/i18n';
 import type { CommunitySettings } from './tabs/aboutCommunitySettings';
 import { themeBackdropTokens, themeMotionTokens } from '@/styles/themeTokens';
-import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 import { useDesktopUpdateIndicatorVersion } from '@/components/desktop/DesktopUpdateIndicator';
 import { useNativeTitleBarOverlayHidden } from '@/hooks/useNativeTitleBarOverlayHidden';
 
@@ -181,7 +180,6 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                 <div
                   className="flex-1 overflow-y-auto w-full app-scrollbar"
                   data-settings-scroll-root="content"
-                  onWheel={handleScrollableWheel}
                 >
                   <div className={cn(
                     "w-full mx-auto",
