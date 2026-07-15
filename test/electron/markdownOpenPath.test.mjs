@@ -71,7 +71,7 @@ describe('markdownOpenPath', () => {
       }),
     };
 
-    expect(findMarkdownGitRoot('/projects/app/docs/guide/setup.md', { fsImpl })).toBe('/projects/app');
+    expect(findMarkdownGitRoot('/projects/app/docs/guide/setup.md', { fsImpl, pathImpl: path.posix })).toBe('/projects/app');
   });
 
   it('recognizes worktree .git files as repository markers', () => {
@@ -84,7 +84,7 @@ describe('markdownOpenPath', () => {
       }),
     };
 
-    expect(findMarkdownGitRoot('/projects/worktree/docs/setup.md', { fsImpl })).toBe('/projects/worktree');
+    expect(findMarkdownGitRoot('/projects/worktree/docs/setup.md', { fsImpl, pathImpl: path.posix })).toBe('/projects/worktree');
   });
 
   it('returns null when no Git repository is found', () => {
@@ -94,6 +94,6 @@ describe('markdownOpenPath', () => {
       }),
     };
 
-    expect(findMarkdownGitRoot('/notes/docs/setup.md', { fsImpl })).toBeNull();
+    expect(findMarkdownGitRoot('/notes/docs/setup.md', { fsImpl, pathImpl: path.posix })).toBeNull();
   });
 });

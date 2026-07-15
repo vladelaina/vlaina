@@ -1,4 +1,4 @@
-import { isTextSelectionOverlayEligible, textSelectionOverlayPluginKey } from './textSelectionOverlayState';
+import { isTextSelectionOverlayEligible } from './textSelectionOverlayState';
 import { getNativeSelectionMetrics } from './textSelectionOverlayState';
 import { getCaretTargetFromPoint, syncNativeSelectionToCaretTarget } from './textSelectionOverlayCaret';
 import {

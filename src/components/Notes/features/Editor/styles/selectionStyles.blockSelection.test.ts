@@ -179,8 +179,8 @@ describe("editor block selection styles", () => {
     expect(css).toContain(') .footnote-def {');
     expect(css).toContain('position: relative;');
     expect(css).toContain('border-left-color: var(--vlaina-editor-block-selection-fg) !important;');
-    expect(css).toContain('--vlaina-block-selection-fill-top: 0px !important;');
-    expect(css).toContain('--vlaina-block-selection-fill-bottom: 0px !important;');
+    expect(css).toContain('--vlaina-block-selection-fill-top: var(--vlaina-space-0) !important;');
+    expect(css).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-space-0) !important;');
     expect(css).toContain(') .footnote-def::before {');
     expect(css).toContain('border-left: var(--vlaina-size-3px) solid var(--vlaina-editor-block-selection-fg) !important;');
     expect(css).toContain('border-radius: inherit !important;');
