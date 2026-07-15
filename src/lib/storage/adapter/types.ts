@@ -20,6 +20,7 @@ export interface ReadOptions {
 export interface ListOptions {
   includeHidden?: boolean;
   recursive?: boolean;
+  maxEntries?: number;
 }
 
 export interface StorageAdapter {

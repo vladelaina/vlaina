@@ -2,6 +2,7 @@ import { isAbsolutePath } from '@/lib/storage/adapter';
 import {
   buildFileTree,
   collectExpandedPaths,
+  isGitRepositoryDirectory,
   restoreExpandedState,
 } from '../fileTreeUtils';
 import { ensureFileNodeInTree } from '../fileTreePreservation';
@@ -14,8 +15,47 @@ import {
 } from '../utils/fs/rootFolderState';
 import type { FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
 import { mergeDraftMetadata } from './fileSystemSliceTreeMetadata';
+import type { FileTreeNode, FolderNode } from '../types';
 
 const BACKGROUND_FILE_TREE_LOAD_DELAY_MS = 100;
+const BACKGROUND_FILE_TREE_IDLE_TIMEOUT_MS = 1000;
+
+function scheduleBackgroundFileTreeTask(task: () => void) {
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => task(), { timeout: BACKGROUND_FILE_TREE_IDLE_TIMEOUT_MS });
+    return;
+  }
+  setTimeout(task, BACKGROUND_FILE_TREE_LOAD_DELAY_MS);
+}
+
+function collectTreeNotePaths(nodes: readonly FileTreeNode[]): string[] {
+  const paths: string[] = [];
+  const stack = [...nodes].reverse();
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node.isFolder) {
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push(node.children[index]!);
+      }
+    } else if (node.kind !== 'image') {
+      paths.push(node.path);
+    }
+  }
+  return paths;
+}
+
+function applyRootGitRepositoryState(
+  rootFolder: FolderNode | null,
+  isGitRepository: boolean,
+): FolderNode | null {
+  if (!rootFolder || Boolean(rootFolder.isGitRepository) === isGitRepository) {
+    return rootFolder;
+  }
+  return {
+    ...rootFolder,
+    isGitRepository: isGitRepository || undefined,
+  };
+}
 
 function getExpandedPathsForBackgroundTreeRestore(
   currentExpandedPaths: Set<string> | null,
@@ -54,18 +94,24 @@ export function scheduleLoadFileTreeBackgroundRefresh({
   set: FileSystemSliceSet;
   isCurrentRequest: (requestId: number, basePath: string) => boolean;
 }) {
-  setTimeout(() => {
+  scheduleBackgroundFileTreeTask(() => {
     void (async () => {
       const metadataStateBeforeBackgroundLoad = get().noteMetadata;
-      const metadataPromise = loadNoteMetadata(basePath);
+      const rootGitRepositoryPromise = isGitRepositoryDirectory(basePath);
+      let knownNotePaths: string[] | undefined;
       let nextBackgroundChildren = get().rootFolder?.children ?? [];
 
       if (shouldBuildShallowInitialTree) {
         const fullChildren = await buildFileTree(basePath);
+        knownNotePaths = collectTreeNotePaths(fullChildren);
         if (!isCurrentRequest(requestId, basePath)) {
           return;
         }
 
+        const isRootGitRepository = await rootGitRepositoryPromise;
+        if (!isCurrentRequest(requestId, basePath)) {
+          return;
+        }
         const currentState = get();
         const currentExpandedPaths = currentState.rootFolder && currentState.rootFolderPath === basePath
           ? collectExpandedPaths(currentState.rootFolder.children)
@@ -96,10 +142,13 @@ export function scheduleLoadFileTreeBackgroundRefresh({
           mode: currentState.fileTreeSortMode,
           metadata: currentState.noteMetadata,
         });
-
         if (currentState.rootFolder && currentState.rootFolderPath === basePath) {
-          const nextRootFolder = buildSortedRootFolder(
+          const rootWithGitState = applyRootGitRepositoryState(
             currentState.rootFolder,
+            isRootGitRepository,
+          );
+          const nextRootFolder = buildSortedRootFolder(
+            rootWithGitState,
             sortedBackgroundChildren,
             currentState.fileTreeSortMode,
             currentState.noteMetadata,
@@ -112,7 +161,15 @@ export function scheduleLoadFileTreeBackgroundRefresh({
         }
       }
 
-      const metadata = await metadataPromise;
+      const metadata = await loadNoteMetadata(basePath, knownNotePaths);
+      if (!isCurrentRequest(requestId, basePath)) {
+        return;
+      }
+      if (get().noteMetadata !== metadataStateBeforeBackgroundLoad) {
+        return;
+      }
+
+      const isRootGitRepository = await rootGitRepositoryPromise;
       if (!isCurrentRequest(requestId, basePath)) {
         return;
       }
@@ -122,18 +179,24 @@ export function scheduleLoadFileTreeBackgroundRefresh({
 
       const mergedMetadata = mergeDraftMetadata(metadata, get().noteMetadata);
       const currentState = get();
+      const rootWithGitState = currentState.rootFolderPath === basePath
+        ? applyRootGitRepositoryState(currentState.rootFolder, isRootGitRepository)
+        : currentState.rootFolder;
       const shouldRebuildRootFolder =
         currentState.rootFolderPath === basePath &&
-        shouldRebuildRootFolderForMetadataFileChange(
-          currentState.fileTreeSortMode,
-          currentState.rootFolder,
-          currentState.noteMetadata,
-          mergedMetadata,
+        (
+          rootWithGitState !== currentState.rootFolder ||
+          shouldRebuildRootFolderForMetadataFileChange(
+            currentState.fileTreeSortMode,
+            currentState.rootFolder,
+            currentState.noteMetadata,
+            mergedMetadata,
+          )
         );
       const nextRootFolder = shouldRebuildRootFolder
         ? buildSortedRootFolder(
-            currentState.rootFolder,
-            currentState.rootFolder?.children ?? [],
+            rootWithGitState,
+            rootWithGitState?.children ?? [],
             currentState.fileTreeSortMode,
             mergedMetadata,
           )
@@ -146,5 +209,5 @@ export function scheduleLoadFileTreeBackgroundRefresh({
           : {}),
       });
     })().catch(() => undefined);
-  }, BACKGROUND_FILE_TREE_LOAD_DELAY_MS);
+  });
 }

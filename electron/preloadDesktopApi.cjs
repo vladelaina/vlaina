@@ -229,8 +229,8 @@ function createDesktopApi(deps) {
       deleteDir(filePath, recursive) {
         return ipcRenderer.invoke('desktop:fs:delete-dir', filePath, recursive);
       },
-      listDir(filePath) {
-        return ipcRenderer.invoke('desktop:fs:list-dir', filePath);
+      listDir(filePath, maxEntries) {
+        return ipcRenderer.invoke('desktop:fs:list-dir', filePath, maxEntries);
       },
       rename(oldPath, newPath) {
         return ipcRenderer.invoke('desktop:fs:rename', oldPath, newPath);
