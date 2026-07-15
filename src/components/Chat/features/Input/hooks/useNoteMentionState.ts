@@ -133,10 +133,13 @@ export function useNoteMentionState({
       if (typeof document !== 'undefined' && !document.hasFocus()) {
         return;
       }
+      if (document.activeElement === textareaRef.current) {
+        return;
+      }
 
       setCaretIndex(-1);
     });
-  }, []);
+  }, [textareaRef]);
 
   const removeMention = useCallback(
     (path: string, rangeStart?: number, rangeEnd?: number) => {

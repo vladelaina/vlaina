@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ChatInputActions } from './ChatInputActions';
 
@@ -82,5 +82,17 @@ describe('ChatInputActions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
 
     expect(screen.getByRole('button', { name: '@chat.mentionFileOrFolder' })).toBeInTheDocument();
+  });
+
+  it('restores composer focus after the upload action closes', async () => {
+    const onRequestComposerFocus = vi.fn();
+    renderActions({ onRequestComposerFocus });
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'chat.uploadFile' }));
+
+    await waitFor(() => {
+      expect(onRequestComposerFocus).toHaveBeenCalledTimes(1);
+    });
   });
 });

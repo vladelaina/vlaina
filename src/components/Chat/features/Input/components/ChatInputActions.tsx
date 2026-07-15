@@ -52,6 +52,7 @@ export function ChatInputActions({
 
   const handleTriggerFileSelect = () => {
     if (disabled) return;
+    restoreComposerFocusOnCloseRef.current = true;
     onTriggerFileSelect();
     setActionsOpen(false);
   };

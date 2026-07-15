@@ -136,7 +136,18 @@ test.describe('chat attachment preview', () => {
       });
 
       await setAppViewMode(page, 'chat');
-      await expect(page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR)).toBeVisible({ timeout: 30_000 });
+      const textarea = page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR);
+      await expect(textarea).toBeVisible({ timeout: 30_000 });
+      await textarea.fill('Describe this');
+      await textarea.evaluate((element) => element.setSelectionRange(0, 0));
+      await textarea.evaluate((element) => {
+        element.addEventListener('blur', () => {
+          const composer = element.closest('[data-chat-input="true"]');
+          if (composer?.querySelector('[data-chat-attachment-preview="true"]')) {
+            element.dataset.caretLayoutRefocused = 'true';
+          }
+        });
+      });
 
       await page.locator('[data-chat-input-action="open-actions"]').click();
       const fileChooserPromise = page.waitForEvent('filechooser');
@@ -156,6 +167,10 @@ test.describe('chat attachment preview', () => {
       await expect(previewList).toBeVisible({ timeout: 30_000 });
       await expect(previewImage).toBeVisible({ timeout: 30_000 });
       await expect(previewImage).toHaveAttribute('src', /^data:image\/png;base64,/);
+      await expect(textarea).toBeFocused();
+      await expect(textarea).toHaveAttribute('data-caret-layout-refocused', 'true');
+      await expect(textarea).toHaveJSProperty('selectionStart', 'Describe this'.length);
+      await expect(textarea).toHaveJSProperty('selectionEnd', 'Describe this'.length);
 
       const metrics = await page.evaluate(() => {
         const list = document.querySelector<HTMLElement>('[data-chat-attachment-preview-list="true"]');
@@ -163,6 +178,7 @@ test.describe('chat attachment preview', () => {
           '[data-chat-attachment-preview="true"] img[alt="e2e-attachment-preview.png"]',
         );
         const composer = document.querySelector<HTMLElement>('[data-chat-input="true"]');
+        const textarea = document.querySelector<HTMLTextAreaElement>('[data-chat-input="true"] textarea');
         return {
           previewCount: document.querySelectorAll('[data-chat-attachment-preview="true"]').length,
           imageComplete: Boolean(image?.complete),
@@ -170,6 +186,8 @@ test.describe('chat attachment preview', () => {
           imageSrc: image?.getAttribute('src') ?? null,
           listHeight: list?.getBoundingClientRect().height ?? 0,
           composerHeight: composer?.getBoundingClientRect().height ?? 0,
+          imageBottom: image?.getBoundingClientRect().bottom ?? 0,
+          textareaTop: textarea?.getBoundingClientRect().top ?? 0,
         };
       });
 
@@ -182,6 +200,7 @@ test.describe('chat attachment preview', () => {
       expect(metrics.imageSrc).toMatch(/^data:image\/png;base64,/);
       expect(metrics.listHeight).toBeGreaterThan(0);
       expect(metrics.composerHeight).toBeGreaterThan(metrics.listHeight);
+      expect(metrics.textareaTop).toBeGreaterThanOrEqual(metrics.imageBottom);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
@@ -201,8 +220,7 @@ test.describe('chat attachment preview', () => {
       });
 
       await setAppViewMode(page, 'chat');
-      const textarea = page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR);
-      await expect(textarea).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR)).toBeVisible({ timeout: 30_000 });
 
       await page.locator('[data-chat-input-action="open-actions"]').click();
       const fileChooserPromise = page.waitForEvent('filechooser');
@@ -361,7 +379,8 @@ test.describe('chat attachment preview', () => {
       });
 
       await setAppViewMode(page, 'chat');
-      await expect(page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR)).toBeVisible({ timeout: 30_000 });
+      const textarea = page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR);
+      await expect(textarea).toBeVisible({ timeout: 30_000 });
 
       await page.locator('[data-chat-input-action="open-actions"]').click();
       const fileChooserPromise = page.waitForEvent('filechooser');
@@ -410,6 +429,7 @@ test.describe('chat attachment preview', () => {
       await fileToken.hover();
       await fileToken.getByRole('button', { name: 'Remove attachment' }).click();
       await expect(page.locator('[data-chat-attachment-preview="true"]')).toHaveCount(0);
+      await expect(textarea).toBeFocused();
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
