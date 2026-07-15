@@ -29,9 +29,9 @@ export function createDesktopAccountSessionClient({
   apiBaseUrl,
   fetchImpl = fetch,
   readStoredAccountCredentials,
-  clearStoredAccountCredentials,
+  clearStoredAccountCredentialsIfCurrent,
   rotateStoredSessionToken,
-  writeStoredAccountCredentials,
+  writeStoredAccountCredentialsIfCurrent,
 }) {
   const { fetchDesktopJson, fetchJson, readJsonResponse } = createDesktopAccountJsonClient({ fetchImpl });
 
@@ -93,7 +93,7 @@ export function createDesktopAccountSessionClient({
     }
 
     throwIfAborted(init.signal);
-    await rotateStoredSessionToken(response.headers);
+    await rotateStoredSessionToken(response.headers, credentials.appSessionToken);
     throwIfAborted(init.signal);
     return response;
   }
@@ -168,6 +168,12 @@ export function createDesktopAccountSessionClient({
         'session_status:http',
         { retryUnauthorized: shouldGraceDesktopSession(credentials) },
       );
+      const currentCredentials = await readStoredAccountCredentials();
+      if (!currentCredentials || currentCredentials.appSessionToken !== credentials.appSessionToken) {
+        return currentCredentials
+          ? buildCachedDesktopStatus(currentCredentials)
+          : buildDisconnectedDesktopStatus({ sessionInvalidated: true });
+      }
 
       if (response.status === 401 || response.status === 403) {
         if (shouldGraceDesktopSession(credentials)) {
@@ -176,7 +182,7 @@ export function createDesktopAccountSessionClient({
 
         const resolved = resolveDesktopSessionProbe(credentials, { kind: 'unauthorized' });
         if (resolved.clearStoredCredentials) {
-          await clearStoredAccountCredentials?.();
+          await clearStoredAccountCredentialsIfCurrent(credentials.appSessionToken);
         }
         return resolved.status;
       }
@@ -185,24 +191,42 @@ export function createDesktopAccountSessionClient({
         return resolveDesktopSessionProbe(credentials, { kind: 'non_ok' }).status;
       }
 
-      await rotateStoredSessionToken(response.headers);
-      const rotatedAppSessionToken =
-        (await readStoredAccountCredentials())?.appSessionToken ?? credentials.appSessionToken;
+      await rotateStoredSessionToken(response.headers, credentials.appSessionToken);
+      const rotatedCredentials = await readStoredAccountCredentials();
+      const responseToken = response.headers.get(desktopLegacySessionHeader)?.trim();
+      const expectedCurrentToken = responseToken || credentials.appSessionToken;
+      if (!rotatedCredentials || rotatedCredentials.appSessionToken !== expectedCurrentToken) {
+        return rotatedCredentials
+          ? buildCachedDesktopStatus(rotatedCredentials)
+          : buildDisconnectedDesktopStatus({ sessionInvalidated: true });
+      }
       const resolved = resolveDesktopSessionProbe(credentials, {
         kind: 'ok',
         payload,
-        rotatedAppSessionToken,
+        rotatedAppSessionToken: rotatedCredentials.appSessionToken,
       });
       if (resolved.clearStoredCredentials) {
-        await clearStoredAccountCredentials?.();
+        await clearStoredAccountCredentialsIfCurrent(rotatedCredentials.appSessionToken);
       }
       if (resolved.nextCredentials) {
-        await writeStoredAccountCredentials(resolved.nextCredentials);
+        const written = await writeStoredAccountCredentialsIfCurrent(
+          resolved.nextCredentials,
+          rotatedCredentials.appSessionToken,
+        );
+        if (!written) {
+          const latestCredentials = await readStoredAccountCredentials();
+          return latestCredentials
+            ? buildCachedDesktopStatus(latestCredentials)
+            : buildDisconnectedDesktopStatus({ sessionInvalidated: true });
+        }
       }
 
       return resolved.status;
     } catch (error) {
-      return resolveDesktopSessionProbe(credentials, { kind: 'error' }).status;
+      const currentCredentials = await readStoredAccountCredentials();
+      return currentCredentials
+        ? buildCachedDesktopStatus(currentCredentials)
+        : buildDisconnectedDesktopStatus({ sessionInvalidated: true });
     }
   }
 
