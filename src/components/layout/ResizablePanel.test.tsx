@@ -141,6 +141,20 @@ describe('ResizablePanel', () => {
     fireEvent.mouseUp(document);
   });
 
+  it('resets and persists the default width on divider double click', () => {
+    localStorage.setItem('panel-width', '460');
+    const { container } = render(
+      <ResizablePanel storageKey="panel-width" defaultWidth={320} minWidth={300} maxWidth={500}>
+        content
+      </ResizablePanel>
+    );
+
+    fireEvent.doubleClick(container.querySelector<HTMLElement>('.cursor-col-resize')!);
+
+    expect(container.querySelector('aside')).toHaveStyle({ width: '320px' });
+    expect(localStorage.getItem('panel-width')).toBe('320');
+  });
+
   it('keeps the settled width transition snappy', () => {
     const { container } = render(
       <ResizablePanel defaultWidth={320} minWidth={300} maxWidth={500}>

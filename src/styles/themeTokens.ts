@@ -742,6 +742,9 @@ export const themeFileTreeTokens = {
   virtualRowHorizontalChromePx: 72,
   virtualRowDepthIndentPx: 12,
   virtualRowAverageCharacterWidthPx: 8,
+  sidebarRowHorizontalChromePx: 136,
+  sidebarRowDepthIndentPx: 16,
+  sidebarMeasuredTextSafetyPx: 16,
 } as const;
 
 export const themeChatStreamTokens = {

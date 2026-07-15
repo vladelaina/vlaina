@@ -30,7 +30,7 @@ export function UnifiedSidebarContainer({
   backgroundColor = 'transparent',
 }: UnifiedSidebarContainerProps) {
   const sidebarRef = useRef<HTMLElement>(null);
-  const { isDragging, handleDragStart } = useShellSidebarResize({
+  const { isDragging, handleDragStart, handleDoubleClick } = useShellSidebarResize({
     width,
     onWidthChange: onLiveWidthChange ?? onWidthChange,
     onWidthCommit: onLiveWidthChange ? onWidthChange : undefined,
@@ -100,6 +100,7 @@ export function UnifiedSidebarContainer({
           <ResizeHandle
             dataResizeHandleScope="shell-sidebar"
             onMouseDown={handleDragStart}
+            onDoubleClick={handleDoubleClick}
             isDragging={isDragging}
             positionStyle={{
               left: `calc(var(--vlaina-shell-sidebar-width) - ${RESIZE_HANDLE_HALF_WIDTH}px)`,
