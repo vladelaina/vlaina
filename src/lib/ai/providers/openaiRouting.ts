@@ -55,9 +55,11 @@ export function shouldUseXaiNativeWebSearch(provider: Provider, model: AIModel):
 }
 
 export function buildChatCompletionOptions(options?: ChatSendOptions): Partial<ChatCompletionRequest> {
+  const completionLimit = typeof options?.max_completion_tokens === 'number'
+    ? options.max_completion_tokens
+    : options?.max_tokens
   return {
-    ...(typeof options?.max_tokens === 'number' ? { max_tokens: options.max_tokens } : {}),
-    ...(typeof options?.max_completion_tokens === 'number' ? { max_completion_tokens: options.max_completion_tokens } : {}),
+    ...(typeof completionLimit === 'number' ? { max_completion_tokens: completionLimit } : {}),
   }
 }
 

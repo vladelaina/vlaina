@@ -136,6 +136,6 @@ export function buildAnthropicMessageRequest({
     messages,
     system,
     stream: true,
-    max_tokens: options?.max_tokens ?? options?.max_completion_tokens ?? 4096,
+    max_tokens: options?.max_completion_tokens ?? options?.max_tokens ?? 4096,
   }
 }

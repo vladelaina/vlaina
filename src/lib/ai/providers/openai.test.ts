@@ -3123,7 +3123,8 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     );
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.max_tokens).toBe(32);
+    expect(body.max_completion_tokens).toBe(32);
+    expect(body.max_tokens).toBeUndefined();
     expect(body.webSearchEnabled).toBeUndefined();
     expect(body.onApiTranscript).toBeUndefined();
     expect(body.onWebSearchStatus).toBeUndefined();

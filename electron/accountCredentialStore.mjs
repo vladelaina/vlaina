@@ -103,8 +103,15 @@ async function getAccountStorePaths() {
 
 export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
   let memoryStoredAccountCredentials = null;
+  let credentialMutationQueue = Promise.resolve();
 
-  async function readStoredAccountCredentials() {
+  function queueCredentialMutation(operation) {
+    const result = credentialMutationQueue.then(operation, operation);
+    credentialMutationQueue = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  async function readStoredAccountCredentialsNow() {
     if (memoryStoredAccountCredentials) {
       return memoryStoredAccountCredentials;
     }
@@ -150,7 +157,12 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
     return credentials;
   }
 
-  async function writeStoredAccountCredentials(credentials) {
+  async function readStoredAccountCredentials() {
+    await credentialMutationQueue;
+    return await readStoredAccountCredentialsNow();
+  }
+
+  async function writeStoredAccountCredentialsNow(credentials) {
     const normalizedCredentials = normalizeStoredAccountCredentials(credentials);
     const { metaPath, secretsPath } = await getAccountStorePaths();
     let encodedSecrets = null;
@@ -198,34 +210,68 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
     );
   }
 
-  async function clearStoredAccountCredentials() {
+  async function writeStoredAccountCredentials(credentials) {
+    return await queueCredentialMutation(() => writeStoredAccountCredentialsNow(credentials));
+  }
+
+  async function writeStoredAccountCredentialsIfCurrent(credentials, expectedToken) {
+    return await queueCredentialMutation(async () => {
+      const current = await readStoredAccountCredentialsNow();
+      if (!current || current.appSessionToken !== expectedToken) {
+        return false;
+      }
+      await writeStoredAccountCredentialsNow(credentials);
+      return true;
+    });
+  }
+
+  async function clearStoredAccountCredentialsNow() {
     memoryStoredAccountCredentials = null;
     const { metaPath, secretsPath } = await getAccountStorePaths();
     await rm(metaPath, { force: true });
     await rm(secretsPath, { force: true });
   }
 
-  async function rotateStoredSessionToken(headers) {
+  async function clearStoredAccountCredentials() {
+    return await queueCredentialMutation(clearStoredAccountCredentialsNow);
+  }
+
+  async function clearStoredAccountCredentialsIfCurrent(expectedToken) {
+    return await queueCredentialMutation(async () => {
+      const current = await readStoredAccountCredentialsNow();
+      if (!current || current.appSessionToken !== expectedToken) {
+        return false;
+      }
+      await clearStoredAccountCredentialsNow();
+      return true;
+    });
+  }
+
+  async function rotateStoredSessionToken(headers, expectedToken = null) {
     const rotatedToken = headers.get(desktopLegacySessionHeader)?.trim();
     if (!rotatedToken) {
       return;
     }
 
-    const current = await readStoredAccountCredentials();
-    if (!current) {
-      return;
-    }
+    return await queueCredentialMutation(async () => {
+      const current = await readStoredAccountCredentialsNow();
+      if (!current || (expectedToken && current.appSessionToken !== expectedToken)) {
+        return;
+      }
 
-    await writeStoredAccountCredentials({
-      ...current,
-      appSessionToken: rotatedToken,
+      await writeStoredAccountCredentialsNow({
+        ...current,
+        appSessionToken: rotatedToken,
+      });
     });
   }
 
   return {
     readStoredAccountCredentials,
     writeStoredAccountCredentials,
+    writeStoredAccountCredentialsIfCurrent,
     clearStoredAccountCredentials,
+    clearStoredAccountCredentialsIfCurrent,
     rotateStoredSessionToken,
   };
 }

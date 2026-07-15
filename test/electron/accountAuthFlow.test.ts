@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
   const readStoredAccountCredentials = vi.fn();
   const writeStoredAccountCredentials = vi.fn();
+  const writeStoredAccountCredentialsIfCurrent = vi.fn();
   const clearStoredAccountCredentials = vi.fn();
+  const clearStoredAccountCredentialsIfCurrent = vi.fn();
   const rotateStoredSessionToken = vi.fn();
   const fetchDesktopJson = vi.fn();
   const fetchWithStoredSession = vi.fn();
@@ -17,7 +19,9 @@ const mocks = vi.hoisted(() => {
   return {
     readStoredAccountCredentials,
     writeStoredAccountCredentials,
+    writeStoredAccountCredentialsIfCurrent,
     clearStoredAccountCredentials,
+    clearStoredAccountCredentialsIfCurrent,
     rotateStoredSessionToken,
     fetchDesktopJson,
     fetchWithStoredSession,
@@ -42,7 +46,9 @@ vi.mock('../../electron/accountCredentialStore.mjs', () => ({
   createAccountCredentialStore: vi.fn(() => ({
     readStoredAccountCredentials: mocks.readStoredAccountCredentials,
     writeStoredAccountCredentials: mocks.writeStoredAccountCredentials,
+    writeStoredAccountCredentialsIfCurrent: mocks.writeStoredAccountCredentialsIfCurrent,
     clearStoredAccountCredentials: mocks.clearStoredAccountCredentials,
+    clearStoredAccountCredentialsIfCurrent: mocks.clearStoredAccountCredentialsIfCurrent,
     rotateStoredSessionToken: mocks.rotateStoredSessionToken,
   })),
   isSupportedAccountProvider: vi.fn((provider: string) => provider === 'google' || provider === 'email'),
@@ -99,6 +105,8 @@ describe('desktop account auth flow', () => {
       avatarUrl: null,
       error: null,
     });
+    mocks.clearStoredAccountCredentialsIfCurrent.mockResolvedValue(true);
+    mocks.writeStoredAccountCredentialsIfCurrent.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -260,6 +268,44 @@ describe('desktop account auth flow', () => {
     expect(mocks.bindDesktopAuthLoopbackServer).toHaveBeenCalledTimes(2);
     expect(mocks.openExternal).toHaveBeenCalledTimes(2);
     expect(mocks.persistDesktopAuthResult).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not replay the one-time desktop OAuth result request after a network failure', async () => {
+    const { handlers } = registerHarness();
+    const loopback = {
+      callbackUrl: 'http://127.0.0.1:45000/oauth/callback',
+      waitForCallback: vi.fn(() =>
+        Promise.resolve({ state: 'state-1', resultToken: 'result-1', error: null })
+      ),
+      close: vi.fn(),
+      cancel: vi.fn(),
+    };
+    mocks.bindDesktopAuthLoopbackServer.mockResolvedValue(loopback);
+    let resultCalls = 0;
+    mocks.fetchDesktopJson.mockImplementation(async (url: string) => {
+      if (url === 'https://api.example.com/auth/google/desktop/start') {
+        return {
+          data: {
+            success: true,
+            state: 'state-1',
+            authUrl: 'https://accounts.example.com/oauth',
+            expiresInSeconds: 300,
+          },
+        };
+      }
+      if (url === 'https://api.example.com/auth/google/desktop/result') {
+        resultCalls += 1;
+        throw new TypeError('Failed to fetch');
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    await expect(handlers.get('desktop:account:start-auth')?.({}, 'google')).resolves.toMatchObject({
+      success: false,
+    });
+
+    expect(resultCalls).toBe(1);
+    expect(mocks.persistDesktopAuthResult).not.toHaveBeenCalled();
   });
 
   it('rejects unsafe OAuth authorization URLs before opening them in the system browser', async () => {
@@ -437,6 +483,38 @@ describe('desktop account auth flow', () => {
     });
   });
 
+  it('coalesces matching email verification IPC calls across renderer windows', async () => {
+    const { handlers } = registerHarness();
+    let resolveVerification!: (value: { data: Record<string, unknown> }) => void;
+    mocks.fetchDesktopJson.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVerification = resolve;
+      })
+    );
+    const verify = handlers.get('desktop:account:verify-email-code')!;
+
+    const first = verify({}, ' VLA@example.com ', ' 123456 ');
+    const second = verify({}, 'vla@example.com', '123456');
+
+    expect(mocks.fetchDesktopJson).toHaveBeenCalledTimes(1);
+    resolveVerification({
+      data: {
+        success: true,
+        provider: 'email',
+        username: 'vla',
+        primaryEmail: 'vla@example.com',
+        sessionToken: 'nts_test_session',
+      },
+    });
+
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      expect.objectContaining({ success: true }),
+      expect.objectContaining({ success: true }),
+    ]);
+    expect(mocks.fetchDesktopJson).toHaveBeenCalledTimes(1);
+    expect(mocks.persistDesktopAuthResult).toHaveBeenCalledTimes(1);
+  });
+
   it('does not retry desktop email verification network failures because codes are one-time use', async () => {
     const { handlers } = registerHarness();
     mocks.fetchDesktopJson.mockRejectedValue(new TypeError('Failed to fetch'));
@@ -449,6 +527,22 @@ describe('desktop account auth flow', () => {
     });
 
     expect(mocks.fetchDesktopJson).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let an older disconnect clear credentials written by a newer sign-in', async () => {
+    const oldCredentials = { appSessionToken: 'nts_old_session' };
+    const newCredentials = { appSessionToken: 'nts_new_session' };
+    mocks.readStoredAccountCredentials
+      .mockResolvedValueOnce(oldCredentials)
+      .mockResolvedValueOnce(newCredentials);
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    const { handlers } = registerHarness({ fetchImpl: fetchMock });
+
+    await expect(handlers.get('desktop:account:disconnect')?.({})).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.clearStoredAccountCredentialsIfCurrent).toHaveBeenCalledWith('nts_old_session');
+    expect(mocks.clearStoredAccountCredentials).not.toHaveBeenCalled();
   });
 
   it('rejects invalid desktop email verification payloads before network access', async () => {

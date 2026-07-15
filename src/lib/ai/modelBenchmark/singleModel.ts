@@ -65,7 +65,7 @@ function buildBenchmarkBody(
       stream: false,
     };
 
-    if (endpointType === 'anthropic' || !/^o\d/i.test(modelId)) {
+    if (endpointType === 'anthropic') {
       chatBody.max_tokens = BENCHMARK_TEXT_MAX_OUTPUT_TOKENS;
     } else {
       chatBody.max_completion_tokens = BENCHMARK_TEXT_MAX_OUTPUT_TOKENS;

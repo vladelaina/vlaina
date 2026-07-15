@@ -173,6 +173,36 @@ describe('webAccountCommands', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('does not replay the one-time web OAuth result request after a network failure', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(webAccountCommands.completeAuth('google', 'state-1')).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining('Failed to fetch'),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('continues polling web OAuth results only after an explicit pending response', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: false, pending: true }), { status: 202 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        provider: 'google',
+        username: 'octocat',
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = webAccountCommands.completeAuth('google', 'state-1');
+    await vi.advanceTimersByTimeAsync(300);
+
+    await expect(request).resolves.toMatchObject({ success: true, username: 'octocat' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('retries transient email-code network failures before surfacing an error', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn()
@@ -280,7 +310,7 @@ describe('webAccountCommands', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('revokes the cookie session before clearing client metadata', async () => {
+  it('separates cookie revocation from current-attempt client cleanup', async () => {
     sessionStorage.setItem(
       'vlaina_account_session',
       JSON.stringify({ provider: 'google', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
@@ -297,6 +327,9 @@ describe('webAccountCommands', () => {
       credentials: 'include',
       signal: expect.any(AbortSignal),
     });
+    expect(sessionStorage.getItem('vlaina_account_session')).not.toBeNull();
+
+    webAccountCommands.clearLocalSession();
     expect(sessionStorage.getItem('vlaina_account_session')).toBeNull();
   });
 
