@@ -1,28 +1,15 @@
 import { fireEvent, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useWhiteboardClipboard } from './useWhiteboardClipboard';
 
-const mocks = vi.hoisted(() => ({
-  writeTextToClipboard: vi.fn(async () => true),
-}));
-
-vi.mock('@/lib/clipboard', () => ({
-  writeTextToClipboard: mocks.writeTextToClipboard,
-}));
-
-function createOptions(
-  overrides: Partial<Parameters<typeof useWhiteboardClipboard>[0]> = {},
-): Parameters<typeof useWhiteboardClipboard>[0] {
+function createOptions(overrides: Partial<Parameters<typeof useWhiteboardClipboard>[0]> = {}) {
   return {
     active: true,
-    connectors: [],
-    createTextNote: vi.fn(),
     elements: [],
     importImage: vi.fn(),
     pushHistory: vi.fn(),
     selectedElementIds: [],
     selectedStrokeIds: [],
-    setConnectors: vi.fn(),
     setElements: vi.fn(),
     setSelectedElementIds: vi.fn(),
     setSelectedStrokeIds: vi.fn(),
@@ -34,35 +21,28 @@ function createOptions(
 }
 
 describe('useWhiteboardClipboard', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('copies selected note text to the system clipboard', () => {
+  it('duplicates selected images and strokes', () => {
+    const setSelectedElementIds = vi.fn();
+    const setSelectedStrokeIds = vi.fn();
     const options = createOptions({
-      elements: [{ id: 'note-1', type: 'note', x: 0, y: 0, width: 220, height: 148, text: 'Project notes' }],
-      selectedElementIds: ['note-1'],
+      elements: [{ height: 80, id: 'image-1', text: 'demo.png', type: 'image', width: 100, x: 0, y: 0 }],
+      selectedElementIds: ['image-1'],
+      selectedStrokeIds: ['stroke-1'],
+      setSelectedElementIds,
+      setSelectedStrokeIds,
+      strokes: [{ color: '#111111', id: 'stroke-1', points: [{ pressure: 0.5, x: 0, y: 0 }], size: 2, tool: 'pen' }],
     });
     const { result } = renderHook(() => useWhiteboardClipboard(options));
-
-    expect(result.current.copySelection()).toBe(true);
-    expect(mocks.writeTextToClipboard).toHaveBeenCalledWith('Project notes');
+    result.current.duplicateSelection();
+    expect(setSelectedElementIds.mock.calls[0][0]).toHaveLength(1);
+    expect(setSelectedStrokeIds.mock.calls[0][0]).toHaveLength(1);
   });
 
-  it('creates a note when plain text is pasted onto the canvas', () => {
-    const createTextNote = vi.fn();
-    renderHook(() => useWhiteboardClipboard(createOptions({ createTextNote })));
+  it('ignores plain text pasted onto the canvas', () => {
+    renderHook(() => useWhiteboardClipboard(createOptions()));
     const event = new Event('paste', { bubbles: true, cancelable: true });
-    Object.defineProperty(event, 'clipboardData', {
-      value: {
-        files: [],
-        getData: (type: string) => type === 'text/plain' ? 'Pasted note' : '',
-      },
-    });
-
+    Object.defineProperty(event, 'clipboardData', { value: { files: [], getData: () => 'text' } });
     fireEvent(window, event);
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(createTextNote).toHaveBeenCalledWith('Pasted note');
+    expect(event.defaultPrevented).toBe(false);
   });
 });

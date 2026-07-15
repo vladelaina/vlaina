@@ -1,64 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WhiteboardStroke } from './whiteboardModel';
-import { appendStrokePointsInPlace, eraseStrokeAtPoint, eraseStrokesAtPoints, getStrokePointMinDistance, getStrokeRenderGeometry } from './whiteboardStrokeGeometry';
-
-describe('whiteboard stroke geometry erasing', () => {
-  it('applies batched eraser points in order', () => {
-    const stroke: WhiteboardStroke = {
-      color: '#111111',
-      id: 'stroke',
-      points: [
-        { pressure: 0.5, x: 0, y: 0 },
-        { pressure: 0.5, x: 40, y: 0 },
-        { pressure: 0.5, x: 80, y: 0 },
-        { pressure: 0.5, x: 120, y: 0 },
-      ],
-      size: 1,
-      tool: 'pen',
-    };
-    const points = [
-      { point: { x: 40, y: 0 }, size: 1 },
-      { point: { x: 80, y: 0 }, size: 1 },
-    ];
-
-    const sequential = points.reduce(
-      (current, eraserPoint) => current.flatMap((item) => eraseStrokeAtPoint(item, eraserPoint.point, eraserPoint.size)),
-      [stroke],
-    );
-
-    expect(eraseStrokesAtPoints([stroke], points)).toEqual(sequential);
-  });
-
-  it('keeps strokes outside the batched eraser bounds unchanged', () => {
-    const nearStroke: WhiteboardStroke = {
-      color: '#111111',
-      id: 'near',
-      points: [
-        { pressure: 0.5, x: 0, y: 0 },
-        { pressure: 0.5, x: 40, y: 0 },
-      ],
-      size: 1,
-      tool: 'pen',
-    };
-    const farStroke: WhiteboardStroke = {
-      color: '#222222',
-      id: 'far',
-      points: [
-        { pressure: 0.5, x: 1000, y: 1000 },
-        { pressure: 0.5, x: 1040, y: 1000 },
-      ],
-      size: 1,
-      tool: 'pen',
-    };
-
-    const result = eraseStrokesAtPoints([nearStroke, farStroke], [
-      { point: { x: 0, y: 0 }, size: 1 },
-    ]);
-
-    expect(result).toContain(farStroke);
-    expect(result.some((stroke) => stroke.id === nearStroke.id)).toBe(false);
-  });
-});
+import { appendStrokePointsInPlace, getStrokePointMinDistance, getStrokeRenderGeometry } from './whiteboardStrokeGeometry';
 
 describe('whiteboard stroke point sampling', () => {
   it('keeps stroke point spacing stable in screen pixels across zoom levels', () => {
@@ -99,4 +41,106 @@ describe('whiteboard stroke render geometry', () => {
     expect(updated.centerPath).toContain('80');
     expect(updated.pressurePath).toContain('80');
   });
+
+  it('tapers pen strokes at the beginning and end', () => {
+    const stroke: WhiteboardStroke = {
+      color: '#111111',
+      id: 'pen-stroke',
+      points: [0, 10, 20, 30, 40].map((x) => ({ pressure: 1, x, y: 0 })),
+      size: 1,
+      tool: 'pen',
+    };
+
+    const outlinePoints = readPathPoints(getStrokeRenderGeometry(stroke).pressurePath);
+    const firstRadius = Math.abs(outlinePoints[0][1]);
+    const centerEdge = outlinePoints.find(([x, y]) => x === 20 && y > 0);
+
+    expect(centerEdge).toBeDefined();
+    expect(centerEdge![1]).toBeGreaterThan(firstRadius * 2);
+  });
+
+  it('uses a fixed fountain nib angle for directional line weight', () => {
+    const createStroke = (x: number, y: number): WhiteboardStroke => ({
+      color: '#111111',
+      id: `fountain-${x}-${y}`,
+      points: [{ pressure: 1, x: 0, y: 0 }, { pressure: 1, x, y }],
+      size: 1,
+      tool: 'fountain',
+    });
+    const horizontalStart = readPathPoints(getStrokeRenderGeometry(createStroke(10, 0)).pressurePath)[0];
+    const nibAngle = -42 * Math.PI / 180;
+    const alignedStart = readPathPoints(getStrokeRenderGeometry(createStroke(
+      Math.cos(nibAngle) * 10,
+      Math.sin(nibAngle) * 10,
+    )).pressurePath)[0];
+
+    expect(Math.hypot(...horizontalStart)).toBeGreaterThan(Math.hypot(...alignedStart) * 1.8);
+  });
+
+  it('uses a fixed marker nib angle for chisel line weight', () => {
+    const createStroke = (x: number, y: number): WhiteboardStroke => ({
+      color: '#ffaa00',
+      id: `marker-${x}-${y}`,
+      points: [{ pressure: 0.6, x: 0, y: 0 }, { pressure: 0.6, x, y }],
+      size: 1,
+      tool: 'marker',
+    });
+    const perpendicularAngle = Math.PI;
+    const alignedAngle = Math.PI / 2;
+    const wideStart = readPathPoints(getStrokeRenderGeometry(createStroke(
+      Math.cos(perpendicularAngle) * 10,
+      Math.sin(perpendicularAngle) * 10,
+    )).pressurePath)[0];
+    const narrowStart = readPathPoints(getStrokeRenderGeometry(createStroke(
+      Math.cos(alignedAngle) * 10,
+      Math.sin(alignedAngle) * 10,
+    )).pressurePath)[0];
+
+    expect(Math.hypot(...wideStart)).toBeGreaterThan(Math.hypot(...narrowStart) * 1.6);
+  });
+
+  it('keeps organic brush edges deterministic but unique per stroke', () => {
+    const createStroke = (id: string): WhiteboardStroke => ({
+      color: '#cc5500',
+      id,
+      points: [0, 10, 20, 30].map((x, index) => ({ pressure: 0.6, x, y: index % 2 === 0 ? 0 : 4 })),
+      size: 1,
+      tool: 'crayon',
+    });
+
+    const first = getStrokeRenderGeometry(createStroke('crayon-a')).pressurePath;
+    const repeated = getStrokeRenderGeometry(createStroke('crayon-a')).pressurePath;
+    const second = getStrokeRenderGeometry(createStroke('crayon-b')).pressurePath;
+
+    expect(repeated).toBe(first);
+    expect(second).not.toBe(first);
+  });
+
+  it('creates bounded local pigment paths for medium and heavy pressure', () => {
+    const stroke: WhiteboardStroke = {
+      color: '#334455',
+      id: 'pressure-detail',
+      points: [
+        { pressure: 0.2, x: 0, y: 0 },
+        { pressure: 0.7, x: 10, y: 0 },
+        { pressure: 0.9, x: 20, y: 0 },
+        { pressure: 0.9, x: 30, y: 0 },
+        { pressure: 0.3, x: 40, y: 0 },
+      ],
+      size: 1,
+      tool: 'pencil',
+    };
+
+    const geometry = getStrokeRenderGeometry(stroke);
+
+    expect(geometry.mediumPressurePath).toContain('M 10 0 L 20 0 L 30 0 L 40 0');
+    expect(geometry.heavyPressurePath).toBe('M 10 0 L 20 0 L 30 0');
+  });
 });
+
+function readPathPoints(path: string): [number, number][] {
+  return Array.from(path.matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g), (match) => [
+    Number(match[1]),
+    Number(match[2]),
+  ]);
+}

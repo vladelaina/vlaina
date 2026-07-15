@@ -26,7 +26,7 @@ interface WhiteboardStore {
   deleteBoard: (id: string) => Promise<void>;
   loadForNotesRoot: (notesRootPath: string | null) => Promise<void>;
   renameBoard: (id: string, title: string) => Promise<void>;
-  saveActiveSnapshot: (snapshot: WhiteboardSnapshot, boardId?: string | null) => Promise<WhiteboardSaveResult | null>;
+  saveActiveSnapshot: (snapshot: WhiteboardSnapshot, boardId?: string | null, notesRootPath?: string | null) => Promise<WhiteboardSaveResult | null>;
   selectBoard: (id: string) => Promise<void>;
   setActiveSnapshotDraft: (snapshot: WhiteboardSnapshot) => void;
   writeActiveAsset: (file: File) => Promise<string | null>;
@@ -36,6 +36,7 @@ const whiteboardStorageEncoder = new TextEncoder();
 let activeSnapshotDraft: { boardId: string | null; snapshot: WhiteboardSnapshot } | null = null;
 let whiteboardLoadSequence = 0;
 let whiteboardMutationSequence = 0;
+const whiteboardSnapshotWrites = new Map<string, Promise<void>>();
 
 export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
   activeBoardId: null,
@@ -55,7 +56,7 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
       await flushActiveSnapshot(get);
       const emptySnapshot = normalizeWhiteboardSnapshot({});
       const { entry, index } = await createWhiteboardEntry(notesRootPath, title === 'Board' ? getNextBoardTitle(get().boards) : title);
-      activeSnapshotDraft = { boardId: entry.id, snapshot: emptySnapshot };
+      setSnapshotDraft(entry.id, emptySnapshot);
       set({
         activeBoardId: entry.id,
         activeSnapshot: emptySnapshot,
@@ -96,7 +97,7 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
       const snapshot = activeBoardId === id
         ? await readWhiteboardBoard(loadedNotesRootPath, nextActiveBoard) ?? normalizeWhiteboardSnapshot({})
         : get().activeSnapshot ?? normalizeWhiteboardSnapshot({});
-      activeSnapshotDraft = { boardId: nextActiveBoard.id, snapshot };
+      setSnapshotDraft(nextActiveBoard.id, snapshot);
       set({
         activeBoardId: nextActiveBoard.id,
         activeSnapshot: snapshot,
@@ -110,27 +111,33 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
   },
 
   loadForNotesRoot: async (notesRootPath) => {
-    if (!notesRootPath) {
-      set({ activeBoardId: null, activeSnapshot: null, boards: [], loadedNotesRootPath: null, loading: false });
-      activeSnapshotDraft = null;
-      return;
-    }
     if (get().loadedNotesRootPath === notesRootPath && get().boards.length > 0) return;
     const loadSequence = ++whiteboardLoadSequence;
     const mutationSequence = whiteboardMutationSequence;
     set({ loading: true });
     try {
+      if (!notesRootPath) {
+        await flushActiveSnapshot(get);
+        if (loadSequence !== whiteboardLoadSequence || mutationSequence !== whiteboardMutationSequence) return;
+        set({ activeBoardId: null, activeSnapshot: null, boards: [], error: null, loadedNotesRootPath: null, loading: false });
+        setSnapshotDraft(null, null);
+        return;
+      }
       const index = await loadWhiteboardIndex(notesRootPath);
       const activeBoard = index.boards.find((board) => board.id === index.activeBoardId) ?? index.boards[0];
       const storedSnapshot = await readWhiteboardBoard(notesRootPath, activeBoard);
       const snapshot = storedSnapshot ?? normalizeWhiteboardSnapshot({});
+      if (loadSequence !== whiteboardLoadSequence || mutationSequence !== whiteboardMutationSequence) return;
+      if (get().loadedNotesRootPath && get().loadedNotesRootPath !== notesRootPath) {
+        await flushActiveSnapshot(get);
+      }
       if (loadSequence !== whiteboardLoadSequence || mutationSequence !== whiteboardMutationSequence) return;
       await writeWhiteboardIndex(notesRootPath, index);
       if (!storedSnapshot) {
         await writeWhiteboardBoard(notesRootPath, activeBoard, snapshot);
       }
       if (loadSequence !== whiteboardLoadSequence || mutationSequence !== whiteboardMutationSequence) return;
-      activeSnapshotDraft = { boardId: activeBoard.id, snapshot };
+      setSnapshotDraft(activeBoard.id, snapshot);
       set({
         activeBoardId: activeBoard.id,
         activeSnapshot: snapshot,
@@ -167,30 +174,39 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
     }
   },
 
-  saveActiveSnapshot: async (snapshot, boardId) => {
+  saveActiveSnapshot: async (snapshot, boardId, notesRootPath) => {
     const { activeBoardId, boards, loadedNotesRootPath } = get();
+    const mutationSequence = whiteboardMutationSequence;
     const targetBoardId = boardId ?? activeBoardId;
+    const targetNotesRootPath = notesRootPath ?? loadedNotesRootPath;
+    if (!targetNotesRootPath) return null;
+    const byteLength = whiteboardStorageEncoder.encode(JSON.stringify(snapshot)).length;
+    if (
+      targetNotesRootPath !== loadedNotesRootPath ||
+      activeSnapshotDraft?.boardId !== targetBoardId ||
+      activeSnapshotDraft.snapshot !== snapshot
+    ) return { byteLength, ok: true };
     const activeBoard = boards.find((board) => board.id === targetBoardId);
-    if (!loadedNotesRootPath || !activeBoard) return null;
+    if (!activeBoard) return null;
     try {
-      await writeWhiteboardBoard(loadedNotesRootPath, activeBoard, snapshot);
+      await writeSnapshotQueued(targetNotesRootPath, activeBoard, snapshot);
+      if (get().loadedNotesRootPath !== targetNotesRootPath || mutationSequence !== whiteboardMutationSequence) {
+        return { byteLength, ok: true };
+      }
       const updatedBoard = { ...activeBoard, updatedAt: new Date().toISOString() };
       const latestBoards = get().boards;
       const baseBoards = latestBoards.some((board) => board.id === updatedBoard.id) ? latestBoards : boards;
       const nextBoards = baseBoards.map((board) => (board.id === updatedBoard.id ? updatedBoard : board));
       set({ boards: nextBoards });
       const currentActiveBoardId = get().activeBoardId;
-      await writeWhiteboardIndex(loadedNotesRootPath, {
+      await writeWhiteboardIndex(targetNotesRootPath, {
         activeBoardId: currentActiveBoardId && nextBoards.some((board) => board.id === currentActiveBoardId)
           ? currentActiveBoardId
           : updatedBoard.id,
         boards: nextBoards,
         version: 1,
       });
-      return {
-        byteLength: whiteboardStorageEncoder.encode(JSON.stringify(snapshot)).length,
-        ok: true,
-      };
+      return { byteLength, ok: true };
     } catch (error) {
       set({ error: getErrorMessage(error) });
       return { byteLength: 0, ok: false, reason: 'write-failed' };
@@ -210,7 +226,7 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
       const index = await loadWhiteboardIndex(loadedNotesRootPath);
       await writeWhiteboardIndex(loadedNotesRootPath, { ...index, activeBoardId: id });
       const snapshot = await readWhiteboardBoard(loadedNotesRootPath, board) ?? normalizeWhiteboardSnapshot({});
-      activeSnapshotDraft = { boardId: id, snapshot };
+      setSnapshotDraft(id, snapshot);
       set({ activeBoardId: id, activeSnapshot: snapshot, error: null, loading: false });
     } catch (error) {
       set({ error: getErrorMessage(error), loading: false });
@@ -218,7 +234,7 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
   },
 
   setActiveSnapshotDraft: (snapshot) => {
-    activeSnapshotDraft = { boardId: get().activeBoardId, snapshot };
+    setSnapshotDraft(get().activeBoardId, snapshot);
   },
 
   writeActiveAsset: async (file) => {
@@ -234,12 +250,36 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
   },
 }));
 
+export async function flushWhiteboardStorage(): Promise<void> {
+  await flushActiveSnapshot(useWhiteboardStore.getState);
+  await Promise.all(whiteboardSnapshotWrites.values());
+}
+
 async function flushActiveSnapshot(get: () => WhiteboardStore): Promise<void> {
   const { activeBoardId, activeSnapshot, boards, loadedNotesRootPath } = get();
   const activeBoard = boards.find((board) => board.id === activeBoardId);
   const snapshot = activeSnapshotDraft?.boardId === activeBoardId ? activeSnapshotDraft.snapshot : activeSnapshot;
   if (!loadedNotesRootPath || !activeBoard || !snapshot) return;
-  await writeWhiteboardBoard(loadedNotesRootPath, activeBoard, snapshot);
+  await writeSnapshotQueued(loadedNotesRootPath, activeBoard, snapshot);
+}
+
+function setSnapshotDraft(boardId: string | null, snapshot: WhiteboardSnapshot | null): void {
+  activeSnapshotDraft = snapshot ? { boardId, snapshot } : null;
+}
+
+function writeSnapshotQueued(
+  notesRootPath: string,
+  board: WhiteboardIndexEntry,
+  snapshot: WhiteboardSnapshot,
+): Promise<void> {
+  const key = `${notesRootPath}\n${board.folder}`;
+  const previous = whiteboardSnapshotWrites.get(key) ?? Promise.resolve();
+  const write = previous.catch(() => undefined).then(() => writeWhiteboardBoard(notesRootPath, board, snapshot));
+  const tracked = write.finally(() => {
+    if (whiteboardSnapshotWrites.get(key) === tracked) whiteboardSnapshotWrites.delete(key);
+  });
+  whiteboardSnapshotWrites.set(key, tracked);
+  return tracked;
 }
 
 function getNextBoardTitle(boards: WhiteboardIndexEntry[]): string {

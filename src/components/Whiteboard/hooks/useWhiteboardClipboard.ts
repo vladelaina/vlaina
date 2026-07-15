@@ -1,26 +1,21 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { isImageFileLike } from '@/lib/assets/core/naming';
-import { writeTextToClipboard } from '@/lib/clipboard';
 import { isEditableTarget } from '../model/whiteboardInteractions';
-import type { WhiteboardConnector, WhiteboardElement, WhiteboardStroke, WhiteboardTool } from '../model/whiteboardModel';
-import { cloneConnectorsForElements, cloneElements, cloneStrokes } from '../model/whiteboardTransform';
+import type { WhiteboardElement, WhiteboardStroke, WhiteboardTool } from '../model/whiteboardModel';
+import { cloneElements, cloneStrokes } from '../model/whiteboardTransform';
 
 interface WhiteboardClipboardPayload {
-  connectors: WhiteboardConnector[];
   elements: WhiteboardElement[];
   strokes: WhiteboardStroke[];
 }
 
 interface WhiteboardClipboardOptions {
   active: boolean;
-  connectors: WhiteboardConnector[];
-  createTextNote: (text: string) => void;
   elements: WhiteboardElement[];
   importImage: (file: File) => void;
   pushHistory: () => void;
   selectedElementIds: string[];
   selectedStrokeIds: string[];
-  setConnectors: Dispatch<SetStateAction<WhiteboardConnector[]>>;
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
   setSelectedElementIds: Dispatch<SetStateAction<string[]>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
@@ -31,14 +26,11 @@ interface WhiteboardClipboardOptions {
 
 export function useWhiteboardClipboard({
   active,
-  connectors,
-  createTextNote,
   elements,
   importImage,
   pushHistory,
   selectedElementIds,
   selectedStrokeIds,
-  setConnectors,
   setElements,
   setSelectedElementIds,
   setSelectedStrokeIds,
@@ -55,16 +47,12 @@ export function useWhiteboardClipboard({
     const selectedIds = new Set(selectedStrokeIds);
     const selectedStrokes = strokes.filter((stroke) => selectedIds.has(stroke.id));
     if (selectedElements.length === 0 && selectedStrokes.length === 0) return false;
-    const selectedElementIdSetForConnectors = new Set(selectedElements.map((element) => element.id));
     clipboardRef.current = {
-      connectors: connectors.filter((connector) => selectedElementIdSetForConnectors.has(connector.fromId) && selectedElementIdSetForConnectors.has(connector.toId)),
       elements: selectedElements,
       strokes: selectedStrokes,
     };
-    const copiedText = selectedElements.map((element) => element.text.trim()).filter(Boolean).join('\n\n');
-    if (copiedText) void writeTextToClipboard(copiedText);
     return true;
-  }, [connectors, elements, selectedElementIds, selectedStrokeIds, strokes]);
+  }, [elements, selectedElementIds, selectedStrokeIds, strokes]);
 
   const pasteSelection = useCallback(() => {
     const payload = clipboardRef.current;
@@ -74,15 +62,13 @@ export function useWhiteboardClipboard({
     const offset = 28 * pasteCountRef.current;
     const nextElements = cloneElements(payload.elements, offset, idPrefix);
     const nextStrokes = cloneStrokes(payload.strokes, offset, idPrefix);
-    const nextConnectors = cloneConnectorsForElements(payload.connectors, payload.elements, nextElements, idPrefix);
     pushHistory();
     setElements((current) => [...current, ...nextElements]);
     setStrokes((current) => [...current, ...nextStrokes]);
-    setConnectors((current) => [...current, ...nextConnectors]);
     setSelectedElementIds(nextElements.map((element) => element.id));
-    setSelectedStrokeIds(nextElements.length > 0 ? [] : nextStrokes.map((stroke) => stroke.id));
+    setSelectedStrokeIds(nextStrokes.map((stroke) => stroke.id));
     setTool('select');
-  }, [pushHistory, setConnectors, setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes, setTool]);
+  }, [pushHistory, setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes, setTool]);
 
   const duplicateSelection = useCallback(() => {
     if (copySelection()) pasteSelection();
@@ -118,15 +104,10 @@ export function useWhiteboardClipboard({
         importImage(imageFile);
         return;
       }
-      if (clipboardRef.current) return;
-      const text = event.clipboardData?.getData('text/plain').trim();
-      if (!text) return;
-      event.preventDefault();
-      createTextNote(text);
     };
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [active, createTextNote, importImage]);
+  }, [active, importImage]);
 
   return { copySelection, duplicateSelection, pasteSelection };
 }

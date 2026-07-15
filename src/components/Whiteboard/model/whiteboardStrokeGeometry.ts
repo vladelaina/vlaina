@@ -6,6 +6,19 @@ import {
   type WhiteboardStroke,
   type WhiteboardStrokePoint,
 } from './whiteboardModel';
+import { getStrokePointSegments } from './whiteboardStrokeRenderGeometry';
+import { distanceBetweenSegments, distanceToSegment } from './whiteboardSegmentGeometry';
+
+export {
+  getCenterStrokePath,
+  getPressureStrokePath,
+  getStrokeDabGeometry,
+  getStrokePointSegments,
+  getStrokeRenderGeometry,
+  getStrokeRenderWidth,
+  type StrokeRenderGeometry,
+  type StrokeDabGeometry,
+} from './whiteboardStrokeRenderGeometry';
 
 interface EraserBounds {
   maxWidth: number;
@@ -15,26 +28,8 @@ interface EraserBounds {
   minY: number;
 }
 
-export interface WhiteboardEraserPoint {
-  point: WhiteboardPoint;
-  size: number;
-}
-
 const eraserBoundsCache = new WeakMap<WhiteboardStroke, EraserBounds | null>();
-const strokeRenderGeometryCache = new WeakMap<WhiteboardStrokePoint[], StrokeRenderGeometryCacheEntry>();
-
-export interface StrokeRenderGeometry {
-  centerPath: string;
-  pressurePath: string;
-  renderWidth: number;
-}
-
-interface StrokeRenderGeometryCacheEntry {
-  geometry: StrokeRenderGeometry;
-  pointCount: number;
-  size: number;
-  tool: WhiteboardStroke['tool'];
-}
+const eraserSampleCache = new WeakMap<WhiteboardStroke, WhiteboardStrokePoint[]>();
 
 export function appendStrokePoints(
   currentPoints: WhiteboardStrokePoint[],
@@ -62,170 +57,42 @@ export function getStrokePointMinDistance(zoom: number): number {
   return themeWhiteboardTokens.strokePointMinDistancePx / Math.max(zoom, 0.1);
 }
 
-export function getStrokeRenderWidth(stroke: WhiteboardStroke): number {
-  if (stroke.points.length === 0) return getStrokeWidth(stroke.tool, 1, stroke.size);
-  const pressure = stroke.points.reduce((total, point) => total + point.pressure, 0) / stroke.points.length;
-  return getStrokeWidth(stroke.tool, pressure, stroke.size);
-}
-
-export function getStrokeRenderGeometry(stroke: WhiteboardStroke): StrokeRenderGeometry {
-  const cached = strokeRenderGeometryCache.get(stroke.points);
-  if (cached && cached.pointCount === stroke.points.length && cached.tool === stroke.tool && cached.size === stroke.size) {
-    return cached.geometry;
-  }
-  const segments = getStrokePointSegments(stroke.points);
-  const geometry = {
-    centerPath: segments.map(getOpenEdgePath).join(' '),
-    pressurePath: segments.map((segment) => getPressureSegmentPath(stroke, segment)).join(' '),
-    renderWidth: getStrokeRenderWidth(stroke),
-  };
-  strokeRenderGeometryCache.set(stroke.points, {
-    geometry,
-    pointCount: stroke.points.length,
-    size: stroke.size,
-    tool: stroke.tool,
-  });
-  return geometry;
-}
-
-export function getPressureStrokePath(stroke: WhiteboardStroke): string {
-  const cached = strokeRenderGeometryCache.get(stroke.points);
-  if (cached && cached.pointCount === stroke.points.length && cached.tool === stroke.tool && cached.size === stroke.size) {
-    return cached.geometry.pressurePath;
-  }
-  return getStrokePointSegments(stroke.points).map((segment) => getPressureSegmentPath(stroke, segment)).join(' ');
-}
-
-export function getCenterStrokePath(stroke: WhiteboardStroke): string {
-  const cached = strokeRenderGeometryCache.get(stroke.points);
-  if (cached && cached.pointCount === stroke.points.length && cached.tool === stroke.tool && cached.size === stroke.size) {
-    return cached.geometry.centerPath;
-  }
-  return getStrokePointSegments(stroke.points).map(getOpenEdgePath).join(' ');
-}
-
-export function getStrokePointSegments(points: WhiteboardStrokePoint[]): WhiteboardStrokePoint[][] {
-  const segments: WhiteboardStrokePoint[][] = [];
-  let current: WhiteboardStrokePoint[] = [];
-  for (const point of points) {
-    if (point.breakBefore && current.length > 0) {
-      segments.push(current);
-      current = [];
-    }
-    current.push(point);
-  }
-  if (current.length > 0) segments.push(current);
-  return segments;
-}
-
-function getPressureSegmentPath(stroke: WhiteboardStroke, segment: WhiteboardStrokePoint[]): string {
-  const points = getSmoothedStrokePoints(segment);
-  if (points.length < 2) return '';
-  const left: WhiteboardStrokePoint[] = [];
-  const right: WhiteboardStrokePoint[] = [];
-
-  for (let index = 0; index < points.length; index += 1) {
-    const previous = points[Math.max(0, index - 1)];
-    const point = points[index];
-    const next = points[Math.min(points.length - 1, index + 1)];
-    const dx = next.x - previous.x;
-    const dy = next.y - previous.y;
-    const length = Math.hypot(dx, dy) || 1;
-    const radius = getStrokeWidth(stroke.tool, point.pressure, stroke.size) / 2;
-    const normalX = -dy / length;
-    const normalY = dx / length;
-
-    left.push({ ...point, x: point.x + normalX * radius, y: point.y + normalY * radius });
-    right.push({ ...point, x: point.x - normalX * radius, y: point.y - normalY * radius });
-  }
-
-  return `${getOpenEdgePath(left)} ${getOpenEdgePath([...right].reverse()).replace(/^M /, 'L ')} Z`;
-}
-
-export function eraseStrokeAtPoint(
+export function doesEraserSweepTouchStroke(
   stroke: WhiteboardStroke,
-  point: WhiteboardPoint,
+  start: WhiteboardPoint,
+  end: WhiteboardPoint,
   eraserSize: number,
-): WhiteboardStroke[] {
+): boolean {
   const radius = getEraserRadius(eraserSize);
-  if (!canEraserTouchStroke(stroke, point, radius)) return [stroke];
-  const chunks: WhiteboardStrokePoint[][] = [];
-  let currentChunk: WhiteboardStrokePoint[] = [];
-  let didErase = false;
-  const sampledPoints = getEraseSampledPoints(stroke);
-
-  for (let index = 0; index < sampledPoints.length; index += 1) {
-    const current = sampledPoints[index];
-    if (current.breakBefore && currentChunk.length > 0) {
-      chunks.push(currentChunk);
-      currentChunk = [];
-    }
+  if (!canEraserSweepTouchStroke(stroke, start, end, radius)) return false;
+  const points = getEraserSampledStrokePoints(stroke);
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
     const width = getStrokeWidth(stroke.tool, current.pressure, stroke.size);
-    const hitPoint = distance(point, current) <= radius + width / 2;
-
-    if (hitPoint) {
-      didErase = true;
-      if (currentChunk.length > 0) {
-        chunks.push(currentChunk);
-        currentChunk = [];
-      }
+    const previous = points[index - 1];
+    if (!previous || current.breakBefore) {
+      if (distanceToSegment(current, start, end) <= radius + width / 2) return true;
       continue;
     }
-    currentChunk.push(current);
+    const previousWidth = getStrokeWidth(stroke.tool, previous.pressure, stroke.size);
+    if (distanceBetweenSegments(start, end, previous, current) <= radius + Math.max(width, previousWidth) / 2) return true;
   }
-
-  if (!didErase) return [stroke];
-  if (currentChunk.length > 0) chunks.push(currentChunk);
-  return chunks.map((points, index) => ({
-    ...stroke,
-    id: `${stroke.id}-cut-${index}`,
-    points,
-  }));
+  return false;
 }
 
-export function eraseStrokesAtPoints(
-  strokes: WhiteboardStroke[],
-  points: WhiteboardEraserPoint[],
-): WhiteboardStroke[] {
-  if (points.length === 0) return strokes;
-  const eraserBounds = getEraserPointsBounds(points);
-  return strokes.flatMap((stroke) => {
-    if (!canEraserBoundsTouchStroke(stroke, eraserBounds)) return [stroke];
-    return points.reduce(
-      (current, eraserPoint) => current.flatMap((item) => eraseStrokeAtPoint(item, eraserPoint.point, eraserPoint.size)),
-      [stroke],
-    );
-  });
-}
-
-function getEraserPointsBounds(points: WhiteboardEraserPoint[]): EraserBounds {
-  return points.reduce<EraserBounds>((current, eraserPoint) => {
-    const radius = getEraserRadius(eraserPoint.size);
-    return {
-      maxWidth: Math.max(current.maxWidth, radius * 2),
-      maxX: Math.max(current.maxX, eraserPoint.point.x + radius),
-      maxY: Math.max(current.maxY, eraserPoint.point.y + radius),
-      minX: Math.min(current.minX, eraserPoint.point.x - radius),
-      minY: Math.min(current.minY, eraserPoint.point.y - radius),
-    };
-  }, { maxWidth: 0, maxX: -Infinity, maxY: -Infinity, minX: Infinity, minY: Infinity });
-}
-
-function canEraserBoundsTouchStroke(stroke: WhiteboardStroke, eraserBounds: EraserBounds): boolean {
-  const bounds = getEraserBounds(stroke);
-  if (!bounds) return false;
-  const padding = bounds.maxWidth / 2;
-  return eraserBounds.maxX >= bounds.minX - padding
-    && eraserBounds.minX <= bounds.maxX + padding
-    && eraserBounds.maxY >= bounds.minY - padding
-    && eraserBounds.minY <= bounds.maxY + padding;
-}
-
-function canEraserTouchStroke(stroke: WhiteboardStroke, point: WhiteboardPoint, radius: number): boolean {
+function canEraserSweepTouchStroke(
+  stroke: WhiteboardStroke,
+  start: WhiteboardPoint,
+  end: WhiteboardPoint,
+  radius: number,
+): boolean {
   const bounds = getEraserBounds(stroke);
   if (!bounds) return false;
   const padding = radius + bounds.maxWidth / 2;
-  return point.x >= bounds.minX - padding && point.x <= bounds.maxX + padding && point.y >= bounds.minY - padding && point.y <= bounds.maxY + padding;
+  return Math.max(start.x, end.x) >= bounds.minX - padding &&
+    Math.min(start.x, end.x) <= bounds.maxX + padding &&
+    Math.max(start.y, end.y) >= bounds.minY - padding &&
+    Math.min(start.y, end.y) <= bounds.maxY + padding;
 }
 
 function getEraserBounds(stroke: WhiteboardStroke): EraserBounds | null {
@@ -246,21 +113,9 @@ function getEraserBounds(stroke: WhiteboardStroke): EraserBounds | null {
   return bounds;
 }
 
-function getSmoothedStrokePoints(points: WhiteboardStrokePoint[]): WhiteboardStrokePoint[] {
-  if (points.length < 4) return points;
-  return points.map((point, index) => {
-    if (index === 0 || index === points.length - 1) return point;
-    const previous = points[index - 1];
-    const next = points[index + 1];
-    return {
-      pressure: (previous.pressure + point.pressure * 2 + next.pressure) / 4,
-      x: (previous.x + point.x * 2 + next.x) / 4,
-      y: (previous.y + point.y * 2 + next.y) / 4,
-    };
-  });
-}
-
-function getEraseSampledPoints(stroke: WhiteboardStroke): WhiteboardStrokePoint[] {
+export function getEraserSampledStrokePoints(stroke: WhiteboardStroke): WhiteboardStrokePoint[] {
+  const cached = eraserSampleCache.get(stroke);
+  if (cached) return cached;
   const sampled: WhiteboardStrokePoint[] = [];
 
   for (const points of getStrokePointSegments(stroke.points)) {
@@ -282,28 +137,8 @@ function getEraseSampledPoints(stroke: WhiteboardStroke): WhiteboardStrokePoint[
     }
   }
 
+  eraserSampleCache.set(stroke, sampled);
   return sampled;
-}
-
-function getOpenEdgePath(points: WhiteboardStrokePoint[]): string {
-  if (points.length === 0) return '';
-  const [first] = points;
-  if (points.length === 1) return `M ${first.x} ${first.y}`;
-  if (points.length === 2) return `M ${first.x} ${first.y} L ${points[1].x} ${points[1].y}`;
-
-  const commands = [`M ${first.x} ${first.y}`];
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const point = points[index];
-    const nextPoint = points[index + 1];
-    const midpoint = {
-      x: (point.x + nextPoint.x) / 2,
-      y: (point.y + nextPoint.y) / 2,
-    };
-    commands.push(`Q ${point.x} ${point.y} ${midpoint.x} ${midpoint.y}`);
-  }
-  const last = points[points.length - 1];
-  commands.push(`L ${last.x} ${last.y}`);
-  return commands.join(' ');
 }
 
 function distance(a: WhiteboardPoint, b: WhiteboardPoint): number {

@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { AppViewModeSwitch } from '@/components/layout/sidebar/AppViewModeSwitch';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
+import { SidebarContextMenu } from '@/components/layout/sidebar/SidebarContextMenu';
+import {
+  SidebarContextMenuContent,
+  type SidebarMenuEntry,
+} from '@/components/layout/sidebar/context-menu/SidebarContextMenuContent';
+import { getSidebarContextMenuPosition } from '@/components/layout/sidebar/sidebarMenuPosition';
 import {
   SidebarActionButton,
   SidebarActionGroup,
@@ -14,13 +20,14 @@ import { getSidebarIdleRowSurfaceClass, getSidebarSelectedRowSurfaceClass } from
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
+import { WHITEBOARD_SYSTEM_STORAGE_SCOPE } from '@/lib/storage/whiteboardStoragePaths';
 import { themeIconTokens } from '@/styles/themeTokens';
 import type { WhiteboardIndexEntry } from './model/whiteboardRepository';
 import { useWhiteboardStore } from './stores/useWhiteboardStore';
 
 export function WhiteboardSidebar() {
   const { t } = useI18n();
-  const notesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? null);
+  const notesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? WHITEBOARD_SYSTEM_STORAGE_SCOPE);
   const activeBoardId = useWhiteboardStore((state) => state.activeBoardId);
   const boards = useWhiteboardStore((state) => state.boards);
   const createBoard = useWhiteboardStore((state) => state.createBoard);
@@ -31,6 +38,32 @@ export function WhiteboardSidebar() {
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<WhiteboardIndexEntry | null>(null);
+  const [contextMenuTarget, setContextMenuTarget] = useState<WhiteboardIndexEntry | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ left: 0, top: 0 });
+
+  const contextMenuEntries: SidebarMenuEntry[] = contextMenuTarget ? [
+    {
+      key: 'rename',
+      icon: <Icon name="common.rename" size="md" />,
+      label: t('sidebar.rename'),
+      onClick: () => {
+        setEditingBoardId(contextMenuTarget.id);
+        setEditingTitle(contextMenuTarget.title);
+        setContextMenuTarget(null);
+      },
+    },
+    { kind: 'divider', key: 'delete-divider' },
+    {
+      key: 'delete',
+      danger: true,
+      icon: <Icon name="common.delete" size="md" />,
+      label: t('common.delete'),
+      onClick: () => {
+        setDeleteTarget(contextMenuTarget);
+        setContextMenuTarget(null);
+      },
+    },
+  ] : [];
 
   useEffect(() => {
     void loadWhiteboards(notesRootPath).catch(() => undefined);
@@ -63,7 +96,7 @@ export function WhiteboardSidebar() {
                   key={board.id}
                   aria-current={selected ? 'page' : undefined}
                   className={[
-                    'group flex min-h-[var(--vlaina-size-36px)] w-full items-center rounded-xl px-1.5 text-left text-[var(--vlaina-font-base)] font-medium leading-none',
+                    'flex min-h-[var(--vlaina-size-36px)] w-full items-center rounded-xl px-1.5 text-left text-[var(--vlaina-font-base)] font-medium leading-none',
                     selected ? getSidebarSelectedRowSurfaceClass('notes') : getSidebarIdleRowSurfaceClass('notes'),
                   ].join(' ')}
                 >
@@ -90,39 +123,33 @@ export function WhiteboardSidebar() {
                         setEditingBoardId(board.id);
                         setEditingTitle(board.title);
                       }}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setContextMenuPosition(getSidebarContextMenuPosition(
+                          event.currentTarget.getBoundingClientRect(),
+                          event.clientY,
+                          event.clientX,
+                        ));
+                        setContextMenuTarget(board);
+                      }}
                     >
                       {board.title}
                     </button>
                   )}
-                  {!editing ? (
-                    <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                      <button
-                        type="button"
-                        aria-label={t('sidebar.rename')}
-                        onClick={() => {
-                          setEditingBoardId(board.id);
-                          setEditingTitle(board.title);
-                        }}
-                        className="flex size-[var(--vlaina-size-28px)] cursor-pointer items-center justify-center rounded-[var(--vlaina-radius-circle)] text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-sidebar-notes-row-active)] hover:text-[var(--vlaina-sidebar-row-selected-text)]"
-                      >
-                        <Icon name="common.rename" size={themeIconTokens.sizeCompact} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t('common.delete')}
-                        onClick={() => setDeleteTarget(board)}
-                        className="flex size-[var(--vlaina-size-28px)] cursor-pointer items-center justify-center rounded-[var(--vlaina-radius-circle)] text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-color-status-danger-bg)] hover:text-[var(--vlaina-color-status-danger-fg)]"
-                      >
-                        <Icon name="common.delete" size={themeIconTokens.sizeCompact} />
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               );
             })}
           </SidebarList>
         </SidebarScrollArea>
       </SidebarCapsulePanel>
+      <SidebarContextMenu
+        isOpen={contextMenuTarget !== null}
+        onClose={() => setContextMenuTarget(null)}
+        position={contextMenuPosition}
+      >
+        <SidebarContextMenuContent entries={contextMenuEntries} />
+      </SidebarContextMenu>
       <ConfirmDialog
         isOpen={deleteTarget !== null}
         title={t('sidebar.deleteItemTitle', { itemType: t('app.viewWhiteboard') })}

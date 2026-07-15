@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from 'react';
 import { AppShell } from '@/components/layout/shell/AppShell';
+import { TitleBarCenterRegion, TitleBarInteractiveRegion } from '@/components/layout/shell/TitleBarCenterRegion';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { cn } from '@/lib/utils';
 import { useUIStore, type AppViewMode } from '@/stores/uiSlice';
@@ -67,6 +68,7 @@ function ConnectedAppShell({
     <AppShell
       sidebarWidth={sidebarWidth}
       sidebarCollapsed={sidebarCollapsed}
+      sidebarHoverPeekEnabled={effectiveAppViewMode !== 'whiteboard'}
       onSidebarWidthChange={setSidebarWidth}
       onSidebarToggle={toggleSidebar}
       sidebarContent={sidebarContent}
@@ -75,7 +77,7 @@ function ConnectedAppShell({
       }
       titleBarCenter={titleBarCenter}
       titleBarRight={titleBarRight}
-      titleBarCenterOverflowVisible={effectiveAppViewMode === 'chat'}
+      titleBarCenterOverflowVisible={effectiveAppViewMode === 'chat' || effectiveAppViewMode === 'whiteboard'}
       mainOverlay={mainOverlay}
       backgroundColor="transparent"
     >
@@ -160,10 +162,14 @@ export function AppContentShell({
     </Suspense>
   ) : effectiveAppViewMode === 'chat' ? (
     <Suspense fallback={null}>
-      <div className="flex h-full items-center pl-2">
-        <ModelSelector dropdownPlacement="bottom" dropdownAlign="left" />
-      </div>
+      <TitleBarCenterRegion>
+        <TitleBarInteractiveRegion>
+          <ModelSelector dropdownPlacement="bottom" dropdownAlign="left" />
+        </TitleBarInteractiveRegion>
+      </TitleBarCenterRegion>
     </Suspense>
+  ) : effectiveAppViewMode === 'whiteboard' ? (
+    <TitleBarCenterRegion data-whiteboard-titlebar-slot="true" />
   ) : null;
 
   const rightSlot = shouldRenderDeferredChrome && effectiveAppViewMode === 'chat' ? (

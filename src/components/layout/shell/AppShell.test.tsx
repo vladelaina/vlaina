@@ -177,6 +177,31 @@ describe('AppShell', () => {
     expect(peekSidebar).toHaveAttribute('aria-hidden', 'false');
   });
 
+  it('disables every collapsed sidebar hover entry point when peek is disabled', () => {
+    const { container } = render(
+      <AppShell
+        sidebarWidth={300}
+        sidebarCollapsed
+        sidebarHoverPeekEnabled={false}
+        sidebarContent={<div>Sidebar</div>}
+        onSidebarWidthChange={() => {}}
+        onSidebarToggle={() => {}}
+      >
+        <div>Main</div>
+      </AppShell>
+    );
+
+    const toggle = container.querySelector<HTMLElement>('[data-testid="collapsed-sidebar-toggle"]');
+    const sidebar = container.querySelector<HTMLElement>('[data-shell-sidebar-peek="true"]');
+    expect(container.querySelector('[data-shell-sidebar-peek-hotzone="true"]')).not.toBeInTheDocument();
+    expect(sidebar).toHaveAttribute('data-open', 'false');
+
+    fireEvent.mouseEnter(toggle!);
+    fireEvent.mouseEnter(sidebar!);
+
+    expect(sidebar).toHaveAttribute('data-open', 'false');
+  });
+
   it('keeps the sidebar container mounted while toggling collapse state', () => {
     const { container, rerender } = render(
       <AppShell

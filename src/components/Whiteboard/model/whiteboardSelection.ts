@@ -134,7 +134,11 @@ export function resizeSelectionElements(
     const original = originalById.get(element.id);
     if (!original) return element;
     const scaled = scaleRect(getElementBounds(original), startBounds, nextBounds);
-    return resizeWhiteboardElement({ ...element, x: Math.round(scaled.x), y: Math.round(scaled.y) }, scaled.width, scaled.height);
+    return resizeWhiteboardElement({
+      ...element,
+      x: Math.round(scaled.x),
+      y: Math.round(scaled.y),
+    }, scaled.width, scaled.height);
   });
 }
 

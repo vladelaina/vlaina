@@ -5,12 +5,11 @@ import { useWhiteboardPersistence } from './useWhiteboardPersistence';
 import { useWhiteboardStore } from '../stores/useWhiteboardStore';
 
 const snapshot: WhiteboardSnapshot = {
-  connectors: [],
   elements: [{
     height: 120,
-    id: 'note-1',
-    text: 'Saved note',
-    type: 'note',
+    id: 'image-1',
+    text: 'saved.png',
+    type: 'image',
     width: 160,
     x: 10,
     y: 20,
@@ -37,21 +36,21 @@ describe('useWhiteboardPersistence', () => {
 
   it('saves only through the active system whiteboard store', async () => {
     const saveActiveSnapshot = vi.fn(async () => ({ byteLength: 1, ok: true as const }));
-    useWhiteboardStore.setState({ activeBoardId: 'board-a', saveActiveSnapshot });
+    useWhiteboardStore.setState({ activeBoardId: 'board-a', loadedNotesRootPath: '/notes-a', saveActiveSnapshot });
     const { result } = renderHook(() => useWhiteboardPersistence(snapshot));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
-    expect(saveActiveSnapshot).toHaveBeenCalledWith(snapshot, 'board-a');
+    expect(saveActiveSnapshot).toHaveBeenCalledWith(snapshot, 'board-a', '/notes-a');
     expect(result.current).toEqual({ byteLength: 1, ok: true });
     expect(window.localStorage.getItem('vlaina:whiteboard:v1')).toBeNull();
   });
 
   it('binds delayed saves to the board that was active when the timer was scheduled', async () => {
     const saveActiveSnapshot = vi.fn(async () => ({ byteLength: 1, ok: true as const }));
-    useWhiteboardStore.setState({ activeBoardId: 'board-a', saveActiveSnapshot });
+    useWhiteboardStore.setState({ activeBoardId: 'board-a', loadedNotesRootPath: '/notes-a', saveActiveSnapshot });
     renderHook(() => useWhiteboardPersistence(snapshot));
     act(() => useWhiteboardStore.setState({ activeBoardId: 'board-b' }));
 
@@ -59,12 +58,12 @@ describe('useWhiteboardPersistence', () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
-    expect(saveActiveSnapshot).toHaveBeenCalledWith(snapshot, 'board-a');
+    expect(saveActiveSnapshot).toHaveBeenCalledWith(snapshot, 'board-a', '/notes-a');
   });
 
   it('does not persist while interaction persistence is paused', async () => {
     const saveActiveSnapshot = vi.fn(async () => ({ byteLength: 1, ok: true as const }));
-    useWhiteboardStore.setState({ activeBoardId: 'board-a', saveActiveSnapshot });
+    useWhiteboardStore.setState({ activeBoardId: 'board-a', loadedNotesRootPath: '/notes-a', saveActiveSnapshot });
     const { rerender, result } = renderHook(({ paused }) => useWhiteboardPersistence(snapshot, paused), {
       initialProps: { paused: true },
     });
@@ -91,5 +90,44 @@ describe('useWhiteboardPersistence', () => {
 
     expect(result.current).toEqual({ byteLength: 0, ok: false, reason: 'storage-unavailable' });
     expect(window.localStorage.getItem('vlaina:whiteboard:v1')).toBeNull();
+  });
+
+  it('retries a failed save without requiring another edit', async () => {
+    const saveActiveSnapshot = vi.fn()
+      .mockResolvedValueOnce({ byteLength: 0, ok: false as const, reason: 'write-failed' as const })
+      .mockResolvedValueOnce({ byteLength: 1, ok: true as const });
+    useWhiteboardStore.setState({ activeBoardId: 'board-a', loadedNotesRootPath: '/notes-a', saveActiveSnapshot });
+    const { result } = renderHook(() => useWhiteboardPersistence(snapshot));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1250);
+    });
+
+    expect(saveActiveSnapshot).toHaveBeenCalledTimes(2);
+    expect(result.current).toEqual({ byteLength: 1, ok: true });
+  });
+
+  it('cancels a pending retry when the snapshot changes', async () => {
+    const saveActiveSnapshot = vi.fn(async () => ({
+      byteLength: 0,
+      ok: false as const,
+      reason: 'write-failed' as const,
+    }));
+    useWhiteboardStore.setState({ activeBoardId: 'board-a', loadedNotesRootPath: '/notes-a', saveActiveSnapshot });
+    const { rerender } = renderHook(({ value }) => useWhiteboardPersistence(value), {
+      initialProps: { value: snapshot },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    const nextSnapshot = { ...snapshot, viewport: { ...snapshot.viewport, x: 20 } };
+    rerender({ value: nextSnapshot });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+
+    expect(saveActiveSnapshot).toHaveBeenCalledTimes(2);
+    expect(saveActiveSnapshot).toHaveBeenLastCalledWith(nextSnapshot, 'board-a', '/notes-a');
   });
 });

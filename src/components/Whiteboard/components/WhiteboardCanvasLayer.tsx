@@ -1,44 +1,46 @@
 import { memo, useMemo, type CSSProperties, type PointerEvent } from 'react';
 import { WhiteboardBrushCursor } from './WhiteboardBrushCursor';
-import { WhiteboardConnectorLayer, WhiteboardConnectorPreview } from './WhiteboardConnectorLayer';
 import { WhiteboardElementNode } from './WhiteboardElementNode';
-import { WhiteboardElementPreview } from './WhiteboardElementPreview';
+import { WhiteboardEraserTrail } from './WhiteboardEraserTrail';
 import { WhiteboardSelectionOverlay } from './WhiteboardSelectionOverlay';
 import { WhiteboardRulerOverlay } from './WhiteboardRulerOverlay';
 import { WhiteboardDraftStrokeLayer, WhiteboardStrokeLayer } from './WhiteboardStrokeLayer';
-import {
-  type WhiteboardBrushTool,
-  type WhiteboardConnector,
-  type WhiteboardElement,
-  type WhiteboardPoint,
-  type WhiteboardStroke,
-  type WhiteboardTool,
-  type WhiteboardViewport,
+import type {
+  WhiteboardBrushTool,
+  WhiteboardElement,
+  WhiteboardPoint,
+  WhiteboardStroke,
+  WhiteboardTool,
+  WhiteboardViewport,
 } from '../model/whiteboardModel';
-import { getElementBounds, getStrokeBounds, rectsOverlap, type WhiteboardLassoPath, type WhiteboardResizeHandle, type WhiteboardSelectionRect } from '../model/whiteboardSelection';
+import {
+  getElementBounds,
+  getStrokeBounds,
+  rectsOverlap,
+  type WhiteboardLassoPath,
+  type WhiteboardResizeHandle,
+  type WhiteboardSelectionRect,
+} from '../model/whiteboardSelection';
 import { getVisibleBoardRect } from '../model/whiteboardViewport';
 import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
 import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
+import type { WhiteboardEraserPreview } from '../model/whiteboardEraser';
 
-const EMPTY_MOVING_IDS: string[] = [];
+const EMPTY_IDS: string[] = [];
 
 interface WhiteboardCanvasLayerProps {
   brushCursorColor: string;
   brushCursorPoint: WhiteboardPoint | null;
   brushCursorSize: number;
   brushCursorTool: WhiteboardBrushTool | null;
-  connectorSourceId: string | null;
-  connectors: WhiteboardConnector[];
-  draftElement: WhiteboardElement | null;
   draftStroke: WhiteboardStroke | null;
-  elementTextLabel: string;
   elements: WhiteboardElement[];
+  eraserPreview: WhiteboardEraserPreview;
   movePreview: WhiteboardMovePreview | null;
   resizeLabel: string;
   ruler: WhiteboardRulerState;
   rulerCloseLabel: string;
   rulerRotateLabel: string;
-  selectedConnectorIds: string[];
   selectedElementIds: string[];
   selectedStrokeIds: string[];
   selectionPath: WhiteboardLassoPath | null;
@@ -47,36 +49,46 @@ interface WhiteboardCanvasLayerProps {
   tool: WhiteboardTool;
   viewport: WhiteboardViewport;
   viewportSize: WhiteboardPoint;
-  onConnectorTarget: (id: string) => void;
-  onSelectConnector: (id: string, additive: boolean) => void;
   onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
-  onElementTextEditEnd: (id: string) => void;
-  onElementTextEditStart: (id: string) => void;
-  onElementTextChange: (id: string, text: string) => void;
   onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => void;
   onRulerClose: () => void;
   onRulerPointerDown: (event: PointerEvent<HTMLDivElement | HTMLButtonElement>, mode: 'move' | 'rotate') => void;
-  onSelectElement: (id: string) => void;
   onSelectionResizePointerDown: (event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => void;
 }
 
-export function WhiteboardCanvasLayer({
-  brushCursorColor,
-  brushCursorPoint,
-  brushCursorSize,
-  brushCursorTool,
-  connectorSourceId,
-  connectors,
-  draftElement,
-  draftStroke,
-  elementTextLabel,
+export function WhiteboardCanvasLayer(props: WhiteboardCanvasLayerProps) {
+  const style: CSSProperties = {
+    transform: `translate(${props.viewport.x}px, ${props.viewport.y}px) scale(${props.viewport.zoom})`,
+    transformOrigin: '0 0',
+  };
+  const visibleRect = useMemo(
+    () => getVisibleBoardRect(props.viewport, props.viewportSize),
+    [props.viewport, props.viewportSize],
+  );
+
+  return (
+    <div className="absolute inset-0 overflow-visible" style={style}>
+      <WhiteboardContentLayer {...props} visibleRect={visibleRect} />
+      <WhiteboardEraserTrail trail={props.eraserPreview.trail} zoom={props.viewport.zoom} />
+      <WhiteboardDraftStrokeLayer stroke={props.draftStroke} />
+      <WhiteboardBrushCursor
+        color={props.brushCursorColor}
+        point={props.brushCursorPoint}
+        size={props.brushCursorSize}
+        tool={props.brushCursorTool}
+      />
+    </div>
+  );
+}
+
+const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
   elements,
+  eraserPreview,
   movePreview,
   resizeLabel,
   ruler,
   rulerCloseLabel,
   rulerRotateLabel,
-  selectedConnectorIds,
   selectedElementIds,
   selectedStrokeIds,
   selectionPath,
@@ -84,109 +96,18 @@ export function WhiteboardCanvasLayer({
   strokes,
   tool,
   viewport,
-  viewportSize,
-  onConnectorTarget,
-  onSelectConnector,
-  onElementPointerDown,
-  onElementTextEditEnd,
-  onElementTextEditStart,
-  onElementTextChange,
-  onResizePointerDown,
-  onRulerClose,
-  onRulerPointerDown,
-  onSelectElement,
-  onSelectionResizePointerDown,
-}: WhiteboardCanvasLayerProps) {
-  const transformedLayerStyle: CSSProperties = {
-    transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-    transformOrigin: '0 0',
-  };
-  const visibleRect = useMemo(() => getVisibleBoardRect(viewport, viewportSize), [viewport, viewportSize]);
-  const connectorPreviewSource = tool === 'connector' && connectorSourceId
-    ? elements.find((element) => element.id === connectorSourceId) ?? null
-    : null;
-
-  return (
-    <div className="absolute inset-0 overflow-visible" style={transformedLayerStyle}>
-      <WhiteboardContentLayer
-        connectorSourceId={connectorSourceId}
-        connectors={connectors}
-        elementTextLabel={elementTextLabel}
-        elements={elements}
-        movePreview={movePreview}
-        resizeLabel={resizeLabel}
-        ruler={ruler}
-        rulerCloseLabel={rulerCloseLabel}
-        rulerRotateLabel={rulerRotateLabel}
-        selectedConnectorIds={selectedConnectorIds}
-        selectedElementIds={selectedElementIds}
-        selectedStrokeIds={selectedStrokeIds}
-        selectionPath={selectionPath}
-        selectionRect={selectionRect}
-        strokes={strokes}
-        tool={tool}
-        visibleRect={visibleRect}
-        viewportZoom={viewport.zoom}
-        onConnectorTarget={onConnectorTarget}
-        onSelectConnector={onSelectConnector}
-        onElementPointerDown={onElementPointerDown}
-        onElementTextEditEnd={onElementTextEditEnd}
-        onElementTextEditStart={onElementTextEditStart}
-        onElementTextChange={onElementTextChange}
-        onResizePointerDown={onResizePointerDown}
-        onRulerClose={onRulerClose}
-        onRulerPointerDown={onRulerPointerDown}
-        onSelectElement={onSelectElement}
-        onSelectionResizePointerDown={onSelectionResizePointerDown}
-      />
-      {draftElement ? <WhiteboardElementPreview element={draftElement} /> : null}
-      <WhiteboardConnectorPreview cursorPoint={brushCursorPoint} source={connectorPreviewSource} />
-      <WhiteboardDraftStrokeLayer stroke={draftStroke} />
-      <WhiteboardBrushCursor color={brushCursorColor} point={brushCursorPoint} size={brushCursorSize} tool={brushCursorTool} />
-    </div>
-  );
-}
-
-const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
-  connectorSourceId,
-  connectors,
-  elementTextLabel,
-  elements,
-  movePreview,
-  resizeLabel,
-  ruler,
-  rulerCloseLabel,
-  rulerRotateLabel,
-  selectedConnectorIds,
-  selectedElementIds,
-  selectedStrokeIds,
-  selectionPath,
-  selectionRect,
-  strokes,
-  tool,
   visibleRect,
-  viewportZoom,
-  onConnectorTarget,
-  onSelectConnector,
   onElementPointerDown,
-  onElementTextEditEnd,
-  onElementTextEditStart,
-  onElementTextChange,
   onResizePointerDown,
   onRulerClose,
   onRulerPointerDown,
-  onSelectElement,
   onSelectionResizePointerDown,
-}: Omit<WhiteboardCanvasLayerProps, 'brushCursorColor' | 'brushCursorPoint' | 'brushCursorSize' | 'brushCursorTool' | 'draftElement' | 'draftStroke' | 'viewport' | 'viewportSize'> & {
-  visibleRect: WhiteboardSelectionRect | null;
-  viewportZoom: number;
-}) {
+}: WhiteboardCanvasLayerProps & { visibleRect: WhiteboardSelectionRect | null }) {
   const selectedElementIdSet = useMemo(() => new Set(selectedElementIds), [selectedElementIds]);
   const selectedStrokeIdSet = useMemo(() => new Set(selectedStrokeIds), [selectedStrokeIds]);
-  const movingElementIds = movePreview?.elementIds ?? EMPTY_MOVING_IDS;
-  const movingStrokeIds = movePreview?.strokeIds ?? EMPTY_MOVING_IDS;
-  const movingElementIdSet = useMemo(() => new Set<string>(movingElementIds), [movingElementIds]);
-  const movingStrokeIdSet = useMemo(() => new Set<string>(movingStrokeIds), [movingStrokeIds]);
+  const erasingElementIdSet = useMemo(() => new Set(eraserPreview.elementIds), [eraserPreview.elementIds]);
+  const movingElementIdSet = useMemo(() => new Set(movePreview?.elementIds ?? EMPTY_IDS), [movePreview?.elementIds]);
+  const movingStrokeIdSet = useMemo(() => new Set(movePreview?.strokeIds ?? EMPTY_IDS), [movePreview?.strokeIds]);
   const visibleElements = useMemo(() => elements.filter((element) => (
     selectedElementIdSet.has(element.id) || !visibleRect || rectsOverlap(getElementBounds(element), visibleRect)
   )), [elements, selectedElementIdSet, visibleRect]);
@@ -195,86 +116,50 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
     const bounds = getStrokeBounds(stroke);
     return !visibleRect || (bounds ? rectsOverlap(bounds, visibleRect) : false);
   }), [selectedStrokeIdSet, strokes, visibleRect]);
-  const staticVisibleStrokes = useMemo(() => visibleStrokes.filter((stroke) => !movingStrokeIdSet.has(stroke.id)), [movingStrokeIdSet, visibleStrokes]);
-  const movingVisibleStrokes = useMemo(() => visibleStrokes.filter((stroke) => movingStrokeIdSet.has(stroke.id)), [movingStrokeIdSet, visibleStrokes]);
-  const staticVisibleElements = useMemo(() => visibleElements.filter((element) => !movingElementIdSet.has(element.id)), [movingElementIdSet, visibleElements]);
-  const movingVisibleElements = useMemo(() => visibleElements.filter((element) => movingElementIdSet.has(element.id)), [movingElementIdSet, visibleElements]);
-  const moveCssTransform = movePreview ? `translate(${movePreview.dx}px, ${movePreview.dy}px)` : undefined;
-  const selectedItemCount = selectedConnectorIds.length + selectedElementIds.length + selectedStrokeIds.length;
+  const staticStrokes = visibleStrokes.filter((stroke) => !movingStrokeIdSet.has(stroke.id));
+  const movingStrokes = visibleStrokes.filter((stroke) => movingStrokeIdSet.has(stroke.id));
+  const staticElements = visibleElements.filter((element) => !movingElementIdSet.has(element.id));
+  const movingElements = visibleElements.filter((element) => movingElementIdSet.has(element.id));
+  const transform = movePreview ? `translate(${movePreview.dx}px, ${movePreview.dy}px)` : undefined;
+  const selectedItemCount = selectedElementIds.length + selectedStrokeIds.length;
+  const elementProps = { erasingElementIdSet, onElementPointerDown, onResizePointerDown, resizeLabel, selectedElementIds, selectedItemCount, tool };
 
   return (
     <>
-      <WhiteboardStrokeLayer strokes={staticVisibleStrokes} />
-      {movingVisibleStrokes.length > 0 ? <WhiteboardStrokeLayer cssTransform={moveCssTransform} strokes={movingVisibleStrokes} /> : null}
-      <WhiteboardSelectionOverlay
-        elements={elements}
-        movePreview={movePreview}
-        selectedElementIds={selectedElementIds}
-        selectedStrokeIds={selectedStrokeIds}
-        selectionPath={selectionPath}
-        selectionRect={selectionRect}
-        strokes={strokes}
-        onSelectionResizePointerDown={onSelectionResizePointerDown}
-      />
-      <WhiteboardRulerOverlay
-        ruler={ruler}
-        closeLabel={rulerCloseLabel}
-        interactive={tool === 'ruler'}
-        rotateLabel={rulerRotateLabel}
-        zoom={viewportZoom}
-        onClose={onRulerClose}
-        onPointerDown={onRulerPointerDown}
-      />
-      <WhiteboardConnectorLayer
-        connectors={connectors}
-        elements={elements}
-        interactive={tool === 'select'}
-        movePreview={movePreview}
-        selectedConnectorIds={selectedConnectorIds}
-        selectedElementIds={selectedElementIds}
-        visibleRect={visibleRect}
-        onSelectConnector={onSelectConnector}
-      />
-      <WhiteboardElementList connectorSourceId={connectorSourceId} elementTextLabel={elementTextLabel} elements={staticVisibleElements} resizeLabel={resizeLabel} selectedElementIds={selectedElementIds} selectedItemCount={selectedItemCount} tool={tool} onConnectorTarget={onConnectorTarget} onElementPointerDown={onElementPointerDown} onElementTextEditEnd={onElementTextEditEnd} onElementTextEditStart={onElementTextEditStart} onElementTextChange={onElementTextChange} onResizePointerDown={onResizePointerDown} onSelectElement={onSelectElement} />
-      <WhiteboardElementList connectorSourceId={connectorSourceId} elementTextLabel={elementTextLabel} elements={movingVisibleElements} resizeLabel={resizeLabel} selectedElementIds={selectedElementIds} selectedItemCount={selectedItemCount} tool={tool} transform={moveCssTransform} onConnectorTarget={onConnectorTarget} onElementPointerDown={onElementPointerDown} onElementTextEditEnd={onElementTextEditEnd} onElementTextEditStart={onElementTextEditStart} onElementTextChange={onElementTextChange} onResizePointerDown={onResizePointerDown} onSelectElement={onSelectElement} />
+      <WhiteboardStrokeLayer erasingStrokeIds={eraserPreview.strokeIds} strokes={staticStrokes} />
+      {movingStrokes.length > 0 ? <WhiteboardStrokeLayer cssTransform={transform} erasingStrokeIds={eraserPreview.strokeIds} strokes={movingStrokes} /> : null}
+      <WhiteboardSelectionOverlay elements={elements} movePreview={movePreview} selectedElementIds={selectedElementIds} selectedStrokeIds={selectedStrokeIds} selectionPath={selectionPath} selectionRect={selectionRect} strokes={strokes} onSelectionResizePointerDown={onSelectionResizePointerDown} />
+      <WhiteboardRulerOverlay ruler={ruler} closeLabel={rulerCloseLabel} interactive={tool === 'ruler'} rotateLabel={rulerRotateLabel} zoom={viewport.zoom} onClose={onRulerClose} onPointerDown={onRulerPointerDown} />
+      <WhiteboardElementList {...elementProps} elements={staticElements} />
+      <WhiteboardElementList {...elementProps} elements={movingElements} transform={transform} />
     </>
   );
 });
 
-const WhiteboardElementList = memo(function WhiteboardElementList({
-  connectorSourceId, elementTextLabel, elements, resizeLabel, selectedElementIds, selectedItemCount,
-  tool, transform, onConnectorTarget, onElementPointerDown, onElementTextEditEnd, onElementTextEditStart, onElementTextChange, onResizePointerDown, onSelectElement,
-}: {
-  connectorSourceId: string | null; elementTextLabel: string; elements: WhiteboardElement[]; resizeLabel: string;
-  selectedElementIds: string[]; selectedItemCount: number; tool: WhiteboardTool; transform?: string;
-  onConnectorTarget: (id: string) => void;
+interface WhiteboardElementListProps {
+  elements: WhiteboardElement[];
+  erasingElementIdSet: Set<string>;
+  resizeLabel: string;
+  selectedElementIds: string[];
+  selectedItemCount: number;
+  tool: WhiteboardTool;
+  transform?: string;
   onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
-  onElementTextEditEnd: (id: string) => void;
-  onElementTextEditStart: (id: string) => void;
-  onElementTextChange: (id: string, text: string) => void;
   onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => void;
-  onSelectElement: (id: string) => void;
-}) {
-  const nodes = useMemo(() => elements.map((element) => (
+}
+
+const WhiteboardElementList = memo(function WhiteboardElementList(props: WhiteboardElementListProps) {
+  const nodes = props.elements.map((element) => (
     <WhiteboardElementNode
       key={element.id}
-      connectorSource={connectorSourceId === element.id}
       element={element}
-      elementTextLabel={elementTextLabel}
-      resizeLabel={resizeLabel}
-      selected={selectedItemCount <= 1 && selectedElementIds.includes(element.id)}
-      tool={tool}
-      onConnectorTarget={onConnectorTarget}
-      onPointerDown={onElementPointerDown}
-      onTextEditEnd={onElementTextEditEnd}
-      onTextEditStart={onElementTextEditStart}
-      onResizePointerDown={onResizePointerDown}
-      onSelect={onSelectElement}
-      onTextChange={onElementTextChange}
+      erasing={props.erasingElementIdSet.has(element.id)}
+      resizeLabel={props.resizeLabel}
+      selected={props.selectedItemCount <= 1 && props.selectedElementIds.includes(element.id)}
+      tool={props.tool}
+      onPointerDown={props.onElementPointerDown}
+      onResizePointerDown={props.onResizePointerDown}
     />
-  )), [
-    connectorSourceId, elementTextLabel, elements, onConnectorTarget, onElementPointerDown, onElementTextEditEnd, onElementTextEditStart, onElementTextChange,
-    onResizePointerDown, onSelectElement, resizeLabel, selectedElementIds, selectedItemCount, tool,
-  ]);
-  return transform ? <div className="absolute inset-0 overflow-visible" style={{ transform }}>{nodes}</div> : nodes;
+  ));
+  return props.transform ? <div className="absolute inset-0 overflow-visible" style={{ transform: props.transform }}>{nodes}</div> : nodes;
 });

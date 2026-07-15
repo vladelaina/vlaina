@@ -1,20 +1,18 @@
 import { useCallback, type Dispatch, type MutableRefObject, type PointerEvent, type SetStateAction } from 'react';
 import { isWhiteboardMoveDragState, type WhiteboardDragState } from '../model/whiteboardInteractions';
-import { createWhiteboardElementFromDrag } from '../model/whiteboardElementCreation';
 import type { WhiteboardElement, WhiteboardPoint, WhiteboardStroke } from '../model/whiteboardModel';
 import { getItemsInLasso, translateStrokesFromOriginals } from '../model/whiteboardSelection';
 
 interface WhiteboardPointerFinishOptions {
   activePenPointerRef: MutableRefObject<number | null>;
   clearDraftStroke: () => void;
-  commitCreatedElement: (element: WhiteboardElement) => void;
   deletePointer: (pointerId: number) => void;
   dragState: WhiteboardDragState | null;
-  elementIdRef: MutableRefObject<number>;
   elements: WhiteboardElement[];
   finishRulerDrag: () => void;
   finishRulerStroke: () => void;
-  flushEraserPoints: () => void;
+  finishEraserGesture: (cancelled?: boolean) => void;
+  finishStrokeEraserGesture: (cancelled?: boolean) => void;
   flushResizeDrags: () => void;
   getBoardPoint: (clientX: number, clientY: number) => WhiteboardPoint;
   getDraftStroke: () => WhiteboardStroke | null;
@@ -32,14 +30,13 @@ interface WhiteboardPointerFinishOptions {
 export function useWhiteboardPointerFinish({
   activePenPointerRef,
   clearDraftStroke,
-  commitCreatedElement,
   deletePointer,
   dragState,
-  elementIdRef,
   elements,
   finishRulerDrag,
   finishRulerStroke,
-  flushEraserPoints,
+  finishEraserGesture,
+  finishStrokeEraserGesture,
   flushResizeDrags,
   getBoardPoint,
   getDraftStroke,
@@ -55,17 +52,10 @@ export function useWhiteboardPointerFinish({
 }: WhiteboardPointerFinishOptions) {
   return useCallback((event?: PointerEvent<HTMLDivElement>) => {
     if (event) deletePointer(event.pointerId);
-    if (dragState?.kind === 'create-element' && event?.type !== 'pointercancel') {
-      commitCreatedElement(createWhiteboardElementFromDrag(
-        `wb-element-${elementIdRef.current}`,
-        dragState.type,
-        dragState.startPoint,
-        event ? getBoardPoint(event.clientX, event.clientY) : dragState.currentPoint,
-      ));
-    }
     finishRulerDrag();
     finishRulerStroke();
-    flushEraserPoints();
+    finishEraserGesture(event?.type === 'pointercancel');
+    finishStrokeEraserGesture(event?.type === 'pointercancel');
     flushResizeDrags();
     if (event?.pointerId === activePenPointerRef.current) activePenPointerRef.current = null;
     const currentDraft = getDraftStroke();
@@ -93,8 +83,8 @@ export function useWhiteboardPointerFinish({
     clearDraftStroke();
     setDragState(null);
   }, [
-    activePenPointerRef, clearDraftStroke, commitCreatedElement, deletePointer, dragState, elementIdRef,
-    elements, finishRulerDrag, finishRulerStroke, flushEraserPoints, flushResizeDrags, getBoardPoint,
+    activePenPointerRef, clearDraftStroke, deletePointer, dragState,
+    elements, finishEraserGesture, finishRulerDrag, finishRulerStroke, finishStrokeEraserGesture, flushResizeDrags, getBoardPoint,
     getDraftStroke, moveOrResizeElement, pushHistory, setDragState, setElements, setSelectedElementIds,
     setSelectedStrokeIds, setStrokes, strokeIdRef, strokes,
   ]);

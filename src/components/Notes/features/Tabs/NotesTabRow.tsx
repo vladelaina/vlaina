@@ -30,6 +30,7 @@ import { NotesDragOverlay } from '../common/NotesDragOverlay';
 import { NoteHistoryButton, SortableTab, TabOverlay } from './NotesTabRowItems';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { dispatchNotesTabSplitDrag } from '../Split/notesSplitDragEvents';
+import { TitleBarCenterRegion, TitleBarInteractiveRegion } from '@/components/layout/shell/TitleBarCenterRegion';
 
 const EMPTY_NOTE_NAVIGATION_HISTORY: never[] = [];
 
@@ -184,11 +185,11 @@ export function NotesTabRow() {
   }
 
   return (
-    <div className="group/tab-row flex h-full w-full min-w-0 items-center gap-1 px-2">
+    <TitleBarCenterRegion className="group/tab-row gap-1">
       {hasOpenTabs ? (
-        <div
+        <TitleBarInteractiveRegion
           className={cn(
-            'app-no-drag flex h-8 max-w-full min-w-0 items-center rounded-full px-1.5 transition-all duration-[var(--vlaina-duration-200)]',
+            'h-8 rounded-full px-1.5 transition-all duration-[var(--vlaina-duration-200)]',
             chatComposerPillSurfaceClass,
           )}
         >
@@ -221,7 +222,7 @@ export function NotesTabRow() {
               ) : null}
             </NotesDragOverlay>
           </DndContext>
-        </div>
+        </TitleBarInteractiveRegion>
       ) : null}
 
       {hasOpenedFolder ? (
@@ -283,6 +284,6 @@ export function NotesTabRow() {
           />
         </div>
       ) : null}
-    </div>
+    </TitleBarCenterRegion>
   );
 }

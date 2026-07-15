@@ -13,6 +13,7 @@ interface AppShellProps {
   sidebarContent?: ReactNode;
   sidebarWidth: number;
   sidebarCollapsed: boolean;
+  sidebarHoverPeekEnabled?: boolean;
   onSidebarWidthChange: (width: number) => void;
   onSidebarToggle: () => void;
   
@@ -32,6 +33,7 @@ export function AppShell({
   sidebarContent,
   sidebarWidth,
   sidebarCollapsed,
+  sidebarHoverPeekEnabled = true,
   onSidebarWidthChange,
   onSidebarToggle,
   
@@ -59,9 +61,9 @@ export function AppShell({
 
   const openSidebarPeek = useCallback(() => {
     clearSidebarPeekCloseTimer();
-    if (!sidebarCollapsed) return;
+    if (!sidebarCollapsed || !sidebarHoverPeekEnabled) return;
     setIsSidebarPeeking(true);
-  }, [clearSidebarPeekCloseTimer, sidebarCollapsed]);
+  }, [clearSidebarPeekCloseTimer, sidebarCollapsed, sidebarHoverPeekEnabled]);
 
   const scheduleSidebarPeekClose = useCallback(() => {
     clearSidebarPeekCloseTimer();
@@ -75,8 +77,8 @@ export function AppShell({
 
   const handleSidebarPeekChange = useCallback((peeking: boolean) => {
     clearSidebarPeekCloseTimer();
-    setIsSidebarPeeking(peeking);
-  }, [clearSidebarPeekCloseTimer]);
+    setIsSidebarPeeking(sidebarHoverPeekEnabled && peeking);
+  }, [clearSidebarPeekCloseTimer, sidebarHoverPeekEnabled]);
 
   const handleCollapsedSidebarToggleHoverChange = useCallback((hovered: boolean) => {
     if (hovered) {
@@ -108,11 +110,11 @@ export function AppShell({
   }, [applySidebarWidth, sidebarCollapsed, sidebarWidth]);
 
   useLayoutEffect(() => {
-    if (!sidebarCollapsed) {
+    if (!sidebarCollapsed || !sidebarHoverPeekEnabled) {
       clearSidebarPeekCloseTimer();
       setIsSidebarPeeking(false);
     }
-  }, [clearSidebarPeekCloseTimer, sidebarCollapsed]);
+  }, [clearSidebarPeekCloseTimer, sidebarCollapsed, sidebarHoverPeekEnabled]);
 
   useEffect(() => clearSidebarPeekCloseTimer, [clearSidebarPeekCloseTimer]);
 
@@ -133,13 +135,13 @@ export function AppShell({
         centerOverflowVisible={titleBarCenterOverflowVisible}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={onSidebarToggle}
-        onCollapsedSidebarToggleHoverChange={handleCollapsedSidebarToggleHoverChange}
+        onCollapsedSidebarToggleHoverChange={sidebarHoverPeekEnabled ? handleCollapsedSidebarToggleHoverChange : undefined}
         backgroundColor={backgroundColor}
       />
       
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         
-        {sidebarContent && sidebarCollapsed ? (
+        {sidebarContent && sidebarCollapsed && sidebarHoverPeekEnabled ? (
           <div
             data-shell-sidebar-peek-layer="true"
             className="pointer-events-none absolute inset-y-0 left-0 z-[var(--vlaina-z-40)]"
@@ -158,7 +160,7 @@ export function AppShell({
           <UnifiedSidebarContainer
             width={sidebarWidth}
             collapsed={sidebarCollapsed}
-            peeking={isSidebarPeeking}
+            peeking={sidebarHoverPeekEnabled && isSidebarPeeking}
             onPeekChange={handleSidebarPeekChange}
             onWidthChange={onSidebarWidthChange}
             onLiveWidthChange={applySidebarWidth}

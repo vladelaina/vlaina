@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type DragEvent, type MouseEvent, type PointerEvent, type RefObject, type WheelEvent } from 'react';
+import { useLayoutEffect, useState, type DragEvent, type PointerEvent, type RefObject, type WheelEvent } from 'react';
 import { isImageFileLike } from '@/lib/assets/core/naming';
 import { cn } from '@/lib/utils';
 import { themeWhiteboardTokens } from '@/styles/themeTokens';
@@ -6,7 +6,6 @@ import { WhiteboardCanvasLayer } from './WhiteboardCanvasLayer';
 import {
   isDrawingTool,
   type WhiteboardBrushTool,
-  type WhiteboardConnector,
   type WhiteboardElement,
   type WhiteboardPoint,
   type WhiteboardPaperStyle,
@@ -17,6 +16,7 @@ import {
 import type { WhiteboardLassoPath, WhiteboardSelectionRect } from '../model/whiteboardSelection';
 import type { WhiteboardResizeHandle } from '../model/whiteboardSelection';
 import type { WhiteboardRulerState } from '../hooks/useWhiteboardRuler';
+import type { WhiteboardEraserPreview } from '../model/whiteboardEraser';
 import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
 
 interface WhiteboardSurfaceProps {
@@ -24,12 +24,9 @@ interface WhiteboardSurfaceProps {
   brushCursorPoint: WhiteboardPoint | null;
   brushCursorSize: number;
   brushCursorTool: WhiteboardBrushTool | null;
-  connectorSourceId: string | null;
-  connectors: WhiteboardConnector[];
-  draftElement: WhiteboardElement | null;
   draftStroke: WhiteboardStroke | null;
-  elementTextLabel: string;
   elements: WhiteboardElement[];
+  eraserPreview: WhiteboardEraserPreview;
   isPanning: boolean;
   movePreview: WhiteboardMovePreview | null;
   paperStyle: WhiteboardPaperStyle;
@@ -37,7 +34,6 @@ interface WhiteboardSurfaceProps {
   ruler: WhiteboardRulerState;
   rulerCloseLabel: string;
   rulerRotateLabel: string;
-  selectedConnectorIds: string[];
   selectedElementIds: string[];
   selectedStrokeIds: string[];
   selectionPath: WhiteboardLassoPath | null;
@@ -47,14 +43,8 @@ interface WhiteboardSurfaceProps {
   tool: WhiteboardTool;
   viewport: WhiteboardViewport;
   viewportRef: RefObject<HTMLDivElement | null>;
-  onConnectorTarget: (id: string) => void;
-  onSelectConnector: (id: string, additive: boolean) => void;
   onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
-  onElementTextEditEnd: (id: string) => void;
-  onElementTextEditStart: (id: string) => void;
-  onElementTextChange: (id: string, text: string) => void;
   onImageDrop: (file: File, point: WhiteboardPoint) => void;
-  onDoubleClick: (event: MouseEvent<HTMLDivElement>) => void;
   onPointerCancel: (event: PointerEvent<HTMLDivElement>) => void;
   onPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
   onPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
@@ -63,7 +53,6 @@ interface WhiteboardSurfaceProps {
   onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: WhiteboardElement) => void;
   onRulerClose: () => void;
   onRulerPointerDown: (event: PointerEvent<HTMLDivElement | HTMLButtonElement>, mode: 'move' | 'rotate') => void;
-  onSelectElement: (id: string) => void;
   onSelectionResizePointerDown: (event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => void;
   onWheel: (event: WheelEvent<HTMLDivElement>) => void;
 }
@@ -73,12 +62,9 @@ export function WhiteboardSurface({
   brushCursorPoint,
   brushCursorSize,
   brushCursorTool,
-  connectorSourceId,
-  connectors,
-  draftElement,
   draftStroke,
-  elementTextLabel,
   elements,
+  eraserPreview,
   isPanning,
   movePreview,
   paperStyle,
@@ -86,7 +72,6 @@ export function WhiteboardSurface({
   ruler,
   rulerCloseLabel,
   rulerRotateLabel,
-  selectedConnectorIds,
   selectedElementIds,
   selectedStrokeIds,
   selectionPath,
@@ -96,14 +81,8 @@ export function WhiteboardSurface({
   tool,
   viewport,
   viewportRef,
-  onConnectorTarget,
-  onSelectConnector,
   onElementPointerDown,
-  onElementTextEditEnd,
-  onElementTextEditStart,
-  onElementTextChange,
   onImageDrop,
-  onDoubleClick,
   onPointerCancel,
   onPointerDown,
   onPointerMove,
@@ -112,20 +91,20 @@ export function WhiteboardSurface({
   onResizePointerDown,
   onRulerClose,
   onRulerPointerDown,
-  onSelectElement,
   onSelectionResizePointerDown,
   onWheel,
 }: WhiteboardSurfaceProps) {
   const [imageDragActive, setImageDragActive] = useState(false);
   const [viewportSize, setViewportSize] = useState<WhiteboardPoint>({ x: 0, y: 0 });
-  const usesCrosshair = tool === 'select' || isDrawingTool(tool) || tool === 'note' || tool === 'rect' || tool === 'ellipse' || tool === 'connector';
+  const drawing = isDrawingTool(tool);
+  const usesCrosshair = tool === 'select';
   const cursorClass = cn(
-    'relative h-full overflow-hidden touch-none',
+    'group/whiteboard-surface relative h-full overflow-hidden touch-none',
     isPanning && 'cursor-grabbing',
     !isPanning && (tool === 'hand' || spacePressed) && 'cursor-grab',
+    !isPanning && !spacePressed && (drawing || tool === 'stroke-eraser') && 'cursor-none',
     !isPanning && usesCrosshair && 'cursor-crosshair',
-    !isPanning && tool === 'eraser' && 'cursor-cell',
-    !isPanning && !usesCrosshair && tool !== 'hand' && !spacePressed && tool !== 'eraser' && 'cursor-default',
+    !isPanning && !drawing && !usesCrosshair && tool !== 'hand' && !spacePressed && tool !== 'stroke-eraser' && 'cursor-default',
   );
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     if (!hasImageFile(event.dataTransfer)) return;
@@ -166,12 +145,11 @@ export function WhiteboardSurface({
         backgroundPosition: `${viewport.x}px ${viewport.y}px`,
         backgroundSize: paperStyle === 'blank'
           ? 'auto'
-          : `${themeWhiteboardTokens.gridSizePx * viewport.zoom}px ${themeWhiteboardTokens.gridSizePx * viewport.zoom}px`,
+          : `${themeWhiteboardTokens.paperGridSizePx[paperStyle] * viewport.zoom}px ${themeWhiteboardTokens.paperGridSizePx[paperStyle] * viewport.zoom}px`,
       }}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      onDoubleClick={onDoubleClick}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
@@ -184,18 +162,14 @@ export function WhiteboardSurface({
         brushCursorPoint={brushCursorPoint}
         brushCursorSize={brushCursorSize}
         brushCursorTool={brushCursorTool}
-        connectorSourceId={connectorSourceId}
-        connectors={connectors}
-        draftElement={draftElement}
         draftStroke={draftStroke}
-        elementTextLabel={elementTextLabel}
         elements={elements}
+        eraserPreview={eraserPreview}
         movePreview={movePreview}
         resizeLabel={resizeLabel}
         ruler={ruler}
         rulerCloseLabel={rulerCloseLabel}
         rulerRotateLabel={rulerRotateLabel}
-        selectedConnectorIds={selectedConnectorIds}
         selectedElementIds={selectedElementIds}
         selectedStrokeIds={selectedStrokeIds}
         selectionPath={selectionPath}
@@ -204,16 +178,10 @@ export function WhiteboardSurface({
         tool={tool}
         viewport={viewport}
         viewportSize={viewportSize}
-        onConnectorTarget={onConnectorTarget}
-        onSelectConnector={onSelectConnector}
         onElementPointerDown={onElementPointerDown}
-        onElementTextEditEnd={onElementTextEditEnd}
-        onElementTextEditStart={onElementTextEditStart}
-        onElementTextChange={onElementTextChange}
         onResizePointerDown={onResizePointerDown}
         onRulerClose={onRulerClose}
         onRulerPointerDown={onRulerPointerDown}
-        onSelectElement={onSelectElement}
         onSelectionResizePointerDown={onSelectionResizePointerDown}
       />
       {imageDragActive ? (

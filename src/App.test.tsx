@@ -54,6 +54,7 @@ const mocks = vi.hoisted(() => {
     flushPendingSave: vi.fn().mockResolvedValue(undefined),
     flushPendingSessionJsonSaves: vi.fn().mockResolvedValue(undefined),
     flushStarredRegistry: vi.fn().mockResolvedValue(undefined),
+    flushWhiteboardStorage: vi.fn().mockResolvedValue(undefined),
     flushCurrentPendingEditorMarkdown: vi.fn(() => false),
     openStoredNotePath: vi.fn().mockResolvedValue(undefined),
     saveWorkspaceSnapshot: vi.fn().mockResolvedValue(undefined),
@@ -139,6 +140,10 @@ vi.mock('@/lib/storage/chatStorage', () => ({
 
 vi.mock('@/stores/notes/starred', () => ({
   flushStarredRegistry: mocks.flushStarredRegistry,
+}));
+
+vi.mock('@/components/Whiteboard/stores/useWhiteboardStore', () => ({
+  flushWhiteboardStorage: mocks.flushWhiteboardStorage,
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -372,6 +377,8 @@ describe('App close flow', () => {
     mocks.flushPendingSessionJsonSaves.mockClear();
     mocks.flushStarredRegistry.mockClear();
     mocks.flushStarredRegistry.mockResolvedValue(undefined);
+    mocks.flushWhiteboardStorage.mockClear();
+    mocks.flushWhiteboardStorage.mockResolvedValue(undefined);
     mocks.saveWorkspaceSnapshot.mockClear();
     mocks.saveWorkspaceSnapshot.mockResolvedValue(undefined);
     mocks.flushCurrentPendingEditorMarkdown.mockClear();
@@ -557,6 +564,7 @@ describe('App close flow', () => {
       expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
       expect(mocks.flushPendingSessionJsonSaves).toHaveBeenCalledTimes(1);
       expect(mocks.flushStarredRegistry).toHaveBeenCalledTimes(1);
+      expect(mocks.flushWhiteboardStorage).toHaveBeenCalledTimes(1);
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
 
@@ -606,6 +614,15 @@ describe('App close flow', () => {
     await waitFor(() => {
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('shows the shared close failure dialog when whiteboard storage fails', async () => {
+    mocks.flushWhiteboardStorage.mockRejectedValueOnce(new Error('whiteboard disk unavailable'));
+
+    await renderAndRequestClose();
+
+    expect(await screen.findByText('Save did not finish')).toBeInTheDocument();
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
   });
 
   it('shows a close failure dialog when pending storage hangs and allows forced close', async () => {

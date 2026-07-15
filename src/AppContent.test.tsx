@@ -38,14 +38,16 @@ vi.mock('@/components/layout/shell/AppShell', () => ({
     titleBarCenter,
     titleBarRight,
     mainOverlay,
+    sidebarHoverPeekEnabled,
   }: {
     children: React.ReactNode;
     sidebarContent?: React.ReactNode;
     titleBarCenter?: React.ReactNode;
     titleBarRight?: React.ReactNode;
     mainOverlay?: React.ReactNode;
+    sidebarHoverPeekEnabled?: boolean;
   }) => (
-    <div>
+    <div data-testid="app-shell" data-sidebar-hover-peek={String(sidebarHoverPeekEnabled)}>
       <div data-testid="titlebar-center">{titleBarCenter}</div>
       <div data-testid="titlebar-right">{titleBarRight}</div>
       <aside data-testid="sidebar">{sidebarContent}</aside>
@@ -458,6 +460,8 @@ describe('AppContent view switching chrome readiness', () => {
       expect(screen.getByTestId('whiteboard-view')).toHaveAttribute('data-active', 'true');
     });
     expect(screen.getByTestId('whiteboard-sidebar').parentElement).not.toHaveClass('hidden');
+    expect(screen.getByTestId('app-shell')).toHaveAttribute('data-sidebar-hover-peek', 'false');
+    expect(screen.getByTestId('titlebar-center').querySelector('[data-whiteboard-titlebar-slot="true"]')).toBeInTheDocument();
     expect(mocks.whiteboardMounts).toBe(1);
     expect(mocks.whiteboardSidebarMounts).toBe(1);
   });

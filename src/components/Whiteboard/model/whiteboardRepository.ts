@@ -8,6 +8,7 @@ import {
   normalizeWhiteboardSnapshot,
   type WhiteboardSnapshot,
 } from './whiteboardDocument';
+import { readRecoverableText, writeRecoverableText } from './whiteboardTextStorage';
 
 export interface WhiteboardIndexEntry {
   id: string;
@@ -24,7 +25,7 @@ export interface WhiteboardIndex {
 }
 
 const WHITEBOARD_INDEX_MAX_BYTES = 256 * 1024;
-const WHITEBOARD_BOARD_MAX_BYTES = 16 * 1024 * 1024;
+export const WHITEBOARD_BOARD_MAX_BYTES = 16 * 1024 * 1024;
 const WHITEBOARD_ASSET_MAX_BYTES = 50 * 1024 * 1024;
 const WHITEBOARD_CONFIG_MAX_BYTES = 64 * 1024;
 const WHITEBOARD_BOARDS_DIR = 'boards';
@@ -44,34 +45,32 @@ export async function getWhiteboardStorageTree(notesRootPath: string) {
 }
 
 export async function loadWhiteboardIndex(notesRootPath: string): Promise<WhiteboardIndex> {
-  const storage = getStorageAdapter();
   const { configPath, indexPath } = await getWhiteboardStorageTree(notesRootPath);
   await ensureWhiteboardConfig(notesRootPath, configPath);
-  if (!await storage.exists(indexPath)) {
-    return createDefaultWhiteboardIndex();
-  }
-  try {
-    return normalizeWhiteboardIndex(JSON.parse(await storage.readFile(indexPath, WHITEBOARD_INDEX_MAX_BYTES)));
-  } catch {
-    return createDefaultWhiteboardIndex();
-  }
+  const index = await readRecoverableText(indexPath, WHITEBOARD_INDEX_MAX_BYTES, parseWhiteboardIndex);
+  return index ?? createDefaultWhiteboardIndex();
 }
 
 export async function writeWhiteboardIndex(notesRootPath: string, index: WhiteboardIndex): Promise<void> {
-  const storage = getStorageAdapter();
   const { configPath, indexPath } = await getWhiteboardStorageTree(notesRootPath);
   await ensureWhiteboardConfig(notesRootPath, configPath);
-  await storage.writeFile(indexPath, JSON.stringify(normalizeWhiteboardIndex(index), null, 2), { recursive: true });
+  await writeRecoverableText(
+    indexPath,
+    JSON.stringify(normalizeWhiteboardIndex(index), null, 2),
+    WHITEBOARD_INDEX_MAX_BYTES,
+  );
 }
 
 export async function readWhiteboardBoard(
   notesRootPath: string,
   board: WhiteboardIndexEntry,
 ): Promise<WhiteboardSnapshot | null> {
-  const storage = getStorageAdapter();
   const boardPath = await getWhiteboardBoardPath(notesRootPath, board);
-  if (!await storage.exists(boardPath)) return null;
-  const snapshot = deserializeWhiteboardSnapshot(await storage.readFile(boardPath, WHITEBOARD_BOARD_MAX_BYTES));
+  const snapshot = await readRecoverableText(
+    boardPath,
+    WHITEBOARD_BOARD_MAX_BYTES,
+    deserializeWhiteboardSnapshot,
+  );
   return snapshot ? hydrateWhiteboardAssets(notesRootPath, board, snapshot) : null;
 }
 
@@ -85,7 +84,11 @@ export async function writeWhiteboardBoard(
   await ensureWhiteboardConfig(notesRootPath, configPath);
   const boardPath = await getWhiteboardBoardPath(notesRootPath, board);
   await storage.mkdir(await getWhiteboardAssetsPath(notesRootPath, board), true);
-  await storage.writeFile(boardPath, JSON.stringify(createWhiteboardDocument(snapshot), null, 2), { recursive: true });
+  await writeRecoverableText(
+    boardPath,
+    JSON.stringify(createWhiteboardDocument(snapshot), null, 2),
+    WHITEBOARD_BOARD_MAX_BYTES,
+  );
 }
 
 export async function createWhiteboardEntry(
@@ -170,6 +173,15 @@ export function normalizeWhiteboardIndex(value: unknown): WhiteboardIndex {
     ? value.activeBoardId
     : normalizedBoards[0].id;
   return { activeBoardId, boards: normalizedBoards, version: 1 };
+}
+
+function parseWhiteboardIndex(content: string): WhiteboardIndex | null {
+  try {
+    const value = JSON.parse(content);
+    return isRecord(value) && value.version === 1 ? normalizeWhiteboardIndex(value) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function getWhiteboardBoardPath(notesRootPath: string, board: WhiteboardIndexEntry): Promise<string> {

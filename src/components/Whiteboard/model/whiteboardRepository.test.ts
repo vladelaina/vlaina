@@ -5,8 +5,10 @@ import {
   createWhiteboardEntry,
   loadWhiteboardIndex,
   normalizeWhiteboardIndex,
+  readWhiteboardBoard,
   writeWhiteboardAsset,
   writeWhiteboardBoard,
+  writeWhiteboardIndex,
 } from './whiteboardRepository';
 import { normalizeWhiteboardSnapshot } from './whiteboardDocument';
 
@@ -42,6 +44,21 @@ const mocks = vi.hoisted(() => {
         for (const dirPath of Array.from(dirs)) {
           if (dirPath === normalized || dirPath.startsWith(`${normalized}/`)) dirs.delete(dirPath);
         }
+      }),
+      deleteFile: vi.fn(async (path: string) => {
+        files.delete(normalizePath(path, true));
+      }),
+      copyFile: vi.fn(async (source: string, target: string) => {
+        const content = files.get(normalizePath(source, true));
+        if (content === undefined) throw new Error('Source does not exist');
+        files.set(normalizePath(target, true), content);
+      }),
+      rename: vi.fn(async (source: string, target: string) => {
+        const normalizedSource = normalizePath(source, true);
+        const content = files.get(normalizedSource);
+        if (content === undefined) throw new Error('Source does not exist');
+        files.set(normalizePath(target, true), content);
+        files.delete(normalizedSource);
       }),
       writeBinaryFile: vi.fn(async (path: string, content: Uint8Array) => {
         files.set(normalizePath(path, true), `binary:${Array.from(content).join(',')}`);
@@ -95,12 +112,66 @@ describe('whiteboardRepository', () => {
   it('writes board snapshots into the selected board folder', async () => {
     const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
     await writeWhiteboardBoard('/notesRoot', entry, normalizeWhiteboardSnapshot({
-      elements: [{ height: 80, id: 'note-1', text: 'Hello', type: 'note', width: 120, x: 1, y: 2 }],
+      elements: [{ height: 80, id: 'image-1', text: 'hello.png', type: 'image', width: 120, x: 1, y: 2 }],
     }));
 
     const rawBoard = mocks.files.get(`${SYSTEM_ROOT}/boards/sketch/board.vlwb.json`);
     expect(rawBoard).toContain('"format": "vlaina.whiteboard"');
-    expect(rawBoard).toContain('"note-1"');
+    expect(rawBoard).toContain('"image-1"');
+  });
+
+  it('recovers a board from its backup when the primary file is malformed', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    const boardPath = `${SYSTEM_ROOT}/boards/sketch/board.vlwb.json`;
+    await writeWhiteboardBoard('/notesRoot', entry, normalizeWhiteboardSnapshot({
+      elements: [{ height: 80, id: 'recovered', text: 'safe.png', type: 'image', width: 120, x: 1, y: 2 }],
+    }));
+    await writeWhiteboardBoard('/notesRoot', entry, normalizeWhiteboardSnapshot({
+      elements: [{ height: 80, id: 'recovered', text: 'safe.png', type: 'image', width: 120, x: 1, y: 2 }],
+    }));
+    mocks.files.set(boardPath, '{broken');
+
+    const snapshot = await readWhiteboardBoard('/notesRoot', entry);
+
+    expect(snapshot?.elements[0]).toMatchObject({ id: 'recovered' });
+    expect(mocks.files.get(boardPath)).toBe(mocks.files.get(`${boardPath}.bak`));
+  });
+
+  it('recovers the index from its backup when the primary file is malformed', async () => {
+    const created = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    await writeWhiteboardIndex('/notesRoot', created.index);
+    mocks.files.set(`${SYSTEM_ROOT}/index.json`, '{broken');
+
+    const recovered = await loadWhiteboardIndex('/notesRoot');
+
+    expect(recovered.activeBoardId).toBe(created.entry.id);
+    expect(recovered.boards).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: created.entry.id }),
+    ]));
+  });
+
+  it('keeps the previous primary and backup when atomic replacement fails', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    const boardPath = `${SYSTEM_ROOT}/boards/sketch/board.vlwb.json`;
+    const previous = mocks.files.get(boardPath);
+    mocks.storage.rename.mockRejectedValueOnce(new Error('replace failed'));
+
+    await expect(writeWhiteboardBoard('/notesRoot', entry, normalizeWhiteboardSnapshot({
+      elements: [{ height: 80, id: 'new', text: 'new.png', type: 'image', width: 120, x: 1, y: 2 }],
+    }))).rejects.toThrow('replace failed');
+
+    expect(mocks.files.get(boardPath)).toBe(previous);
+    expect(mocks.files.get(`${boardPath}.bak`)).toBe(previous);
+    expect(Array.from(mocks.files.keys()).some((path) => path.endsWith('.tmp'))).toBe(false);
+  });
+
+  it('rejects board payloads larger than the 16 MB read limit', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    const oversized = normalizeWhiteboardSnapshot({
+      elements: [{ height: 80, id: 'large', text: 'x'.repeat(16 * 1024 * 1024), type: 'image', width: 120, x: 1, y: 2 }],
+    });
+
+    await expect(writeWhiteboardBoard('/notesRoot', entry, oversized)).rejects.toThrow('too large');
   });
 
   it('writes imported images into the board assets folder', async () => {

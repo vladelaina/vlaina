@@ -4,10 +4,9 @@ import type { WhiteboardTool } from '../model/whiteboardModel';
 
 interface WhiteboardEscapeKeyOptions {
   active: boolean;
+  cancelEraserGesture: () => void;
   clearDraftStroke: () => void;
-  setConnectorSourceId: Dispatch<SetStateAction<string | null>>;
   setDragState: Dispatch<SetStateAction<WhiteboardDragState | null>>;
-  setSelectedConnectorIds: Dispatch<SetStateAction<string[]>>;
   setSelectedElementId: Dispatch<SetStateAction<string | null>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
   setTool: Dispatch<SetStateAction<WhiteboardTool>>;
@@ -15,10 +14,9 @@ interface WhiteboardEscapeKeyOptions {
 
 export function useWhiteboardEscapeKey({
   active,
+  cancelEraserGesture,
   clearDraftStroke,
-  setConnectorSourceId,
   setDragState,
-  setSelectedConnectorIds,
   setSelectedElementId,
   setSelectedStrokeIds,
   setTool,
@@ -27,10 +25,9 @@ export function useWhiteboardEscapeKey({
     if (!active) return undefined;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || isEditableTarget(event.target)) return;
+      cancelEraserGesture();
       clearDraftStroke();
-      setConnectorSourceId(null);
       setDragState(null);
-      setSelectedConnectorIds([]);
       setSelectedElementId(null);
       setSelectedStrokeIds([]);
       setTool('select');
@@ -38,7 +35,7 @@ export function useWhiteboardEscapeKey({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
-    active, clearDraftStroke, setConnectorSourceId, setDragState,
-    setSelectedConnectorIds, setSelectedElementId, setSelectedStrokeIds, setTool,
+    active, cancelEraserGesture, clearDraftStroke, setDragState,
+    setSelectedElementId, setSelectedStrokeIds, setTool,
   ]);
 }

@@ -15,6 +15,10 @@ function readUnifiedTitleBarSource() {
   return readFileSync(resolve(process.cwd(), 'src/components/layout/shell/UnifiedTitleBar.tsx'), 'utf8');
 }
 
+function readTitleBarCenterRegionSource() {
+  return readFileSync(resolve(process.cwd(), 'src/components/layout/shell/TitleBarCenterRegion.tsx'), 'utf8');
+}
+
 function readIndexCssSource() {
   return readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
 }
@@ -23,15 +27,18 @@ describe('NotesTabRow', () => {
   it('hides the empty tab surface and only reveals the new note button when needed', () => {
     const source = readNotesTabRowSource();
     const titleBarSource = readUnifiedTitleBarSource();
+    const centerRegionSource = readTitleBarCenterRegionSource();
     const css = readIndexCssSource();
 
     expect(titleBarSource).toContain('app-title-bar h-10');
     expect(titleBarSource).toContain('app-drag-region app-title-bar-center flex-1');
     expect(source).toContain("chatComposerGhostIconButtonClass");
     expect(source).toContain("chatComposerPillSurfaceClass");
-    expect(source).toContain('group/tab-row flex h-full w-full min-w-0 items-center gap-1');
-    expect(source).toContain('app-no-drag flex h-8 max-w-full min-w-0 items-center rounded-full');
-    expect(source).toContain('flex h-8 max-w-full min-w-0 items-center rounded-full');
+    expect(source).toContain('<TitleBarCenterRegion className="group/tab-row gap-1">');
+    expect(source).toContain('<TitleBarInteractiveRegion');
+    expect(centerRegionSource).toContain('relative flex h-full w-full min-w-0 items-center px-2');
+    expect(centerRegionSource).toContain('app-no-drag relative flex h-full w-fit max-w-full min-w-0 items-center');
+    expect(source).toContain('h-8 rounded-full px-1.5');
     expect(source).toContain('const hasOpenTabs = openTabs.length > 0;');
     expect(source).toContain('{hasOpenTabs ? (');
     expect(source).toContain('flex min-w-0 items-center overflow-x-auto');

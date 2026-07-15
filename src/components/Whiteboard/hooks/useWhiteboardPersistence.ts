@@ -3,6 +3,7 @@ import type { WhiteboardSnapshot } from '../model/whiteboardDocument';
 import { useWhiteboardStore, type WhiteboardSaveResult } from '../stores/useWhiteboardStore';
 
 const WHITEBOARD_PERSISTENCE_DELAY_MS = 250;
+const WHITEBOARD_RETRY_DELAYS_MS = [1000, 2000, 4000];
 
 type IdleWindow = Window & {
   cancelIdleCallback?: (id: number) => void;
@@ -17,12 +18,18 @@ export function useWhiteboardPersistence(snapshot: WhiteboardSnapshot, paused = 
   useEffect(() => {
     let idleId: number | null = null;
     let cancelled = false;
-    const boardId = useWhiteboardStore.getState().activeBoardId;
+    const { activeBoardId: boardId, loadedNotesRootPath } = useWhiteboardStore.getState();
     setActiveSnapshotDraft(snapshot);
     if (paused) return undefined;
-    const persist = () => {
-      void saveActiveSnapshot(snapshot, boardId).then((result) => {
-        if (!cancelled) setStatus(result ?? { byteLength: 0, ok: false, reason: 'storage-unavailable' });
+    let retryTimeoutId: number | null = null;
+    const persist = (attempt = 0) => {
+      void saveActiveSnapshot(snapshot, boardId, loadedNotesRootPath).then((result) => {
+        if (cancelled) return;
+        const nextStatus = result ?? { byteLength: 0, ok: false as const, reason: 'storage-unavailable' as const };
+        setStatus(nextStatus);
+        if (!nextStatus.ok && attempt < WHITEBOARD_RETRY_DELAYS_MS.length) {
+          retryTimeoutId = window.setTimeout(() => persist(attempt + 1), WHITEBOARD_RETRY_DELAYS_MS[attempt]);
+        }
       });
     };
     const timeoutId = window.setTimeout(() => {
@@ -36,9 +43,10 @@ export function useWhiteboardPersistence(snapshot: WhiteboardSnapshot, paused = 
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);
+      if (retryTimeoutId !== null) window.clearTimeout(retryTimeoutId);
       if (idleId !== null) (window as IdleWindow).cancelIdleCallback?.(idleId);
     };
-  }, [paused, saveActiveSnapshot, setActiveSnapshotDraft, snapshot.connectors, snapshot.elements, snapshot.paper, snapshot.ruler, snapshot.strokes, snapshot.viewport]);
+  }, [paused, saveActiveSnapshot, setActiveSnapshotDraft, snapshot.elements, snapshot.paper, snapshot.ruler, snapshot.strokes, snapshot.viewport]);
 
   return status;
 }
