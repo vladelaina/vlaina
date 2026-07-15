@@ -14,6 +14,7 @@ import { useChatInputBlockDrop } from './hooks/useChatInputBlockDrop';
 import { useChatInputDroppedNoteMentions } from './hooks/useChatInputDroppedNoteMentions';
 import { useChatInputEventHandlers } from './hooks/useChatInputEventHandlers';
 import { useChatInputFileTreeDrop } from './hooks/useChatInputFileTreeDrop';
+import { useChatInputCaretLayoutSync } from './hooks/useChatInputCaretLayoutSync';
 import { useChatInputFocus } from './hooks/useChatInputFocus';
 import { useChatInputRecall } from './hooks/useChatInputRecall';
 import { useNoteMentions } from './hooks/useNoteMentions';
@@ -96,7 +97,22 @@ export const ChatInput = memo(function ChatInput({
     canSubmit: hasSelectedModel,
     focusTrigger,
   });
-  const { scheduleComposerFocus, scheduleFocusOnWindowFocus } = useChatInputFocus(textareaRef);
+  const {
+    scheduleComposerFocus,
+    scheduleComposerRefocus,
+    scheduleFocusOnWindowFocus,
+  } = useChatInputFocus(textareaRef);
+  useChatInputCaretLayoutSync({
+    composerRootRef,
+    isComposing,
+    scheduleComposerRefocus,
+    textareaRef,
+  });
+  const handleRemoveAttachment = useCallback((attachmentId: string) => {
+    const caretPosition = textareaRef.current?.selectionStart;
+    removeAttachment(attachmentId);
+    scheduleComposerFocus(caretPosition);
+  }, [removeAttachment, scheduleComposerFocus, textareaRef]);
 
   const {
     noteMentions,
@@ -278,7 +294,7 @@ export const ChatInput = memo(function ChatInput({
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
-      onRemoveAttachment={removeAttachment}
+      onRemoveAttachment={handleRemoveAttachment}
       onRemoveNoteMention={removeNoteMention}
       onRequestComposerFocus={scheduleComposerFocus}
       onSend={() => handleSend()}

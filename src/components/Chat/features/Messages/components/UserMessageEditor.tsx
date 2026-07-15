@@ -110,7 +110,11 @@ export function UserMessageEditor({
   }, [onClose]);
 
   const handleRemoveEditAttachment = useCallback((id: string) => {
+    const caretPosition = editTextareaRef.current?.selectionStart;
     setEditAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
+    requestAnimationFrame(() => {
+      focusVisibleTextareaAt(editTextareaRef.current, caretPosition);
+    });
   }, []);
 
   const handleTextareaPaste = useCallback(() => {}, []);
