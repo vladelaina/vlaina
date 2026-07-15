@@ -94,4 +94,40 @@ describe('imageNodeInsertion', () => {
         }));
         expect(dispatch).toHaveBeenCalledWith(tr);
     });
+
+    it('restores a saved selection and inserts the image in one transaction', () => {
+        const savedSelection = { type: 'saved-selection' };
+        const scrollIntoView = vi.fn(function () {
+            return tr;
+        });
+        const replaceSelectionWith = vi.fn(function () {
+            return tr;
+        });
+        const setSelection = vi.fn(function () {
+            return tr;
+        });
+        const tr = { replaceSelectionWith, scrollIntoView, setSelection };
+        const dispatch = vi.fn();
+        const imageNode = { type: 'image-node' };
+        const view = {
+            dom: { dispatchEvent: vi.fn() },
+            state: {
+                schema: { nodes: { image: { create: vi.fn(() => imageNode) } } },
+                tr,
+            },
+            dispatch,
+        };
+
+        expect(insertImageNodeAtSelection(
+            view as never,
+            './assets/demo-image.png',
+            savedSelection as never,
+        )).toBe(true);
+        expect(setSelection).toHaveBeenCalledWith(savedSelection);
+        expect(setSelection.mock.invocationCallOrder[0]).toBeLessThan(
+            replaceSelectionWith.mock.invocationCallOrder[0],
+        );
+        expect(dispatch).toHaveBeenCalledTimes(1);
+        expect(dispatch).toHaveBeenCalledWith(tr);
+    });
 });

@@ -43,13 +43,18 @@ function createEditorContext() {
   const bookmark = {
     resolve: vi.fn(() => ({ from: 1, to: 1 })),
   };
+  const doc = {
+    eq: vi.fn((other: unknown) => other === doc),
+  };
+  const selection = {
+    eq: vi.fn((other: unknown) => other === selection),
+    getBookmark: vi.fn(() => bookmark),
+  };
   const view = {
     dispatch: vi.fn(),
     state: {
-      doc: {},
-      selection: {
-        getBookmark: vi.fn(() => bookmark),
-      },
+      doc,
+      selection,
       tr,
     },
   };
@@ -85,5 +90,23 @@ describe('insertImageFromFilePicker', () => {
     expect(files[0]).toBeInstanceOf(File);
     expect(files[0].name).toBe('no-size.png');
     expect(files[0].size).toBe(3);
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(mocks.handleEditorImageFiles.mock.calls[0]?.[3]).toEqual({ from: 1, to: 1 });
+  });
+
+  it('does not restore the saved selection after the editor document changes', async () => {
+    const { ctx, view } = createEditorContext();
+    const changedDoc = {
+      eq: vi.fn((other: unknown) => other === changedDoc),
+    };
+    mocks.openDialog.mockImplementation(async () => {
+      view.state.doc = changedDoc;
+      return '/notesRoot/assets/changed.png';
+    });
+
+    await insertImageFromFilePicker(ctx as never);
+
+    expect(mocks.handleEditorImageFiles).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
   });
 });
