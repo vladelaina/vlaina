@@ -13,8 +13,8 @@ import {
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import type { WhiteboardExportFormat } from '../model/whiteboardExport';
-import type { WhiteboardPaperStyle } from '../model/whiteboardModel';
+import type { WhiteboardExportFormat } from '../../model/whiteboardExport';
+import type { WhiteboardPaperStyle } from '../../model/whiteboardModel';
 
 interface WhiteboardMoreMenuProps {
   onCopyImage: () => void;

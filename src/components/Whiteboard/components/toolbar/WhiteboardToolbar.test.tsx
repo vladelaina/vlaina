@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { WhiteboardToolbar } from './WhiteboardToolbar';
-import { WHITEBOARD_DEFAULT_BRUSH_COLORS, WHITEBOARD_DEFAULT_BRUSH_SIZES } from '../model/whiteboardModel';
+import { WHITEBOARD_DEFAULT_BRUSH_COLORS, WHITEBOARD_DEFAULT_BRUSH_SIZES } from '../../model/whiteboardModel';
 
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -26,6 +26,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof WhiteboardToolba
         active
         brushColors={WHITEBOARD_DEFAULT_BRUSH_COLORS}
         brushSizes={WHITEBOARD_DEFAULT_BRUSH_SIZES}
+        spacePressed={false}
         tool="select"
         onBrushColorChange={vi.fn()}
         onBrushSizeSelect={onBrushSizeSelect}
@@ -43,6 +44,7 @@ describe('WhiteboardToolbar', () => {
       active: true,
       brushColors: WHITEBOARD_DEFAULT_BRUSH_COLORS,
       brushSizes: WHITEBOARD_DEFAULT_BRUSH_SIZES,
+      spacePressed: false,
       tool: 'select' as const,
       onBrushColorChange: vi.fn(),
       onBrushSizeSelect: vi.fn(),
@@ -119,6 +121,15 @@ describe('WhiteboardToolbar', () => {
     const firstButton = mainToolbar?.querySelector('button');
 
     expect(firstButton).toHaveAccessibleName('whiteboard.tool.hand');
+  });
+
+  it('highlights the hand tool while space temporarily enables panning', () => {
+    renderToolbar({ spacePressed: true, tool: 'select' });
+
+    expect(screen.getByRole('button', { name: 'whiteboard.tool.hand' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getAllByRole('button', { name: 'whiteboard.tool.select' }).every(
+      (button) => button.getAttribute('aria-pressed') !== 'true',
+    )).toBe(true);
   });
 
   it('opens the native image picker from the add image action', () => {

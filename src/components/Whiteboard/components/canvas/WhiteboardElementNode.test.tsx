@@ -19,6 +19,7 @@ describe('WhiteboardElementNode', () => {
     render(<WhiteboardElementNode element={image} selected tool="select" onPointerDown={vi.fn()} />);
     expect(screen.getByRole('img', { name: 'demo.png' })).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('demo.png')).toHaveClass('cursor-grab');
   });
 
   it('dims an image selected by an active erase gesture', () => {

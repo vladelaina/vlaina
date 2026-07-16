@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { EMPTY_WHITEBOARD_ERASER_PREVIEW } from '../model/whiteboardEraser';
+import { EMPTY_WHITEBOARD_ERASER_PREVIEW } from '../../model/whiteboardEraser';
 import { WhiteboardCanvasLayer } from './WhiteboardCanvasLayer';
 
 describe('WhiteboardCanvasLayer', () => {
@@ -74,5 +74,35 @@ describe('WhiteboardCanvasLayer', () => {
 
     expect(container.querySelector('rect.pointer-events-auto')).toBeNull();
     expect(container.querySelector('[data-whiteboard-element="true"]')).toHaveClass('pointer-events-none');
+  });
+
+  it('shows a grab cursor only along a selected stroke', () => {
+    const { container } = render(
+      <WhiteboardCanvasLayer
+        brushCursorColor="transparent"
+        brushCursorPoint={null}
+        brushCursorSize={1}
+        brushCursorTool={null}
+        draftStroke={null}
+        elements={[]}
+        eraserPreview={EMPTY_WHITEBOARD_ERASER_PREVIEW}
+        movePreview={null}
+        selectedElementIds={[]}
+        selectedStrokeIds={['stroke-1']}
+        selectionPath={null}
+        strokes={[{
+          color: '#111111', id: 'stroke-1',
+          points: [{ pressure: 0.5, x: 0, y: 0 }, { pressure: 0.5, x: 20, y: 20 }],
+          size: 1, tool: 'pen',
+        }]}
+        tool="select"
+        viewport={{ x: 0, y: 0, zoom: 1 }}
+        viewportSize={{ x: 500, y: 500 }}
+        onElementPointerDown={vi.fn()}
+        onSelectionResizePointerDown={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('[data-whiteboard-selection-drag-target="stroke-1"]')).toHaveStyle({ cursor: 'grab' });
   });
 });

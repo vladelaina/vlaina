@@ -1,7 +1,7 @@
 import { memo, type PointerEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { themeWhiteboardTokens } from '@/styles/themeTokens';
-import type { WhiteboardElement, WhiteboardTool } from '../model/whiteboardModel';
+import type { WhiteboardElement, WhiteboardTool } from '../../model/whiteboardModel';
 
 interface WhiteboardElementNodeProps {
   element: WhiteboardElement;
@@ -24,7 +24,7 @@ export const WhiteboardElementNode = memo(function WhiteboardElementNode({
       aria-label={element.text}
       className={cn(
         'absolute select-none overflow-hidden rounded-[var(--vlaina-radius-8px)] border bg-[var(--vlaina-color-whiteboard-element)] shadow-[var(--vlaina-shadow-whiteboard-element)]',
-        tool === 'select' ? 'cursor-move' : 'pointer-events-none',
+        tool === 'select' ? selected ? 'cursor-grab' : 'cursor-move' : 'pointer-events-none',
       )}
       onPointerDown={(event) => onPointerDown(event, element)}
       style={{

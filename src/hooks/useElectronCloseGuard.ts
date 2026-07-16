@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { flushWhiteboardStorage } from '@/components/Whiteboard/stores/useWhiteboardStore';
+import { flushWhiteboardStorage } from '@/components/Whiteboard/storage';
 import { desktopWindow } from '@/lib/desktop/window';
 import { isElectronRuntime } from '@/lib/electron/bridge';
 import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';

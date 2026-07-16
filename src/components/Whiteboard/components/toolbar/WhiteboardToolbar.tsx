@@ -10,7 +10,7 @@ import {
   type WhiteboardBrushTool,
   type WhiteboardDrawingTool,
   type WhiteboardTool,
-} from '../model/whiteboardModel';
+} from '../../model/whiteboardModel';
 import { WhiteboardToolPanel, type WhiteboardToolPanelName } from './WhiteboardToolPanel';
 import {
   WhiteboardToolbarButton,
@@ -22,6 +22,7 @@ interface WhiteboardToolbarProps {
   active: boolean;
   brushColors: WhiteboardBrushColors;
   brushSizes: WhiteboardBrushSizes;
+  spacePressed: boolean;
   tool: WhiteboardTool;
   onBrushColorChange: (tool: WhiteboardDrawingTool, color: string) => void;
   onBrushSizeSelect: (tool: WhiteboardBrushTool, size: number) => void;
@@ -35,8 +36,9 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: Whiteboa
   const [openPanel, setOpenPanel] = useState<WhiteboardToolPanelName | null>(() => getPanelForTool(props.tool));
   const [lastDrawingTool, setLastDrawingTool] = useState<WhiteboardDrawingTool>('pen');
   const [lastEraserTool, setLastEraserTool] = useState<WhiteboardTool>('select');
-  const drawingActive = isDrawingTool(props.tool);
-  const eraserActive = WHITEBOARD_ERASER_TOOLS.some((item) => item.id === props.tool);
+  const visualTool = props.spacePressed ? 'hand' : props.tool;
+  const drawingActive = isDrawingTool(visualTool);
+  const eraserActive = WHITEBOARD_ERASER_TOOLS.some((item) => item.id === visualTool);
   const drawingConfig = WHITEBOARD_DRAWING_TOOLS.find((item) => item.id === (drawingActive ? props.tool : lastDrawingTool))!;
   const eraserConfig = WHITEBOARD_ERASER_TOOLS.find((item) => item.id === (eraserActive ? props.tool : lastEraserTool))!;
 
@@ -81,7 +83,7 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: Whiteboa
     <>
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[var(--vlaina-z-50)] flex justify-center px-3">
         <div className="app-no-drag pointer-events-auto relative flex max-w-full min-w-0 items-center">
-        {openPanel ? (
+        {openPanel && !props.spacePressed ? (
           <div className="pointer-events-none absolute bottom-full left-1/2 z-[var(--vlaina-z-50)] flex w-max max-w-[var(--vlaina-whiteboard-panel-max-width)] -translate-x-1/2 pb-1">
             <div className="pointer-events-auto w-max max-w-full">
               <WhiteboardToolPanel
@@ -104,7 +106,7 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: Whiteboa
           )}
         >
           <WhiteboardToolbarGroup>
-            <WhiteboardToolbarButton active={props.tool === 'hand'} icon="whiteboard.hand" label={t('whiteboard.tool.hand')} onClick={() => chooseStandaloneTool('hand')} />
+            <WhiteboardToolbarButton active={visualTool === 'hand'} icon="whiteboard.hand" label={t('whiteboard.tool.hand')} onClick={() => chooseStandaloneTool('hand')} />
             <WhiteboardToolbarButton active={eraserActive} icon={eraserConfig.icon} label={t(eraserConfig.labelKey)} onClick={() => togglePanel('eraser', eraserActive, lastEraserTool)} />
           </WhiteboardToolbarGroup>
           <WhiteboardToolbarGroup>

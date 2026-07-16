@@ -7,9 +7,10 @@ import {
   type WhiteboardLassoPath,
   type WhiteboardResizeHandle,
   type WhiteboardSelectionRect,
-} from '../model/whiteboardSelection';
-import type { WhiteboardElement, WhiteboardStroke } from '../model/whiteboardModel';
-import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
+} from '../../model/whiteboardSelection';
+import type { WhiteboardElement, WhiteboardStroke } from '../../model/whiteboardModel';
+import type { WhiteboardMovePreview } from '../../model/whiteboardInteractions';
+import { WhiteboardSelectionDragTargets } from './WhiteboardSelectionDragTargets';
 
 const EMPTY_MOVING_IDS: string[] = [];
 
@@ -115,6 +116,10 @@ const WhiteboardSelectedItemsOverlay = memo(function WhiteboardSelectedItemsOver
 }: Omit<WhiteboardSelectionOverlayProps, 'selectionPath'>) {
   const elementById = useMemo(() => new Map(elements.map((element) => [element.id, element])), [elements]);
   const strokeById = useMemo(() => new Map(strokes.map((stroke) => [stroke.id, stroke])), [strokes]);
+  const selectedStrokes = useMemo(() => selectedStrokeIds.flatMap((id) => {
+    const stroke = strokeById.get(id);
+    return stroke ? [stroke] : [];
+  }), [selectedStrokeIds, strokeById]);
   const movingElementIds = movePreview?.elementIds ?? EMPTY_MOVING_IDS;
   const movingStrokeIds = movePreview?.strokeIds ?? EMPTY_MOVING_IDS;
   const movingStrokeIdSet = useMemo(() => new Set(movingStrokeIds), [movingStrokeIds]);
@@ -142,6 +147,11 @@ const WhiteboardSelectedItemsOverlay = memo(function WhiteboardSelectedItemsOver
 
   return (
     <svg aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-visible">
+      <WhiteboardSelectionDragTargets
+        movePreview={movePreview}
+        movingStrokeIds={movingStrokeIdSet}
+        strokes={selectedStrokes}
+      />
       {strokeBounds.map((bounds) => (
         <rect
           key={bounds.id}

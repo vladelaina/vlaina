@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
-import { WHITEBOARD_BRUSHES, type WhiteboardStroke } from '../model/whiteboardModel';
-import { getPressureStrokePath, getStrokeDabGeometry, getStrokeRenderGeometry, getStrokeRenderWidth } from '../model/whiteboardStrokeGeometry';
-import { getWhiteboardStrokeDashStyle } from '../model/whiteboardStrokeTexture';
+import { WHITEBOARD_BRUSHES, type WhiteboardStroke } from '../../model/whiteboardModel';
+import { getPressureStrokePath, getStrokeDabGeometry, getStrokeRenderGeometry, getStrokeRenderWidth } from '../../model/whiteboardStrokeGeometry';
+import { getWhiteboardStrokeDashStyle } from '../../model/whiteboardStrokeTexture';
 import { themeWhiteboardTokens } from '@/styles/themeTokens';
 
 interface WhiteboardStrokeLayerProps {

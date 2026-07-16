@@ -1,8 +1,6 @@
 import { useI18n } from '@/lib/i18n';
-import { WhiteboardSurface } from './components/WhiteboardSurface';
-import { WhiteboardMoreMenu } from './components/WhiteboardMoreMenu';
-import { WhiteboardToolbar } from './components/WhiteboardToolbar';
-import { WhiteboardZoomControls } from './components/WhiteboardZoomControls';
+import { WhiteboardSurface } from './components/canvas';
+import { WhiteboardMoreMenu, WhiteboardToolbar, WhiteboardZoomControls } from './components/toolbar';
 import { useWhiteboardController } from './hooks/useWhiteboardController';
 
 interface WhiteboardViewProps {
@@ -73,6 +71,7 @@ export function WhiteboardView({
         active={active}
         brushColors={board.brushColors}
         brushSizes={board.brushSizes}
+        spacePressed={board.spacePressed}
         tool={board.tool}
         onBrushColorChange={board.setBrushColor}
         onBrushSizeSelect={board.setBrushSize}

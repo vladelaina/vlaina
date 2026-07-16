@@ -11,7 +11,7 @@ import type {
   WhiteboardStroke,
   WhiteboardTool,
   WhiteboardViewport,
-} from '../model/whiteboardModel';
+} from '../../model/whiteboardModel';
 import {
   getElementBounds,
   getStrokeBounds,
@@ -19,10 +19,10 @@ import {
   type WhiteboardLassoPath,
   type WhiteboardResizeHandle,
   type WhiteboardSelectionRect,
-} from '../model/whiteboardSelection';
-import { getVisibleBoardRect } from '../model/whiteboardViewport';
-import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
-import type { WhiteboardEraserPreview } from '../model/whiteboardEraser';
+} from '../../model/whiteboardSelection';
+import { getVisibleBoardRect } from '../../model/whiteboardViewport';
+import type { WhiteboardMovePreview } from '../../model/whiteboardInteractions';
+import type { WhiteboardEraserPreview } from '../../model/whiteboardEraser';
 
 const EMPTY_IDS: string[] = [];
 

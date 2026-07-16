@@ -10,7 +10,7 @@ import {
   type WhiteboardBrushTool,
   type WhiteboardDrawingTool,
   type WhiteboardTool,
-} from '../model/whiteboardModel';
+} from '../../model/whiteboardModel';
 import {
   WhiteboardToolbarButton,
   WhiteboardToolbarGroup,

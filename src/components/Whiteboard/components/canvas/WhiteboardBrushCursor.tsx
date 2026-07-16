@@ -5,8 +5,8 @@ import {
   getStrokeWidth,
   type WhiteboardBrushTool,
   type WhiteboardPoint,
-} from '../model/whiteboardModel';
-import { getStrokeDabGeometry } from '../model/whiteboardStrokeGeometry';
+} from '../../model/whiteboardModel';
+import { getStrokeDabGeometry } from '../../model/whiteboardStrokeGeometry';
 
 interface WhiteboardBrushCursorProps {
   point: WhiteboardPoint | null;

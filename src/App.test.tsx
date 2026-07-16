@@ -142,7 +142,7 @@ vi.mock('@/stores/notes/starred', () => ({
   flushStarredRegistry: mocks.flushStarredRegistry,
 }));
 
-vi.mock('@/components/Whiteboard/stores/useWhiteboardStore', () => ({
+vi.mock('@/components/Whiteboard/storage', () => ({
   flushWhiteboardStorage: mocks.flushWhiteboardStorage,
 }));
 

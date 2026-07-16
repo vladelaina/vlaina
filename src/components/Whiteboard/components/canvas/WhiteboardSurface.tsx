@@ -12,11 +12,11 @@ import {
   type WhiteboardStroke,
   type WhiteboardTool,
   type WhiteboardViewport,
-} from '../model/whiteboardModel';
-import type { WhiteboardLassoPath } from '../model/whiteboardSelection';
-import type { WhiteboardResizeHandle } from '../model/whiteboardSelection';
-import type { WhiteboardEraserPreview } from '../model/whiteboardEraser';
-import type { WhiteboardMovePreview } from '../model/whiteboardInteractions';
+} from '../../model/whiteboardModel';
+import type { WhiteboardLassoPath } from '../../model/whiteboardSelection';
+import type { WhiteboardResizeHandle } from '../../model/whiteboardSelection';
+import type { WhiteboardEraserPreview } from '../../model/whiteboardEraser';
+import type { WhiteboardMovePreview } from '../../model/whiteboardInteractions';
 
 interface WhiteboardSurfaceProps {
   brushCursorColor: string;
