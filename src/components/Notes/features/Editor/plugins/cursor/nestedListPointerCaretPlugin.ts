@@ -45,6 +45,34 @@ function isTaskCheckboxPointer(view: EditorView, event: MouseEvent): boolean {
   );
 }
 
+export function resolveNestedListPointerScanRoot(
+  view: EditorView,
+  target: EventTarget | null,
+  clientX: number,
+  clientY: number,
+): HTMLElement | null {
+  const targetElement = target instanceof Element
+    ? target
+    : target instanceof Node
+      ? target.parentElement
+      : null;
+  if (!targetElement) return null;
+
+  const targetLine = targetElement.closest('.cm-line');
+  if (targetLine?.tagName === 'P' && !targetElement.closest(NESTED_LIST_SELECTOR)) {
+    try {
+      const coordsPos = view.posAtCoords({ left: clientX, top: clientY })?.pos;
+      const lineStart = view.posAtDOM(targetLine, 0, -1);
+      const lineEnd = view.posAtDOM(targetLine, targetLine.childNodes.length, 1);
+      if (coordsPos !== undefined && coordsPos >= lineStart && coordsPos <= lineEnd) return null;
+    } catch {
+    }
+  }
+
+  const listItem = targetElement.closest('li');
+  return listItem instanceof HTMLElement && view.dom.contains(listItem) ? listItem : view.dom;
+}
+
 function dispatchNestedListTextSelection(view: EditorView, anchor: number, head = anchor): boolean {
   if (!view.dom.isConnected) return false;
 
@@ -227,9 +255,8 @@ export const nestedListPointerCaretPlugin = $prose(() => {
           if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return false;
           if (isTaskCheckboxPointer(view, event)) return false;
 
-          const targetElement = event.target instanceof Element ? event.target : event.target.parentElement;
-          const listItem = targetElement?.closest('li');
-          const scanRoot = listItem instanceof HTMLElement && view.dom.contains(listItem) ? listItem : view.dom;
+          const scanRoot = resolveNestedListPointerScanRoot(view, event.target, event.clientX, event.clientY);
+          if (!scanRoot) return false;
           const pos = resolveNestedListTextPositionAtPoint(view, event.clientX, event.clientY, scanRoot);
           if (pos === null) return false;
 
@@ -244,9 +271,8 @@ export const nestedListPointerCaretPlugin = $prose(() => {
           if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return false;
           if (isTaskCheckboxPointer(view, event)) return false;
 
-          const targetElement = event.target instanceof Element ? event.target : event.target.parentElement;
-          const listItem = targetElement?.closest('li');
-          const scanRoot = listItem instanceof HTMLElement && view.dom.contains(listItem) ? listItem : view.dom;
+          const scanRoot = resolveNestedListPointerScanRoot(view, event.target, event.clientX, event.clientY);
+          if (!scanRoot) return false;
           const pos = resolveNestedListTextPositionAtPoint(view, event.clientX, event.clientY, scanRoot);
           if (pos === null) return false;
 

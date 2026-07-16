@@ -665,6 +665,72 @@ test.describe('notes list caret hit audit', () => {
     }
   });
 
+  test('keeps pasted multi-paragraph list line-end whitespace at the preceding paragraph end', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-pasted-list-paragraph-gap-click');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 945, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'pasted-list-paragraph-gap-click.md',
+        content: [
+          '# Pasted List Paragraph Gap',
+          '',
+          '3. pasted list paragraph with enough content to wrap across several visual lines before ending at /src/index.css',
+          '',
+          '   8:08 next pasted log line',
+          '',
+          '   Third pasted paragraph before nested content',
+          '',
+          '   1. Nested pasted item',
+        ].join('\n'),
+      });
+
+      const pastedListItem = page.locator(`${EDITOR_SELECTOR} > ol > li`).first();
+      await expect(pastedListItem.locator(':scope > p')).toHaveCount(3);
+      await expect(pastedListItem.locator(':scope > ol')).toHaveCount(1);
+      await expect.poll(async () => pastedListItem.locator(':scope > p').first().evaluate((paragraph) => {
+        const range = paragraph.ownerDocument.createRange();
+        range.selectNodeContents(paragraph);
+        const lineCount = range.getClientRects().length;
+        range.detach();
+        return lineCount;
+      })).toBeGreaterThan(1);
+
+      const point = await page.locator(`${EDITOR_SELECTOR} li p`).first().evaluate((paragraph) => {
+        const range = paragraph.ownerDocument.createRange();
+        range.selectNodeContents(paragraph);
+        const rects = range.getClientRects();
+        const lastRect = rects[rects.length - 1];
+        range.detach();
+        if (!lastRect) return null;
+        return {
+          x: Math.round(lastRect.right + 24),
+          y: Math.round(lastRect.top + lastRect.height / 2),
+          caretX: Math.round(lastRect.right),
+        };
+      });
+      expect(point).not.toBeNull();
+
+      await page.mouse.click(point!.x, point!.y);
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+      await expectCaretOverlayNearClickPoint(page, 'pasted multi-paragraph list line end', {
+        x: point!.caretX,
+        y: point!.y,
+      });
+      await page.keyboard.type('X');
+      await waitForEditorAnimationFrame(page);
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('index.cssX');
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('8:08 next pasted log line');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('supports editing and deleting reported ordered-list link text', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-reported-ordered-list-edit-delete');
 

@@ -209,6 +209,7 @@ describe('backslashHardBreakTextPlugin', () => {
       + (paragraph?.child(0).nodeSize ?? 0)
       + (paragraph?.child(1).nodeSize ?? 0);
     const mockView = {
+      dom: view.dom,
       state: view.state,
       coordsAtPos: () => ({
         bottom: 24,
@@ -216,6 +217,7 @@ describe('backslashHardBreakTextPlugin', () => {
         right: 40,
         top: 8,
       }),
+      posAtDOM: view.posAtDOM.bind(view),
     } as unknown as EditorView;
 
     const event = new MouseEvent('mousedown', {
@@ -223,7 +225,38 @@ describe('backslashHardBreakTextPlugin', () => {
       clientX: 80,
       clientY: 16,
     });
+    Object.defineProperty(event, 'target', {
+      configurable: true,
+      value: view.dom.querySelector('[data-vlaina-backslash-hard-break-source-text="true"]'),
+    });
 
     expect(findBackslashHardBreakBlankClickTarget(mockView, event)).toBe(hardBreakEdge);
+  });
+
+  it('does not map another paragraph click to a nearby hard-break edge', async () => {
+    const source = ['First line\\', 'continued', '', 'Second paragraph'].join('\n');
+    const editor = await createEditor(source);
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+    const secondParagraph = view.dom.querySelectorAll('p')[1];
+    expect(secondParagraph).toBeInstanceOf(HTMLElement);
+
+    const mockView = {
+      ...view,
+      dom: view.dom,
+      state: view.state,
+      coordsAtPos: () => ({ bottom: 24, left: 40, right: 40, top: 8 }),
+      posAtDOM: view.posAtDOM.bind(view),
+    } as unknown as EditorView;
+    const event = new MouseEvent('mousedown', {
+      button: 0,
+      clientX: 80,
+      clientY: 16,
+    });
+    Object.defineProperty(event, 'target', {
+      configurable: true,
+      value: secondParagraph,
+    });
+
+    expect(findBackslashHardBreakBlankClickTarget(mockView, event)).toBeNull();
   });
 });

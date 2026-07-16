@@ -2137,6 +2137,37 @@ describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
     }
   });
 
+  it('restores the first paragraph end when a pasted list item gap resolves to the next paragraph', async () => {
+    const { editor, view } = await createBlockSelectionEditor([
+      '- pasted log ending index.css',
+      '',
+      '  8:08 next pasted log line',
+    ].join('\n'));
+
+    try {
+      const paragraphs = view.dom.querySelectorAll('li p');
+      expect(paragraphs).toHaveLength(2);
+      const firstParagraph = paragraphs[0];
+      expect(firstParagraph).toBeInstanceOf(HTMLElement);
+
+      mockTrailingPlainClickGeometry(view, firstParagraph as HTMLElement);
+      const { handled, event } = startTrailingPlainClickWithEvent(view, firstParagraph as HTMLElement);
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+
+      finishTrailingPlainClick();
+      const firstParagraphEnd = findTextRange(view.state.doc, 'pasted log ending index.css').to;
+      const nextParagraphStart = findTextRange(view.state.doc, '8:08 next pasted log line').from;
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, nextParagraphStart)));
+      await waitForPointerClickSettled();
+
+      expect(view.state.selection.from).toBe(firstParagraphEnd);
+    } finally {
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
   it('handles regular paragraph trailing clicks after tag-like inline content', async () => {
     const { editor, view } = await createBlockSelectionEditor('1 #s是 s');
 

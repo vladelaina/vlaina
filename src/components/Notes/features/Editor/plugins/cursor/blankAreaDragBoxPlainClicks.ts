@@ -22,6 +22,8 @@ import { dispatchBlankAreaPlainClick } from './forcedLineEdgeCaret';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 import { focusCurrentEmptyUntitledDraftTitle } from '../../utils/emptyUntitledDraftTitleFocus';
+import { findBackslashHardBreakBlankClickTarget } from '../hard-break/backslashHardBreakCursor';
+import { resolveListParagraphEndPlainClick } from './listParagraphEndPlainClick';
 
 function snapshotSelection(state: EditorState) {
   return {
@@ -86,7 +88,10 @@ export function resolveInsideBlockTrailingPlainClick(view: EditorView, event: Mo
   if (!isSameEditorBlankAreaInteractionTarget(view, event.target)) return null;
   if (event.button !== 0) return null;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
+  if (findBackslashHardBreakBlankClickTarget(view, event) !== null) return null;
   const startedInsideEditor = event.target instanceof Node && view.dom.contains(event.target);
+  const listParagraphEndAction = resolveListParagraphEndPlainClick(view, event);
+  if (listParagraphEndAction) return listParagraphEndAction;
   if (event.target instanceof HTMLElement) {
     const textLineHit = resolveTargetTextLinePointerHit(view, event.target, event.clientX, event.clientY);
     if (textLineHit?.type === 'content') {
@@ -172,7 +177,6 @@ export function startInsideBlockTrailingPlainClickSession(
   const startSelection = snapshotSelection(view.state);
   let didDrag = false;
   let isStopped = false;
-
   const stop = () => {
     if (isStopped) return;
     isStopped = true;
@@ -193,9 +197,10 @@ export function startInsideBlockTrailingPlainClickSession(
   const handleMouseUp = () => {
     stop();
     if (didDrag) return;
-    if (!isSameSelectionSnapshot(startSelection, snapshotSelection(view.state))) return;
+    const mouseUpSelection = snapshotSelection(view.state);
+    const selectionMatchesStart = isSameSelectionSnapshot(startSelection, mouseUpSelection);
+    if (!selectionMatchesStart) return;
     deferUntilPointerClickSettles(view, () => {
-      if (!isSameSelectionSnapshot(startSelection, snapshotSelection(view.state))) return;
       dispatchBlankAreaPlainClick(view, action, event.clientX, event.clientY);
     });
   };

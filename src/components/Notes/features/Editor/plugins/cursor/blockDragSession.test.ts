@@ -63,6 +63,14 @@ describe('startBlockDragSession', () => {
     expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
     expect(cursorRoot.style.cursor).toBe('');
     expect(document.body.style.userSelect).toBe('');
+
+    const followUpClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+    document.dispatchEvent(followUpClick);
+    expect(followUpClick.defaultPrevented).toBe(true);
+
+    const intentionalClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+    document.dispatchEvent(intentionalClick);
+    expect(intentionalClick.defaultPrevented).toBe(false);
   });
 
   it('activates drag after threshold and emits normalized selection rect', () => {
