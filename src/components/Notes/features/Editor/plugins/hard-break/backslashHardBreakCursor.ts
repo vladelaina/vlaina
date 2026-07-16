@@ -6,6 +6,29 @@ import { isBackslashHardBreakSourceTextNode, isNonInlineHardBreakNode } from './
 
 export const backslashHardBreakCursorPluginKey = new PluginKey('backslashHardBreakCursor');
 
+const TEXT_BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6';
+
+function resolvePointerTextBlockRange(
+  view: EditorView,
+  target: EventTarget | null,
+): { from: number; to: number } | null {
+  const targetElement = target instanceof Element
+    ? target
+    : target instanceof Node
+      ? target.parentElement
+      : null;
+  const textBlock = targetElement?.closest(TEXT_BLOCK_SELECTOR);
+  if (!(textBlock instanceof HTMLElement) || !view.dom.contains(textBlock)) return null;
+
+  try {
+    const from = view.posAtDOM(textBlock, 0, -1);
+    const to = view.posAtDOM(textBlock, textBlock.childNodes.length, 1);
+    return { from: Math.min(from, to), to: Math.max(from, to) };
+  } catch {
+    return null;
+  }
+}
+
 export function findBackslashHardBreakArrowLeftTarget(doc: ProseNode, pos: number): number | null {
   if (pos < 0 || pos > doc.content.size) return null;
 
@@ -114,6 +137,7 @@ export function findBackslashHardBreakBlankClickTarget(view: EditorView, event: 
   }
 
   const { doc } = view.state;
+  const targetRange = resolvePointerTextBlockRange(view, event.target);
   let target: number | null = null;
 
   doc.descendants((node, pos) => {
@@ -129,6 +153,7 @@ export function findBackslashHardBreakBlankClickTarget(view: EditorView, event: 
       if (
         isBackslashHardBreakSourceTextNode(child)
         && isNonInlineHardBreakNode(next)
+        && (!targetRange || (childEnd >= targetRange.from && childEnd <= targetRange.to))
       ) {
         const coords = view.coordsAtPos(childEnd);
         const verticalTolerance = Math.max(4, (coords.bottom - coords.top) / 2);

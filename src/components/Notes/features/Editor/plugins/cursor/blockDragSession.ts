@@ -117,6 +117,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
   const handleMouseUp = (upEvent: MouseEvent) => {
     if (!activated) {
       onPlainClick(startZone);
+      suppressFollowUpClick();
     } else {
       upEvent.preventDefault();
       suppressFollowUpClick();
