@@ -1,8 +1,9 @@
 import type { ChatMessage } from '@/lib/ai/types';
 import { measureTextBlockHeight } from '@/lib/text-layout';
 import {
-  MARKDOWN_BODY_FONT,
-  MARKDOWN_BODY_LINE_HEIGHT,
+  MARKDOWN_BODY_FONT_SIZE,
+  getMarkdownBodyFont,
+  getMarkdownBodyLineHeight,
 } from '@/components/common/markdown/markdownMetrics';
 import { getChatContentWidth, normalizeChatContainerWidth } from './chatWidthBuckets';
 import {
@@ -27,6 +28,7 @@ const USER_TOOLBAR_HEIGHT = 30;
 
 type EstimatedChatMessageHeightOptions = {
   containerWidth: number;
+  fontSize?: number;
   isStreaming: boolean;
 };
 
@@ -42,14 +44,14 @@ function clampEstimatedText(content: string): string {
   return content.slice(0, MAX_ESTIMATED_TEXT_SCAN_CHARS);
 }
 
-function estimateLongTextRemainderHeight(content: string): number {
+function estimateLongTextRemainderHeight(content: string, fontSize: number): number {
   if (content.length <= MAX_ESTIMATED_TEXT_SCAN_CHARS) {
     return 0;
   }
 
   const remainingChars = content.length - MAX_ESTIMATED_TEXT_SCAN_CHARS;
   return Math.ceil(remainingChars / APPROXIMATE_LONG_TEXT_CHARS_PER_LINE)
-    * MARKDOWN_BODY_LINE_HEIGHT
+    * getMarkdownBodyLineHeight(fontSize)
     * APPROXIMATE_LONG_TEXT_EXTRA_LINE_HEIGHT;
 }
 
@@ -64,7 +66,9 @@ function estimateUserMessageHeight(
   message: ChatMessage,
   containerWidth: number,
   isStreaming: boolean,
+  fontSize: number,
 ): number {
+  const lineHeight = getMarkdownBodyLineHeight(fontSize);
   const contentWidth = getChatContentWidth(containerWidth);
   const bubbleWidth = Math.max(120, Math.floor(contentWidth * USER_BUBBLE_MAX_RATIO));
   const textWidth = Math.max(1, bubbleWidth - USER_BUBBLE_PADDING_X);
@@ -84,15 +88,15 @@ function estimateUserMessageHeight(
       height += USER_STACK_GAP;
     }
     height += measureTextBlockHeight(text, textWidth, {
-      font: MARKDOWN_BODY_FONT,
-      lineHeight: MARKDOWN_BODY_LINE_HEIGHT,
-      minHeight: MARKDOWN_BODY_LINE_HEIGHT,
+      font: getMarkdownBodyFont(fontSize),
+      lineHeight,
+      minHeight: lineHeight,
       prepareOptions: { whiteSpace: 'pre-wrap' },
-    }) + estimateLongTextRemainderHeight(message.content) + USER_BUBBLE_PADDING_Y;
+    }) + estimateLongTextRemainderHeight(message.content, fontSize) + USER_BUBBLE_PADDING_Y;
   }
 
   if (height === 0) {
-    height = MARKDOWN_BODY_LINE_HEIGHT + USER_BUBBLE_PADDING_Y;
+    height = lineHeight + USER_BUBBLE_PADDING_Y;
   }
 
   return height + (isStreaming ? 0 : USER_TOOLBAR_HEIGHT);
@@ -102,12 +106,12 @@ export { estimateChatLoadingHeight };
 
 export function estimateChatMessageHeight(
   message: ChatMessage,
-  { containerWidth, isStreaming }: EstimatedChatMessageHeightOptions,
+  { containerWidth, fontSize = MARKDOWN_BODY_FONT_SIZE, isStreaming }: EstimatedChatMessageHeightOptions,
 ): number {
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
   if (message.role === 'user') {
-    return estimateUserMessageHeight(message, normalizedWidth, isStreaming);
+    return estimateUserMessageHeight(message, normalizedWidth, isStreaming, fontSize);
   }
 
-  return estimateAssistantMessageHeight(message, normalizedWidth, isStreaming);
+  return estimateAssistantMessageHeight(message, normalizedWidth, isStreaming, fontSize);
 }

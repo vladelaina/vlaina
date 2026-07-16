@@ -397,6 +397,26 @@ describe('chatMessageFrames', () => {
     expect(restored.get('u1')).toBe(144);
   });
 
+  it('does not restore measured heights across markdown font sizes', () => {
+    const message = createMessage('font-size-cache', 'assistant', 'hello world');
+    rememberMeasuredChatMessageHeight(message, {
+      cacheKey: 'chat-font-size-cache',
+      containerWidth: 900,
+      fontSize: 17,
+      isSessionActive: false,
+      height: 144,
+    });
+
+    const restored = restoreCachedMeasuredHeights([message], {
+      cacheKey: 'chat-font-size-cache',
+      containerWidth: 900,
+      fontSize: 34,
+      isSessionActive: false,
+    });
+
+    expect(restored.has(message.id)).toBe(false);
+  });
+
   it('restores cached measured heights across nearby widths in the same bucket', () => {
     const message = createMessage('u2', 'assistant', 'hello world');
     rememberMeasuredChatMessageHeight(message, {

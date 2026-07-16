@@ -2,7 +2,6 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { parseThinkingContent } from '@/lib/ai/stripThinkingContent';
 import {
   buildParsedAssistantMarkdown,
-  getStableMarkdownBlocksHeight,
   stripRenderableImageTokens,
   type ParsedAssistantMarkdown,
 } from './chatAssistantMarkdownBlocks';
@@ -142,19 +141,12 @@ export function getParsedAssistantMarkdown(
       markdown,
       incrementalSource.tailRenderableMarkdown + tailSuffix,
     );
-    const stableBlockHeightCache = new Map<number, number>();
-    incrementalSource.stableBlockHeightCache.forEach((height, width) => {
-      stableBlockHeightCache.set(
-        width,
-        height + getStableMarkdownBlocksHeight(tailParsed, width),
-      );
-    });
     const parsed = {
       ...tailParsed,
       blocks: [...incrementalSource.stableBlocks, ...tailParsed.blocks],
       renderableMarkdown,
       stableBlocks: [...incrementalSource.stableBlocks, ...tailParsed.stableBlocks],
-      stableBlockHeightCache,
+      stableBlockHeightCache: new Map<string, number>(),
     };
     cacheParsedAssistantMarkdown(cacheKey, markdown, parsed);
     return parsed;

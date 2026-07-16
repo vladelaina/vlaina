@@ -1,6 +1,10 @@
 import type { ChatMessage } from '@/lib/ai/types';
 import { estimateChatMessageHeight } from './chatMessageLayout';
 import { normalizeChatContainerWidth } from './chatWidthBuckets';
+import {
+  MARKDOWN_BODY_FONT_SIZE,
+  normalizeMarkdownBodyFontSize,
+} from '@/components/common/markdown/markdownMetrics';
 
 export const CHAT_MESSAGE_LIST_GAP = 32;
 export const CHAT_MESSAGE_LOADING_GAP = 16;
@@ -27,6 +31,7 @@ export interface BuildChatMessageFrameLayoutOptions {
   activeMessageId?: string | null;
   cacheKey?: string | null;
   containerWidth: number;
+  fontSize?: number;
   isSessionActive: boolean;
   measuredHeights?: Map<string, number>;
 }
@@ -101,9 +106,10 @@ function setMeasuredHeightCacheEntry(
 function getFrameLayoutCacheKey(
   cacheKey: string | null | undefined,
   containerWidth: number,
+  fontSize: number,
   isSessionActive: boolean,
 ): string {
-  return `${cacheKey ?? 'sessionless'}\u0000${containerWidth}\u0000${isSessionActive ? 1 : 0}`;
+  return `${cacheKey ?? 'sessionless'}\u0000${containerWidth}\u0000${fontSize}\u0000${isSessionActive ? 1 : 0}`;
 }
 
 function getMessageSignature(message: ChatMessage): string {
@@ -160,10 +166,11 @@ function areMessageSignaturesEqual(
 function getMeasuredHeightCacheKey(
   cacheKey: string | null | undefined,
   containerWidth: number,
+  fontSize: number,
   isSessionActive: boolean,
   messageId: string,
 ): string {
-  return `${cacheKey ?? 'sessionless'}\u0000${containerWidth}\u0000${isSessionActive ? 1 : 0}\u0000${messageId}`;
+  return `${cacheKey ?? 'sessionless'}\u0000${containerWidth}\u0000${fontSize}\u0000${isSessionActive ? 1 : 0}\u0000${messageId}`;
 }
 
 export function restoreCachedMeasuredHeights(
@@ -172,17 +179,25 @@ export function restoreCachedMeasuredHeights(
     activeMessageId,
     cacheKey,
     containerWidth,
+    fontSize = MARKDOWN_BODY_FONT_SIZE,
     isSessionActive,
-  }: Pick<BuildChatMessageFrameLayoutOptions, 'activeMessageId' | 'cacheKey' | 'containerWidth' | 'isSessionActive'>,
+  }: Pick<BuildChatMessageFrameLayoutOptions, 'activeMessageId' | 'cacheKey' | 'containerWidth' | 'fontSize' | 'isSessionActive'>,
 ): Map<string, number> {
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
+  const normalizedFontSize = normalizeMarkdownBodyFontSize(fontSize);
   const restored = new Map<string, number>();
 
   for (const message of messages) {
     const shouldUseActiveCache = activeMessageId === undefined
       ? isSessionActive
       : isSessionActive && message.id === activeMessageId;
-    const key = getMeasuredHeightCacheKey(cacheKey, normalizedWidth, shouldUseActiveCache, message.id);
+    const key = getMeasuredHeightCacheKey(
+      cacheKey,
+      normalizedWidth,
+      normalizedFontSize,
+      shouldUseActiveCache,
+      message.id,
+    );
     const cached = measuredHeightCache.get(key);
     if (!cached || cached.signature !== getMessageSignature(message)) {
       continue;
@@ -201,14 +216,16 @@ export function rememberMeasuredChatMessageHeight(
   {
     cacheKey,
     containerWidth,
+    fontSize = MARKDOWN_BODY_FONT_SIZE,
     isSessionActive,
     height,
-  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth' | 'isSessionActive'> & { height: number },
+  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth' | 'fontSize' | 'isSessionActive'> & { height: number },
 ): void {
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
+  const normalizedFontSize = normalizeMarkdownBodyFontSize(fontSize);
   const normalizedHeight = Math.max(1, Math.ceil(height));
   setMeasuredHeightCacheEntry(
-    getMeasuredHeightCacheKey(cacheKey, normalizedWidth, isSessionActive, message.id),
+    getMeasuredHeightCacheKey(cacheKey, normalizedWidth, normalizedFontSize, isSessionActive, message.id),
     {
       height: normalizedHeight,
       signature: getMessageSignature(message),
@@ -221,11 +238,13 @@ export function buildEstimatedChatMessageFrameLayout(
   {
     cacheKey,
     containerWidth,
+    fontSize = MARKDOWN_BODY_FONT_SIZE,
     isSessionActive,
-  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth' | 'isSessionActive'>,
+  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth' | 'fontSize' | 'isSessionActive'>,
 ): ChatMessageFrameLayout {
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
-  const key = getFrameLayoutCacheKey(cacheKey, normalizedWidth, isSessionActive);
+  const normalizedFontSize = normalizeMarkdownBodyFontSize(fontSize);
+  const key = getFrameLayoutCacheKey(cacheKey, normalizedWidth, normalizedFontSize, isSessionActive);
   const messageSignatures = getMessageSignatures(messages);
   const cached = estimatedFrameLayoutCache.get(key);
   if (cached && areMessageSignaturesEqual(cached.messageSignatures, messageSignatures)) {
@@ -246,6 +265,7 @@ export function buildEstimatedChatMessageFrameLayout(
     const message = messages[index]!;
     const estimatedHeight = estimateChatMessageHeight(message, {
       containerWidth: normalizedWidth,
+      fontSize: normalizedFontSize,
       isStreaming: isSessionActive && index === messages.length - 1,
     });
     const height = Math.max(1, Math.ceil(estimatedHeight));

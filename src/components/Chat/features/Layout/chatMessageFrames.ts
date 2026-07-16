@@ -33,6 +33,7 @@ export function buildChatMessageFrameLayout(
     activeMessageId,
     cacheKey,
     containerWidth,
+    fontSize,
     isSessionActive,
     measuredHeights,
   }: BuildChatMessageFrameLayoutOptions,
@@ -40,6 +41,7 @@ export function buildChatMessageFrameLayout(
   const estimatedLayout = buildEstimatedChatMessageFrameLayout(messages, {
     cacheKey,
     containerWidth,
+    fontSize,
     isSessionActive,
   });
 

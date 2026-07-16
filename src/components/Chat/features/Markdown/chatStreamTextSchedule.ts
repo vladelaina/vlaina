@@ -12,7 +12,7 @@ import {
   type MarkdownFenceState,
 } from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
-import { themeChatStreamTokens, themeTypographyTokens } from '@/styles/themeTokens';
+import { themeChatStreamTokens } from '@/styles/themeTokens';
 import { createFilledCodePointTimings, getCodePointLength } from './chatStreamTextMetrics';
 import { CHAT_STREAM_FADE_MS } from './chatStreamTextPlugin';
 
@@ -175,8 +175,8 @@ export function buildChatStreamSchedule(
     : [{
         kind: 'text' as const,
         extraHeight: 0,
-        lineHeight: themeTypographyTokens.streamFallbackLineHeight,
         prepared: getPreparedMarkdownTextBlock(content, 'body'),
+        variant: 'body',
         widthInset: 0,
       }];
   const births: number[] = [];

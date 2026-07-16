@@ -10,7 +10,10 @@ import {
   extractChatMessageImageSources,
   stripChatMessageImageTokens,
 } from '@/lib/ai/chatImageSourcePolicy';
-import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
+import {
+  MARKDOWN_BLOCK_GAP,
+  MARKDOWN_BODY_FONT_SIZE,
+} from '@/components/common/markdown/markdownMetrics';
 import {
   getMarkdownFenceState,
   isMarkdownFenceClose,
@@ -25,7 +28,7 @@ export type ParsedAssistantMarkdown = {
   rawMarkdown: string;
   renderableMarkdown: string;
   stableBlocks: MarkdownMeasurementBlock[];
-  stableBlockHeightCache: Map<number, number>;
+  stableBlockHeightCache: Map<string, number>;
   tailBlocks: MarkdownMeasurementBlock[];
   tailRenderableMarkdown: string;
 };
@@ -78,6 +81,7 @@ function estimateMarkdownBlocksHeight(
   blocks: MarkdownMeasurementBlock[],
   contentWidth: number,
   hasLeadingGap: boolean,
+  fontSize: number,
 ): number {
   let height = 0;
 
@@ -85,7 +89,7 @@ function estimateMarkdownBlocksHeight(
     if (hasLeadingGap || index > 0) {
       height += MARKDOWN_BLOCK_GAP;
     }
-    height += estimateMarkdownBlockHeight(block, contentWidth);
+    height += estimateMarkdownBlockHeight(block, contentWidth, fontSize);
   });
 
   return height;
@@ -94,27 +98,30 @@ function estimateMarkdownBlocksHeight(
 export function getStableMarkdownBlocksHeight(
   parsed: ParsedAssistantMarkdown,
   contentWidth: number,
+  fontSize: number = MARKDOWN_BODY_FONT_SIZE,
 ): number {
-  const cached = parsed.stableBlockHeightCache.get(contentWidth);
+  const cacheKey = `${contentWidth}:${fontSize}`;
+  const cached = parsed.stableBlockHeightCache.get(cacheKey);
   if (cached !== undefined) {
     return cached;
   }
 
-  const height = estimateMarkdownBlocksHeight(parsed.stableBlocks, contentWidth, false);
-  parsed.stableBlockHeightCache.set(contentWidth, height);
+  const height = estimateMarkdownBlocksHeight(parsed.stableBlocks, contentWidth, false, fontSize);
+  parsed.stableBlockHeightCache.set(cacheKey, height);
   return height;
 }
 
 export function getMarkdownBlocksHeight(
   parsed: ParsedAssistantMarkdown,
   contentWidth: number,
+  fontSize: number = MARKDOWN_BODY_FONT_SIZE,
 ): number {
   if (parsed.blocks.length === 0) {
     return 0;
   }
 
-  return getStableMarkdownBlocksHeight(parsed, contentWidth)
-    + estimateMarkdownBlocksHeight(parsed.tailBlocks, contentWidth, parsed.stableBlocks.length > 0);
+  return getStableMarkdownBlocksHeight(parsed, contentWidth, fontSize)
+    + estimateMarkdownBlocksHeight(parsed.tailBlocks, contentWidth, parsed.stableBlocks.length > 0, fontSize);
 }
 
 export function buildParsedAssistantMarkdown(

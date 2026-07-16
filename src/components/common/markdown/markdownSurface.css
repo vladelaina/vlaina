@@ -293,8 +293,8 @@
   display: inline-block;
   vertical-align: baseline;
   max-width: 100%;
-  font-size: var(--vlaina-font-0875rem);
-  line-height: var(--vlaina-leading-125rem);
+  font-size: inherit;
+  line-height: inherit;
   padding: var(--vlaina-markdown-space-code-inline-padding);
   margin: 0;
   background-color: var(--vlaina-markdown-color-code-inline-bg);
@@ -432,7 +432,7 @@
 
 .markdown-surface .toc-empty {
   color: var(--vlaina-markdown-color-text-subtle);
-  font-size: var(--vlaina-font-09375rem);
+  font-size: var(--vlaina-font-092em);
   font-style: italic;
   line-height: var(--vlaina-leading-165);
 }

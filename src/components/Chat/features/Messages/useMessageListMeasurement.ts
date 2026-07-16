@@ -18,6 +18,7 @@ interface UseMessageListMeasurementOptions {
   activeMeasuredMessageId: string | null;
   activeRef: React.MutableRefObject<boolean>;
   chatId?: string | null;
+  fontSize: number;
   isSessionActive: boolean;
   lastStreamingMessageId: string | null;
   layoutWidth: number;
@@ -30,6 +31,7 @@ export function useMessageListMeasurement({
   activeMeasuredMessageId,
   activeRef,
   chatId,
+  fontSize,
   isSessionActive,
   lastStreamingMessageId,
   layoutWidth,
@@ -50,6 +52,7 @@ export function useMessageListMeasurement({
   const measuredHeightContextRef = useRef({
     activeMeasuredMessageId: null as string | null,
     chatId,
+    fontSize,
     isSessionActive,
     layoutWidth: 0,
     messageById: new Map<string, ChatMessage>(),
@@ -79,11 +82,12 @@ export function useMessageListMeasurement({
     measuredHeightContextRef.current = {
       activeMeasuredMessageId,
       chatId,
+      fontSize,
       isSessionActive,
       layoutWidth,
       messageById,
     };
-  }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, messageById]);
+  }, [activeMeasuredMessageId, chatId, fontSize, isSessionActive, layoutWidth, messageById]);
 
   useLayoutEffect(() => {
     if (layoutWidth <= 0) {
@@ -96,11 +100,12 @@ export function useMessageListMeasurement({
         activeMessageId: activeMeasuredMessageId,
         cacheKey: chatId,
         containerWidth: layoutWidth,
+        fontSize,
         isSessionActive,
       });
       return areMeasuredHeightsEqual(current, restored) ? current : restored;
     });
-  }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, measuredHeightRestoreTrigger]);
+  }, [activeMeasuredMessageId, chatId, fontSize, isSessionActive, layoutWidth, measuredHeightRestoreTrigger]);
 
   const flushMeasuredHeights = useCallback(() => {
     measuredHeightsRafRef.current = null;
@@ -113,6 +118,7 @@ export function useMessageListMeasurement({
 
     const {
       chatId: activeChatId,
+      fontSize: activeFontSize,
       activeMeasuredMessageId,
       isSessionActive: activeIsSessionActive,
       layoutWidth: activeLayoutWidth,
@@ -129,6 +135,7 @@ export function useMessageListMeasurement({
         rememberMeasuredChatMessageHeight(message, {
           cacheKey: activeChatId,
           containerWidth: activeLayoutWidth,
+          fontSize: activeFontSize,
           isSessionActive: activeIsSessionActive && message.id === activeMeasuredMessageId,
           height,
         });
