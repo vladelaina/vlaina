@@ -21,6 +21,7 @@ import {
   markManagedAuthPromptForError,
 } from './errorHandling';
 import {
+  canPersistAbortedRequestTranscript,
   createEmptyResponseError,
   finishPreStartedChatRequest,
   isChatRequestCancelled,
@@ -37,6 +38,8 @@ interface UseRegenerateMessageOptions {
   customSystemPrompt: string;
   includeTimeContext: boolean;
   webSearchEnabled: boolean;
+  computerUseEnabled: boolean;
+  computerUseCwd: string;
   messages: readonly unknown[];
   isAccountConnected: boolean;
   setSessionLoading: (sessionId: string, loading: boolean) => void;
@@ -58,6 +61,8 @@ export function useRegenerateMessage({
   customSystemPrompt,
   includeTimeContext,
   webSearchEnabled,
+  computerUseEnabled,
+  computerUseCwd,
   messages,
   isAccountConnected,
   setSessionLoading,
@@ -130,6 +135,7 @@ export function useRegenerateMessage({
           modelId: selectedModel.id,
           providerId: provider.id,
           webSearchEnabled,
+          computerUseEnabled,
         });
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
         const requestHistory = buildRequestHistory({
@@ -158,6 +164,17 @@ export function useRegenerateMessage({
               signal,
               options: {
                 webSearchEnabled,
+                computerUseEnabled,
+                computerUseCwd: computerUseCwd || undefined,
+                onComputerCommandStatus: (status) => {
+                  if (!isActiveRequest()) return;
+                  addChatDebugLog('computer-use', `status:${status.phase}`, {
+                    sessionId,
+                    messageId,
+                    commandLength: status.command.length,
+                    exitCode: status.exitCode,
+                  }, status.phase === 'failed' || status.phase === 'timed_out' ? 'warn' : 'info');
+                },
                 onWebSearchStatus: (status) => {
                   if (!isActiveRequest()) {
                     return;
@@ -172,7 +189,10 @@ export function useRegenerateMessage({
                   }, status.phase === 'error' ? 'warn' : 'info');
                 },
                 onApiTranscript: (apiTranscript) => {
-                  if (!isActiveRequest()) {
+                  if (
+                    !isActiveRequest() &&
+                    !canPersistAbortedRequestTranscript(sessionId, requestController)
+                  ) {
                     return;
                   }
                   aiActions.updateMessageApiTranscript(sessionId, messageId, apiTranscript);
@@ -268,6 +288,8 @@ export function useRegenerateMessage({
       customSystemPrompt,
       includeTimeContext,
       webSearchEnabled,
+      computerUseEnabled,
+      computerUseCwd,
       setSessionLoading,
       setError,
       maybeGenerateAutoTitle,

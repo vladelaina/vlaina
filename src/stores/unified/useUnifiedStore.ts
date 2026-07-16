@@ -128,6 +128,7 @@ function createDefaultAIData(): NonNullable<UnifiedData['ai']> {
     customSystemPrompt: '',
     includeTimeContext: true,
     webSearchEnabled: false,
+    computerUseEnabled: false,
   };
 }
 
@@ -170,6 +171,7 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
         customSystemPrompt: ai.customSystemPrompt || '',
         includeTimeContext: ai.includeTimeContext !== false,
         webSearchEnabled: ai.webSearchEnabled === true,
+        computerUseEnabled: ai.computerUseEnabled === true,
         unreadSessionIds: Array.isArray(ai.unreadSessionIds) ? ai.unreadSessionIds : [],
         temporaryChatEnabled: false,
       }

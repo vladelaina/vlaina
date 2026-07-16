@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useFileTreePointerDragState } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
 import { useAIStore } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
@@ -16,6 +16,8 @@ import { useChatInputFileTreeDrop } from './hooks/useChatInputFileTreeDrop';
 import { useChatInputFocus } from './hooks/useChatInputFocus';
 import { useChatInputRecall } from './hooks/useChatInputRecall';
 import { useNoteMentions } from './hooks/useNoteMentions';
+import { isElectronRuntime } from '@/lib/electron/bridge';
+import { ComputerUseEnableDialog } from '@/components/Chat/features/ComputerUse/ComputerUseEnableDialog';
 
 export const ChatInput = memo(function ChatInput({
   active = true,
@@ -33,9 +35,16 @@ export const ChatInput = memo(function ChatInput({
   acceptNotesBlockDrop = false,
 }: ChatInputProps) {
   const lastSubmittedMessageRef = useRef('');
+  const [showComputerUseEnableDialog, setShowComputerUseEnableDialog] = useState(false);
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
-  const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
+  const {
+    webSearchEnabled,
+    setWebSearchEnabled,
+    computerUseEnabled,
+    setComputerUseEnabled,
+  } = useAIStore();
+  const computerUseAvailable = isElectronRuntime();
   const isQuotaSendBlocked = hasSelectedModel && isManagedQuotaExhausted;
   const {
     attachments,
@@ -233,7 +242,8 @@ export const ChatInput = memo(function ChatInput({
   });
 
   return (
-    <ChatInputComposerFrame
+    <>
+      <ChatInputComposerFrame
       activeCandidatePath={activeCandidatePath}
       applyMentionCandidate={applyMentionCandidate}
       attachments={attachments}
@@ -276,10 +286,24 @@ export const ChatInput = memo(function ChatInput({
       onSend={() => handleSend()}
       onTextareaScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
       onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
+      computerUseAvailable={computerUseAvailable}
+      computerUseEnabled={computerUseAvailable && computerUseEnabled}
+      onRequestEnableComputerUse={() => setShowComputerUseEnableDialog(true)}
+      onDisableComputerUse={() => setComputerUseEnabled(false)}
       showMentionPicker={showMentionPicker}
+      showComputerCommandApproval={active}
       textareaRef={textareaRef}
       textareaScrollTop={textareaScrollTop}
       webSearchEnabled={webSearchEnabled}
-    />
+      />
+      <ComputerUseEnableDialog
+        isOpen={showComputerUseEnableDialog}
+        onClose={() => setShowComputerUseEnableDialog(false)}
+        onConfirm={() => {
+          setComputerUseEnabled(true);
+          setShowComputerUseEnableDialog(false);
+        }}
+      />
+    </>
   );
 });

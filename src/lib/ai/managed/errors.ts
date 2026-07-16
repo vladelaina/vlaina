@@ -188,6 +188,8 @@ function messageForManagedErrorCode(errorCode: string): string {
     case 'unsupported_message_content':
     case 'unsupported_model_input':
       return 'UNSUPPORTED_MODEL_INPUT';
+    case 'unsupported_tool_calling':
+      return 'UNSUPPORTED_TOOL_CALLING';
     case 'invalid_request':
       return 'INVALID_REQUEST';
     default:

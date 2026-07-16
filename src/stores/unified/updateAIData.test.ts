@@ -55,6 +55,7 @@ function createData(): UnifiedData {
       customSystemPrompt: '',
       includeTimeContext: true,
       webSearchEnabled: false,
+      computerUseEnabled: false,
     },
   };
 }
@@ -130,6 +131,15 @@ describe('updateAIData', () => {
 
     expect(useUnifiedStore.getState().data.ai?.webSearchEnabled).toBe(true);
     expect(mocks.saveUnifiedData).not.toHaveBeenCalled();
+  });
+
+  it('persists the desktop computer operation preference with session settings', () => {
+    useUnifiedStore.getState().updateAIData({ computerUseEnabled: true });
+
+    expect(useUnifiedStore.getState().data.ai?.computerUseEnabled).toBe(true);
+    expect(mocks.saveUnifiedData).toHaveBeenCalledWith(expect.objectContaining({
+      ai: expect.objectContaining({ computerUseEnabled: true }),
+    }), { ai: { sessions: true, providers: undefined } });
   });
 
   it('persists custom icons with an app-only patch', () => {

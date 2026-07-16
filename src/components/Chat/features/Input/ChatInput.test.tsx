@@ -6,6 +6,10 @@ import { FILE_TREE_CHAT_DROP_EVENT } from '@/components/Notes/features/FileTree/
 import { getDroppedExternalPaths } from '@/components/Notes/hooks/externalDropPayload';
 import { setCurrentNotesRootPath, useNotesStore } from '@/stores/notes/useNotesStore';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
+import {
+  publishComputerCommandApproval,
+  resetComputerCommandApprovalsForTests,
+} from '@/lib/ai/computerUse/approvalState';
 
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -59,6 +63,7 @@ function renderChatInput(overrides: Partial<ChatInputProps> = {}) {
 describe('ChatInput', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetComputerCommandApprovalsForTests();
     getDroppedExternalPathsMock.mockReturnValue([]);
     setCurrentNotesRootPath(null);
     useNotesRootStore.setState({ currentNotesRoot: null });
@@ -107,6 +112,37 @@ describe('ChatInput', () => {
     expect(frame).toHaveClass('overflow-hidden');
     expect(banner).toHaveClass('min-h-[var(--vlaina-size-32px)]');
     expect(banner).not.toHaveClass('absolute');
+  });
+
+  it('renders computer command approval above the composer', () => {
+    publishComputerCommandApproval('approval-1', {
+      command: 'uname -a',
+      cwd: '/tmp/project',
+      purpose: 'Inspect the system',
+      timeoutSeconds: 600,
+      risk: 'standard',
+      canAlwaysAllow: true,
+    });
+    const { container } = renderChatInput();
+
+    const approval = container.querySelector('[data-computer-command-approval="true"]');
+    const composer = container.querySelector('[data-chat-input="true"]');
+    expect(approval).not.toBeNull();
+    expect(composer).not.toBeNull();
+    if (!approval || !composer) throw new Error('Expected approval and composer elements.');
+    expect(approval.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(composer.parentElement).toHaveClass('bg-[var(--vlaina-color-accent-soft)]');
+    expect(composer.parentElement).toHaveClass('overflow-hidden');
+    expect(screen.getByRole('button', { name: 'chat.computerUse.runOnce' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'chat.computerUse.alwaysRun' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeInTheDocument();
+    for (const button of screen.getAllByRole('button').filter((item) => [
+      'chat.computerUse.runOnce',
+      'chat.computerUse.alwaysRun',
+      'common.cancel',
+    ].includes(item.textContent || ''))) {
+      expect(button).toHaveClass('!rounded-[var(--vlaina-radius-pill)]');
+    }
   });
 
   it('adds a note mention when a file tree item is dropped into chat', async () => {

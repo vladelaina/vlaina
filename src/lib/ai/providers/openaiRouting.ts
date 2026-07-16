@@ -46,7 +46,9 @@ export function shouldUseWebSearchTextProtocol(provider: Provider, model: AIMode
 }
 
 export function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {
-  return provider.endpointType !== 'anthropic' && isDeepSeekOpenAICompatible(provider, model)
+  return provider.id !== MANAGED_PROVIDER_ID &&
+    provider.endpointType !== 'anthropic' &&
+    isDeepSeekOpenAICompatible(provider, model)
 }
 
 export function shouldUseXaiNativeWebSearch(provider: Provider, model: AIModel): boolean {

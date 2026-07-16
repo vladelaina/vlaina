@@ -206,4 +206,8 @@ export const modelActions = {
   setWebSearchEnabled: (enabled: boolean) => {
     useUnifiedStore.getState().updateAIData({ webSearchEnabled: enabled });
   },
+
+  setComputerUseEnabled: (enabled: boolean) => {
+    useUnifiedStore.getState().updateAIData({ computerUseEnabled: enabled });
+  },
 };

@@ -5,6 +5,8 @@ import { useI18n } from '@/lib/i18n';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
+import { isElectronRuntime } from '@/lib/electron/bridge';
 import { useAutoTitle } from './useAutoTitle';
 import {
   MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY,
@@ -38,6 +40,9 @@ export function useChatService() {
   const customSystemPrompt = useUnifiedStore((state) => state.data.ai?.customSystemPrompt || '');
   const includeTimeContext = useUnifiedStore((state) => state.data.ai?.includeTimeContext !== false);
   const webSearchEnabled = useUnifiedStore((state) => state.data.ai?.webSearchEnabled === true);
+  const storedComputerUseEnabled = useUnifiedStore((state) => state.data.ai?.computerUseEnabled === true);
+  const computerUseCwd = useNotesRootStore((state) => state.currentNotesRoot?.path || '');
+  const computerUseEnabled = storedComputerUseEnabled && isElectronRuntime();
   const isAccountConnected = useAccountSessionStore((state) => state.isConnected);
   const setSessionLoading = useAIUIStore((state) => state.setSessionLoading);
   const markSessionUnread = useAIUIStore((state) => state.markSessionUnread);
@@ -90,6 +95,8 @@ export function useChatService() {
     customSystemPrompt,
     includeTimeContext,
     webSearchEnabled,
+    computerUseEnabled,
+    computerUseCwd,
     isAccountConnected,
     setSessionLoading,
     setError,
@@ -106,6 +113,8 @@ export function useChatService() {
     customSystemPrompt,
     includeTimeContext,
     webSearchEnabled,
+    computerUseEnabled,
+    computerUseCwd,
     isAccountConnected,
     setSessionLoading,
     setError,
@@ -120,6 +129,8 @@ export function useChatService() {
     customSystemPrompt,
     includeTimeContext,
     webSearchEnabled,
+    computerUseEnabled,
+    computerUseCwd,
     messages,
     isAccountConnected,
     setSessionLoading,
