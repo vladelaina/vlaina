@@ -34,9 +34,9 @@ export function AppViewModeSwitch() {
       icon: <Icon name="file.text" size={themeIconTokens.sizeCompact} />,
     },
     {
-      key: 'chat' as const,
-      label: t('app.viewChat'),
-      icon: <Icon name="common.shootingStar" size={themeIconTokens.sizeCompact} />,
+      key: 'graph' as const,
+      label: t('app.viewGraph'),
+      icon: <Icon name="graph.network" size={themeIconTokens.sizeCompact} />,
     },
     {
       key: 'whiteboard' as const,
@@ -44,9 +44,9 @@ export function AppViewModeSwitch() {
       icon: <Icon name="editor.diagram" size={themeIconTokens.sizeCompact} />,
     },
     {
-      key: 'graph' as const,
-      label: t('app.viewGraph'),
-      icon: <Icon name="editor.diagram" size={themeIconTokens.sizeCompact} />,
+      key: 'chat' as const,
+      label: t('app.viewChat'),
+      icon: <Icon name="common.shootingStar" size={themeIconTokens.sizeCompact} />,
     },
   ];
   if (!options.some((option) => option.key === appViewMode)) return null;

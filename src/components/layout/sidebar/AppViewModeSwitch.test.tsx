@@ -46,7 +46,8 @@ describe('AppViewModeSwitch', () => {
     const chatTab = screen.getByRole('tab', { name: 'Chat' });
     const graphTab = screen.getByRole('tab', { name: 'Graph' });
 
-    expect(screen.getAllByRole('tab')).toEqual([notesTab, chatTab, boardTab, graphTab]);
+    expect(screen.getAllByRole('tab')).toEqual([notesTab, graphTab, boardTab, chatTab]);
+    expect(screen.getByTestId('icon-graph.network')).toBeInTheDocument();
 
     expect(chatTab).toHaveAttribute('aria-selected', 'true');
     expect(boardTab).toHaveAttribute('aria-selected', 'false');
