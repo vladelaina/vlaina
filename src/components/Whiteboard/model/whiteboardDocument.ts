@@ -36,6 +36,9 @@ export interface WhiteboardDocumentV1 {
 type JsonRecord = Record<string, unknown>;
 const paperStyles = new Set<WhiteboardPaperStyle>(['blank', 'dots', 'grid', 'ruled']);
 const drawingTools = new Set<WhiteboardDrawingTool>(['pen', 'pencil', 'marker', 'fountain', 'watercolor', 'crayon']);
+const WHITEBOARD_ID_MAX_CHARS = 200;
+const WHITEBOARD_COLOR_MAX_CHARS = 256;
+const WHITEBOARD_ASSET_PATH_MAX_CHARS = 256;
 
 export function createWhiteboardDocument(snapshot: WhiteboardSnapshot): WhiteboardDocumentV1 {
   const content = normalizeWhiteboardSnapshot(snapshot);
@@ -57,7 +60,12 @@ export function serializeWhiteboardSnapshot(snapshot: WhiteboardSnapshot): strin
 export function deserializeWhiteboardSnapshot(serialized: string): WhiteboardSnapshot | null {
   try {
     const value = JSON.parse(serialized);
-    if (!isRecord(value) || value.format !== WHITEBOARD_DOCUMENT_FORMAT || value.version !== WHITEBOARD_DOCUMENT_VERSION) return null;
+    if (
+      !isRecord(value) ||
+      value.format !== WHITEBOARD_DOCUMENT_FORMAT ||
+      value.version !== WHITEBOARD_DOCUMENT_VERSION ||
+      !isStoredContent(value.content)
+    ) return null;
     return normalizeSnapshot(value.content, false);
   } catch {
     return null;
@@ -71,7 +79,7 @@ export function normalizeWhiteboardSnapshot(value: unknown): WhiteboardSnapshot 
 function normalizeSnapshot(value: unknown, runtimePoints: boolean): WhiteboardSnapshot {
   if (!isRecord(value)) return emptySnapshot();
   return {
-    elements: readElements(value.elements),
+    elements: readElements(value.elements, runtimePoints),
     ...(typeof value.paper === 'string' && paperStyles.has(value.paper as WhiteboardPaperStyle) ? { paper: value.paper as WhiteboardPaperStyle } : {}),
     strokes: readStrokes(value.strokes, runtimePoints),
     viewport: readViewport(value.viewport) ?? { ...WHITEBOARD_INITIAL_VIEWPORT },
@@ -82,11 +90,11 @@ function emptySnapshot(): WhiteboardSnapshot {
   return { elements: [...WHITEBOARD_SEED_ELEMENTS], strokes: [...WHITEBOARD_SEED_STROKES], viewport: { ...WHITEBOARD_INITIAL_VIEWPORT } };
 }
 
-function readElements(value: unknown): WhiteboardElement[] {
+function readElements(value: unknown, runtimeValues: boolean): WhiteboardElement[] {
   if (!Array.isArray(value)) return [...WHITEBOARD_SEED_ELEMENTS];
-  return value.flatMap((item) => {
+  return dedupeById(value.flatMap((item) => {
     if (!isRecord(item) || !isElementType(item.type)) return [];
-    const id = readString(item.id);
+    const id = readString(item.id, WHITEBOARD_ID_MAX_CHARS);
     const x = readFiniteNumber(item.x);
     const y = readFiniteNumber(item.y);
     const width = readPositiveNumber(item.width);
@@ -95,23 +103,23 @@ function readElements(value: unknown): WhiteboardElement[] {
     return [resizeWhiteboardElement({
       height, id, text: typeof item.text === 'string' ? item.text : '', type: item.type, width, x, y,
       ...(isSafeImageAssetPath(item.imageAssetPath) ? { imageAssetPath: item.imageAssetPath } : {}),
-      ...(typeof item.imageSrc === 'string' ? { imageSrc: item.imageSrc } : {}),
+      ...(runtimeValues && typeof item.imageSrc === 'string' ? { imageSrc: item.imageSrc } : {}),
     }, width, height)];
-  });
+  }));
 }
 
 function readStrokes(value: unknown, runtimePoints: boolean): WhiteboardStroke[] {
   if (!Array.isArray(value)) return [...WHITEBOARD_SEED_STROKES];
   const strokes = value.flatMap((item) => {
     if (!isRecord(item)) return [];
-    const id = readString(item.id);
+    const id = readString(item.id, WHITEBOARD_ID_MAX_CHARS);
     const tool = typeof item.tool === 'string' && drawingTools.has(item.tool as WhiteboardDrawingTool) ? item.tool as WhiteboardDrawingTool : null;
-    const color = readString(item.color);
+    const color = readString(item.color, WHITEBOARD_COLOR_MAX_CHARS);
     const size = readPositiveNumber(item.size);
     const points = readStrokePoints(item.points, runtimePoints);
     return id && tool && color && size !== null && points.length > 0 ? [{ color, id, points, size, tool }] : [];
   });
-  return splitWhiteboardStrokeSegments(strokes);
+  return splitWhiteboardStrokeSegments(dedupeById(strokes));
 }
 
 function readStrokePoints(value: unknown, runtimePoints: boolean): WhiteboardStrokePoint[] {
@@ -133,7 +141,6 @@ function encodeStroke(stroke: WhiteboardStroke): StoredStroke {
 }
 
 function encodeElement(element: WhiteboardElement): WhiteboardElement {
-  if (element.type !== 'image' || !element.imageAssetPath) return element;
   const stored = { ...element };
   delete stored.imageSrc;
   return stored;
@@ -152,12 +159,29 @@ function readViewport(value: unknown): WhiteboardViewport | null {
 }
 
 function isSafeImageAssetPath(value: unknown): value is string {
-  if (typeof value !== 'string' || !value.startsWith('assets/')) return false;
+  if (typeof value !== 'string' || value.length > WHITEBOARD_ASSET_PATH_MAX_CHARS || !value.startsWith('assets/')) return false;
   const fileName = value.slice('assets/'.length);
   return fileName.length > 0 && !fileName.includes('/') && !fileName.includes('\\') && fileName !== '.' && fileName !== '..';
 }
 
-function readString(value: unknown): string | null { return typeof value === 'string' && value.length > 0 ? value : null; }
+function isStoredContent(value: unknown): value is JsonRecord {
+  return isRecord(value) && Array.isArray(value.elements) && Array.isArray(value.strokes) && isRecord(value.viewport);
+}
+
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const ids = new Set<string>();
+  return items.filter((item) => {
+    if (ids.has(item.id)) return false;
+    ids.add(item.id);
+    return true;
+  });
+}
+
+function readString(value: unknown, maxChars: number): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= maxChars ? trimmed : null;
+}
 function readFiniteNumber(value: unknown): number | null { return typeof value === 'number' && Number.isFinite(value) ? value : null; }
 function readPositiveNumber(value: unknown): number | null { const number = readFiniteNumber(value); return number !== null && number > 0 ? number : null; }
 function isRecord(value: unknown): value is JsonRecord { return typeof value === 'object' && value !== null && !Array.isArray(value); }

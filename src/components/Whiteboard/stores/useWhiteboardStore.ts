@@ -252,7 +252,8 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
     const activeBoard = boards.find((board) => board.id === activeBoardId);
     if (!loadedNotesRootPath || !activeBoard) return null;
     try {
-      return await writeWhiteboardAsset(loadedNotesRootPath, activeBoard, file);
+      const assetPath = await writeWhiteboardAsset(loadedNotesRootPath, activeBoard, file);
+      return get().loadedNotesRootPath === loadedNotesRootPath && get().activeBoardId === activeBoardId ? assetPath : null;
     } catch (error) {
       set({ error: getErrorMessage(error) });
       return null;

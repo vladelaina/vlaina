@@ -105,4 +105,34 @@ describe('WhiteboardCanvasLayer', () => {
 
     expect(container.querySelector('[data-whiteboard-selection-drag-target="stroke-1"]')).toHaveStyle({ cursor: 'grab' });
   });
+
+  it('keeps selected images draggable when a lasso selects multiple items', () => {
+    const { container } = render(
+      <WhiteboardCanvasLayer
+        brushCursorColor="transparent"
+        brushCursorPoint={null}
+        brushCursorSize={1}
+        brushCursorTool={null}
+        draftStroke={null}
+        elements={[{ height: 80, id: 'image-1', text: 'one.png', type: 'image', width: 100, x: 0, y: 0 }]}
+        eraserPreview={EMPTY_WHITEBOARD_ERASER_PREVIEW}
+        movePreview={null}
+        selectedElementIds={['image-1']}
+        selectedStrokeIds={['stroke-1']}
+        selectionPath={null}
+        strokes={[{
+          color: '#111111', id: 'stroke-1',
+          points: [{ pressure: 0.5, x: 120, y: 0 }, { pressure: 0.5, x: 140, y: 20 }],
+          size: 1, tool: 'pen',
+        }]}
+        tool="select"
+        viewport={{ x: 0, y: 0, zoom: 1 }}
+        viewportSize={{ x: 500, y: 500 }}
+        onElementPointerDown={vi.fn()}
+        onSelectionResizePointerDown={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('[data-whiteboard-element="true"]')).toHaveClass('cursor-grab');
+  });
 });

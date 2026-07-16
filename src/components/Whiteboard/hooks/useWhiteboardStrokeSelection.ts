@@ -1,10 +1,12 @@
 import { useCallback, type Dispatch, type PointerEvent, type SetStateAction } from 'react';
 import type { WhiteboardDragState } from '../model/whiteboardInteractions';
-import type { WhiteboardPoint, WhiteboardStroke } from '../model/whiteboardModel';
+import type { WhiteboardElement, WhiteboardPoint, WhiteboardStroke } from '../model/whiteboardModel';
 import { findStrokeAtPoint } from '../model/whiteboardSelection';
 
 interface WhiteboardStrokeSelectionOptions {
+  elements: WhiteboardElement[];
   pushHistory: () => void;
+  selectedElementIds: string[];
   selectedStrokeIds: string[];
   setDragState: Dispatch<SetStateAction<WhiteboardDragState | null>>;
   setSelectedElementId: Dispatch<SetStateAction<string | null>>;
@@ -14,7 +16,9 @@ interface WhiteboardStrokeSelectionOptions {
 }
 
 export function useWhiteboardStrokeSelection({
+  elements,
   pushHistory,
+  selectedElementIds,
   selectedStrokeIds,
   setDragState,
   setSelectedElementId,
@@ -24,8 +28,8 @@ export function useWhiteboardStrokeSelection({
 }: WhiteboardStrokeSelectionOptions) {
   return useCallback((point: WhiteboardPoint, event: PointerEvent<HTMLDivElement>) => {
     const hitStroke = findStrokeAtPoint(strokes, point, zoom);
-    setSelectedElementId(null);
     if (!hitStroke) {
+      setSelectedElementId(null);
       setSelectedStrokeIds([]);
       setDragState({ kind: 'lasso', points: [point] });
       return;
@@ -34,10 +38,25 @@ export function useWhiteboardStrokeSelection({
     const nextIds = hitSelected && event.shiftKey
       ? selectedStrokeIds.filter((id) => id !== hitStroke.id)
       : Array.from(new Set(event.shiftKey || hitSelected ? [...selectedStrokeIds, hitStroke.id] : [hitStroke.id]));
+    const keepElementSelection = event.shiftKey || hitSelected;
+    if (!keepElementSelection) setSelectedElementId(null);
     setSelectedStrokeIds(nextIds);
-    if (nextIds.length === 0) return;
+    if (event.shiftKey || nextIds.length === 0) return;
     pushHistory();
     const originalStrokes = strokes.filter((stroke) => nextIds.includes(stroke.id));
+    if (selectedElementIds.length > 0 && keepElementSelection) {
+      const originalElements = elements.filter((element) => selectedElementIds.includes(element.id));
+      setDragState({
+        kind: 'move-elements',
+        currentPoint: point,
+        elementIds: selectedElementIds,
+        originalElementsById: new Map(originalElements.map((element) => [element.id, element])),
+        originalStrokesById: new Map(originalStrokes.map((stroke) => [stroke.id, stroke])),
+        startPoint: point,
+        strokeIds: nextIds,
+      });
+      return;
+    }
     setDragState({
       kind: 'move-strokes',
       currentPoint: point,
@@ -45,5 +64,5 @@ export function useWhiteboardStrokeSelection({
       startPoint: point,
       strokeIds: nextIds,
     });
-  }, [pushHistory, selectedStrokeIds, setDragState, setSelectedElementId, setSelectedStrokeIds, strokes, zoom]);
+  }, [elements, pushHistory, selectedElementIds, selectedStrokeIds, setDragState, setSelectedElementId, setSelectedStrokeIds, strokes, zoom]);
 }

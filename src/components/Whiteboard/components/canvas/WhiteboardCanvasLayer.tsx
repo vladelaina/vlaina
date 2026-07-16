@@ -134,7 +134,8 @@ const WhiteboardElementList = memo(function WhiteboardElementList(props: Whitebo
       key={element.id}
       element={element}
       erasing={props.erasingElementIdSet.has(element.id)}
-      selected={props.tool === 'select' && props.selectedItemCount <= 1 && props.selectedElementIds.includes(element.id)}
+      selected={props.tool === 'select' && props.selectedElementIds.includes(element.id)}
+      showSelectionBorder={props.tool === 'select' && props.selectedItemCount <= 1 && props.selectedElementIds.includes(element.id)}
       tool={props.tool}
       onPointerDown={props.onElementPointerDown}
     />

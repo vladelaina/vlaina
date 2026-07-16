@@ -13,6 +13,7 @@ const snapshot: WhiteboardSnapshot = {
   elements: [{
     height: 80,
     id: 'image-1',
+    imageAssetPath: 'assets/demo.png',
     imageSrc: 'data:image/png;base64,preview',
     text: 'demo.png',
     type: 'image',
@@ -30,6 +31,8 @@ const snapshot: WhiteboardSnapshot = {
   }],
   viewport: { x: 12, y: 24, zoom: 1.25 },
 };
+const persistedImage = { ...snapshot.elements[0] };
+delete persistedImage.imageSrc;
 
 describe('whiteboard document format', () => {
   it('serializes and deserializes current whiteboard content', () => {
@@ -38,7 +41,10 @@ describe('whiteboard document format', () => {
     expect(WHITEBOARD_DOCUMENT_MIME_TYPE).toBe('application/vnd.vlaina.whiteboard+json');
     expect(document.format).toBe(WHITEBOARD_DOCUMENT_FORMAT);
     expect(document.version).toBe(WHITEBOARD_DOCUMENT_VERSION);
-    expect(deserializeWhiteboardSnapshot(serialized)).toEqual(snapshot);
+    expect(deserializeWhiteboardSnapshot(serialized)).toEqual({
+      ...snapshot,
+      elements: [persistedImage],
+    });
   });
 
   it('stores asset paths without duplicating preview data URLs', () => {
@@ -48,6 +54,14 @@ describe('whiteboard document format', () => {
     }));
     expect(document.content.elements[0]).toMatchObject({ imageAssetPath: 'assets/demo.png', type: 'image' });
     expect(document.content.elements[0]).not.toHaveProperty('imageSrc');
+  });
+
+  it('does not trust a stored runtime image source', () => {
+    const serialized = serializeWhiteboardSnapshot(snapshot);
+    const document = JSON.parse(serialized);
+    document.content.elements[0].imageSrc = 'https://example.invalid/tracker.png';
+
+    expect(deserializeWhiteboardSnapshot(JSON.stringify(document))?.elements[0]).not.toHaveProperty('imageSrc');
   });
 
   it('drops removed object types instead of restoring obsolete content', () => {
@@ -65,7 +79,7 @@ describe('whiteboard document format', () => {
       format: WHITEBOARD_DOCUMENT_FORMAT,
       version: WHITEBOARD_DOCUMENT_VERSION,
     }));
-    expect(parsed?.elements).toEqual([snapshot.elements[0]]);
+    expect(parsed?.elements).toEqual([persistedImage]);
     expect(parsed).not.toHaveProperty('connectors');
     expect(parsed).not.toHaveProperty('ruler');
   });
@@ -106,6 +120,32 @@ describe('whiteboard document format', () => {
     expect(parsed?.strokes[0].points[0]).toEqual({ pressure: 0.5, x: 0, y: 0 });
   });
 
+  it('deduplicates ids and rejects oversized format identifiers and asset paths', () => {
+    const parsed = deserializeWhiteboardSnapshot(JSON.stringify({
+      content: {
+        elements: [
+          { height: 80, id: 'image-1', imageAssetPath: 'assets/first.png', text: 'first.png', type: 'image', width: 100, x: 0, y: 0 },
+          { height: 80, id: 'image-1', imageAssetPath: 'assets/second.png', text: 'second.png', type: 'image', width: 100, x: 10, y: 10 },
+          { height: 80, id: 'image-2', imageAssetPath: `assets/${'x'.repeat(300)}`, text: 'unsafe.png', type: 'image', width: 100, x: 20, y: 20 },
+          { height: 80, id: 'x'.repeat(201), text: 'oversized.png', type: 'image', width: 100, x: 30, y: 30 },
+        ],
+        strokes: [
+          { color: '#111111', id: 'stroke-1', points: [[0, 0, 0.5]], size: 1, tool: 'pen' },
+          { color: '#222222', id: 'stroke-1', points: [[10, 10, 0.5]], size: 1, tool: 'pen' },
+        ],
+        viewport: WHITEBOARD_INITIAL_VIEWPORT,
+      },
+      format: WHITEBOARD_DOCUMENT_FORMAT,
+      version: WHITEBOARD_DOCUMENT_VERSION,
+    }));
+
+    expect(parsed?.elements.map((element) => element.id)).toEqual(['image-1', 'image-2']);
+    expect(parsed?.elements[0].imageAssetPath).toBe('assets/first.png');
+    expect(parsed?.elements[1]).not.toHaveProperty('imageAssetPath');
+    expect(parsed?.strokes).toHaveLength(1);
+    expect(parsed?.strokes[0].color).toBe('#111111');
+  });
+
   it('rejects raw snapshots, unknown documents, and malformed JSON', () => {
     expect(deserializeWhiteboardSnapshot(JSON.stringify(snapshot))).toBeNull();
     expect(deserializeWhiteboardSnapshot('not json')).toBeNull();
@@ -116,11 +156,14 @@ describe('whiteboard document format', () => {
     }))).toBeNull();
   });
 
-  it('returns empty defaults for empty document content', () => {
+  it('rejects structurally incomplete stored content so backup recovery can run', () => {
     expect(deserializeWhiteboardSnapshot(JSON.stringify({
       content: {},
       format: WHITEBOARD_DOCUMENT_FORMAT,
       version: WHITEBOARD_DOCUMENT_VERSION,
+    }))).toBeNull();
+    expect(deserializeWhiteboardSnapshot(serializeWhiteboardSnapshot({
+      elements: [], strokes: [], viewport: WHITEBOARD_INITIAL_VIEWPORT,
     }))).toEqual({ elements: [], strokes: [], viewport: WHITEBOARD_INITIAL_VIEWPORT });
   });
 });

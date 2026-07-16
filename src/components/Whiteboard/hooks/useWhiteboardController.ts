@@ -102,7 +102,7 @@ export function useWhiteboardController({
     active, elements, importImage, pushHistory, selectedElementIds, selectedStrokeIds,
     setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes, setTool, strokes,
   });
-  const startStrokeSelection = useWhiteboardStrokeSelection({ pushHistory, selectedStrokeIds, setDragState, setSelectedElementId, setSelectedStrokeIds, strokes, zoom: viewport.zoom });
+  const startStrokeSelection = useWhiteboardStrokeSelection({ elements, pushHistory, selectedElementIds, selectedStrokeIds, setDragState, setSelectedElementId, setSelectedStrokeIds, strokes, zoom: viewport.zoom });
   useWhiteboardKeyboardShortcuts({ active, elements, pushHistory, resizeBrush, selectedBrushTool: isBrushTool(tool) ? tool : null, selectedElementIds, selectedStrokeIds, setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes, setTool, strokes, viewportZoom: viewport.zoom });
   const pointerActions = useWhiteboardPointerActions({
     activePenPointerRef, appendDraftPoints, brushColors, brushSizes, clearDraftStroke,

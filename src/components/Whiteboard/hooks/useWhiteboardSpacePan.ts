@@ -16,17 +16,21 @@ export function useWhiteboardSpacePan(active: boolean) {
     };
     const handleKeyUp = (event: KeyboardEvent) => {
       if (event.code !== 'Space') return;
+      releaseSpace();
+    };
+    const releaseSpace = () => {
       spacePressedRef.current = false;
       setSpacePressed(false);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', releaseSpace);
     return () => {
-      spacePressedRef.current = false;
-      setSpacePressed(false);
+      releaseSpace();
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', releaseSpace);
     };
   }, [active]);
 
