@@ -1,0 +1,1 @@
+export { wikiLinkPlugin } from './wikiLinkPlugin';

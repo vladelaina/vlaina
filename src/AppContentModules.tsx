@@ -20,6 +20,7 @@ export const preloadSettingsModule = once(() => import('@/components/Settings'))
 export const preloadNotesViewModule = once(() => import('@/components/Notes/NotesView'));
 export const preloadChatViewModule = once(() => import('@/components/Chat/ChatView'));
 export const preloadWhiteboardViewModule = once(() => import('@/components/Whiteboard'));
+export const preloadGraphViewModule = once(() => import('@/components/Graph'));
 export const preloadNotesSidebarModule = once(() => import('@/components/Notes/features/Sidebar/NotesSidebarWrapper'));
 export const preloadChatSidebarModule = once(() => import('@/components/Chat/features/Sidebar/ChatSidebar'));
 export const preloadTemporaryChatToggleModule = once(() => import('@/components/Chat/features/Temporary/TitleBarTemporaryChatToggle'));
@@ -50,6 +51,16 @@ export const WhiteboardView = lazy(async () => {
 export const WhiteboardSidebar = lazy(async () => {
   const mod = await preloadWhiteboardViewModule();
   return { default: mod.WhiteboardSidebar };
+});
+
+export const GraphView = lazy(async () => {
+  const mod = await preloadGraphViewModule();
+  return { default: mod.GraphView };
+});
+
+export const GraphSidebar = lazy(async () => {
+  const mod = await preloadGraphViewModule();
+  return { default: mod.GraphSidebar };
 });
 
 export const LabView = import.meta.env.DEV

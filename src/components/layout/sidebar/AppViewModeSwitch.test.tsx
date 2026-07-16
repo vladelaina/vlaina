@@ -4,7 +4,7 @@ import { AppViewModeSwitch } from './AppViewModeSwitch';
 
 const hoisted = vi.hoisted(() => ({
   uiState: {
-    appViewMode: 'chat' as 'notes' | 'chat' | 'whiteboard' | 'lab',
+    appViewMode: 'chat' as 'notes' | 'chat' | 'whiteboard' | 'graph' | 'lab',
     setAppViewMode: vi.fn(),
   },
 }));
@@ -19,6 +19,7 @@ vi.mock('@/lib/i18n', () => ({
       'app.viewNotes': 'Notes',
       'app.viewChat': 'Chat',
       'app.viewWhiteboard': 'Board',
+      'app.viewGraph': 'Graph',
       'shortcut.action.toggleAppViewMode': 'Switch app view',
     }[key] ?? key),
   }),
@@ -43,6 +44,9 @@ describe('AppViewModeSwitch', () => {
     const notesTab = screen.getByRole('tab', { name: 'Notes' });
     const boardTab = screen.getByRole('tab', { name: 'Board' });
     const chatTab = screen.getByRole('tab', { name: 'Chat' });
+    const graphTab = screen.getByRole('tab', { name: 'Graph' });
+
+    expect(screen.getAllByRole('tab')).toEqual([notesTab, chatTab, boardTab, graphTab]);
 
     expect(chatTab).toHaveAttribute('aria-selected', 'true');
     expect(boardTab).toHaveAttribute('aria-selected', 'false');

@@ -775,6 +775,27 @@
   --vlaina-color-panel-muted: rgb(0 0 0 / 0.05);
   --vlaina-color-row-soft: rgb(244 244 245 / 0.4);
   --vlaina-color-whiteboard-canvas: var(--vlaina-color-surface-main);
+  --vlaina-color-graph-canvas: var(--vlaina-color-surface-main);
+  --vlaina-color-graph-edge: var(--vlaina-color-text-tertiary);
+  --vlaina-color-graph-edge-active: var(--vlaina-sidebar-row-selected-text);
+  --vlaina-color-graph-node: var(--vlaina-color-text-muted);
+  --vlaina-color-graph-node-active: var(--vlaina-sidebar-row-selected-text);
+  --vlaina-color-graph-node-related: color-mix(in srgb, var(--vlaina-sidebar-row-selected-text) 58%, var(--vlaina-color-text-muted));
+  --vlaina-color-graph-node-ring: var(--vlaina-color-surface-main);
+  --vlaina-color-graph-node-ring-active: var(--vlaina-sidebar-row-selected-bg);
+  --vlaina-color-graph-label: var(--vlaina-color-text-primary);
+  --vlaina-color-graph-controls-bg: var(--vlaina-bg-secondary);
+  --vlaina-color-graph-controls-hover: var(--vlaina-hover);
+  --vlaina-motion-graph-node-enter-duration: 180ms;
+  --vlaina-motion-graph-node-enter-stagger: 2ms;
+  --vlaina-motion-graph-edge-enter-delay: 90ms;
+  --vlaina-motion-graph-edge-enter-duration: 280ms;
+  --vlaina-motion-graph-enter-easing: cubic-bezier(0.22, 1, 0.36, 1);
+  --vlaina-motion-graph-interaction-duration: 140ms;
+  --vlaina-motion-graph-label-duration: 120ms;
+  --vlaina-graph-inverse-zoom: 1;
+  --vlaina-graph-enter-index: 0;
+  --vlaina-graph-node-enter-radius: 5px;
   --vlaina-color-whiteboard-grid-dot: rgb(39 39 42 / 0.13);
   --vlaina-color-whiteboard-pen: #27272a;
   --vlaina-color-whiteboard-pencil: #52525b;
@@ -1012,6 +1033,71 @@
   --vlaina-collapse-triangle-sidebar-soft-fg: var(--vlaina-sidebar-notes-text-soft);
   --vlaina-collapse-triangle-hover-fg: var(--vlaina-sidebar-row-selected-text);
   --vlaina-collapse-triangle-active-fg: var(--vlaina-sidebar-row-selected-text);
+}
+
+@keyframes vlaina-graph-node-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes vlaina-graph-node-dot-enter {
+  from { r: 0; }
+  to { r: var(--vlaina-graph-node-enter-radius); }
+}
+
+@keyframes vlaina-graph-edge-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes vlaina-graph-label-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vlaina-graph-node-enter {
+  animation: vlaina-graph-node-enter var(--vlaina-motion-graph-node-enter-duration) var(--vlaina-motion-graph-enter-easing) both;
+  animation-delay: calc(var(--vlaina-graph-enter-index) * var(--vlaina-motion-graph-node-enter-stagger));
+}
+
+.vlaina-graph-node-dot-enter {
+  animation: vlaina-graph-node-dot-enter var(--vlaina-motion-graph-node-enter-duration) var(--vlaina-motion-graph-enter-easing) both;
+  animation-delay: calc(var(--vlaina-graph-enter-index) * var(--vlaina-motion-graph-node-enter-stagger));
+}
+
+.vlaina-graph-node-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing),
+    fill var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing),
+    stroke var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing);
+}
+
+.vlaina-graph-edge-active {
+  transition: opacity var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing);
+}
+
+.vlaina-graph-label-enter {
+  animation: vlaina-graph-label-enter var(--vlaina-motion-graph-label-duration) var(--vlaina-motion-graph-enter-easing) both;
+}
+
+.vlaina-graph-edge-enter {
+  animation: vlaina-graph-edge-enter var(--vlaina-motion-graph-edge-enter-duration) var(--vlaina-motion-graph-enter-easing) both;
+  animation-delay: var(--vlaina-motion-graph-edge-enter-delay);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vlaina-graph-node-enter,
+  .vlaina-graph-node-dot-enter,
+  .vlaina-graph-label-enter,
+  .vlaina-graph-edge-enter {
+    animation: none;
+  }
+  .vlaina-graph-node-dot,
+  .vlaina-graph-edge-active {
+    transition: none;
+  }
 }
 
 .app-ring-offset-1 {

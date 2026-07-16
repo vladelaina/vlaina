@@ -1018,7 +1018,8 @@ describe('featureSlice draft metadata', () => {
     mocks.readFile.mockImplementation(() => new Promise<string>((resolve) => {
       pendingReads.push(resolve);
     }));
-    const notePaths = Array.from({ length: 12 }, (_, index) => `docs/${index}.md`);
+    const firstBatchSize = 32;
+    const notePaths = Array.from({ length: 40 }, (_, index) => `docs/${index}.md`);
     const store = createNotesStore({
       notesPath: '/notesRoot',
       rootFolder: {
@@ -1047,14 +1048,14 @@ describe('featureSlice draft metadata', () => {
 
     const scan = store.getState().scanAllNotes();
     await vi.waitFor(() => {
-      expect(mocks.readFile).toHaveBeenCalledTimes(10);
+      expect(mocks.readFile).toHaveBeenCalledTimes(firstBatchSize);
     });
 
     store.getState().cancelNoteContentScan();
     pendingReads.forEach((resolve, index) => resolve(`# Note ${index}`));
     await scan;
 
-    expect(mocks.readFile).toHaveBeenCalledTimes(10);
+    expect(mocks.readFile).toHaveBeenCalledTimes(firstBatchSize);
     expect(store.getState().noteContentsCache.size).toBe(0);
   });
 

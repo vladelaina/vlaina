@@ -31,11 +31,16 @@ interface ReadLineResult {
   truncated: boolean;
 }
 
-export function getNoteMarkdownExcludedRanges(content: string): NoteMarkdownExcludedRange[] {
+export function getNoteMarkdownExcludedRanges(
+  content: string,
+  options: { excludeFrontmatter?: boolean } = {},
+): NoteMarkdownExcludedRange[] {
   const ranges: NoteMarkdownExcludedRange[] = [];
-  const frontmatterEnd = getLeadingFrontmatterEnd(content);
-  if (frontmatterEnd !== null) {
-    ranges.push({ from: 0, to: frontmatterEnd });
+  if (options.excludeFrontmatter !== false) {
+    const frontmatterEnd = getLeadingFrontmatterEnd(content);
+    if (frontmatterEnd !== null) {
+      ranges.push({ from: 0, to: frontmatterEnd });
+    }
   }
 
   collectFencedCodeRanges(content, ranges);

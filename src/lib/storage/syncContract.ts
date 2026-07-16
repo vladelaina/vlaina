@@ -224,6 +224,16 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     notes: 'Whiteboard state is a single local snapshot loaded on mount; open windows do not live-merge edits.',
   },
   {
+    id: 'graph.layout',
+    owner: 'graph',
+    scope: 'window-preference',
+    persistence: ['localStorage'],
+    mergePolicy: 'last-writer-wins',
+    storageKeys: ['vlaina-graph-ui'],
+    crossWindow: false,
+    notes: 'Graph node positions are a notes-root-keyed local layout preference; open windows do not live-merge node dragging.',
+  },
+  {
     id: 'notesRoot.recent',
     owner: 'notesRoot',
     scope: 'shared-config',
