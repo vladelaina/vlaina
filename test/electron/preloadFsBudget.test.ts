@@ -24,6 +24,12 @@ interface PreloadApi {
   aiProvider: {
     onRequestChunk(requestId: string, callback: (chunk: unknown) => void | Promise<void>): () => void;
   };
+  computer: {
+    startCommand(requestId: string, request: Record<string, unknown>): Promise<unknown>;
+    cancelCommand(requestId: string): Promise<unknown>;
+    respondToApproval(requestId: string, decision: string): Promise<unknown>;
+    onCommandEvent(requestId: string, callback: (payload: unknown) => void | Promise<void>): () => void;
+  };
   account: {
     onManagedStreamError(requestId: string, callback: (payload: unknown) => void | Promise<void>): () => void;
   };
@@ -268,6 +274,45 @@ describe('preload filesystem budgets', () => {
     expect(ipcRenderer.removeListener).toHaveBeenCalledWith(
       'desktop:managed:stream:stream-1:error',
       errorHandler,
+    );
+  });
+
+  it('exposes computer command IPC through safe request-scoped channels', async () => {
+    const { api, ipcRenderer } = await loadPreloadApi();
+    const callback = vi.fn(async () => {
+      throw new Error('command callback failed');
+    });
+    const dispose = api.computer.onCommandEvent('command-1', callback);
+    const handler = ipcRenderer.on.mock.calls.find(
+      ([channel]) => channel === 'desktop:computer-command:command-1:event',
+    )?.[1];
+    if (typeof handler !== 'function') {
+      throw new Error('computer command handler was not registered.');
+    }
+
+    await api.computer.startCommand('command-1', { command: 'printf ok' });
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'desktop:computer-command:start',
+      'command-1',
+      { command: 'printf ok' },
+    );
+    await api.computer.respondToApproval('command-1', 'run_once');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'desktop:computer-command:approve',
+      'command-1',
+      'run_once',
+    );
+    expect(handler({}, { type: 'started' })).toBeUndefined();
+    await Promise.resolve();
+    expect(callback).toHaveBeenCalledWith({ type: 'started' });
+
+    expect(() => api.computer.onCommandEvent('../unsafe', () => undefined)).toThrow(
+      'Computer command request id must contain only safe channel characters.',
+    );
+    dispose();
+    expect(ipcRenderer.removeListener).toHaveBeenCalledWith(
+      'desktop:computer-command:command-1:event',
+      handler,
     );
   });
 });

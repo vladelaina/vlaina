@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useFileTreePointerDragState } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
@@ -19,6 +19,8 @@ import { useChatInputFocus } from './hooks/useChatInputFocus';
 import { useChatInputRecall } from './hooks/useChatInputRecall';
 import { useNoteMentions } from './hooks/useNoteMentions';
 import { getWebSearchAvailability } from './webSearchAvailability';
+import { isElectronRuntime } from '@/lib/electron/bridge';
+import { ComputerUseEnableDialog } from '@/components/Chat/features/ComputerUse/ComputerUseEnableDialog';
 
 export const ChatInput = memo(function ChatInput({
   active = true,
@@ -36,10 +38,13 @@ export const ChatInput = memo(function ChatInput({
   acceptNotesBlockDrop = false,
 }: ChatInputProps) {
   const lastSubmittedMessageRef = useRef('');
+  const [showComputerUseEnableDialog, setShowComputerUseEnableDialog] = useState(false);
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const webSearchEnabled = useUnifiedStore((state) => state.data.ai?.webSearchEnabled === true);
   const webSearchAvailable = useUnifiedStore((state) => getWebSearchAvailability(state.data.ai));
+  const computerUseEnabled = useUnifiedStore((state) => state.data.ai?.computerUseEnabled === true);
+  const computerUseAvailable = isElectronRuntime();
   useEffect(() => {
     if (webSearchEnabled && webSearchAvailable === false) {
       aiActions.setWebSearchEnabled(false);
@@ -257,7 +262,8 @@ export const ChatInput = memo(function ChatInput({
   });
 
   return (
-    <ChatInputComposerFrame
+    <>
+      <ChatInputComposerFrame
       activeCandidatePath={activeCandidatePath}
       applyMentionCandidate={applyMentionCandidate}
       attachments={attachments}
@@ -300,11 +306,25 @@ export const ChatInput = memo(function ChatInput({
       onSend={() => handleSend()}
       onTextareaScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
       onToggleWebSearch={() => aiActions.setWebSearchEnabled(!webSearchEnabled)}
+      computerUseAvailable={computerUseAvailable}
+      computerUseEnabled={computerUseAvailable && computerUseEnabled}
+      onRequestEnableComputerUse={() => setShowComputerUseEnableDialog(true)}
+      onDisableComputerUse={() => aiActions.setComputerUseEnabled(false)}
       showMentionPicker={showMentionPicker}
+      showComputerCommandApproval={active}
       textareaRef={textareaRef}
       textareaScrollTop={textareaScrollTop}
       webSearchEnabled={webSearchEnabled}
       webSearchAvailable={webSearchAvailable}
-    />
+      />
+      <ComputerUseEnableDialog
+        isOpen={showComputerUseEnableDialog}
+        onClose={() => setShowComputerUseEnableDialog(false)}
+        onConfirm={() => {
+          aiActions.setComputerUseEnabled(true);
+          setShowComputerUseEnableDialog(false);
+        }}
+      />
+    </>
   );
 });

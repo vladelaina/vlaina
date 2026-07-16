@@ -20,7 +20,7 @@ import {
 } from './openAIToolLoopShared';
 import type { ToolLoopOptions } from './openAIToolLoopTypes';
 import type { OpenAIWireMessage } from './openAIToolTypes';
-import { sanitizeWebSearchStatus } from './status';
+import { sanitizeWebSearchStatus } from './statusMarkup';
 import { runWebSearchToolCall } from './toolRunner';
 import type { WebSearchToolRunnerOptions } from './toolRunner';
 import type { WebSearchStatus } from './types';

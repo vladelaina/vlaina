@@ -40,6 +40,15 @@ export function isChatRequestCancelled(sessionId: string, controller: AbortContr
   return controller.signal.aborted || !requestManager.isCurrent(sessionId, controller);
 }
 
+export function canPersistAbortedRequestTranscript(
+  sessionId: string,
+  controller: AbortController,
+): boolean {
+  return controller.signal.aborted
+    && requestManager.isLatest(controller)
+    && !requestManager.isGenerating(sessionId);
+}
+
 export function finishPreStartedChatRequest(
   sessionId: string,
   controller: AbortController,

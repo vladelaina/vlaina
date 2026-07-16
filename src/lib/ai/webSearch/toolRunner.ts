@@ -5,7 +5,7 @@ import {
   formatSafeReadFailure,
   formatSearchResultsForModel,
 } from './format';
-import { sanitizeWebSearchSourceUrl, sanitizeWebSearchStatus } from './status';
+import { sanitizeWebSearchSourceUrl, sanitizeWebSearchStatus } from './statusMarkup';
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import {
   contentLimitArg,

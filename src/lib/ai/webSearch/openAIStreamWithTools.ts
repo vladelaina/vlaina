@@ -9,6 +9,7 @@ import {
   extractOpenAIToolCalls,
   parseOpenAIPayloadText,
 } from './openAIToolParsing';
+import { filterUniqueOpenAIToolCalls } from './openAIToolCallIds';
 import type { OpenAIStreamToolResult, OpenAIToolCall } from './openAIToolTypes';
 
 interface ConsumeOpenAIStreamWithToolsOptions {
@@ -160,7 +161,9 @@ export async function consumeOpenAIStreamWithTools(
       content: accumulator.finish(),
       assistantContent,
       reasoningContent,
-      toolCalls: toolCalls.filter((call) => call.id && call.function.name),
+      toolCalls: filterUniqueOpenAIToolCalls(
+        toolCalls.filter((call) => call.function.name),
+      ),
     };
     throwIfAborted(signal);
     return result;

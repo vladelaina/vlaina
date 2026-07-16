@@ -1,10 +1,16 @@
 import type { ChatCompletionRequest } from '@/lib/ai/types';
-import { sanitizeWebSearchSourceUrl, sanitizeWebSearchStatus } from './status';
+import { buildWebSearchStatusMarkup, sanitizeWebSearchSourceUrl, sanitizeWebSearchStatus } from './statusMarkup';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { buildWebSearchCapabilityAnswer } from './intent';
 import type { WebSearchStatus } from './types';
 import type { OpenAIWireMessage } from './openAIToolTypes';
 import { MAX_NO_RESULT_SEARCH_ATTEMPTS } from './openAIToolLoopTypes';
+
+export function withStatusPrefix(statuses: WebSearchStatus[], content: string): string {
+  if (statuses.length === 0) return content;
+  const separator = content.trim().length > 0 ? '\n\n' : '';
+  return `${statuses.map(buildWebSearchStatusMarkup).join('')}${separator}${content}`;
+}
 
 export function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
@@ -142,7 +148,7 @@ export function buildNoSearchResultsAnswer(body: ChatCompletionRequest): string 
 
 export function finishNoResultSearchLocally({
   body,
-  statusHistory: _statusHistory,
+  statusHistory,
   onChunk,
   onApiTranscript,
   signal,
@@ -154,9 +160,10 @@ export function finishNoResultSearchLocally({
   signal?: AbortSignal;
 }): string {
   const content = buildNoSearchResultsAnswer(body);
+  const finalContent = withStatusPrefix(statusHistory, content);
   emitApiTranscript(onApiTranscript, signal, [buildFinalAssistantTranscriptMessage(content)]);
-  emitChunk(onChunk, signal, content);
-  return content;
+  emitChunk(onChunk, signal, finalContent);
+  return finalContent;
 }
 
 export function finishWebSearchCapabilityLocally({

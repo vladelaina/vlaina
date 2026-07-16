@@ -38,6 +38,8 @@ interface UseSendMessageOptions {
   customSystemPrompt: string;
   includeTimeContext: boolean;
   webSearchEnabled: boolean;
+  computerUseEnabled: boolean;
+  computerUseCwd: string;
   isAccountConnected: boolean;
   setSessionLoading: (sessionId: string, loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -56,6 +58,8 @@ export function useSendMessage({
   customSystemPrompt,
   includeTimeContext,
   webSearchEnabled,
+  computerUseEnabled,
+  computerUseCwd,
   isAccountConnected,
   setSessionLoading,
   setError,
@@ -132,6 +136,7 @@ export function useSendMessage({
         modelId: selectedModel.id,
         providerId: provider.id,
         webSearchEnabled,
+        computerUseEnabled,
         textLength: input.userMessageText.length,
         attachments: input.attachments.length,
         mentions: input.noteMentions.length,
@@ -224,6 +229,8 @@ export function useSendMessage({
           selectedModel,
           provider,
           webSearchEnabled,
+          computerUseEnabled,
+          computerUseCwd,
           composerRequest,
           setSessionLoading,
           setError,
@@ -263,6 +270,8 @@ export function useSendMessage({
       customSystemPrompt,
       includeTimeContext,
       webSearchEnabled,
+      computerUseEnabled,
+      computerUseCwd,
       setSessionLoading,
       setError,
       clearActiveComposerRequest,

@@ -1,5 +1,5 @@
 import type { WebPageContent, WebPageReadResult, WebSearchResponse } from './types';
-import { sanitizeWebSearchSourceUrl } from './status';
+import { sanitizeWebSearchSourceUrl } from './statusMarkup';
 
 const SEARCH_RESULT_LIMIT = 5;
 const PAGE_CONTENT_LIMIT = 3000;

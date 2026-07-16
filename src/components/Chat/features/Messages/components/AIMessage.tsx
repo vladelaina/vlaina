@@ -9,6 +9,8 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { parseRetryStatusMessage } from '@/lib/ai/retryStatusMessage';
+import { extractComputerCommandStatuses } from '@/lib/ai/computerUse/transcript';
+import { ComputerCommandStatusBlock } from '@/components/Chat/features/ComputerUse/ComputerCommandStatusBlock';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -117,6 +119,10 @@ export function AIMessage({
       : contentWithoutError.trim(),
     [contentMayContainControlMarkup, contentWithoutError],
   );
+  const computerCommandStatuses = useMemo(() => extractComputerCommandStatuses(
+    msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript,
+    isLoading,
+  ), [isLoading, msg.apiTranscript, msg.currentVersionIndex, msg.versions]);
   const isEmptyCompletedResponse = !isLoading && contentWithoutThinking.length === 0;
   const visibleContent = contentWithoutError || ' ';
   const isManagedAuthErrorMessage = errorType === 'AUTH_ERROR'
@@ -159,7 +165,11 @@ export function AIMessage({
     }, themeUiFeedbackTokens.copyFeedbackDurationMs);
   }, []);
 
-  if (shouldHideManagedAuthError && contentWithoutThinking.length === 0) {
+  if (
+    shouldHideManagedAuthError &&
+    contentWithoutThinking.length === 0 &&
+    computerCommandStatuses.length === 0
+  ) {
     return null;
   }
 
@@ -170,6 +180,7 @@ export function AIMessage({
                 statuses={webSearchStatuses}
                 isWaitingForAnswer={isLoading && contentWithoutThinking.length === 0}
             />
+            <ComputerCommandStatusBlock statuses={computerCommandStatuses} />
             {retryStatus ? (
                 <RetryStatusMessage detail={retryStatus.detail} countdown={retryStatus.countdown} />
             ) : (

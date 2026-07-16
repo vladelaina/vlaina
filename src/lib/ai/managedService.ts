@@ -159,6 +159,13 @@ function sanitizeManagedChatMessage(message: unknown): unknown {
   }
 
   const nextMessage = { ...message }
+  delete nextMessage.function_call
+  if (Array.isArray(nextMessage.tool_calls) && nextMessage.tool_calls.length === 0) {
+    delete nextMessage.tool_calls
+  }
+  if (nextMessage.role !== 'tool') {
+    delete nextMessage.tool_call_id
+  }
   const hasAssistantMetadata = Boolean(nextMessage.reasoning_content) ||
     (Array.isArray(nextMessage.tool_calls) && nextMessage.tool_calls.length > 0)
   if (nextMessage.role === 'assistant' && nextMessage.content == null && hasAssistantMetadata) {
@@ -171,6 +178,11 @@ function sanitizeManagedChatMessage(message: unknown): unknown {
     nextMessage.content = ''
   }
   return nextMessage
+}
+
+function isLegacyFunctionTranscriptMessage(message: unknown): boolean {
+  if (!isRecord(message)) return false
+  return message.role === 'function' || isRecord(message.function_call)
 }
 
 function selectManagedChatMessages(messages: unknown[]): unknown[] {
@@ -187,12 +199,17 @@ function selectManagedChatMessages(messages: unknown[]): unknown[] {
 
 function sanitizeManagedChatCompletionBody(body: object): Record<string, unknown> {
   const nextBody = isRecord(body) ? body : {}
-  if (!Array.isArray(nextBody.messages)) {
-    return nextBody
+  const managedBody = { ...nextBody }
+  delete managedBody.functions
+  delete managedBody.function_call
+  if (!Array.isArray(managedBody.messages)) {
+    return managedBody
   }
   return {
-    ...nextBody,
-    messages: selectManagedChatMessages(nextBody.messages).map(sanitizeManagedChatMessage),
+    ...managedBody,
+    messages: selectManagedChatMessages(
+      managedBody.messages.filter((message) => !isLegacyFunctionTranscriptMessage(message)),
+    ).map(sanitizeManagedChatMessage),
   }
 }
 

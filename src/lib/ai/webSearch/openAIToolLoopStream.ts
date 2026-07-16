@@ -3,7 +3,7 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
 import { classifyWebSearchIntent } from './intent';
 import { buildWebSearchTools } from './toolDefinitions';
-import { sanitizeWebSearchStatus } from './status';
+import { sanitizeWebSearchStatus } from './statusMarkup';
 import { appendWebSearchSystemInstruction } from './openAIToolParsing';
 import { consumeOpenAIStreamWithTools } from './openAIStreamWithTools';
 import type { ToolLoopOptions } from './openAIToolLoopTypes';

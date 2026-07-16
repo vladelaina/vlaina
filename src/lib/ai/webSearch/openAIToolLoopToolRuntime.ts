@@ -1,4 +1,4 @@
-import { sanitizeWebSearchSourceUrl } from './status';
+import { sanitizeWebSearchSourceUrl } from './statusMarkup';
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import { runWebSearchToolCall, type WebSearchToolRunnerOptions } from './toolRunner';
 import type { WebSearchStatus } from './types';

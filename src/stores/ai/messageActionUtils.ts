@@ -8,7 +8,7 @@ import {
 } from '@/components/Chat/common/messageClipboard'
 import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
-import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/status'
+import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
 import { isRetryStatusMessage } from '@/lib/ai/retryStatusMessage'
 
 const MAX_MESSAGE_VERSIONS = 20

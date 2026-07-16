@@ -2,7 +2,7 @@ import type { ApiTranscriptMessage, ChatMessageContent, ChatMessageContentPart }
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
 
 export const MAX_API_TRANSCRIPT_MESSAGES = 64;
-const MAX_API_TRANSCRIPT_STRING_CHARS = 20000;
+export const MAX_API_TRANSCRIPT_STRING_CHARS = 20000;
 const MAX_API_TRANSCRIPT_CONTENT_PARTS = 64;
 const MAX_API_TRANSCRIPT_TOOL_CALLS = 32;
 

@@ -11,7 +11,7 @@ import {
   getSafeMessageVersions,
   hasSession,
 } from './messageActionUtils'
-import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/status'
+import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
 import type { WebSearchStatus } from '@/lib/ai/webSearch/types'
 
 function findMessageIndexFromEnd(messages: readonly { id: string }[], id: string): number {

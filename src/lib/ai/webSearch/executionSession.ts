@@ -1,4 +1,4 @@
-import { sanitizeWebSearchSourceUrl } from './status';
+import { sanitizeWebSearchSourceUrl } from './statusMarkup';
 
 const MAX_SEARCH_CALLS = 3;
 const MAX_READ_CALLS = 6;

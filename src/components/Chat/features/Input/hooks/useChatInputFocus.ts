@@ -12,7 +12,7 @@ export function useChatInputFocus(textareaRef: RefObject<HTMLTextAreaElement | n
     focusRafRef.current = requestAnimationFrame(() => {
       focusRafRef.current = null;
       const input = textareaRef.current;
-      if (forceRefocus && document.activeElement === input) {
+      if (forceRefocus && input && document.activeElement === input) {
         input.blur();
       }
       focusVisibleTextareaAt(input, position);

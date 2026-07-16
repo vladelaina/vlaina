@@ -2,7 +2,7 @@ import type { ChatCompletionRequest } from '@/lib/ai/types';
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
 import { classifyWebSearchIntent } from './intent';
 import { buildWebSearchTools } from './toolDefinitions';
-import { sanitizeWebSearchStatus } from './status';
+import { sanitizeWebSearchStatus } from './statusMarkup';
 import { appendWebSearchSystemInstruction, extractOpenAIMessageFromJson } from './openAIToolParsing';
 import type { JsonToolLoopOptions } from './openAIToolLoopTypes';
 import type { WebSearchStatus } from './types';

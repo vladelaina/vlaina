@@ -5,6 +5,7 @@ import {
   normalizeOpenAIToolArgumentsValue,
 } from './openAIToolArguments';
 import type { OpenAIToolCall } from './openAIToolTypes';
+import { filterUniqueOpenAIToolCalls } from './openAIToolCallIds';
 export {
   canParseOpenAIToolArguments,
   limitOpenAIToolArguments,
@@ -292,6 +293,8 @@ export function extractOpenAIMessageFromJson(payload: Record<string, unknown>): 
   return {
     content: stripDsmlToolCallMarkup(rawContent),
     reasoningContent: extractOpenAIText(message.reasoning_content ?? message.reasoning),
-    toolCalls: toolCalls.concat(dsmlToolCalls).slice(0, MAX_OPENAI_TOOL_CALLS),
+    toolCalls: filterUniqueOpenAIToolCalls(
+      toolCalls.concat(dsmlToolCalls),
+    ).slice(0, MAX_OPENAI_TOOL_CALLS),
   };
 }

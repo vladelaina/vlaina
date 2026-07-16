@@ -13,6 +13,7 @@ import {
 } from './errorHandling';
 import { refreshManagedBudgetIfNeeded } from './helpers';
 import {
+  canPersistAbortedRequestTranscript,
   createEmptyResponseError,
   isChatRequestCancelled,
   type ActiveComposerRequest,
@@ -33,6 +34,8 @@ interface RunSendMessageAssistantStreamOptions {
   selectedModel: AIModel;
   provider: Provider;
   webSearchEnabled: boolean;
+  computerUseEnabled: boolean;
+  computerUseCwd: string;
   composerRequest: ActiveComposerRequest;
   setSessionLoading: (sessionId: string, loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -53,6 +56,8 @@ export function runSendMessageAssistantStream({
   selectedModel,
   provider,
   webSearchEnabled,
+  computerUseEnabled,
+  computerUseCwd,
   composerRequest,
   setSessionLoading,
   setError,
@@ -81,6 +86,19 @@ export function runSendMessageAssistantStream({
         signal,
         options: {
           webSearchEnabled,
+          computerUseEnabled,
+          computerUseCwd: computerUseCwd || undefined,
+          onComputerCommandStatus: (status) => {
+            if (!isActiveRequest()) return;
+            addChatDebugLog('computer-use', `status:${status.phase}`, {
+              sessionId: targetSessionId,
+              messageId: assistantMessageId,
+              commandLength: status.command.length,
+              exitCode: status.exitCode,
+              durationMs: status.durationMs,
+              truncated: status.truncated,
+            }, status.phase === 'failed' || status.phase === 'timed_out' ? 'warn' : 'info');
+          },
           onWebSearchStatus: (status) => {
             if (!isActiveRequest()) {
               return;
@@ -96,7 +114,10 @@ export function runSendMessageAssistantStream({
             }, status.phase === 'error' ? 'warn' : 'info');
           },
           onApiTranscript: (apiTranscript) => {
-            if (!isActiveRequest()) {
+            if (
+              !isActiveRequest() &&
+              !canPersistAbortedRequestTranscript(targetSessionId, requestController)
+            ) {
               return;
             }
             addChatDebugLog('chat', 'api transcript updated', {

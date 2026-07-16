@@ -134,6 +134,7 @@ export async function performSplitSave(request: UnifiedSaveRequest) {
       customSystemPrompt: ai.customSystemPrompt || '',
       includeTimeContext: ai.includeTimeContext !== false,
       webSearchEnabled: ai.webSearchEnabled === true,
+      computerUseEnabled: ai.computerUseEnabled === true,
       providerIds: mergedProviderIds,
       deletedSessionIds: mergedSessions.deletedSessionIds,
       deletedProviderIds,

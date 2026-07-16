@@ -2,17 +2,28 @@ import type { ApiTranscriptMessage, AIModel, ChatCompletionRequest, ChatMessage,
 import { resolveApiModelId } from '../utils'
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript'
 import { parseThinkingContent, stripThinkingContent } from '@/lib/ai/stripThinkingContent'
+import { stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
 import {
   MAX_CURRENT_REQUEST_CONTENT_PARTS,
   MAX_CURRENT_REQUEST_MESSAGE_CHARS,
   sanitizeCurrentRequestTextContent,
 } from '@/lib/ai/requestContext'
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy'
-import { isManagedProviderId } from '@/lib/ai/managedService'
+import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService'
 
 export function isDeepSeekOpenAICompatible(provider: Provider, model: AIModel): boolean {
   const haystack = [provider.name, provider.apiHost, model.name, model.apiModelId].join(' ').toLowerCase()
   return haystack.includes('deepseek')
+}
+
+export function isClaudeModel(provider: Provider, model: AIModel): boolean {
+  const haystack = [provider.id, provider.name, provider.apiHost, model.name, model.apiModelId].join(' ').toLowerCase()
+  return haystack.includes('claude') || haystack.includes('anthropic')
+}
+
+export function isMoonshotModel(provider: Provider, model: AIModel): boolean {
+  const haystack = [provider.id, provider.name, provider.apiHost, model.id, model.providerId, model.name, model.apiModelId].join(' ').toLowerCase()
+  return haystack.includes('moonshot') || haystack.includes('kimi')
 }
 
 export function isGrokModel(provider: Provider, model: AIModel): boolean {
@@ -31,16 +42,13 @@ function isOfficialXaiProvider(provider: Provider): boolean {
 }
 
 export function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {
-  return !isManagedProviderId(provider.id)
-    && provider.endpointType !== 'anthropic'
-    && isDeepSeekOpenAICompatible(provider, model)
+  return provider.id !== MANAGED_PROVIDER_ID &&
+    provider.endpointType !== 'anthropic' &&
+    isDeepSeekOpenAICompatible(provider, model)
 }
 
-function getReplayableApiTranscript(transcript: unknown): ApiTranscriptMessage[] | null {
-  const normalized = normalizeApiTranscriptMessages(transcript)
-  if (!normalized) return null
-  const messages = normalized.filter((message) => message.role !== 'tool' && !message.tool_calls?.length)
-  return messages.length > 0 ? messages : null
+export function shouldUseWebSearchTextProtocol(provider: Provider, model: AIModel): boolean {
+  return provider.id === MANAGED_PROVIDER_ID || isClaudeModel(provider, model) || isMoonshotModel(provider, model)
 }
 
 export function shouldUseXaiNativeWebSearch(provider: Provider, model: AIModel): boolean {
@@ -49,11 +57,9 @@ export function shouldUseXaiNativeWebSearch(provider: Provider, model: AIModel):
 }
 
 export function buildChatCompletionOptions(options?: ChatSendOptions): Partial<ChatCompletionRequest> {
-  const completionLimit = typeof options?.max_completion_tokens === 'number'
-    ? options.max_completion_tokens
-    : options?.max_tokens
   return {
-    ...(typeof completionLimit === 'number' ? { max_completion_tokens: completionLimit } : {}),
+    ...(typeof options?.max_tokens === 'number' ? { max_tokens: options.max_tokens } : {}),
+    ...(typeof options?.max_completion_tokens === 'number' ? { max_completion_tokens: options.max_completion_tokens } : {}),
   }
 }
 
@@ -128,12 +134,12 @@ export function buildAssistantApiTranscriptFromRenderedContent(content: string):
 
 function stripRenderedThinkingFromAssistantContent(content: ChatMessageContent): ChatMessageContent {
   if (typeof content === 'string') {
-    return stripThinkingContent(content)
+    return stripWebSearchStatusMarkup(stripThinkingContent(content))
   }
 
   return content.map((part) => {
     if (part.type !== 'text') return part
-    return { ...part, text: stripThinkingContent(part.text) }
+    return { ...part, text: stripWebSearchStatusMarkup(stripThinkingContent(part.text)) }
   })
 }
 
@@ -148,8 +154,8 @@ export function buildOpenAIChatRequest(
   const apiMessages: ApiTranscriptMessage[] = history.flatMap((entry) => {
     const transcript = entry.apiTranscript ?? entry.versions?.[entry.currentVersionIndex]?.apiTranscript
     if (replayApiTranscript && entry.role === 'assistant' && transcript?.length) {
-      const replayableTranscript = getReplayableApiTranscript(transcript)
-      if (replayableTranscript) return replayableTranscript
+      const normalizedTranscript = normalizeApiTranscriptMessages(transcript)
+      if (normalizedTranscript) return normalizedTranscript
     }
     return [{
       role: entry.role,

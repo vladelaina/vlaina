@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@/lib/ai/types';
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
-import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/status';
+import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
 import {
   MAX_SESSION_MESSAGE_BRANCH_DEPTH,
   MAX_SESSION_MESSAGE_BRANCH_MESSAGES,

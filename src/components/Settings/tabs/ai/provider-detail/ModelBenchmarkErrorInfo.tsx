@@ -23,7 +23,7 @@ export function ModelBenchmarkErrorInfo({ error }: { error: string }) {
     resetTimerRef.current = window.setTimeout(() => {
       setCopied(false);
       resetTimerRef.current = null;
-    }, themeUiFeedbackTokens.copiedResetDelayMs);
+    }, themeUiFeedbackTokens.copyFeedbackDurationMs);
   };
 
   return (

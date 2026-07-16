@@ -141,6 +141,7 @@
     const {
       createAccountApi,
       createAiProviderApi,
+      createComputerApi,
       createWebSearchApi,
     } = require('./preloadRequestApis.cjs');
     
@@ -313,6 +314,7 @@
           },
         },
         aiProvider: createAiProviderApi(deps),
+        computer: createComputerApi(deps),
         webSearch: createWebSearchApi(deps),
         dragDrop: {
           getPathForFile(file) {
@@ -488,6 +490,31 @@
       };
     }
     
+    function createComputerApi({ ipcRenderer, callIpcCallback, requireSafeIpcRequestId }) {
+      return {
+        startCommand(requestId, request) {
+          const id = requireSafeIpcRequestId(requestId, 'Computer command request id');
+          return ipcRenderer.invoke('desktop:computer-command:start', id, request);
+        },
+        cancelCommand(requestId) {
+          const id = requireSafeIpcRequestId(requestId, 'Computer command request id');
+          return ipcRenderer.invoke('desktop:computer-command:cancel', id);
+        },
+        respondToApproval(requestId, decision) {
+          const id = requireSafeIpcRequestId(requestId, 'Computer command request id');
+          return ipcRenderer.invoke('desktop:computer-command:approve', id, decision);
+        },
+        onCommandEvent(requestId, callback) {
+          const id = requireSafeIpcRequestId(requestId, 'Computer command request id');
+          const channel = `desktop:computer-command:${id}:event`;
+          const handler = (_event, payload) => callIpcCallback(callback, payload);
+          ipcRenderer.on(channel, handler);
+          return () => {
+            ipcRenderer.removeListener(channel, handler);
+          };
+        },
+      };
+    }
     function invokeManagedRequest(ipcRenderer, channel, label, requestId, body) {
       if (requestId == null) {
         return ipcRenderer.invoke(channel, body);
@@ -581,6 +608,7 @@
     module.exports = {
       createAccountApi,
       createAiProviderApi,
+      createComputerApi,
       createWebSearchApi,
     };
     

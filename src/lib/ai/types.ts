@@ -1,4 +1,5 @@
 import type { WebSearchStatus } from '@/lib/ai/webSearch/types'
+import type { ComputerCommandStatus } from '@/lib/ai/computerUse/types'
 
 export interface Provider {
   id: string
@@ -114,7 +115,10 @@ export interface ChatSendOptions {
   max_tokens?: number
   max_completion_tokens?: number
   webSearchEnabled?: boolean
+  computerUseEnabled?: boolean
+  computerUseCwd?: string
   onWebSearchStatus?: (status: WebSearchStatus) => void
+  onComputerCommandStatus?: (status: ComputerCommandStatus) => void
   onApiTranscript?: (messages: ApiTranscriptMessage[]) => void
   onRetryStatus?: (message: string) => void
 }

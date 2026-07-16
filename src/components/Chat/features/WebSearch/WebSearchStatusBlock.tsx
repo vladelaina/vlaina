@@ -1,6 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-import { sanitizeWebSearchSourceUrl } from '@/lib/ai/webSearch/status';
+import { sanitizeWebSearchSourceUrl } from '@/lib/ai/webSearch/statusMarkup';
 import type { WebSearchStatus } from '@/lib/ai/webSearch/types';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { getExternalLinkProps } from '@/lib/navigation/externalLinks';
