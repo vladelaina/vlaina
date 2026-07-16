@@ -72,6 +72,11 @@ button:hover .code-block-chrome-language-label {
   grid-column: 1 / -1;
 }
 
+.code-block-chrome-code {
+  font-size: inherit;
+  line-height: inherit;
+}
+
 .code-block-chrome-line-numbers {
   grid-column: 1;
   min-width: var(--vlaina-min-width-code-block-chrome-line-numbers);
@@ -79,8 +84,8 @@ button:hover .code-block-chrome-language-label {
   padding: var(--vlaina-padding-code-block-chrome-line-numbers);
   color: var(--vlaina-markdown-color-code-muted);
   font-family: var(--font-mono), monospace;
-  font-size: var(--vlaina-font-0875rem);
-  line-height: var(--vlaina-leading-1625);
+  font-size: inherit;
+  line-height: inherit;
   text-align: right;
   user-select: none;
 }

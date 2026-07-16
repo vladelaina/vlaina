@@ -221,6 +221,25 @@ describe('estimateChatMessageHeight', () => {
     expect(structuredHeight).toBeGreaterThan(plainHeight);
   });
 
+  it('uses the current markdown font size for structured assistant estimates', () => {
+    const message = createMessage(
+      'assistant',
+      '# Title\n\nParagraph with `inline code`.\n\n- first item\n- second item\n\n```ts\nconst value = 1;\n```',
+    );
+    const defaultHeight = estimateChatMessageHeight(message, {
+      containerWidth: 900,
+      fontSize: 17,
+      isStreaming: false,
+    });
+    const enlargedHeight = estimateChatMessageHeight(message, {
+      containerWidth: 900,
+      fontSize: 34,
+      isStreaming: false,
+    });
+
+    expect(enlargedHeight).toBeGreaterThan(defaultHeight);
+  });
+
   it('includes shared list margins in assistant markdown height estimates', () => {
     const paragraphHeight = estimateChatMessageHeight(
       createMessage('assistant', 'first item\nsecond item'),

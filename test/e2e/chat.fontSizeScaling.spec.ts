@@ -67,9 +67,15 @@ async function collectScaledTextMetrics(page: Page) {
       .filter((item) => item.verticalOverflow || item.horizontalOverflow);
 
     return {
+      assistantBlockquote: readFontSize(assistantSurface?.querySelector('blockquote') ?? null),
       assistantBody: readFontSize(assistantSurface?.querySelector('p') ?? null),
+      assistantCodeBlock: readFontSize(assistantSurface?.querySelector('.code-block-chrome-code') ?? null),
       assistantHeadingOne: readFontSize(assistantSurface?.querySelector('h1') ?? null),
       assistantHeadingSix: readFontSize(assistantSurface?.querySelector('h6') ?? null),
+      assistantInlineCode: readFontSize(assistantSurface?.querySelector('code:not(pre code)') ?? null),
+      assistantListItem: readFontSize(assistantSurface?.querySelector('li') ?? null),
+      assistantTableCell: readFontSize(assistantSurface?.querySelector('td') ?? null),
+      assistantTocEmpty: readFontSize(assistantSurface?.querySelector('.toc-empty') ?? null),
       hasAssistantSurface: Boolean(assistantSurface),
       shortUserBubble: readFontSize(shortUserBubble),
       clippedScaledSurfaces,
@@ -148,6 +154,69 @@ test.describe('chat font size scaling', () => {
 
       const expandedMetrics = await collectScaledTextMetrics(page);
       expect(expandedMetrics.clippedScaledSurfaces).toEqual([]);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('scales inline and block markdown content from the current font size', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('chat-markdown-content-font-size-scaling');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await page.evaluate(() => (window as any).__vlainaE2E.setUIPreferences({ fontSize: 72 }));
+
+      const fixture = await createChatFixture(page, {
+        sessions: [{
+          title: 'Chat Markdown Content Font Size Scaling',
+          messages: [{
+            role: 'assistant',
+            content: [
+              '[TOC]',
+              '',
+              `Assistant paragraph ${ASSISTANT_SENTINEL}.`,
+              '',
+              'Inline `code` follows the paragraph size.',
+              '',
+              '- List content follows the paragraph size.',
+              '',
+              '> Quote content follows the paragraph size.',
+              '',
+              '| Column |',
+              '| --- |',
+              '| Table content |',
+              '',
+              '```ts',
+              'const scaled = true;',
+              '```',
+            ].join('\n'),
+          }],
+        }],
+      });
+
+      await setAppViewMode(page, 'chat');
+      await waitForChatSession(page, {
+        sessionId: fixture.sessionIds[0]!,
+        minMessageCount: 1,
+        sentinelText: ASSISTANT_SENTINEL,
+      });
+
+      await expect.poll(async () => {
+        const metrics = await collectScaledTextMetrics(page);
+        return metrics.assistantBody > 0 && metrics.assistantCodeBlock > 0;
+      }, { timeout: 30_000 }).toBe(true);
+
+      const metrics = await collectScaledTextMetrics(page);
+      expect(metrics.assistantBody).toBe(72);
+      expect(metrics.assistantBlockquote).toBe(72);
+      expect(metrics.assistantInlineCode).toBe(72);
+      expect(metrics.assistantCodeBlock).toBe(72);
+      expect(metrics.assistantListItem).toBe(72);
+      expect(metrics.assistantTableCell).toBe(72);
+      expect(metrics.assistantTocEmpty / metrics.assistantBody).toBeCloseTo(0.92, 2);
+      expect(metrics.clippedScaledSurfaces).toEqual([]);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
