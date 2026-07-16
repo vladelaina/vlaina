@@ -46,6 +46,7 @@ const mocks = vi.hoisted(() => {
       writeFile: vi.fn(async (path: string, content: string) => {
         files.set(normalizePath(path, true), content);
       }),
+      writeBinaryFile: vi.fn(async () => undefined),
     },
   };
 });
@@ -260,5 +261,26 @@ describe('useWhiteboardStore', () => {
 
     expect(mocks.files.get(boardPath)).toContain('newer.png');
     expect(mocks.files.get(boardPath)).not.toContain('older.png');
+  });
+
+  it('does not attach a delayed image asset after switching notes roots', async () => {
+    await useWhiteboardStore.getState().loadForNotesRoot('/notesRoot');
+    let releaseWrite: () => void = () => undefined;
+    let markWriteStarted: () => void = () => undefined;
+    const writeStarted = new Promise<void>((resolve) => { markWriteStarted = resolve; });
+    const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    mocks.storage.writeBinaryFile.mockImplementationOnce(async () => {
+      markWriteStarted();
+      await writeGate;
+    });
+    const pendingAsset = useWhiteboardStore.getState().writeActiveAsset(
+      new File([new Uint8Array([1, 2, 3])], 'delayed.png', { type: 'image/png' }),
+    );
+    await writeStarted;
+
+    await useWhiteboardStore.getState().loadForNotesRoot('/notesRootB');
+    releaseWrite();
+
+    await expect(pendingAsset).resolves.toBeNull();
   });
 });

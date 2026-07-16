@@ -19,5 +19,7 @@ export function queueWhiteboardSnapshotWrite(
 }
 
 export async function waitForWhiteboardSnapshotWrites(): Promise<void> {
-  await Promise.all(writes.values());
+  while (writes.size > 0) {
+    await Promise.all(writes.values());
+  }
 }

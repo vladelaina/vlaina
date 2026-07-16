@@ -1,4 +1,4 @@
-import { themeWhiteboardTokens } from '@/styles/themeTokens';
+import { themeIconTokens, themeWhiteboardTokens } from '@/styles/themeTokens';
 import type { WhiteboardMovePreview } from '../../model/whiteboardInteractions';
 import type { WhiteboardStroke } from '../../model/whiteboardModel';
 import { getCenterStrokePath, getStrokeRenderWidth } from '../../model/whiteboardStrokeRenderGeometry';
@@ -40,7 +40,7 @@ export function WhiteboardSelectionDragTargets({
         key={stroke.id}
         data-whiteboard-selection-drag-target={stroke.id}
         d={getCenterStrokePath(stroke)}
-        fill="none"
+        fill={themeIconTokens.fillNone}
         pointerEvents="stroke"
         stroke="transparent"
         strokeLinecap="round"

@@ -99,6 +99,23 @@ describe('whiteboardRepository', () => {
     });
   });
 
+  it('deduplicates board ids and folders in the index', () => {
+    const timestamp = '2026-07-16T00:00:00.000Z';
+    const normalized = normalizeWhiteboardIndex({
+      activeBoardId: 'third',
+      boards: [
+        { createdAt: timestamp, folder: 'first', id: 'first', title: 'First', updatedAt: timestamp },
+        { createdAt: timestamp, folder: 'second', id: 'first', title: 'Duplicate id', updatedAt: timestamp },
+        { createdAt: timestamp, folder: 'first', id: 'third', title: 'Duplicate folder', updatedAt: timestamp },
+        { createdAt: timestamp, folder: 'fourth', id: 'fourth', title: 'Fourth', updatedAt: timestamp },
+      ],
+      version: 1,
+    });
+
+    expect(normalized.boards.map((board) => board.id)).toEqual(['first', 'fourth']);
+    expect(normalized.activeBoardId).toBe('first');
+  });
+
   it('creates each board as a folder with board JSON and assets directory', async () => {
     const { entry } = await createWhiteboardEntry('/notesRoot', 'Project Plan');
 
@@ -150,6 +167,22 @@ describe('whiteboardRepository', () => {
     expect(mocks.files.get(boardPath)).toBe(mocks.files.get(`${boardPath}.bak`));
   });
 
+  it('recovers a board when the primary JSON has a header but no content', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    const boardPath = `${SYSTEM_ROOT}/boards/sketch/board.vlwb.json`;
+    await writeWhiteboardBoard('/notesRoot', entry, normalizeWhiteboardSnapshot({
+      elements: [{ height: 80, id: 'recovered', text: 'safe.png', type: 'image', width: 120, x: 1, y: 2 }],
+    }));
+    await writeWhiteboardBoard('/notesRoot', entry, normalizeWhiteboardSnapshot({
+      elements: [{ height: 80, id: 'recovered', text: 'safe.png', type: 'image', width: 120, x: 1, y: 2 }],
+    }));
+    mocks.files.set(boardPath, JSON.stringify({ format: 'vlaina.whiteboard', version: 1 }));
+
+    await expect(readWhiteboardBoard('/notesRoot', entry)).resolves.toMatchObject({
+      elements: [expect.objectContaining({ id: 'recovered' })],
+    });
+  });
+
   it('recovers the index from its backup when the primary file is malformed', async () => {
     const created = await createWhiteboardEntry('/notesRoot', 'Sketch');
     await writeWhiteboardIndex('/notesRoot', created.index);
@@ -161,6 +194,17 @@ describe('whiteboardRepository', () => {
     expect(recovered.boards).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: created.entry.id }),
     ]));
+  });
+
+  it('recovers the index when the primary JSON has a version but no boards', async () => {
+    const created = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    await writeWhiteboardIndex('/notesRoot', created.index);
+    mocks.files.set(`${SYSTEM_ROOT}/index.json`, JSON.stringify({ activeBoardId: created.entry.id, version: 1 }));
+
+    await expect(loadWhiteboardIndex('/notesRoot')).resolves.toMatchObject({
+      activeBoardId: created.entry.id,
+      boards: expect.arrayContaining([expect.objectContaining({ id: created.entry.id })]),
+    });
   });
 
   it('keeps the previous primary and backup when atomic replacement fails', async () => {
@@ -194,8 +238,54 @@ describe('whiteboardRepository', () => {
       name: 'Demo:Image.png',
     } as File;
 
-    await expect(writeWhiteboardAsset('/notesRoot', entry, file)).resolves.toBe('assets/DemoImage.png');
-    expect(mocks.files.get(`${SYSTEM_ROOT}/boards/sketch/assets/DemoImage.png`)).toBe('binary:1,2,3');
+    const assetPath = await writeWhiteboardAsset('/notesRoot', entry, file);
+    expect(assetPath).toMatch(/^assets\/DemoImage-[0-9a-f-]+\.png$/);
+    expect(mocks.files.get(`${SYSTEM_ROOT}/boards/sketch/${assetPath}`)).toBe('binary:1,2,3');
+  });
+
+  it('keeps concurrent same-name image assets in distinct files', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    let releaseFirstWrite: () => void = () => undefined;
+    let markFirstWriteStarted: () => void = () => undefined;
+    const firstWriteStarted = new Promise<void>((resolve) => { markFirstWriteStarted = resolve; });
+    const firstWriteGate = new Promise<void>((resolve) => { releaseFirstWrite = resolve; });
+    mocks.storage.writeBinaryFile.mockImplementationOnce(async (path: string, content: Uint8Array) => {
+      markFirstWriteStarted();
+      await firstWriteGate;
+      mocks.files.set(normalizePath(path, true), `binary:${Array.from(content).join(',')}`);
+    });
+    const firstFile = { arrayBuffer: async () => new Uint8Array([1]).buffer, name: 'Same.png' } as File;
+    const secondFile = { arrayBuffer: async () => new Uint8Array([2]).buffer, name: 'Same.png' } as File;
+
+    const firstWrite = writeWhiteboardAsset('/notesRoot', entry, firstFile);
+    await firstWriteStarted;
+    const secondWrite = writeWhiteboardAsset('/notesRoot', entry, secondFile);
+    releaseFirstWrite();
+    const [firstPath, secondPath] = await Promise.all([firstWrite, secondWrite]);
+
+    expect(firstPath).not.toBe(secondPath);
+    expect(mocks.files.get(`${SYSTEM_ROOT}/boards/sketch/${firstPath}`)).toBe('binary:1');
+    expect(mocks.files.get(`${SYSTEM_ROOT}/boards/sketch/${secondPath}`)).toBe('binary:2');
+  });
+
+  it('uses the image MIME type when an imported asset has no extension', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    const file = {
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+      name: 'clipboard-image',
+      type: 'image/png',
+    } as File;
+
+    await expect(writeWhiteboardAsset('/notesRoot', entry, file)).resolves.toMatch(/^assets\/clipboard-image-[0-9a-f-]+\.png$/);
+  });
+
+  it('rejects oversized assets before reading their bytes', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    const arrayBuffer = vi.fn();
+    const file = { arrayBuffer, name: 'large.png', size: 50 * 1024 * 1024 + 1 } as unknown as File;
+
+    await expect(writeWhiteboardAsset('/notesRoot', entry, file)).rejects.toThrow('too large');
+    expect(arrayBuffer).not.toHaveBeenCalled();
   });
 
 });
