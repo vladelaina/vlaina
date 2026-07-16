@@ -1,3 +1,4 @@
+import { useId, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import type { ComputerCommandPhase, ComputerCommandStatus } from '@/lib/ai/computerUse/types';
 import { useI18n, type MessageKey } from '@/lib/i18n';
@@ -68,36 +69,48 @@ function CommandOutput({ status }: { status: ComputerCommandStatus }) {
   );
 }
 
-function CommandStatusItem({ status }: { status: ComputerCommandStatus }) {
+function CommandStatusItem({
+  showCompletedPhase,
+  status,
+}: {
+  showCompletedPhase: boolean;
+  status: ComputerCommandStatus;
+}) {
   const { t } = useI18n();
   const active = status.phase === 'awaiting_approval' || status.phase === 'running';
   const duration = status.phase === 'completed' ? '' : formatDuration(status.durationMs);
+  const showPhase = status.phase !== 'completed' || showCompletedPhase;
   return (
     <div className="rounded-[var(--vlaina-radius-16px)] bg-[var(--vlaina-color-overlay-weak)] p-[var(--vlaina-space-12px)]">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className={cn('relative flex size-5 shrink-0 items-center justify-center', phaseColor(status.phase))}>
-          {active ? (
-            <span
-              aria-hidden="true"
-              className="absolute inset-0 rounded-full border border-transparent border-t-current animate-spin"
-            />
-          ) : null}
-          <Icon name="editor.keyboard" size={themeIconTokens.sizeSm} />
-        </span>
-        <span className={cn('font-medium', phaseColor(status.phase))}>{t(PHASE_KEYS[status.phase])}</span>
-        {duration ? <span className="text-[var(--vlaina-text-tertiary)]">{duration}</span> : null}
-        {status.phase !== 'completed' && status.exitCode !== undefined ? (
-          <span className="text-[var(--vlaina-text-tertiary)]">
-            {t('chat.computerUse.exitCode')}: {status.exitCode ?? '—'}
+      {showPhase ? (
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={cn('relative flex size-5 shrink-0 items-center justify-center', phaseColor(status.phase))}>
+            {active ? (
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full border border-transparent border-t-current animate-spin"
+              />
+            ) : null}
+            <Icon name="editor.keyboard" size={themeIconTokens.sizeSm} />
           </span>
-        ) : null}
-      </div>
+          <span className={cn('font-medium', phaseColor(status.phase))}>{t(PHASE_KEYS[status.phase])}</span>
+          {duration ? <span className="text-[var(--vlaina-text-tertiary)]">{duration}</span> : null}
+          {status.phase !== 'completed' && status.exitCode !== undefined ? (
+            <span className="text-[var(--vlaina-text-tertiary)]">
+              {t('chat.computerUse.exitCode')}: {status.exitCode ?? '—'}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       {status.purpose ? (
-        <div className="mt-2 text-[var(--vlaina-text-secondary)]">
+        <div className={cn(showPhase && 'mt-2', 'text-[var(--vlaina-text-secondary)]')}>
           {t('chat.computerUse.purpose')}: {status.purpose}
         </div>
       ) : null}
-      <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded-[var(--vlaina-radius-12px)] bg-[var(--vlaina-code-block-background)] p-[var(--vlaina-space-12px)] font-mono text-[var(--vlaina-font-xs)] leading-5 text-[var(--vlaina-code-syntax-foreground)]">
+      <pre className={cn(
+        (showPhase || status.purpose) && 'mt-2',
+        'overflow-auto whitespace-pre-wrap break-words rounded-[var(--vlaina-radius-12px)] bg-[var(--vlaina-code-block-background)] p-[var(--vlaina-space-12px)] font-mono text-[var(--vlaina-font-xs)] leading-5 text-[var(--vlaina-code-syntax-foreground)]',
+      )}>
         {status.command}
       </pre>
       {status.cwd ? (
@@ -116,20 +129,41 @@ function CommandStatusItem({ status }: { status: ComputerCommandStatus }) {
 
 export function ComputerCommandStatusBlock({ statuses }: ComputerCommandStatusBlockProps) {
   const { t } = useI18n();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const contentId = useId();
   if (statuses.length === 0) return null;
+  const firstCompletedIndex = statuses.findIndex((status) => status.phase === 'completed');
   return (
     <div className={cn(
       'mb-3 max-w-full rounded-[var(--vlaina-radius-22px)] p-[var(--vlaina-space-8px)] text-[var(--vlaina-font-xs)]',
       chatComposerPillSurfaceClass,
     )}>
-      <div className="px-[var(--vlaina-space-4px)] pb-[var(--vlaina-space-8px)] font-medium text-[var(--vlaina-text-primary)]">
-        {t('chat.computerUse')}
-      </div>
-      <div className="space-y-2">
-        {statuses.map((status, index) => (
-          <CommandStatusItem key={`${status.id}-${index}`} status={status} />
-        ))}
-      </div>
+      <button
+        type="button"
+        aria-controls={contentId}
+        aria-expanded={!isCollapsed}
+        data-chat-selection-excluded="true"
+        data-no-focus-input="true"
+        className={cn(
+          'flex w-full cursor-pointer items-center justify-between border-0 bg-transparent px-[var(--vlaina-space-4px)] text-left font-medium text-[var(--vlaina-text-primary)]',
+          !isCollapsed && 'pb-[var(--vlaina-space-8px)]',
+        )}
+        onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+      >
+        <span>{t('chat.computerUse')}</span>
+        <Icon name={isCollapsed ? 'nav.chevronDown' : 'nav.chevronUp'} size="sm" />
+      </button>
+      {!isCollapsed ? (
+        <div id={contentId} className="space-y-2">
+          {statuses.map((status, index) => (
+            <CommandStatusItem
+              key={`${status.id}-${index}`}
+              status={status}
+              showCompletedPhase={index === firstCompletedIndex}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
