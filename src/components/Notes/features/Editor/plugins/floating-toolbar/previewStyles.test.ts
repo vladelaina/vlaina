@@ -3,6 +3,8 @@ import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/c
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import { history } from '@milkdown/kit/plugin/history';
+import { redo, undo } from '@milkdown/kit/prose/history';
 import { configureTheme } from '../../theme';
 import { codePlugin } from '../code';
 import { mathPlugin } from '../math';
@@ -31,6 +33,7 @@ import {
 import { renderAppliedPreviewDocument } from './appliedPreviewState';
 import { EXTRA_BUTTONS, FORMAT_BUTTONS } from './toolbarConfig';
 import { BLOCK_TYPES } from './utils';
+import { collapseSelectionAfterToolbarApply } from './selectionCollapse';
 
 function findTextRange(doc: any, text: string): { from: number; to: number } {
   let resolved: { from: number; to: number } | null = null;
@@ -60,6 +63,27 @@ async function createEditor(markdown: string) {
     })
     .use(commonmark)
     .use(gfm);
+
+  colorMarksPlugin.forEach((plugin) => {
+    editor.use(plugin);
+  });
+
+  await editor.create();
+  return { editor, host, view: editor.ctx.get(editorViewCtx) };
+}
+
+async function createEditorWithHistory(markdown: string) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const editor = Editor.make()
+    .config((ctx) => {
+      configureTheme(ctx);
+      ctx.set(rootCtx, host);
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(history);
 
   colorMarksPlugin.forEach((plugin) => {
     editor.use(plugin);
@@ -877,6 +901,26 @@ describe('previewStyles', () => {
 
     expect(host.querySelector('.toolbar-applied-preview-overlay')).toBeNull();
     expect(view.dom.style.display).toBe('');
+
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('keeps committed format previews undoable and redoable after collapsing the selection', async () => {
+    const { editor, host, view } = await createEditorWithHistory('format me');
+    selectText(view, 'format');
+
+    applyFormatPreview(view, 'bold');
+    expect(commitFormatPreview(view, 'bold', false)).toBe(true);
+    clearFormatPreview(view);
+    collapseSelectionAfterToolbarApply(view);
+
+    const range = findTextRange(view.state.doc, 'format');
+    expect(view.state.doc.rangeHasMark(range.from, range.to, view.state.schema.marks.strong)).toBe(true);
+    expect(undo(view.state, view.dispatch)).toBe(true);
+    expect(view.state.doc.rangeHasMark(range.from, range.to, view.state.schema.marks.strong)).toBe(false);
+    expect(redo(view.state, view.dispatch)).toBe(true);
+    expect(view.state.doc.rangeHasMark(range.from, range.to, view.state.schema.marks.strong)).toBe(true);
 
     await editor.destroy();
     host.remove();

@@ -7,6 +7,7 @@ import {
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { shouldHideToolbarForArrowNavigation } from './floatingToolbarPlugin';
+import { resolveDocumentHistoryShortcut } from './floatingToolbarPluginViewUtils';
 
 async function createTextSelection(from: number, to: number) {
   const editor = Editor.make()
@@ -23,6 +24,21 @@ async function createTextSelection(from: number, to: number) {
 }
 
 describe('floating toolbar keyboard handling', () => {
+  it('recognizes platform undo and redo shortcuts without intercepting composition', () => {
+    expect(resolveDocumentHistoryShortcut(
+      new KeyboardEvent('keydown', { key: 'z', ctrlKey: true })
+    )).toBe('undo');
+    expect(resolveDocumentHistoryShortcut(
+      new KeyboardEvent('keydown', { key: 'z', metaKey: true, shiftKey: true })
+    )).toBe('redo');
+    expect(resolveDocumentHistoryShortcut(
+      new KeyboardEvent('keydown', { key: 'y', ctrlKey: true })
+    )).toBe('redo');
+    expect(resolveDocumentHistoryShortcut(
+      new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, isComposing: true })
+    )).toBeNull();
+  });
+
   it('handles plain ArrowLeft when a text selection is active', async () => {
     const selection = await createTextSelection(1, 6);
 

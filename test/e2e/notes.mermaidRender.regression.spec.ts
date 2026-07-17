@@ -4,6 +4,7 @@ import {
   cleanupIsolatedElectron,
   getOpenBridgePages,
   launchIsolatedElectron,
+  openAbsoluteNote,
   openMarkdownFixture,
 } from './notesE2E';
 
@@ -24,6 +25,116 @@ const QUADRANT_CHART_FIXTURE = [
 
 test.describe('notes mermaid render regressions', () => {
   test.setTimeout(120_000);
+
+  test('cancels temporary diagrams and persists normalized edits after reopening', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-mermaid-editor-lifecycle');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'mermaid-cancel-new.md',
+        content: '',
+      });
+      await page.locator(EDITOR_SELECTOR).click({ position: { x: 24, y: 24 } });
+      await page.keyboard.type('```mermaid');
+      await page.keyboard.press('Enter');
+
+      const popup = page.locator('.mermaid-editor-popup');
+      const textarea = popup.locator('textarea.text-editor-textarea');
+      await expect(textarea).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="mermaid"]`)).toHaveCount(1);
+      await textarea.fill('graph TD\nDraft --> Cancelled');
+      await textarea.press('Escape');
+
+      await expect(popup).toHaveCount(0);
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="mermaid"]`)).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() =>
+        document.activeElement?.closest('.ProseMirror') !== null
+      )).toBe(true);
+
+      const originalCode = 'graph TD\nA --> B';
+      const opened = await openMarkdownFixture(page, {
+        filename: 'mermaid-edit-lifecycle.md',
+        content: [
+          'Paragraph before Mermaid.',
+          '',
+          '```mermaid',
+          originalCode,
+          '```',
+          '',
+          'Paragraph after Mermaid.',
+        ].join('\n'),
+      });
+      const originalContent = await page.evaluate(() =>
+        String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+      );
+      const block = page.locator(`${EDITOR_SELECTOR} [data-type="mermaid"]`).first();
+      await expect(block.locator('svg')).toBeVisible({ timeout: 30_000 });
+
+      await block.click({ position: { x: 40, y: 40 } });
+      await expect(textarea).toHaveValue(originalCode, { timeout: 10_000 });
+      await textarea.fill('not a diagram');
+      await expect(block.locator('.mermaid-error')).toBeVisible({ timeout: 30_000 });
+      const invalidPreviewState = await page.evaluate(() => ({
+        bodyText: document.body.textContent ?? '',
+        temporaryMermaidHostCount: document.querySelectorAll(
+          '[data-mermaid-render-host="true"], [id^="dmermaid-"], [id^="imermaid-"]'
+        ).length,
+      }));
+      expect(invalidPreviewState.bodyText).not.toContain('Syntax error in text');
+      expect(invalidPreviewState.temporaryMermaidHostCount).toBe(0);
+      await textarea.press('Escape');
+
+      await expect(popup).toHaveCount(0);
+      await expect(block.locator('svg')).toBeVisible({ timeout: 30_000 });
+      await expect(block.locator('.mermaid-error')).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() =>
+        String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+      )).toBe(originalContent);
+
+      const normalizedCode = [
+        'sequenceDiagram',
+        'Alice->>Bob: Saved after edit',
+        'Bob-->>Alice: Reopened successfully',
+      ].join('\n');
+      await block.click({ position: { x: 40, y: 40 } });
+      await expect(textarea).toHaveValue(originalCode, { timeout: 10_000 });
+      await textarea.fill(['```sequence', normalizedCode.slice('sequenceDiagram\n'.length), '```'].join('\n'));
+      await textarea.press('Control+Enter');
+
+      await expect(popup).toHaveCount(0);
+      await expect(block.locator('svg')).toBeVisible({ timeout: 30_000 });
+      await expect.poll(() => page.evaluate(() =>
+        String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+      )).toContain(normalizedCode);
+      const editedContent = await page.evaluate(() =>
+        String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+      );
+      expect(editedContent).not.toContain('```sequence');
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const savedContent = await page.evaluate((notePath) =>
+        (window as any).__vlainaE2E.readTextFile(notePath), opened.notePath
+      );
+      expect(savedContent).toBe(editedContent);
+
+      await openAbsoluteNote(page, opened.notePath);
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="mermaid"] svg`)).toBeVisible({ timeout: 30_000 });
+      await expect.poll(() => page.evaluate(() =>
+        String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+      )).toBe(savedContent);
+      await page.locator(`${EDITOR_SELECTOR} [data-type="mermaid"]`).first()
+        .click({ position: { x: 40, y: 40 } });
+      await expect(textarea).toHaveValue(normalizedCode, { timeout: 10_000 });
+      await textarea.press('Escape');
+      await expect(popup).toHaveCount(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 
   test('does not leak Mermaid syntax error text into the app shell', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-mermaid-syntax-error-leak');

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createClosedMermaidEditorState,
   createOpenMermaidEditorState,
-  shouldDiscardEmptyMermaidNodeOnCancel,
+  shouldDiscardNewMermaidNodeOnCancel,
   shouldRemoveMermaidNodeOnSave,
 } from './mermaidEditorState';
 
@@ -34,7 +34,7 @@ describe('mermaidEditorState', () => {
     });
   });
 
-  it('only discards untouched empty nodes created from the shortcut flow', () => {
+  it('discards temporary nodes created from the shortcut flow when cancelling', () => {
     const freshState = createOpenMermaidEditorState({
       code: '',
       position: { x: 0, y: 0 },
@@ -48,10 +48,9 @@ describe('mermaidEditorState', () => {
       openSource: 'existing-node',
     });
 
-    expect(shouldDiscardEmptyMermaidNodeOnCancel(freshState, '')).toBe(true);
-    expect(shouldDiscardEmptyMermaidNodeOnCancel(freshState, 'graph TD')).toBe(false);
-    expect(shouldDiscardEmptyMermaidNodeOnCancel(existingState, '')).toBe(false);
-    expect(shouldDiscardEmptyMermaidNodeOnCancel(createClosedMermaidEditorState(), '')).toBe(false);
+    expect(shouldDiscardNewMermaidNodeOnCancel(freshState)).toBe(true);
+    expect(shouldDiscardNewMermaidNodeOnCancel(existingState)).toBe(false);
+    expect(shouldDiscardNewMermaidNodeOnCancel(createClosedMermaidEditorState())).toBe(false);
   });
 
   it('discards untouched starter directives created from diagram alias fences', () => {
@@ -62,8 +61,7 @@ describe('mermaidEditorState', () => {
       openSource: 'new-empty-block',
     });
 
-    expect(shouldDiscardEmptyMermaidNodeOnCancel(starterState, 'sequenceDiagram\n')).toBe(true);
-    expect(shouldDiscardEmptyMermaidNodeOnCancel(starterState, 'sequenceDiagram\nAlice->Bob: Hi')).toBe(false);
+    expect(shouldDiscardNewMermaidNodeOnCancel(starterState)).toBe(true);
   });
 
   it('removes empty or untouched starter-only nodes on save', () => {

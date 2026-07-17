@@ -1,7 +1,50 @@
 import { describe, expect, it, vi } from 'vitest';
-import { saveMermaidEditorSession } from './mermaidEditorSessionActions';
+import { cancelMermaidEditorSession, saveMermaidEditorSession } from './mermaidEditorSessionActions';
 
 describe('mermaidEditorSessionActions', () => {
+  it('removes a new diagram when cancelling after editing its draft', () => {
+    const transaction = {
+      delete: vi.fn(() => transaction),
+      setMeta: vi.fn(() => 'closed-transaction'),
+      setNodeMarkup: vi.fn(() => transaction),
+    };
+    const editorView = {
+      state: {
+        doc: {
+          nodeAt: vi.fn(() => ({
+            type: { name: 'mermaid' },
+            attrs: { code: '' },
+          })),
+        },
+        tr: transaction,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+
+    cancelMermaidEditorSession({
+      editorView: editorView as never,
+      refs: {
+        textareaElement: {
+          value: 'graph TD\nA --> B',
+        } as HTMLTextAreaElement,
+        draftCode: '',
+        initialCode: '',
+      },
+      getEditorState: () => ({
+        isOpen: true,
+        nodePos: 4,
+        code: '',
+        position: { x: 0, y: 0 },
+        openSource: 'new-empty-block',
+      }),
+      resetSessionDom: vi.fn(),
+    });
+
+    expect(transaction.delete).toHaveBeenCalledWith(4, 5);
+    expect(transaction.setNodeMarkup).not.toHaveBeenCalled();
+  });
+
   it('removes a new diagram when saving an untouched starter directive', () => {
     const transaction = {
       delete: vi.fn(() => transaction),

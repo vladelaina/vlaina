@@ -381,8 +381,14 @@ describe("editor rich block selection styles", () => {
       ".milkdown [data-type='html-block'].md-htmlblock-container.md-htmlblock-literal-text:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
     );
     const atomicBlockFrameRule = extractCssRule(blockSelectionCss, atomicBlockSelectorMarker);
-    const atomicBlockFillRule = extractCssRule(
+    const atomicTransparentFrameRule = extractCssRule(
       blockSelectionCss.slice(blockSelectionCss.indexOf(atomicBlockFrameRule) + atomicBlockFrameRule.length),
+      atomicBlockSelectorMarker
+    );
+    const atomicBlockFillRule = extractCssRule(
+      blockSelectionCss.slice(
+        blockSelectionCss.indexOf(atomicTransparentFrameRule) + atomicTransparentFrameRule.length
+      ),
       atomicBlockSelectorMarker
     );
     const atomicBlockNextGapRule = extractCssRule(
@@ -413,7 +419,7 @@ describe("editor rich block selection styles", () => {
     );
     const atomicMermaidBackgroundRule = extractCssRule(
       blockSelectionCss,
-      ".milkdown .ProseMirror .mermaid-block[data-type='mermaid'].mermaid-block.mermaid-block.mermaid-block:is(\n  .editor-block-selected,"
+      ".milkdown .ProseMirror .mermaid-block[data-type='mermaid']:is(\n  .editor-block-selected,"
     );
     const atomicMermaidOverflowRule = extractCssRule(
       blockSelectionCss,
@@ -431,6 +437,9 @@ describe("editor rich block selection styles", () => {
     expect(indexCss.indexOf("@import './math-editor.css';")).toBeGreaterThanOrEqual(0);
     expect(indexCss.indexOf("@import './block-selection-atomic-rich.css';")).toBeGreaterThan(
       indexCss.indexOf("@import './math-editor.css';")
+    );
+    expect(indexCss.indexOf("@import './block-selection-atomic-rich.css';")).toBeGreaterThan(
+      indexCss.indexOf("@import './theme-compatibility.css';")
     );
     expect(htmlBlockRule).toContain('overflow-x: auto;');
     expect(htmlBlockRule).toContain('white-space: normal;');
@@ -468,8 +477,10 @@ describe("editor rich block selection styles", () => {
     expect(atomicBlockFrameRule).toContain('isolation: isolate;');
     expect(atomicBlockFrameRule).toContain('position: relative;');
     expect(atomicBlockFrameRule).toContain('z-index: var(--vlaina-z-1);');
-    expect(atomicBlockFrameRule).toContain('background: transparent !important;');
-    expect(atomicBlockFrameRule).toContain('background-color: transparent !important;');
+    expect(atomicBlockFrameRule).not.toContain('background: transparent !important;');
+    expect(atomicTransparentFrameRule).not.toContain('.mermaid-block');
+    expect(atomicTransparentFrameRule).toContain('background: transparent !important;');
+    expect(atomicTransparentFrameRule).toContain('background-color: transparent !important;');
     expect(atomicBlockFrameRule).toContain('overflow: visible;');
     expect(atomicBlockFrameRule).toContain('overflow-x: visible;');
     expect(atomicBlockFrameRule).toContain('overflow-y: visible;');

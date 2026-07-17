@@ -67,6 +67,7 @@ describe("editor text selection and link styles", () => {
     ].join('\n'));
     expect(css).toContain('.milkdown .ProseMirror .editor-text-selection-overlay {');
     expect(css).toContain('background-color: var(--vlaina-markdown-color-selection);');
+    expect(css).toContain('pointer-events: none;');
     expect(css).toContain('color: var(--vlaina-color-white) !important;');
     expect(css).toContain('-webkit-text-fill-color: var(--vlaina-color-white) !important;');
     expect(css).toContain('box-shadow: none;');
