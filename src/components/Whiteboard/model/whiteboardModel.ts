@@ -86,7 +86,7 @@ export const WHITEBOARD_DRAWING_TOOLS: WhiteboardToolConfig[] = [
 
 export const WHITEBOARD_ERASER_TOOLS: WhiteboardToolConfig[] = [
   { id: 'select', labelKey: 'whiteboard.tool.select', icon: 'whiteboard.select' },
-  { id: 'eraser', labelKey: 'whiteboard.tool.eraser', icon: 'whiteboard.eraser' },
+  { id: 'eraser', labelKey: 'whiteboard.tool.eraser', icon: 'whiteboard.areaEraser' },
   { id: 'stroke-eraser', labelKey: 'whiteboard.tool.strokeEraser', icon: 'whiteboard.eraser' },
 ];
 
