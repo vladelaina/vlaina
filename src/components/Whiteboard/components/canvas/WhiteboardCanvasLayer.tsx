@@ -58,7 +58,19 @@ export function WhiteboardCanvasLayer(props: WhiteboardCanvasLayerProps) {
 
   return (
     <div className="absolute inset-0 overflow-visible" style={style}>
-      <WhiteboardContentLayer {...props} visibleRect={visibleRect} />
+      <WhiteboardContentLayer
+        elements={props.elements}
+        eraserPreview={props.eraserPreview}
+        movePreview={props.movePreview}
+        selectedElementIds={props.selectedElementIds}
+        selectedStrokeIds={props.selectedStrokeIds}
+        selectionPath={props.selectionPath}
+        strokes={props.strokes}
+        tool={props.tool}
+        visibleRect={visibleRect}
+        onElementPointerDown={props.onElementPointerDown}
+        onSelectionResizePointerDown={props.onSelectionResizePointerDown}
+      />
       <WhiteboardEraserTrail trail={props.eraserPreview.trail} zoom={props.viewport.zoom} />
       <WhiteboardDraftStrokeLayer stroke={props.draftStroke} />
       <WhiteboardBrushCursor
@@ -69,6 +81,20 @@ export function WhiteboardCanvasLayer(props: WhiteboardCanvasLayerProps) {
       />
     </div>
   );
+}
+
+interface WhiteboardContentLayerProps {
+  elements: WhiteboardElement[];
+  eraserPreview: WhiteboardEraserPreview;
+  movePreview: WhiteboardMovePreview | null;
+  selectedElementIds: string[];
+  selectedStrokeIds: string[];
+  selectionPath: WhiteboardLassoPath | null;
+  strokes: WhiteboardStroke[];
+  tool: WhiteboardTool;
+  visibleRect: WhiteboardSelectionRect | null;
+  onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
+  onSelectionResizePointerDown: (event: PointerEvent<SVGRectElement>, handle: WhiteboardResizeHandle) => void;
 }
 
 const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
@@ -83,7 +109,7 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
   visibleRect,
   onElementPointerDown,
   onSelectionResizePointerDown,
-}: WhiteboardCanvasLayerProps & { visibleRect: WhiteboardSelectionRect | null }) {
+}: WhiteboardContentLayerProps) {
   const selectedElementIdSet = useMemo(() => new Set(selectedElementIds), [selectedElementIds]);
   const selectedStrokeIdSet = useMemo(() => new Set(selectedStrokeIds), [selectedStrokeIds]);
   const erasingElementIdSet = useMemo(() => new Set(eraserPreview.elementIds), [eraserPreview.elementIds]);
@@ -97,10 +123,22 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
     const bounds = getStrokeBounds(stroke);
     return !visibleRect || (bounds ? rectsOverlap(bounds, visibleRect) : false);
   }), [selectedStrokeIdSet, strokes, visibleRect]);
-  const staticStrokes = visibleStrokes.filter((stroke) => !movingStrokeIdSet.has(stroke.id));
-  const movingStrokes = visibleStrokes.filter((stroke) => movingStrokeIdSet.has(stroke.id));
-  const staticElements = visibleElements.filter((element) => !movingElementIdSet.has(element.id));
-  const movingElements = visibleElements.filter((element) => movingElementIdSet.has(element.id));
+  const staticStrokes = useMemo(
+    () => visibleStrokes.filter((stroke) => !movingStrokeIdSet.has(stroke.id)),
+    [movingStrokeIdSet, visibleStrokes],
+  );
+  const movingStrokes = useMemo(
+    () => visibleStrokes.filter((stroke) => movingStrokeIdSet.has(stroke.id)),
+    [movingStrokeIdSet, visibleStrokes],
+  );
+  const staticElements = useMemo(
+    () => visibleElements.filter((element) => !movingElementIdSet.has(element.id)),
+    [movingElementIdSet, visibleElements],
+  );
+  const movingElements = useMemo(
+    () => visibleElements.filter((element) => movingElementIdSet.has(element.id)),
+    [movingElementIdSet, visibleElements],
+  );
   const transform = movePreview ? `translate(${movePreview.dx}px, ${movePreview.dy}px)` : undefined;
   const selectedItemCount = selectedElementIds.length + selectedStrokeIds.length;
   const elementProps = { erasingElementIdSet, onElementPointerDown, selectedElementIds, selectedItemCount, tool };
