@@ -1541,6 +1541,49 @@ describe('usePendingMarkdownAutosave', () => {
     unmount();
   });
 
+  it('does not accept an earlier identical phrase as proof that the current composition committed', () => {
+    useNotesStore.setState({
+      currentNote: { path: 'docs/alpha.md', content: '# 你好' },
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# 你好', modifiedAt: 1 }]]),
+    });
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = {
+      dom: document.createElement('div'),
+      composing: false,
+      state: { doc: {} },
+    };
+    const ctx = {
+      get: vi.fn((token) => token === editorViewCtx ? editorView : null),
+    };
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# 你好',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      const markUserInput = result.current.createUserInputMarker(editorView as never, null);
+      const markdownListener = result.current.configureMarkdownListener(ctx as never, '# 你好');
+      markUserInput(new Event('compositionstart'));
+      editorView.composing = true;
+      markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+      markdownListener('# 你好\n\nnihao');
+      editorView.composing = false;
+      markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+      markdownListener('# 你好\n\nnihao');
+      vi.advanceTimersByTime(240);
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
+    expect(useNotesStore.getState().currentNote?.content).toBe('# 你好');
+  });
+
   it('does not save stale pinyin when committed Chinese is only reported by compositionend', () => {
     const updateContent = vi.fn();
     const debouncedSave = vi.fn();
@@ -1581,6 +1624,49 @@ describe('usePendingMarkdownAutosave', () => {
     expect(debouncedSave).not.toHaveBeenCalled();
     expect(useNotesStore.getState().currentNote?.content).toBe('# alpha');
     unmount();
+  });
+
+  it('saves a final insertFromComposition commit when compositionend data is empty', () => {
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const editorView = {
+      dom: document.createElement('div'),
+      composing: false,
+      state: { doc: {} },
+    };
+    const ctx = {
+      get: vi.fn((token) => token === editorViewCtx ? editorView : null),
+    };
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      const markUserInput = result.current.createUserInputMarker(editorView as never, null);
+      const markdownListener = result.current.configureMarkdownListener(ctx as never, '# alpha');
+      markUserInput(new Event('compositionstart'));
+      editorView.composing = true;
+      markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+      markdownListener('# alpha nihao');
+      editorView.composing = false;
+      markUserInput(new CompositionEvent('compositionend', { data: '' }));
+      markUserInput(new InputEvent('beforeinput', { inputType: 'insertFromComposition', data: '你好' }));
+      markdownListener('# alpha 你好');
+      vi.advanceTimersByTime(240);
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).toHaveBeenCalledWith('# alpha 你好');
+    expect(debouncedSave).toHaveBeenCalledTimes(1);
   });
 
   it('does not save stale pinyin after selection repair is suppressed without a fresh input snapshot', () => {

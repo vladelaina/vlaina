@@ -117,6 +117,8 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
           ref={controller.inputRef}
           value={controller.query}
           onChange={(event) => controller.setQuery(event.target.value)}
+          onCompositionStart={controller.handleQueryCompositionStart}
+          onCompositionEnd={controller.handleQueryCompositionEnd}
           onKeyDown={controller.handleQueryKeyDown}
           placeholder={t('notes.find')}
           spellCheck={false}
@@ -187,6 +189,8 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                 ref={controller.replaceInputRef}
                 value={controller.replaceValue}
                 onChange={(event) => controller.setReplaceValue(event.target.value)}
+                onCompositionStart={controller.handleReplaceCompositionStart}
+                onCompositionEnd={controller.handleReplaceCompositionEnd}
                 onKeyDown={controller.handleReplaceKeyDown}
                 placeholder={t('notes.replaceWith')}
                 spellCheck={false}

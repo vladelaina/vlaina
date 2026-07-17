@@ -16,6 +16,8 @@ export function useNoteEditorFind(
   notePath: string | null | undefined,
 ): NoteEditorFindController {
   const restoreFocusFrameRef = useRef<number | null>(null);
+  const isQueryComposingRef = useRef(false);
+  const isReplaceComposingRef = useRef(false);
   const snapshot = useSyncExternalStore(
     subscribeEditorFindSnapshot,
     getEditorFindSnapshot,
@@ -111,7 +113,7 @@ export function useNoteEditorFind(
 
   const handleQueryKeyDown = useCallback<KeyboardEventHandler<HTMLInputElement>>(
     (event) => {
-      if (event.nativeEvent?.isComposing) {
+      if (event.nativeEvent?.isComposing || isQueryComposingRef.current) {
         return;
       }
 
@@ -135,7 +137,7 @@ export function useNoteEditorFind(
 
   const handleReplaceKeyDown = useCallback<KeyboardEventHandler<HTMLInputElement>>(
     (event) => {
-      if (event.nativeEvent?.isComposing) {
+      if (event.nativeEvent?.isComposing || isReplaceComposingRef.current) {
         return;
       }
 
@@ -175,5 +177,17 @@ export function useNoteEditorFind(
     replaceAll,
     handleQueryKeyDown,
     handleReplaceKeyDown,
+    handleQueryCompositionStart: () => {
+      isQueryComposingRef.current = true;
+    },
+    handleQueryCompositionEnd: () => {
+      isQueryComposingRef.current = false;
+    },
+    handleReplaceCompositionStart: () => {
+      isReplaceComposingRef.current = true;
+    },
+    handleReplaceCompositionEnd: () => {
+      isReplaceComposingRef.current = false;
+    },
   };
 }

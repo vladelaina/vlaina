@@ -14,7 +14,11 @@ import {
   getEditorViewFromContext,
   isEditorComposing,
 } from './pendingMarkdownAutosaveEvents';
-import type { MilkdownContext, PendingMarkdownSnapshot } from './pendingMarkdownAutosaveTypes';
+import type {
+  CompositionStartSelection,
+  MilkdownContext,
+  PendingMarkdownSnapshot,
+} from './pendingMarkdownAutosaveTypes';
 import { collapseSelectionAtPosition } from './pendingMarkdownCompositionRepair';
 import { getLiveMarkdownPreviewContent } from './pendingMarkdownLivePreview';
 
@@ -33,7 +37,9 @@ interface PendingMarkdownListenerOptions {
   deferredCompositionMarkdownRef: MutableRefObject<string | null>;
   deferredCompositionUserInputVersionRef: MutableRefObject<number>;
   latestCompositionDataRef: MutableRefObject<string | null>;
+  latestCompositionResidueDataRef: MutableRefObject<string | null>;
   hasCompositionEndedRef: MutableRefObject<boolean>;
+  compositionStartSelectionRef: MutableRefObject<CompositionStartSelection | null>;
   allowDeferredCompositionMarkdownWithoutCommitRef: MutableRefObject<boolean>;
   compositionAppendPositionRef: MutableRefObject<number | null>;
   lastCompositionAppendAtRef: MutableRefObject<number>;
@@ -56,7 +62,9 @@ export function usePendingMarkdownListener({
   deferredCompositionMarkdownRef,
   deferredCompositionUserInputVersionRef,
   latestCompositionDataRef,
+  latestCompositionResidueDataRef,
   hasCompositionEndedRef,
+  compositionStartSelectionRef,
   allowDeferredCompositionMarkdownWithoutCommitRef,
   compositionAppendPositionRef,
   lastCompositionAppendAtRef,
@@ -177,11 +185,18 @@ export function usePendingMarkdownListener({
         const allowDeferredWithoutCommit = allowDeferredCompositionMarkdownWithoutCommitRef.current;
         allowDeferredCompositionMarkdownWithoutCommitRef.current = false;
         const latestCompositionData = latestCompositionDataRef.current;
+        const currentContent = useNotesStore.getState().currentNote?.content ?? '';
         if (
           deferredMarkdown !== null &&
           (
             allowDeferredWithoutCommit ||
-            hasCommittedCompositionText(deferredMarkdown, latestCompositionData)
+            hasCommittedCompositionText(
+              deferredMarkdown,
+              latestCompositionData,
+              currentContent,
+              compositionStartSelectionRef.current?.text ?? null,
+              latestCompositionResidueDataRef.current,
+            )
           )
         ) {
           processMarkdown(deferredMarkdown, deferredUserInputVersion);

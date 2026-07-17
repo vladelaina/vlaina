@@ -260,6 +260,7 @@ export class SlashEmojiPickerSession {
   };
 
   private handleDocumentKeyDown = (event: KeyboardEvent) => {
+    if (event.isComposing || this.editorView.composing) return;
     const target = event.target;
     const isInsideMenu = target instanceof Node && this.menuElement?.contains(target);
 
@@ -270,7 +271,7 @@ export class SlashEmojiPickerSession {
       return;
     }
 
-    if (isInsideMenu || event.isComposing) return;
+    if (isInsideMenu) return;
     if (event.key === 'Shift' || event.key === 'Control' || event.key === 'Alt' || event.key === 'Meta') {
       return;
     }

@@ -118,12 +118,15 @@ export function mountTextEditorPopup(args: MountTextEditorPopupArgs): TextEditor
   } = args;
   const elements = createTextEditorPopupElements(placeholder);
   const { card, textarea, cancelButton, saveButton } = elements;
+  let isComposing = false;
 
   textarea.value = value;
   textarea.addEventListener('compositionstart', () => {
+    isComposing = true;
     onCompositionStart?.();
   });
   textarea.addEventListener('compositionend', () => {
+    isComposing = false;
     onCompositionEnd?.();
   });
   textarea.addEventListener('input', () => {
@@ -135,7 +138,7 @@ export function mountTextEditorPopup(args: MountTextEditorPopupArgs): TextEditor
     onInput(textarea.value);
   });
   textarea.addEventListener('keydown', (event) => {
-    if (event.isComposing) {
+    if (event.isComposing || isComposing) {
       return;
     }
 

@@ -45,9 +45,10 @@ export const inlineNodesCursorPlugin = $prose(() => {
         compositionend: (view, e) => {
           if (lock) {
             lock = false
+            if (!e.data) return false
             const session = compositionSession
             const from = view.state.selection.from
-            const data = e.data || ''
+            const data = e.data
             e.preventDefault()
             pendingCompositionFrame = requestAnimationFrame(() => {
               pendingCompositionFrame = null
