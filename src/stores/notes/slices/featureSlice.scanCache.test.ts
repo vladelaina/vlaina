@@ -285,7 +285,7 @@ describe('featureSlice scan cache validation', () => {
         })),
       },
     });
-    let cacheAtPriorityReady: NotesStore['noteContentsCache'] | null = null;
+    let cacheAtPriorityReady!: NotesStore['noteContentsCache'];
 
     await store.getState().scanAllNotes({
       priorityPaths,
