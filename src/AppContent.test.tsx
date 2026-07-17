@@ -457,7 +457,9 @@ describe('AppContent view switching chrome readiness', () => {
     expect(screen.getByTestId('chat-sidebar')).toHaveAttribute('data-active', 'false');
     expect(screen.getByTestId('chat-view')).toHaveAttribute('data-active', 'false');
     expect(await screen.findByTestId('notes-tab-row', undefined, { timeout: 3000 })).toBeInTheDocument();
-    expect(mocks.notesSidebarMounts).toBe(1);
+    await waitFor(() => {
+      expect(mocks.notesSidebarMounts).toBe(1);
+    });
 
     mocks.appViewMode = 'chat';
     rerender(<AppContent />);
@@ -487,7 +489,9 @@ describe('AppContent view switching chrome readiness', () => {
     expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
     expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'false');
     expect(screen.getByTestId('notes-view')).toHaveAttribute('data-active', 'false');
-    expect(mocks.notesSidebarMounts).toBe(1);
+    await waitFor(() => {
+      expect(mocks.notesSidebarMounts).toBe(1);
+    });
 
     mocks.appViewMode = 'notes';
     rerender(<AppContent />);
