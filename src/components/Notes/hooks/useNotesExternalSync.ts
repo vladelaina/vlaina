@@ -19,7 +19,6 @@ import { createNotesExternalSyncActions, type PendingCreateEntry } from './notes
 
 const NOTES_RECONCILE_POLL_MS = 1500;
 const BROAD_PATH_RECONCILE_POLL_MS = 5000;
-const WATCH_RECONCILE_POLL_MS = 5000;
 
 function shouldAvoidRecursiveNativeWatch(path: string) {
   const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -212,11 +211,6 @@ export function useNotesExternalSync(notesRootPath: string | null, notesPath: st
 
         unwatch = stopWatching;
         releaseWatcher = registerExternalSyncWatcher();
-        startReconcilePolling({
-          intervalMs: WATCH_RECONCILE_POLL_MS,
-          skipTreeSnapshot: false,
-          immediate: false,
-        });
       } catch {
         if (disposed) {
           return;

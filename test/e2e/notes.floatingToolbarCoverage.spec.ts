@@ -149,7 +149,9 @@ async function selectEditorText(page: Page, text: string) {
 
 async function dragSelectEditorText(page: Page, text: string) {
   const rect = await page.evaluate((targetText) => {
-    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const editor = document.querySelector<HTMLElement>(
+      '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+    );
     if (!editor) return null;
 
     const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
@@ -177,6 +179,9 @@ async function dragSelectEditorText(page: Page, text: string) {
   }, text);
 
   expect(rect, `Expected text rect for ${text}`).not.toBeNull();
+  const resetX = rect!.left > 20 ? rect!.left - 12 : rect!.right + 12;
+  await page.mouse.click(resetX, rect!.y);
+  await waitForEditorAnimationFrame(page);
   await page.mouse.move(rect!.left + 1, rect!.y);
   await page.mouse.down();
   await page.mouse.move(rect!.right - 1, rect!.y, { steps: 12 });
@@ -784,10 +789,24 @@ test.describe('notes floating toolbar coverage', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
 
-      await openMarkdownFixture(page, {
+      const opened = await openMarkdownFixture(page, {
         filename: 'floating-toolbar-coverage.md',
         content: createToolbarCoverageMarkdown(),
       });
+
+      const submenuTarget = 'Paragraph toolbar target';
+      await selectEditorText(page, submenuTarget);
+      await clickToolbarAction(page, 'block');
+      await expect(page.locator('.block-dropdown')).toBeVisible({ timeout: 5_000 });
+      await clickToolbarAction(page, 'alignment');
+      await expect(page.locator('.block-dropdown')).toHaveCount(0);
+      await expect(page.locator('.alignment-dropdown')).toBeVisible({ timeout: 5_000 });
+      await clickToolbarAction(page, 'color');
+      await expect(page.locator('.alignment-dropdown')).toHaveCount(0);
+      await expect(page.locator('.color-picker')).toBeVisible({ timeout: 5_000 });
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.color-picker')).not.toBeVisible({ timeout: 5_000 });
+      await expect(page.locator(TOOLBAR_SELECTOR)).not.toBeVisible({ timeout: 5_000 });
 
       await selectEditorText(page, 'AI toolbar menu target');
       await clickToolbarAction(page, 'ai');
@@ -853,6 +872,14 @@ test.describe('notes floating toolbar coverage', () => {
         await selectEditorText(page, markCase.target);
         await clickToolbarAction(page, markCase.action);
         await expectEditorTextMark(page, markCase);
+        if (markCase.action === 'bold') {
+          await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditor());
+          await page.keyboard.press('Control+Z');
+          await expect.poll(() => editorTextHasMark(page, markCase.target, markCase.markName)).toBe(false);
+          await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditor());
+          await page.keyboard.press('Control+Y');
+          await expectEditorTextMark(page, markCase);
+        }
       }
 
       const mouseLinkTarget = 'Mouse link focus target';
@@ -1016,6 +1043,14 @@ test.describe('notes floating toolbar coverage', () => {
       await clickAlignmentDropdownItem(page, 'center', alignCenterTarget);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="center"]`, { hasText: alignCenterTarget }))
         .toBeVisible({ timeout: 5_000 });
+      await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditor());
+      await page.keyboard.press('Control+Z');
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="center"]`, { hasText: alignCenterTarget }))
+        .toHaveCount(0);
+      await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditor());
+      await page.keyboard.press('Control+Y');
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="center"]`, { hasText: alignCenterTarget }))
+        .toBeVisible({ timeout: 5_000 });
 
       const alignRightTarget = 'Align right toolbar target';
       await selectEditorText(page, alignRightTarget);
@@ -1046,6 +1081,26 @@ test.describe('notes floating toolbar coverage', () => {
       const beforeDeleteCount = await countEditorTextOccurrences(page, deleteTarget);
       await selectEditorText(page, deleteTarget);
       await clickToolbarAction(page, 'delete');
+      await expect.poll(() => countEditorTextOccurrences(page, deleteTarget)).toBeLessThan(beforeDeleteCount);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const currentContent = await page.evaluate(() =>
+        String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+      );
+      const savedContent = await page.evaluate((notePath) =>
+        (window as any).__vlainaE2E.readTextFile(notePath), opened.notePath
+      );
+      expect(savedContent).toBe(currentContent);
+
+      await openAbsoluteNote(page, opened.notePath);
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} strong`, { hasText: 'Bold toolbar target' }))
+        .toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${linkUrl}"]`, { hasText: linkTarget }))
+        .toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} h1`, { hasText: 'Heading one toolbar target' }))
+        .toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="center"]`, { hasText: alignCenterTarget }))
+        .toBeVisible({ timeout: 10_000 });
       await expect.poll(() => countEditorTextOccurrences(page, deleteTarget)).toBeLessThan(beforeDeleteCount);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
@@ -1813,8 +1868,8 @@ test.describe('notes floating toolbar coverage', () => {
         selectionOverlayColor: 'rgb(134, 110, 198)',
         selectionOverlayTextFillColor: 'rgb(134, 110, 198)',
       });
-      expect(largeColorPreviewState.selectedBgMarkBoxShadow).not.toBe('none');
-      expect(largeColorPreviewState.selectionOverlayBoxShadow).not.toBe('none');
+      expect(largeColorPreviewState.selectedBgMarkBoxShadow).toBe('none');
+      expect(largeColorPreviewState.selectionOverlayBoxShadow).toBe('none');
       expect(largeColorPreviewState.selectionOverlayBgColor).not.toBe('rgb(252, 169, 189)');
       expect(largeColorPreviewState.selectionOverlayBgColor).not.toBe('rgba(0, 0, 0, 0)');
       await waitForEditorAnimationFrame(page);

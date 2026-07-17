@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { isBlockSelectionInteractionPending } from '../plugins/cursor/blockSelectionInteractionState';
 import {
   BLOCK_SELECTION_PENDING_CLASS,
   CONTENT_MUTATION_REFRESH_DELAY_MS,
@@ -56,7 +57,14 @@ export function createCurrentEditorBlockPositionControllerWithState({
     pendingBlockSelectionRefreshTimerId = 0;
   };
 
-  const isBlockSelectionPending = () => view.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
+  const isBlockSelectionPending = () => (
+    view.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS)
+    || isBlockSelectionInteractionPending(view.dom)
+  );
+
+  const hasRenderedBlockSelection = () => (
+    view.dom.querySelector('.editor-block-selected') !== null
+  );
 
   const scheduleRefreshAfterPendingBlockSelection = () => {
     if (destroyed) {
@@ -130,6 +138,15 @@ export function createCurrentEditorBlockPositionControllerWithState({
     if (isBlockSelectionPending()) {
       clearContentMutationRefresh();
       scheduleRefreshAfterPendingBlockSelection();
+      return;
+    }
+
+    const snapshot = getCurrentSnapshot();
+    if (
+      snapshot?.view === view
+      && snapshot.doc === view.state.doc
+      && hasRenderedBlockSelection()
+    ) {
       return;
     }
 

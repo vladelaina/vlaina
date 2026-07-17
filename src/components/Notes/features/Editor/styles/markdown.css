@@ -185,7 +185,7 @@
   font-weight: var(--vlaina-font-weight-normal);
 }
 
-.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   .editor-block-selected,
   .editor-block-selected-textlike,
   .editor-block-drag-source,

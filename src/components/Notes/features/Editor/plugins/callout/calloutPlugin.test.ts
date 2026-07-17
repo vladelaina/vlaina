@@ -28,6 +28,36 @@ function createEditor(defaultValue = '') {
     .use(calloutPlugin);
 }
 
+function typeText(view: EditorView, input: string): void {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+    view.someProp('handleTextInput', (handleTextInput: any) => {
+      handled = handleTextInput(view, from, to, text) || handled;
+    });
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+  }
+}
+
+function pressEnter(view: EditorView, options?: { isComposing?: boolean }): boolean {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+  });
+  if (options?.isComposing) {
+    Object.defineProperty(event, 'isComposing', { value: true });
+  }
+
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    if (handled) return handled;
+    handled = handleKeyDown(view, event) || handled;
+    return handled;
+  });
+  return handled;
+}
+
 async function parseCalloutAttrsFromDom(setup: (callout: HTMLElement) => void) {
   const editor = createEditor('');
   await editor.create();
@@ -189,6 +219,94 @@ describe('callout markdown serialization', () => {
 });
 
 describe('callout editor behavior', () => {
+  it('creates an editable callout from a typed emoji marker', async () => {
+    const editor = createEditor('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '> ');
+    typeText(view, '💡 Typed **callout body**');
+    expect(pressEnter(view)).toBe(true);
+
+    const callout = view.state.doc.firstChild;
+    expect(callout?.type.name).toBe('callout');
+    expect(callout?.attrs.icon).toEqual({ type: 'emoji', value: '💡' });
+    expect(callout?.childCount).toBe(2);
+    expect(callout?.firstChild?.textContent).toBe('Typed callout body');
+    expect(callout?.firstChild?.lastChild?.marks.some((mark) => mark.type.name === 'strong')).toBe(true);
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+    expect(view.state.selection.$from.parent.content.size).toBe(0);
+    expect(editor.ctx.get(serializerCtx)(view.state.doc)).toContain('> 💡 Typed **callout body**');
+
+    await editor.destroy();
+  });
+
+  it('creates a callout from a typed uploaded icon marker', async () => {
+    const editor = createEditor('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '> [!callout-icon:img%3Aicons%2Fdemo.png] Body');
+    expect(pressEnter(view)).toBe(true);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('callout');
+    expect(view.state.doc.firstChild?.attrs.icon).toEqual({
+      type: 'image',
+      value: 'img:icons/demo.png',
+    });
+    expect(view.state.doc.firstChild?.firstChild?.textContent).toBe('Body');
+
+    await editor.destroy();
+  });
+
+  it('creates an empty callout from a typed marker without adding a second paragraph', async () => {
+    const editor = createEditor('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '> 💡');
+    expect(pressEnter(view)).toBe(true);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('callout');
+    expect(view.state.doc.firstChild?.childCount).toBe(1);
+    expect(view.state.doc.firstChild?.firstChild?.content.size).toBe(0);
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+
+    await editor.destroy();
+  });
+
+  it('keeps oversized typed icon markers as ordinary blockquotes', async () => {
+    const editor = createEditor('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, `> [!callout-icon:${'a'.repeat(4097)}] Body`);
+    pressEnter(view);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('blockquote');
+    expect(view.state.doc.firstChild?.textContent).toContain('[!callout-icon:');
+
+    await editor.destroy();
+  });
+
+  it('does not convert typed ordinary blockquotes or composing callout input', async () => {
+    const ordinaryEditor = createEditor('');
+    await ordinaryEditor.create();
+    const ordinaryView = ordinaryEditor.ctx.get(editorViewCtx);
+    typeText(ordinaryView, '> Note: keep this as a quote');
+    pressEnter(ordinaryView);
+    expect(ordinaryView.state.doc.firstChild?.type.name).toBe('blockquote');
+    await ordinaryEditor.destroy();
+
+    const composingEditor = createEditor('');
+    await composingEditor.create();
+    const composingView = composingEditor.ctx.get(editorViewCtx);
+    typeText(composingView, '> 💡 Composing');
+    pressEnter(composingView, { isComposing: true });
+    expect(composingView.state.doc.firstChild?.type.name).toBe('blockquote');
+    await composingEditor.destroy();
+  });
+
   it('parses an empty serialized callout back into a callout with an empty paragraph', async () => {
     const editor = createEditor('> 💡');
     await editor.create();

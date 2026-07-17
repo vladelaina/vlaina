@@ -204,6 +204,7 @@ function replaceTocShortcutParagraphs(
     const child = children[index];
     frame.index += 1;
     if (
+      (frame.node.type !== 'listItem' || index > 0) &&
       child.type === 'paragraph' &&
       child.children?.length === 1 &&
       child.children[0].type === 'text' &&

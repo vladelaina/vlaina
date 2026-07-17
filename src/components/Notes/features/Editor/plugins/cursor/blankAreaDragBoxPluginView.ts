@@ -6,6 +6,7 @@ import {
   clearBlockSelection,
   getBlockSelectionPluginState,
   hasSelectedBlocks,
+  setBlockSelectionEnabled,
   setBlockSelectionVisualState,
   syncBlockSelectionVisualState,
 } from './blockSelectionPluginState';
@@ -55,6 +56,7 @@ export function createBlankAreaDragBoxPluginView(
 ) {
   const doc = view.dom.ownerDocument;
   const lineFillOverlay = createBlockSelectionLineFillOverlay(view);
+  setBlockSelectionEnabled(view, true);
   syncBlockSelectionVisualState(view);
   const handleDocumentKeyDown = (event: KeyboardEvent) => {
     if (event.isComposing) return;
@@ -181,7 +183,8 @@ export function createBlankAreaDragBoxPluginView(
       options.clearSession();
       options.clearInsideBlockTrailingPlainClickSession();
       options.clearUnclaimedBlankPlainClickSession();
-      setBlockSelectionVisualState(view, false);
+      setBlockSelectionVisualState(view, false, false);
+      setBlockSelectionEnabled(view, false);
     },
   };
 }

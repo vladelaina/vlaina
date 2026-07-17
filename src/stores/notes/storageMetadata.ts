@@ -8,6 +8,7 @@ import {
   getKnownReadableModifiedAt,
   isReadableBoundedMarkdownFile,
   MAX_METADATA_READ_BYTES,
+  MAX_METADATA_TOTAL_READ_BYTES,
   utf8Encoder,
 } from './storageMetadataScan';
 
@@ -93,6 +94,7 @@ export async function loadNoteMetadata(
     const notesRootCache = metadataCacheByNotesRoot.get(notesRootPath) ?? new Map<string, CachedMetadataEntry>();
     setMetadataNotesRootCache(notesRootPath, notesRootCache);
     const nextCache = new Map<string, CachedMetadataEntry>();
+    let metadataReadBytes = 0;
 
     const BATCH_SIZE = 10;
     for (let index = 0; index < notePaths.length; index += BATCH_SIZE) {
@@ -127,8 +129,18 @@ export async function loadNoteMetadata(
             };
           }
 
+          const readReservationBytes = size ?? MAX_METADATA_READ_BYTES;
+          if (metadataReadBytes + readReservationBytes > MAX_METADATA_TOTAL_READ_BYTES) {
+            return {
+              relativePath,
+              metadata: mergeNoteMetadataWithFileInfo({}, fileInfo),
+            };
+          }
+          metadataReadBytes += readReservationBytes;
           const content = await storage.readFile(fullPath, MAX_METADATA_READ_BYTES);
-          if (utf8Encoder.encode(content).length > MAX_METADATA_READ_BYTES) {
+          const contentBytes = utf8Encoder.encode(content).length;
+          metadataReadBytes += contentBytes - readReservationBytes;
+          if (contentBytes > MAX_METADATA_READ_BYTES) {
             return {
               relativePath,
               metadata: mergeNoteMetadataWithFileInfo({}, fileInfo),

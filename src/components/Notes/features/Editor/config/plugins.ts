@@ -26,7 +26,10 @@ import { codePlugin } from '../plugins/code/codePlugin';
 import { codeBlockPlugins } from '../plugins/code/codeKeymap';
 import { frontmatterPlugin } from '../plugins/frontmatter/frontmatterPlugin';
 import { videoPlugin } from '../plugins/video/videoPlugin';
-import { obsidianImageEmbedPlugin } from '../theme-compatibility/obsidian/imageEmbedPlugin';
+import {
+  obsidianImageEmbedInputPlugin,
+  obsidianImageEmbedPlugin,
+} from '../theme-compatibility/obsidian/imageEmbedPlugin';
 import { abbrPlugin } from '../plugins/abbr/abbrPlugin';
 import { taskListClickPlugin } from '../plugins/task-list/taskListClickPlugin';
 import { taskListCursorPlugin } from '../plugins/task-list/taskListCursorPlugin';
@@ -117,6 +120,7 @@ export const customPluginGroups = [
       ...codePlugin,
       ...codeBlockPlugins,
       obsidianImageEmbedPlugin,
+      obsidianImageEmbedInputPlugin,
       ...videoPlugin,
       ...abbrPlugin,
     ],

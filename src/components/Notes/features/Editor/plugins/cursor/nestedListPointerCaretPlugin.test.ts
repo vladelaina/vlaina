@@ -24,7 +24,7 @@ describe('resolveNestedListPointerScanRoot', () => {
     const nestedListItem = nestedList?.querySelector('li');
     const view = { dom: editor } as any;
 
-    expect(resolveNestedListPointerScanRoot(view, nestedParagraph, 100, 20)).toBe(nestedListItem);
+    expect(resolveNestedListPointerScanRoot(view, nestedParagraph ?? null, 100, 20)).toBe(nestedListItem);
     expect(resolveNestedListPointerScanRoot(view, nestedList, 100, 20)).toBe(outerListItem);
     expect(resolveNestedListPointerScanRoot(view, outerListItem, 100, 20)).toBe(outerListItem);
   });

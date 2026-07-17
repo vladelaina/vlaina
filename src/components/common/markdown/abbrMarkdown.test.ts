@@ -84,6 +84,21 @@ describe('abbrMarkdown', () => {
     ]);
   });
 
+  it('preserves an abbreviation definition in the required first paragraph of a list item', () => {
+    const definition = paragraph('*[HTML]: HyperText Markup Language');
+    const tree: AbbrMdastNode = {
+      type: 'root',
+      children: [{
+        type: 'list',
+        children: [{ type: 'listItem', children: [definition] }],
+      }],
+    };
+
+    applyAbbrDefinitionsToTree(tree, { stripDefinitions: true });
+
+    expect(tree.children?.[0].children?.[0].children?.[0]).toBe(definition);
+  });
+
   it('does not collect or replace abbreviations inside code nodes', () => {
     const tree: AbbrMdastNode = {
       type: 'root',

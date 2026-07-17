@@ -25,6 +25,7 @@ export {
   MAX_SESSION_MESSAGE_SCAN_RECORDS,
 } from './chatStorageLimits';
 export {
+  areWebSearchStatusesEquivalent,
   mergeSessionMessages,
   preserveUnknownPersistedMessages,
 } from './chatStorageMerge';

@@ -2,41 +2,13 @@
  * Editor block selection rendering and interaction guards.
  */
 
-/* Interaction guards while dragging a block selection. */
-.milkdown .ProseMirror.editor-block-selection-pending :is(
-  a,
-  button,
-  [role='button'],
-  .heading-toggle-btn,
-  .editor-block-control-btn,
-  .editor-collapse-btn,
-  .callout-icon-button,
-  .video-external-action,
-  .footnote-ref,
-  .milkdown-table-block .column-header-drag-control,
-  .milkdown-table-block .row-header-drag-control,
-  .milkdown-table-block .edge-create-zone
-) {
-  pointer-events: none !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending :is(
-  .heading-toggle-btn,
-  .editor-collapse-btn
-) {
-  opacity: var(--vlaina-opacity-0) !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending :is(
-  .callout-icon-button,
-  .video-external-action,
-  .milkdown-table-block .column-header-drag-control,
-  .milkdown-table-block .row-header-drag-control,
-  .milkdown-table-block .edge-create-zone
-) {
-  background: transparent !important;
-  box-shadow: none !important;
-  transform: none !important;
+/* A fixed shield suppresses hover and pointer interactions without invalidating the editor subtree. */
+.editor-block-selection-interaction-shield {
+  position: fixed;
+  inset: 0;
+  z-index: var(--vlaina-z-max);
+  background: transparent;
+  pointer-events: auto;
 }
 
 .milkdown.editor-block-selection-line-fill-host,

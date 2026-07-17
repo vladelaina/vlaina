@@ -18,10 +18,6 @@ overrides:
 importers:
 
   .:
-    dependencies:
-      d3-force:
-        specifier: ^3.0.0
-        version: 3.0.0
     devDependencies:
       '@codemirror/language':
         specifier: 6.12.3
@@ -158,6 +154,9 @@ importers:
       concurrently:
         specifier: ^10.0.3
         version: 10.0.3
+      d3-force:
+        specifier: ^3.0.0
+        version: 3.0.0
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0

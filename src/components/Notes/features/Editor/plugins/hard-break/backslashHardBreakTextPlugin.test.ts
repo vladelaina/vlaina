@@ -44,6 +44,37 @@ async function createEditor(markdown: string) {
   return editor;
 }
 
+function typeText(view: EditorView, input: string): void {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+    view.someProp('handleTextInput', (handler: (view: EditorView, from: number, to: number, text: string) => boolean) => {
+      handled = handler(view, from, to, text) || handled;
+      return handled;
+    });
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+  }
+}
+
+function pressEnter(view: EditorView, options?: { isComposing?: boolean }): boolean {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+  });
+  if (options?.isComposing) {
+    Object.defineProperty(event, 'isComposing', { value: true });
+  }
+
+  let handled = false;
+  view.someProp('handleKeyDown', (handler: (view: EditorView, event: KeyboardEvent) => boolean) => {
+    if (handled) return handled;
+    handled = handler(view, event) || handled;
+    return handled;
+  });
+  return handled;
+}
+
 afterEach(async () => {
   while (editors.length > 0) {
     const editor = editors.pop();
@@ -53,6 +84,53 @@ afterEach(async () => {
 });
 
 describe('backslashHardBreakTextPlugin', () => {
+  it('creates a source-visible hard break from a typed trailing backslash', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+
+    typeText(view, 'A\\');
+    expect(pressEnter(view)).toBe(true);
+    typeText(view, 'B');
+
+    const paragraph = view.state.doc.firstChild;
+    expect(view.state.doc.childCount).toBe(1);
+    expect(paragraph?.child(0).text).toBe('A');
+    expect(paragraph?.child(1).text).toBe('\\');
+    expect(paragraph?.child(1).marks[0]?.type.name).toBe('backslash_hard_break_source_text');
+    expect(paragraph?.child(2).type.name).toBe('hardbreak');
+    expect(paragraph?.child(3).text).toBe('B');
+    expect(editor.ctx.get(serializerCtx)(view.state.doc).trimEnd()).toBe('A\\\nB');
+  });
+
+  it('does not convert even trailing backslashes or composing Enter', async () => {
+    const evenEditor = await createEditor('');
+    const evenView = evenEditor.ctx.get(editorViewCtx) as EditorView;
+    typeText(evenView, 'A\\\\');
+    expect(pressEnter(evenView)).toBe(true);
+    expect(evenView.state.doc.firstChild?.textContent).toBe('A\\\\');
+    expect(evenView.state.doc.firstChild?.childCount).toBe(1);
+
+    const composingEditor = await createEditor('');
+    const composingView = composingEditor.ctx.get(editorViewCtx) as EditorView;
+    typeText(composingView, 'A\\');
+    pressEnter(composingView, { isComposing: true });
+    expect(composingView.state.doc.firstChild?.textContent).toBe('A\\');
+    expect(composingView.state.doc.firstChild?.childCount).toBe(1);
+  });
+
+  it('keeps a solitary line-start backslash as literal text', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+
+    typeText(view, '\\');
+    pressEnter(view);
+    typeText(view, 'B');
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('\\');
+    expect(view.state.doc.child(1).textContent).toBe('B');
+  });
+
   it('turns the source hard-break backslash after a literal backslash into text', () => {
     const tree: TestMdastNode = {
       children: [{

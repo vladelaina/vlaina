@@ -9,8 +9,10 @@ import {
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { useUIStore } from '@/stores/uiSlice';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { autoPairPlugin } from '../pairs/autoPairPlugin';
 import {
   isSupportedVideoUrl,
   normalizeVideoUrlInput,
@@ -55,6 +57,18 @@ function findFirstVideoNode(doc: any) {
     return false;
   });
   return video;
+}
+
+function typeText(view: EditorView, input: string): void {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+    view.someProp('handleTextInput', (handleTextInput: any) => {
+      handled = handleTextInput(view, from, to, text) || handled;
+      return handled;
+    });
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+  }
 }
 
 function createVideoImageParagraph() {
@@ -435,6 +449,82 @@ describe('videoPlugin URL support', () => {
     await editor.destroy();
   });
 
+  it('creates a video node from a solitary typed markdown image', async () => {
+    const editor = Editor.make()
+      .config((ctx) => ctx.set(defaultValueCtx, ''))
+      .use(commonmark);
+
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '![video](https://example.com/video.mp4)');
+
+    const video = findFirstVideoNode(view.state.doc);
+    expect(video?.attrs).toMatchObject({
+      src: 'https://example.com/video.mp4',
+      title: '',
+      width: 560,
+      height: 315,
+    });
+    expect(view.state.doc.firstChild?.type.name).toBe('video');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+
+    await editor.destroy();
+  });
+
+  it('creates a typed video while consuming an auto-paired closing parenthesis', async () => {
+    const editor = Editor.make()
+      .config((ctx) => ctx.set(defaultValueCtx, ''))
+      .use(commonmark);
+
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+    editor.use(autoPairPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '![video](https://example.com/video.mp4)');
+
+    expect(view.state.doc.firstChild?.type.name).toBe('video');
+    expect(view.state.doc.firstChild?.attrs.src).toBe('https://example.com/video.mp4');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+
+    await editor.destroy();
+  });
+
+  it('keeps typed inline and unsupported markdown images as images', async () => {
+    const editor = Editor.make()
+      .config((ctx) => ctx.set(defaultValueCtx, ''))
+      .use(commonmark);
+
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, 'Intro ![clip](https://example.com/video.mp4) outro');
+    typeText(view, ' ![article](https://example.com/article)');
+
+    expect(findFirstVideoNode(view.state.doc)).toBeNull();
+    const imageSources: string[] = [];
+    view.state.doc.descendants((node) => {
+      if (node.type.name === 'image') imageSources.push(node.attrs.src);
+      return true;
+    });
+    expect(imageSources).toEqual([
+      'https://example.com/video.mp4',
+      'https://example.com/article',
+    ]);
+
+    await editor.destroy();
+  });
+
   it('skips video image markdown transforms for over-budget trees', () => {
     const tree = createDeepVideoMarkdownTree(createVideoImageParagraph());
 
@@ -480,6 +570,47 @@ describe('videoPlugin URL support', () => {
     expect(findFirstVideoNode(view.state.doc)).toBeNull();
     expect(view.state.doc.textContent).toContain('Intro');
     expect(view.state.doc.textContent).toContain('outro');
+
+    await editor.destroy();
+  });
+
+  it('keeps a solitary video image in the required first paragraph of a list item', async () => {
+    const editor = Editor.make()
+      .config((ctx) => ctx.set(defaultValueCtx, '- ![clip](https://example.com/video.mp4)'))
+      .use(commonmark);
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const listItem = view.state.doc.firstChild?.firstChild;
+
+    expect(listItem?.type.name).toBe('list_item');
+    expect(listItem?.firstChild?.type.name).toBe('paragraph');
+    expect(listItem?.firstChild?.firstChild?.type.name).toBe('image');
+    expect(findFirstVideoNode(view.state.doc)).toBeNull();
+
+    await editor.destroy();
+  });
+
+  it('converts a solitary video image after the required first list-item paragraph', async () => {
+    const editor = Editor.make()
+      .config((ctx) => ctx.set(
+        defaultValueCtx,
+        '- List item intro\n\n  ![clip](https://example.com/video.mp4)',
+      ))
+      .use(commonmark);
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const listItem = view.state.doc.firstChild?.firstChild;
+    expect(listItem?.firstChild?.type.name).toBe('paragraph');
+    expect(listItem?.child(1).type.name).toBe('video');
+    expect(findFirstVideoNode(view.state.doc)?.attrs.src).toBe('https://example.com/video.mp4');
 
     await editor.destroy();
   });

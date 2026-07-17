@@ -154,7 +154,8 @@ describe("editor block drag interaction styles", () => {
     expect(css).not.toContain('.milkdown .video-block.editor-block-selected {');
     expect(css).toContain('.editor-block-drag-preview .video-drag-preview-surface {');
     expect(css).toContain('background: transparent;');
-    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .video-block iframe,');
+    expect(blockSelectionCss).toContain('.editor-block-selection-interaction-shield {');
+    expect(blockSelectionCss).toContain('pointer-events: auto;');
     expect(css).toContain('body.editor-block-drag-active .milkdown .video-block iframe,');
     expect(css).toContain('pointer-events: none;');
   });
@@ -187,17 +188,12 @@ describe("editor block drag interaction styles", () => {
   it('suppresses editor icon hover affordances while dragging a block selection', () => {
     const css = readBlockSelectionStyle();
 
-    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending :is(');
-    expect(css).toContain('.heading-toggle-btn,');
-    expect(css).toContain('.editor-block-control-btn,');
-    expect(css).toContain('.editor-collapse-btn,');
-    expect(css).toContain('.callout-icon-button,');
-    expect(css).toContain('.milkdown-table-block .column-header-drag-control,');
-    expect(css).toContain('.milkdown-table-block .row-header-drag-control,');
-    expect(css).toContain('pointer-events: none !important;');
-    expect(css).toContain('opacity: var(--vlaina-opacity-0) !important;');
-    expect(css).toContain('background: transparent !important;');
-    expect(css).toContain('transform: none !important;');
+    expect(css).toContain('.editor-block-selection-interaction-shield {');
+    expect(css).toContain('position: fixed;');
+    expect(css).toContain('inset: 0;');
+    expect(css).toContain('z-index: var(--vlaina-z-max);');
+    expect(css).toContain('pointer-events: auto;');
+    expect(css).not.toContain('editor-block-selection-pending');
   });
 
   it('routes editor collapse triangle colors through shared tokens', () => {

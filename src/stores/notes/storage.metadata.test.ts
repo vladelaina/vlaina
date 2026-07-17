@@ -13,6 +13,7 @@ import { getNotesRootStorageKey } from './systemStoragePaths';
 import type { MetadataFile } from './types';
 
 const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
+const MAX_METADATA_TOTAL_READ_BYTES = 32 * 1024 * 1024;
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
@@ -320,6 +321,21 @@ describe('notes metadata storage', () => {
       },
     });
     expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-huge-after-read/huge.md', MAX_METADATA_READ_BYTES);
+  });
+
+  it('caps aggregate markdown reads during metadata scans', async () => {
+    const fileSize = 1024 * 1024;
+    const fileCount = Math.floor(MAX_METADATA_TOTAL_READ_BYTES / fileSize) + 8;
+    adapter.listDir.mockResolvedValue(Array.from(
+      { length: fileCount },
+      (_value, index) => ({ name: `note-${index}.md`, isFile: true }),
+    ));
+    adapter.stat.mockResolvedValue({ modifiedAt: 7, size: fileSize });
+    adapter.readFile.mockResolvedValue('x'.repeat(fileSize));
+
+    await loadNoteMetadata('/notes-root-aggregate-budget');
+
+    expect(adapter.readFile).toHaveBeenCalledTimes(MAX_METADATA_TOTAL_READ_BYTES / fileSize);
   });
 
   it('keeps generated folders low priority without hiding markdown metadata', async () => {

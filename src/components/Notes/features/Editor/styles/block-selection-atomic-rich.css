@@ -26,8 +26,6 @@
   isolation: isolate;
   position: relative;
   z-index: var(--vlaina-z-1);
-  background: transparent !important;
-  background-color: transparent !important;
   overflow: visible;
   overflow-x: visible;
   overflow-y: visible;
@@ -35,6 +33,22 @@
   outline-offset: var(--vlaina-atomic-rich-selected-border-outline-offset);
   box-shadow: var(--vlaina-block-selection-shadow);
   transition: none !important;
+}
+
+.milkdown .ProseMirror :is(
+  [data-type='math-block'].math-block-wrapper,
+  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block
+):is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source-textlike,
+  .editor-native-selected-textlike
+) {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .milkdown .ProseMirror :is(
@@ -79,7 +93,7 @@ body.editor-block-drag-active .milkdown .ProseMirror :is(
   box-shadow: none !important;
 }
 
-.milkdown .ProseMirror .mermaid-block[data-type='mermaid'].mermaid-block.mermaid-block.mermaid-block:is(
+.milkdown .ProseMirror .mermaid-block[data-type='mermaid']:is(
   .editor-block-selected,
   .editor-block-drag-source,
   .ProseMirror-selectednode,

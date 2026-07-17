@@ -3,6 +3,7 @@ import type { FolderNode } from '@/stores/useNotesStore';
 import type { StarredEntry } from '@/stores/notes/types';
 import {
   buildNotesSidebarSearchIndex,
+  createNotesSidebarSearchSession,
   NOTES_SIDEBAR_MAX_SEARCH_RESULTS,
   type NotesSidebarSearchEntry,
   queryNotesSidebarSearch,
@@ -11,6 +12,8 @@ import {
 } from './notesSidebarSearchResults';
 
 const EMPTY_STARRED_ENTRIES: StarredEntry[] = [];
+const CONTENT_SEARCH_BATCH_ENTRIES = 32;
+const CONTENT_SEARCH_BATCH_CHARS = 256 * 1024;
 
 export function useSidebarContentSearchResults({
   rootFolder,
@@ -51,6 +54,10 @@ export function useSidebarContentSearchResults({
   } | null>(null);
   const [isContentScanPending, setIsContentScanPending] = useState(false);
   const [scanCompletionRevision, setScanCompletionRevision] = useState(0);
+  const [incrementalSearch, setIncrementalSearch] = useState<{
+    key: object;
+    results: ReturnType<typeof queryNotesSidebarSearch>;
+  } | null>(null);
 
   const searchIndex = useMemo(
     () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName, {
@@ -80,32 +87,70 @@ export function useSidebarContentSearchResults({
     [contentSearchEntries, noteContentsCache, searchableNoteCount],
   );
 
-  const searchResults = useMemo(
-    () => {
-      if (!shouldSearchContents || structuralResultsFillLimit) {
-        return structuralSearchResults;
-      }
-
-      return queryNotesSidebarSearch(
-        searchIndex,
-        searchQuery,
-        (path) => liveNoteContent?.path === path
-          ? liveNoteContent.content
-          : noteContentsCache.get(path)?.content,
-        structuralSearchResults,
-      );
-    },
-    [
-      noteContentsCache,
-      liveNoteContent?.content,
-      liveNoteContent?.path,
+  const incrementalSearchKey = useMemo(() => ({}), [
+    currentNotesRootPath,
+    liveNoteContent?.content,
+    liveNoteContent?.path,
+    noteContentsCache,
+    noteContentsCacheRevision,
+    rootFolder,
+    searchQuery,
+    starredEntries,
+  ]);
+  const incrementalSearchStart = useMemo(() => {
+    const session = createNotesSidebarSearchSession(
       searchIndex,
       searchQuery,
-      shouldSearchContents,
-      structuralResultsFillLimit,
+      (path) => liveNoteContent?.path === path
+        ? liveNoteContent.content
+        : noteContentsCache.get(path)?.content,
       structuralSearchResults,
-    ],
-  );
+    );
+    return {
+      session,
+      firstBatch: session.runBatch(CONTENT_SEARCH_BATCH_ENTRIES, CONTENT_SEARCH_BATCH_CHARS),
+    };
+  }, [incrementalSearchKey]);
+  const searchResults = !shouldSearchContents || structuralResultsFillLimit
+    ? structuralSearchResults
+    : incrementalSearch?.key === incrementalSearchKey
+      ? incrementalSearch.results
+      : incrementalSearchStart.firstBatch.results;
+
+  useEffect(() => {
+    if (!shouldSearchContents || structuralResultsFillLimit) {
+      setIncrementalSearch(null);
+      return;
+    }
+
+    if (incrementalSearchStart.firstBatch.done) {
+      setIncrementalSearch(null);
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | null = null;
+    const runBatch = () => {
+      const next = incrementalSearchStart.session.runBatch(
+        CONTENT_SEARCH_BATCH_ENTRIES,
+        CONTENT_SEARCH_BATCH_CHARS,
+      );
+      if (cancelled) return;
+      setIncrementalSearch({ key: incrementalSearchKey, results: next.results });
+      if (!next.done) timer = window.setTimeout(runBatch, 0);
+    };
+    timer = window.setTimeout(runBatch, 0);
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [
+    incrementalSearchKey,
+    incrementalSearchStart,
+    shouldSearchContents,
+    structuralResultsFillLimit,
+  ]);
 
   useEffect(() => {
     const wasContentSearchActive = wasContentSearchActiveRef.current;

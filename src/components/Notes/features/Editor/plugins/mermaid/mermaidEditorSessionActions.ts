@@ -4,7 +4,7 @@ import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
 import {
   createClosedMermaidEditorState,
-  shouldDiscardEmptyMermaidNodeOnCancel,
+  shouldDiscardNewMermaidNodeOnCancel,
   shouldRemoveMermaidNodeOnSave,
 } from './mermaidEditorState';
 import type { MermaidEditorState } from './types';
@@ -56,9 +56,8 @@ function restoreOriginalCode(args: MermaidEditorSessionActionArgs, state: Mermai
 
 export function cancelMermaidEditorSession(args: MermaidEditorSessionActionArgs) {
   const state = args.getEditorState();
-  const draftCode = resolveCurrentDraftCode(args.refs);
 
-  if (state && shouldDiscardEmptyMermaidNodeOnCancel(state, draftCode)) {
+  if (state && shouldDiscardNewMermaidNodeOnCancel(state)) {
     removeMermaidNode(args.editorView as never, state.nodePos);
   } else if (state) {
     restoreOriginalCode(args, state);
