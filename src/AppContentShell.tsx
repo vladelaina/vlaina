@@ -70,7 +70,9 @@ function ConnectedAppShell({
     <AppShell
       sidebarWidth={sidebarWidth}
       sidebarCollapsed={sidebarCollapsed}
-      sidebarHoverPeekEnabled={effectiveAppViewMode !== 'whiteboard'}
+      sidebarHoverPeekEnabled={
+        effectiveAppViewMode !== 'whiteboard' && effectiveAppViewMode !== 'graph'
+      }
       onSidebarWidthChange={setSidebarWidth}
       onSidebarToggle={toggleSidebar}
       sidebarContent={sidebarContent}
@@ -170,7 +172,7 @@ export function AppContentShell({
       {shouldRenderGraphSidebar ? (
         <SidebarPane visible={shouldShowGraphSidebar}>
           <Suspense fallback={null}>
-            <GraphSidebar />
+            <GraphSidebar active={shouldShowGraphSidebar} />
           </Suspense>
         </SidebarPane>
       ) : null}

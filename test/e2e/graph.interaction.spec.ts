@@ -67,6 +67,25 @@ test.describe('graph interactions', () => {
       await setAppViewMode(page, 'graph');
 
       await expect(graphView).toHaveAttribute('data-graph-active', 'true');
+      const graphSidebar = page.locator('[data-graph-sidebar="true"]');
+      const graphSearchInput = graphSidebar.getByRole('textbox');
+      const graphModeSelector = graphSidebar.locator('[data-graph-mode-indicator="true"]').locator('..');
+      await page.keyboard.press('Control+Shift+F');
+      await expect(graphSearchInput).toBeFocused();
+      const [searchInputBox, modeSelectorBox] = await Promise.all([
+        graphSearchInput.boundingBox(),
+        graphModeSelector.boundingBox(),
+      ]);
+      expect(searchInputBox).not.toBeNull();
+      expect(modeSelectorBox).not.toBeNull();
+      expect(searchInputBox!.y + searchInputBox!.height).toBeLessThan(modeSelectorBox!.y);
+      await page.keyboard.press('Escape');
+      await expect(graphSidebar.locator('[data-sidebar-search-drawer="true"]')).toHaveAttribute('data-state', 'closed');
+      await expect(graphSearchInput).toBeHidden();
+      await graphSidebar.locator('[data-sidebar-scroll-root="true"]').hover();
+      await page.mouse.wheel(0, -80);
+      await expect(graphSearchInput).toBeFocused();
+      await page.keyboard.press('Escape');
       const entryAnimation = await nodes.evaluateAll((elements) => {
         const delays = elements.map((element) => (
           Number.parseFloat(getComputedStyle(element.parentElement!).animationDelay) || 0

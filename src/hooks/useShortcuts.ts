@@ -19,9 +19,15 @@ import { isOpenSettingsBinding } from '@/lib/shortcuts';
 
 const FONT_SIZE_WHEEL_COMMIT_DELAY_MS = 180;
 
-function resolveSidebarSearchScope(target: EventTarget | null, appViewMode: string): 'notes' | 'chat' {
+function resolveSidebarSearchScope(target: EventTarget | null, appViewMode: string): 'notes' | 'chat' | 'graph' {
   if (target instanceof Element && target.closest('[data-chat-view-mode]')) {
     return 'chat';
+  }
+  if (target instanceof Element && target.closest('[data-graph-view-mode]')) {
+    return 'graph';
+  }
+  if (appViewMode === 'graph') {
+    return 'graph';
   }
   return appViewMode === 'chat' ? 'chat' : 'notes';
 }

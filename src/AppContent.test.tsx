@@ -534,6 +534,7 @@ describe('AppContent view switching chrome readiness', () => {
       expect(screen.getByTestId('graph-view')).toHaveAttribute('data-active', 'true');
     });
     expect(screen.getByTestId('graph-sidebar').parentElement).not.toHaveClass('hidden');
+    expect(screen.getByTestId('app-shell')).toHaveAttribute('data-sidebar-hover-peek', 'false');
     expect(mocks.graphMounts).toBe(1);
     expect(mocks.graphSidebarMounts).toBe(1);
   });
