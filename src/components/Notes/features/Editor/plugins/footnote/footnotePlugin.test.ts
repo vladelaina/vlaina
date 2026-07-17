@@ -6,6 +6,8 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { DOMParser as ProseDOMParser, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { getMarkdown } from '@milkdown/kit/utils';
 import {
   MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS,
   footnoteInteractionPluginKey,
@@ -20,6 +22,7 @@ import {
 import { normalizeFootnoteLabel, normalizeFootnotePreview } from './footnoteLabels';
 import { configureTheme } from '../../theme';
 import { atomicBlockKeyboardNavigationPlugin } from '../cursor/atomicBlockKeyboardNavigationPlugin';
+import { autoPairPlugin } from '../pairs/autoPairPlugin';
 
 function createRecorder() {
   const calls: Array<{ method: string; args: unknown[] }> = [];
@@ -55,6 +58,33 @@ function findTextEndPosition(doc: any, text: string): number {
     throw new Error(`Text not found: ${text}`);
   }
   return position;
+}
+
+function typeText(view: EditorView, input: string): void {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+    view.someProp('handleTextInput', (handleTextInput: any) => {
+      handled = handleTextInput(view, from, to, text) || handled;
+      return handled;
+    });
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+  }
+}
+
+function pressEnter(view: EditorView): boolean {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+  });
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    if (handled) return handled;
+    handled = handleKeyDown(view, event) || handled;
+    return handled;
+  });
+  return handled;
 }
 
 describe('footnote markdown serialization', () => {
@@ -97,6 +127,33 @@ describe('footnote markdown serialization', () => {
 });
 
 describe('footnote reference markup', () => {
+  it('creates an editable footnote definition from its typed marker', async () => {
+    const editor = Editor.make()
+      .config((ctx) => ctx.set(defaultValueCtx, ''))
+      .use(commonmark)
+      .use(gfm)
+      .use(footnotePlugin)
+      .use(autoPairPlugin);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '[^typed-note]: Typed **footnote body**');
+    expect(pressEnter(view)).toBe(true);
+
+    const definition = view.state.doc.firstChild;
+    expect(definition?.type.name).toBe('footnote_definition');
+    expect(definition?.attrs.label).toBe('typed-note');
+    expect(definition?.textContent).toBe('Typed footnote body');
+    expect(definition?.firstChild?.lastChild?.marks.some((mark) => mark.type.name === 'strong')).toBe(true);
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+    expect(view.state.selection.$from.depth).toBe(1);
+    expect(editor.action(getMarkdown())).toContain('[^typed-note]: Typed **footnote body**');
+
+    await editor.destroy();
+  });
+
   it('bounds footnote reference input prefix checks', () => {
     const textBetween = vi.fn(() => 'prefix');
     const start = 10_000;

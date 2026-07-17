@@ -176,47 +176,13 @@
   cursor: pointer !important;
 }
 
-.milkdown .ProseMirror.editor-block-selection-pending :is(
-  [data-type='math-inline'],
-  [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .mermaid-block
-):is(:hover, :focus-visible),
-.milkdown .ProseMirror.editor-block-selection-pending :is(
-  [data-type='math-inline'],
-  [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .mermaid-block
-):is(:hover, :focus-visible) * {
-  cursor: crosshair !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending :is(
-  [data-type='math-inline'],
-  [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .mermaid-block
-):not(.editor-block-selected):is(:hover, :focus-visible) {
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is(:hover, :focus-visible) {
-  background: var(--vlaina-math-hover-color) !important;
-  box-shadow:
-    inset 0 0 0 1px var(--vlaina-math-hover-color),
-    0 var(--vlaina-math-hover-bleed-y) 0 0 var(--vlaina-math-hover-color),
-    0 calc(-1 * var(--vlaina-math-hover-bleed-y)) 0 0 var(--vlaina-math-hover-color),
-    calc(-1 * var(--vlaina-math-hover-bleed-x-start)) 0 0 0 var(--vlaina-math-hover-color) !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-active :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ).editor-block-selected:is(:hover, :focus-visible),
-.milkdown .ProseMirror.editor-block-selection-active :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
@@ -225,20 +191,10 @@
   cursor: default !important;
 }
 
-.milkdown .ProseMirror.editor-block-selection-active :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   [data-type='math-inline']
 ).editor-block-selected:is(:hover, :focus-visible) {
   background: transparent !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {
-  background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
-  box-shadow: var(--vlaina-block-selection-shadow) !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected,
-.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected * {
-  cursor: crosshair !important;
 }
 
 .milkdown .ProseMirror .editor-block-selected :is(

@@ -1,5 +1,6 @@
 export * from './doc'
 export * from './heading'
+export * from './setext-heading-input'
 export * from './blockquote'
 export * from './code-block'
 export * from './image'

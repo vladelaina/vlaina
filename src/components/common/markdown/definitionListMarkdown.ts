@@ -101,7 +101,8 @@ export function applyDefinitionListsToTree(
 
     for (let index = 0; index < node.children.length; index += 1) {
       const child = node.children[index];
-      const combined = splitCombinedDefinitionParagraph(child, markdown);
+      const canReplaceAtIndex = node.type !== 'listItem' || index > 0;
+      const combined = canReplaceAtIndex ? splitCombinedDefinitionParagraph(child, markdown) : null;
       if (combined) {
         if (!growthBudget.consume(countMarkdownAstNodes(combined) - countMarkdownAstNodes(child))) {
           continue;
@@ -117,6 +118,7 @@ export function applyDefinitionListsToTree(
         markEscapedMarkdownBlockSyntax(next, 'definitionListDescription');
       }
       if (
+        canReplaceAtIndex &&
         termText.length > 0 &&
         termText.length < 80 &&
         hasDescriptionPrefix &&

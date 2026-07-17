@@ -12,6 +12,8 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { configureTheme } from '../../theme';
+import { autoPairPlugin } from '../pairs/autoPairPlugin';
+import { markdownImageInputPlugin } from './markdownImageInputPlugin';
 
 async function serializeImageAttrs(attrs: Record<string, unknown>) {
   const editor = Editor.make()
@@ -148,6 +150,40 @@ async function getSerializedImageDomAttrs(attrs: Record<string, unknown>) {
 }
 
 describe('image markdown persistence', () => {
+  it('creates a markdown image while consuming an auto-paired closing parenthesis', async () => {
+    const editor = Editor.make()
+      .config((ctx) => ctx.set(defaultValueCtx, ''))
+      .use(commonmark)
+      .use(gfm)
+      .use(configureTheme)
+      .use(markdownImageInputPlugin)
+      .use(autoPairPlugin);
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    for (const text of '![Typed image](https://example.com/typed.png)') {
+      const { from, to } = view.state.selection;
+      let handled = false;
+      view.someProp('handleTextInput', (handler: any) => {
+        handled = handler(view, from, to, text) || handled;
+        return handled;
+      });
+      if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+    }
+
+    const image = view.state.doc.firstChild?.firstChild;
+    expect(image?.type.name).toBe('image');
+    expect(image?.attrs).toMatchObject({
+      src: 'https://example.com/typed.png',
+      alt: 'Typed image',
+      persistedSrc: 'https://example.com/typed.png',
+    });
+    expect(editor.ctx.get(serializerCtx)(view.state.doc).trim()).toBe(
+      '![Typed image](https://example.com/typed.png)',
+    );
+    await editor.destroy();
+  });
+
   it('serializes uploaded image attrs as html image syntax', async () => {
     await expect(serializeImageAttrs({
       src: './assets/demo-image.png',

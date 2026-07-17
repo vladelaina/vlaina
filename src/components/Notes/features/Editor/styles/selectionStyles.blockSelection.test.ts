@@ -96,7 +96,7 @@ describe("editor block selection styles", () => {
     expect(linkRule).toContain(`-webkit-text-fill-color: ${linkColor} !important;`);
     expect(css).toContain(linkExclusion);
     expect(themeCompatibilityCss).toContain(linkExclusion);
-    expect(themeCompatibilityCss).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(");
+    expect(themeCompatibilityCss).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled :is(");
     expect(themeCompatibilityCss).toContain("):is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) {");
     expect(themeCompatibilityCss).toContain(`color: ${linkColor} !important;`);
     expect(themeCompatibilityCss).toContain(`-webkit-text-fill-color: ${linkColor} !important;`);

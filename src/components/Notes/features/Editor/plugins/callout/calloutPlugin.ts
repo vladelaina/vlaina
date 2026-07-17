@@ -25,6 +25,7 @@ import {
 } from './calloutMarkdown';
 import { updateSchemaFactory } from '../../themeSchemaUtils';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { handleCalloutShortcutEnter } from './calloutShortcutEnter';
 
 export { serializeCalloutToMarkdown } from './calloutMarkdown';
 
@@ -195,6 +196,11 @@ export const calloutKeymapPlugin = $prose(() => {
 
         if (event.key !== 'Enter' && event.key !== 'Backspace' && event.key !== 'Delete') {
           return false;
+        }
+
+        if (event.key === 'Enter' && handleCalloutShortcutEnter(view)) {
+          event.preventDefault();
+          return true;
         }
 
         if (!handleEmptyCalloutExit(view)) {

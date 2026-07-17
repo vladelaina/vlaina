@@ -15,6 +15,7 @@ import {
 
 import { serializeText, withMeta } from '../__internal__'
 import { paragraphSchema } from './paragraph'
+import { createSetextHeadingFromDelimiter } from './setext-heading-input'
 
 const headingIndex = Array(6)
   .fill(0)
@@ -223,6 +224,15 @@ withMeta(downgradeHeadingCommand, {
 /// - `<Mod-Alt-{1-6}>`: Turn the selected block into `h{1-6}` element.
 /// - `<Delete>/<Backspace>`: Downgrade the selected heading.
 export const headingKeymap = $useKeymap('headingKeymap', {
+  CreateSetextHeading: {
+    priority: 1100,
+    shortcuts: 'Enter',
+    command: (ctx) =>
+      createSetextHeadingFromDelimiter(
+        headingSchema.type(ctx),
+        paragraphSchema.type(ctx)
+      ),
+  },
   TurnIntoH1: {
     shortcuts: 'Mod-Alt-1',
     command: (ctx) => {

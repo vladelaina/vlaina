@@ -158,13 +158,13 @@ export function stripAbbrDefinitionsFromTree(
   markdown = '',
   growthBudget: MarkdownAstGrowthBudget = createMarkdownAstGrowthBudget(tree)
 ): void {
-  function visit(node: AbbrMdastNode): boolean {
+  function visit(node: AbbrMdastNode, preserveContent = false): boolean {
     if (SKIPPED_ABBR_NODE_TYPES.has(node.type)) return false;
 
     if (node.children) {
       for (let childIndex = node.children.length - 1; childIndex >= 0; childIndex -= 1) {
         const child = node.children[childIndex];
-        if (child.type === 'text' && typeof child.value === 'string') {
+        if (!preserveContent && child.type === 'text' && typeof child.value === 'string') {
           const strippedNodes = stripAbbrDefinitionLineNodes(child, markdown);
           if (strippedNodes) {
             if (!growthBudget.consume(countMarkdownAstNodeList(strippedNodes) - 1)) {
@@ -175,7 +175,8 @@ export function stripAbbrDefinitionsFromTree(
           continue;
         }
 
-        if (visit(child)) {
+        const preserveChildContent = node.type === 'listItem' && childIndex === 0;
+        if (visit(child, preserveChildContent)) {
           node.children.splice(childIndex, 1);
         }
       }

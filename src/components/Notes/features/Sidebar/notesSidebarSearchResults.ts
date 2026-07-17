@@ -156,63 +156,96 @@ export function queryNotesSidebarSearch(
   getNoteContent?: (path: string) => string | undefined,
   structuralResults = queryNotesSidebarStructuralSearch(index, query),
 ): NotesSidebarSearchResult[] {
-  const trimmedQuery = getBoundedTrimmedSearchQuery(query);
-  if (!trimmedQuery) {
-    return [];
+  const session = createNotesSidebarSearchSession(
+    index,
+    query,
+    getNoteContent,
+    structuralResults,
+  );
+  let result = session.runBatch(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+  while (!result.done) {
+    result = session.runBatch(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
   }
+  return result.results;
+}
 
-  const lowerQuery = trimmedQuery.toLocaleLowerCase();
-  const includeContentMatches = shouldSearchNotesSidebarContents(trimmedQuery);
-  if (
-    !includeContentMatches ||
-    !getNoteContent ||
-    structuralResults.length >= NOTES_SIDEBAR_MAX_SEARCH_RESULTS
-  ) {
-    return structuralResults.slice(0, NOTES_SIDEBAR_MAX_SEARCH_RESULTS);
-  }
+export function createNotesSidebarSearchSession(
+  index: NotesSidebarSearchEntry[],
+  query: string,
+  getNoteContent?: (path: string) => string | undefined,
+  structuralResults = queryNotesSidebarStructuralSearch(index, query),
+) {
+  const trimmedQuery = getBoundedTrimmedSearchQuery(query);
+  const boundedStructuralResults = trimmedQuery
+    ? structuralResults.slice(0, NOTES_SIDEBAR_MAX_SEARCH_RESULTS)
+    : [];
+  const canSearchContent = Boolean(
+    trimmedQuery &&
+    shouldSearchNotesSidebarContents(trimmedQuery) &&
+    getNoteContent &&
+    structuralResults.length < NOTES_SIDEBAR_MAX_SEARCH_RESULTS
+  );
+  const lowerQuery = trimmedQuery?.toLocaleLowerCase() ?? '';
 
   const contentResults: NotesSidebarSearchResult[] = [];
   const contentResultLimit = NOTES_SIDEBAR_MAX_SEARCH_RESULTS - structuralResults.length;
-  const contentEntries = getContentSearchEntriesByPath(index);
+  const contentEntries = canSearchContent ? getContentSearchEntriesByPath(index) : [];
+  let contentEntryIndex = 0;
   let searchedContentEntries = 0;
   let searchedContentChars = 0;
 
-  for (const entry of contentEntries) {
-    if (
-      contentResults.length >= contentResultLimit ||
-      searchedContentEntries >= NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES ||
-      searchedContentChars >= NOTES_SIDEBAR_MAX_CONTENT_SEARCH_CHARS
-    ) {
-      break;
-    }
+  const buildResults = () => {
+    contentResults.sort(compareSearchResults);
+    return [...boundedStructuralResults, ...contentResults].slice(0, NOTES_SIDEBAR_MAX_SEARCH_RESULTS);
+  };
 
-    const content = getNoteContent(entry.path);
-    if (!content) {
-      continue;
-    }
+  return {
+    runBatch(maxInspectedEntries: number, maxContentChars: number) {
+      let inspectedEntries = 0;
+      let batchContentChars = 0;
+      while (
+        contentEntryIndex < contentEntries.length &&
+        contentResults.length < contentResultLimit &&
+        searchedContentEntries < NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES &&
+        searchedContentChars < NOTES_SIDEBAR_MAX_CONTENT_SEARCH_CHARS &&
+        inspectedEntries < maxInspectedEntries &&
+        batchContentChars < maxContentChars
+      ) {
+        const entry = contentEntries[contentEntryIndex++];
+        inspectedEntries += 1;
+        const content = getNoteContent?.(entry.path);
+        if (!content) continue;
 
-    searchedContentEntries += 1;
-    searchedContentChars += Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS);
+        searchedContentEntries += 1;
+        const scannedChars = Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS);
+        searchedContentChars += scannedChars;
+        batchContentChars += scannedChars;
 
-    const contentMatches = getNotesSidebarContentMatches(content, lowerQuery);
-    for (const contentMatch of contentMatches) {
-      contentResults.push({
-        ...entry,
-        id: `${entry.path}::content::${contentMatch.ordinal}`,
-        matchIndex: contentMatch.matchIndex,
-        matchKind: 'content',
-        contentSnippet: contentMatch.snippet,
-        contentMatchOrdinal: contentMatch.ordinal,
-      });
-
-      if (contentResults.length >= contentResultLimit) {
-        break;
+        for (const contentMatch of getNotesSidebarContentMatches(content, lowerQuery)) {
+          contentResults.push({
+            ...entry,
+            id: `${entry.path}::content::${contentMatch.ordinal}`,
+            matchIndex: contentMatch.matchIndex,
+            matchKind: 'content',
+            contentSnippet: contentMatch.snippet,
+            contentMatchOrdinal: contentMatch.ordinal,
+          });
+          if (contentResults.length >= contentResultLimit) break;
+        }
       }
-    }
-  }
 
-  contentResults.sort(compareSearchResults);
-  return [...structuralResults, ...contentResults].slice(0, NOTES_SIDEBAR_MAX_SEARCH_RESULTS);
+      const done = (
+        contentEntryIndex >= contentEntries.length ||
+        contentResults.length >= contentResultLimit ||
+        searchedContentEntries >= NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES ||
+        searchedContentChars >= NOTES_SIDEBAR_MAX_CONTENT_SEARCH_CHARS
+      );
+      return {
+        done,
+        results: buildResults(),
+      };
+    },
+  };
 }
 
 export function queryNotesSidebarStructuralSearch(

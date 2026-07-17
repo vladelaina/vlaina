@@ -4,6 +4,7 @@ import { isSafeNotesRootPathSegment, MAX_NOTES_ROOT_RELATIVE_PATH_CHARS } from '
 import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 export const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
+export const MAX_METADATA_TOTAL_READ_BYTES = 32 * 1024 * 1024;
 export const MAX_WORKSPACE_STATE_BYTES = 256 * 1024;
 export const utf8Encoder = new TextEncoder();
 

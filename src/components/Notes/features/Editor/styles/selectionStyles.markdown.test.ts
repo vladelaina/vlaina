@@ -207,7 +207,7 @@ describe("editor markdown presentation styles", () => {
     const themeCompatibilityCss = readThemeCompatibilityStyle();
     const selectedInlineCodeRule = extractCssRule(
       css,
-      '.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is('
+      '.milkdown .ProseMirror.editor-block-selection-enabled :is('
     );
     const externalSelectedInlineCodeRule = extractCssRule(
       themeCompatibilityCss,
@@ -227,7 +227,7 @@ describe("editor markdown presentation styles", () => {
     expect(selectedInlineCodeRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(selectedInlineCodeRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
 
-    expect(themeCompatibilityCss).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(");
+    expect(themeCompatibilityCss).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled :is(");
     expect(themeCompatibilityCss).toContain(') :is(code:not(pre code), .v-std-code, .cm-inline-code),');
     expect(externalSelectedInlineCodeRule).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .editor-native-selected-textlike :is(code:not(pre code), .v-std-code, .cm-inline-code) {");
     expect(externalSelectedInlineCodeRule).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
@@ -241,7 +241,7 @@ describe("editor markdown presentation styles", () => {
     const themeCompatibilityCss = readThemeCompatibilityStyle();
     const selectedHighlightRule = extractCssRule(
       css,
-      '.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is('
+      '.milkdown .ProseMirror.editor-block-selection-enabled :is('
     );
     const externalSelectedHighlightRule = extractCssRule(
       themeCompatibilityCss,

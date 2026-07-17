@@ -1,12 +1,15 @@
 import { PluginKey, type EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { DecorationSet } from '@milkdown/kit/prose/view';
+import { themeStyleResetTokens } from '@/styles/themeTokens';
 import {
-  LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD,
+  isLargeBlockSelectionDocument,
+  shouldUseLargeBlockSelectionRendering,
   type BlockRange,
-} from './blockSelectionUtils';
+} from './blockSelectionTypes';
 
 const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
+const BLOCK_SELECTION_ENABLED_CLASS = 'editor-block-selection-enabled';
 const BLOCK_SELECTION_LARGE_CLASS = 'editor-block-selection-large';
 
 export interface BlankAreaDragBoxState {
@@ -48,16 +51,35 @@ export function clearBlockSelection(view: EditorView): void {
   dispatchBlockSelectionAction(view, CLEAR_BLOCKS_ACTION);
 }
 
-export function isLargeBlockSelection(selectedBlocks: readonly BlockRange[]): boolean {
-  return selectedBlocks.length >= LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD;
+export function isLargeBlockSelection(
+  selectedBlocks: readonly BlockRange[],
+  doc: { childCount: number },
+): boolean {
+  return shouldUseLargeBlockSelectionRendering(doc, selectedBlocks.length);
 }
 
-export function setBlockSelectionVisualState(view: EditorView, active: boolean, large = false): void {
-  view.dom.classList.toggle(BLOCK_SELECTION_ACTIVE_CLASS, active);
-  view.dom.classList.toggle(BLOCK_SELECTION_LARGE_CLASS, active && large);
+export function setBlockSelectionVisualState(
+  view: EditorView,
+  active: boolean,
+  large = isLargeBlockSelectionDocument(view.state.doc),
+): void {
+  view.dom.classList.toggle(BLOCK_SELECTION_ACTIVE_CLASS, active && !large);
+  view.dom.classList.toggle(BLOCK_SELECTION_LARGE_CLASS, large);
+  view.dom.style.caretColor = active && large
+    ? themeStyleResetTokens.colorTransparent
+    : '';
+}
+
+export function setBlockSelectionEnabled(view: EditorView, enabled: boolean): void {
+  view.dom.classList.toggle(BLOCK_SELECTION_ENABLED_CLASS, enabled);
 }
 
 export function syncBlockSelectionVisualState(view: EditorView): void {
   const { selectedBlocks } = getBlockSelectionPluginState(view.state);
-  setBlockSelectionVisualState(view, selectedBlocks.length > 0, isLargeBlockSelection(selectedBlocks));
+  setBlockSelectionVisualState(
+    view,
+    selectedBlocks.length > 0,
+    isLargeBlockSelectionDocument(view.state.doc)
+      || isLargeBlockSelection(selectedBlocks, view.state.doc),
+  );
 }

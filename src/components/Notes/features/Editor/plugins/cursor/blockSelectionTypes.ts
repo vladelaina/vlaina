@@ -25,3 +25,16 @@ export interface BlockRectYIndex {
 }
 
 export const LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD = 64;
+export const LARGE_BLOCK_SELECTION_DOCUMENT_CHILD_THRESHOLD = 256;
+
+export function isLargeBlockSelectionDocument(doc: { childCount: number }): boolean {
+  return doc.childCount >= LARGE_BLOCK_SELECTION_DOCUMENT_CHILD_THRESHOLD;
+}
+
+export function shouldUseLargeBlockSelectionRendering(
+  doc: { childCount: number },
+  selectedBlockCount: number,
+): boolean {
+  return selectedBlockCount >= LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD
+    || (selectedBlockCount > 0 && isLargeBlockSelectionDocument(doc));
+}

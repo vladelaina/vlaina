@@ -215,7 +215,7 @@ describe('pipe table shortcut input', () => {
     await editor.destroy();
   });
 
-  it('leaves spaced markdown table header rows as source text for delimiter-line typing', async () => {
+  it('creates a standard markdown table after the delimiter line is typed', async () => {
     const editor = Editor.make()
       .config((ctx) => {
         ctx.set(defaultValueCtx, '');
@@ -227,12 +227,78 @@ describe('pipe table shortcut input', () => {
     await editor.create();
 
     const view = editor.ctx.get(editorViewCtx);
-    typeText(view, '| 功能 | 操作步骤 | Windows | macOS |');
+    const serializer = editor.ctx.get(serializerCtx);
+    typeText(view, '| Left | Center | Right |');
     dispatchEnter(view);
 
     expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
-    expect(view.state.doc.firstChild?.textContent).toBe('| 功能 | 操作步骤 | Windows | macOS |');
+    expect(view.state.doc.firstChild?.textContent).toBe('| Left | Center | Right |');
     expect(getAncestorNodeNames(view)).not.toContain('table');
+
+    typeText(view, '| :--- | :---: | ---: |');
+    pressEnter(view);
+
+    const table = view.state.doc.firstChild;
+    expect(table?.type.name).toBe('table');
+    expect(table?.firstChild?.child(0).attrs.alignment).toBe('left');
+    expect(table?.firstChild?.child(1).attrs.alignment).toBe('center');
+    expect(table?.firstChild?.child(2).attrs.alignment).toBe('right');
+    expect(table?.child(1).child(0).attrs.alignment).toBe('left');
+    expect(table?.child(1).child(1).attrs.alignment).toBe('center');
+    expect(table?.child(1).child(2).attrs.alignment).toBe('right');
+    expect(getAncestorNodeNames(view)).toContain('table_cell');
+    const markdown = serializer(view.state.doc);
+    expect(markdown).toContain('Left');
+    expect(markdown).toContain('Center');
+    expect(markdown).toContain('Right');
+    expect(markdown).toMatch(/\| :?-+\s+\| :?-+:\s+\| -+: \|/);
+
+    await editor.destroy();
+  });
+
+  it('creates delimiter-line tables through the GFM preset without app table plugins', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '| Name | Value |');
+    pressEnter(view);
+    typeText(view, '| --- | --- |');
+    pressEnter(view);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('table');
+    expect(view.state.doc.firstChild?.firstChild?.firstChild?.textContent).toBe('Name');
+    expect(getAncestorNodeNames(view)).toContain('table_cell');
+
+    await editor.destroy();
+  });
+
+  it('keeps mismatched markdown table source as paragraphs', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(tableKeyboardPlugin);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '| A | B | C |');
+    pressEnter(view);
+    typeText(view, '| --- | --- |');
+    pressEnter(view);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(countNodesByType(view, 'table')).toBe(0);
 
     await editor.destroy();
   });

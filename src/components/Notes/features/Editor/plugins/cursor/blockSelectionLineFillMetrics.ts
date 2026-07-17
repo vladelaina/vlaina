@@ -67,8 +67,8 @@ export function resolveLineFillRight(
   view: EditorView,
   paragraph: HTMLElement,
   paragraphRect = paragraph.getBoundingClientRect(),
+  editorRect = view.dom.getBoundingClientRect(),
 ): number {
-  const editorRect = view.dom.getBoundingClientRect();
   const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;
   return Math.max(paragraphRect.right, selectedBlockRight) + resolveBlockSelectionBleedXEnd(paragraph);
 }

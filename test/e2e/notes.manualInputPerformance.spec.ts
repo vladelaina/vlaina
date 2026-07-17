@@ -19,7 +19,19 @@ test.describe('notes manual markdown input performance', () => {
 
   test('types representative manual markdown syntax segments without input stalls', async () => {
     const manualMarkdown = await fs.readFile(MANUAL_MARKDOWN_PATH, 'utf8');
-    const segments = createManualInputSegments(manualMarkdown);
+    const sourceSegments = createManualInputSegments(manualMarkdown, {
+      maxSegments: 30,
+      maxTableSegmentLines: 2,
+    });
+    const isTableSegment = (segment: string) => /^\|.+\|\n\|[- :|]+\|/m.test(segment);
+    const isSetextSegment = (segment: string) => /^[^\n]+\n(?:=+|-+)\s*$/.test(segment.trim());
+    const isLinewiseBlockSegment = (segment: string) => /^(?:[-+*]\s+|\d+[.)]\s+|>\s+)/.test(segment.trim());
+    const isHorizontalRuleSegment = (segment: string) => /^(?:\*\s*){3,}$/.test(segment.trim());
+    const isFootnoteDefinitionSegment = (segment: string) => /^\[\^[^\]]+\]:/.test(segment.trim());
+    const tableSegment = sourceSegments.find(isTableSegment);
+    const nonTableSegments = sourceSegments.filter((segment) => !isTableSegment(segment));
+    const segments = [nonTableSegments[0], tableSegment, ...nonTableSegments.slice(1)]
+      .filter((segment): segment is string => Boolean(segment));
     expect(segments.length).toBeGreaterThan(10);
 
     const { app, userDataRoot } = await launchIsolatedElectron('notes-manual-input-performance');
@@ -47,16 +59,56 @@ test.describe('notes manual markdown input performance', () => {
         isTable: boolean;
         textStart: string;
       }> = [];
+      const expectedTableHeaderTexts: string[] = [];
+      const expectedSetextHeadings: Array<{ level: 1 | 2; text: string }> = [];
 
       for (const [index, segment] of segments.entries()) {
         const startedAt = Date.now();
-        await page.keyboard.type(segment, { delay: 0 });
+        const isTable = isTableSegment(segment);
+        if (isTable) {
+          const [headerLine, delimiterLine] = segment.trim().split(/\r?\n/);
+          const firstHeaderCell = headerLine.split('|').map((cell) => cell.trim()).find(Boolean);
+          if (firstHeaderCell) expectedTableHeaderTexts.push(firstHeaderCell);
+          await page.keyboard.type(headerLine, { delay: 0 });
+          await page.keyboard.press('Enter');
+          await page.keyboard.type(delimiterLine, { delay: 0 });
+          await page.keyboard.press('Enter');
+          await page.keyboard.press('Control+Enter');
+        } else if (isSetextSegment(segment)) {
+          const [headingLine, delimiterLine] = segment.trim().split(/\r?\n/);
+          expectedSetextHeadings.push({
+            level: delimiterLine.trim().startsWith('=') ? 1 : 2,
+            text: headingLine.trim(),
+          });
+          await page.keyboard.type(headingLine, { delay: 0 });
+          await page.keyboard.press('Enter');
+          await page.keyboard.type(delimiterLine, { delay: 0 });
+          await page.keyboard.press('Enter');
+        } else if (isHorizontalRuleSegment(segment)) {
+          await page.keyboard.type(segment.trim(), { delay: 0 });
+          await page.keyboard.press('Enter');
+        } else if (isFootnoteDefinitionSegment(segment)) {
+          await page.keyboard.type(segment.trim(), { delay: 0 });
+          await page.keyboard.press('Enter');
+        } else if (isLinewiseBlockSegment(segment)) {
+          const lines = segment.trim().split(/\r?\n/);
+          for (const [lineIndex, line] of lines.entries()) {
+            await page.keyboard.type(line, { delay: 0 });
+            if (lineIndex < lines.length - 1) {
+              await page.keyboard.press('Enter');
+            }
+          }
+          await page.keyboard.press('Enter');
+          await page.keyboard.press('Enter');
+        } else {
+          await page.keyboard.type(segment, { delay: 0 });
+        }
         await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
         inputMetrics.push({
           index,
           chars: segment.length,
           durationMs: Date.now() - startedAt,
-          isTable: /^\|.+\|\n\|[- :|]+\|/m.test(segment),
+          isTable,
           textStart: segment.trim().slice(0, 80),
         });
       }
@@ -76,6 +128,7 @@ test.describe('notes manual markdown input performance', () => {
           .map((metric) => metric.durationMs),
       );
       const tableInputCount = inputMetrics.filter((metric) => metric.isTable).length;
+      const renderedTableTexts = await page.locator(`${EDITOR_SELECTOR} table`).allTextContents();
 
       console.info('[notes-manual-input-performance]', {
         segmentCount: segments.length,
@@ -92,8 +145,21 @@ test.describe('notes manual markdown input performance', () => {
       expect(domMetrics.countsBySelector.headings).toBeGreaterThan(0);
       expect(domMetrics.countsBySelector.codeBlocks).toBeGreaterThan(0);
       expect(domMetrics.countsBySelector.bulletItems).toBeGreaterThan(0);
+      expect(domMetrics.countsBySelector.orderedItems).toBeGreaterThan(0);
+      expect(domMetrics.countsBySelector.taskItems).toBeGreaterThan(0);
+      expect(domMetrics.countsBySelector.blockquotes).toBeGreaterThan(0);
+      expect(domMetrics.countsBySelector.horizontalRules).toBeGreaterThan(0);
+      expect(domMetrics.countsBySelector.footnoteDefs).toBeGreaterThan(0);
+      expect(domMetrics.countsBySelector.tables).toBe(tableInputCount);
       expect(tableInputCount).toBeGreaterThan(0);
-      await expect(page.locator(EDITOR_SELECTOR)).toContainText('| 功能');
+      expect(expectedSetextHeadings.length).toBeGreaterThan(0);
+      await expect(page.locator(`${EDITOR_SELECTOR} table`).filter({ hasText: '功能' })).toHaveCount(1);
+      for (const expectedHeader of expectedTableHeaderTexts) {
+        expect(renderedTableTexts.some((text) => text.includes(expectedHeader))).toBe(true);
+      }
+      for (const heading of expectedSetextHeadings) {
+        await expect(page.locator(`${EDITOR_SELECTOR} h${heading.level}`, { hasText: heading.text })).toHaveCount(1);
+      }
       expect(domMetrics.renderedBlockCount).toBeGreaterThan(12);
       expect(domMetrics.editorTextLength).toBeGreaterThan(700);
       expect(blockScanMetrics.p95Ms).toBeLessThan(250);

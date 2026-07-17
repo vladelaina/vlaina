@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startBlockDragSession } from './blockDragSession';
+import { isBlockSelectionInteractionPending } from './blockSelectionInteractionState';
 
 function setupViewDom() {
   const editorRoot = document.createElement('div');
@@ -50,6 +51,7 @@ describe('startBlockDragSession', () => {
     });
 
     expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    expect(isBlockSelectionInteractionPending(view.dom)).toBe(true);
     expect(cursorRoot.style.cursor).toBe('');
     expect(document.body.style.cursor).toBe('');
     expect(view.dom.style.cursor).toBe('');
@@ -61,6 +63,7 @@ describe('startBlockDragSession', () => {
     expect(onPlainClick).toHaveBeenCalledWith('outside-editor');
     expect(onTeardown).toHaveBeenCalledTimes(1);
     expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    expect(isBlockSelectionInteractionPending(view.dom)).toBe(false);
     expect(cursorRoot.style.cursor).toBe('');
     expect(document.body.style.userSelect).toBe('');
   });
@@ -126,6 +129,7 @@ describe('startBlockDragSession', () => {
       bottom: 54,
     });
     expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(true);
+    expect(document.querySelector('.editor-block-selection-interaction-shield')).not.toBeNull();
     expect(document.body.classList.contains('editor-block-dragging-cursor')).toBe(false);
     expect(cursorRoot.style.cursor).toBe('crosshair');
     expect(document.body.style.cursor).toBe('');
@@ -137,8 +141,46 @@ describe('startBlockDragSession', () => {
     expect(onPlainClick).not.toHaveBeenCalled();
     expect(onTeardown).toHaveBeenCalledTimes(1);
     expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    expect(document.querySelector('.editor-block-selection-interaction-shield')).toBeNull();
     expect(document.body.classList.contains('editor-block-dragging-cursor')).toBe(false);
     expect(document.body.style.userSelect).toBe('');
+  });
+
+  it('avoids mutating the ProseMirror class list for large document drags', () => {
+    const { view } = setupViewDom();
+    view.dom.classList.add('editor-block-selection-large');
+
+    startBlockDragSession({
+      view,
+      event: new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 10,
+        clientY: 20,
+      }),
+      startZone: 'below-last-block',
+      dragThreshold: 1,
+      cursor: 'crosshair',
+      onActivate: vi.fn(),
+      onDragMove: vi.fn(),
+      onPlainClick: vi.fn(),
+    });
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      cancelable: true,
+      buttons: 1,
+      clientX: 30,
+      clientY: 40,
+    }));
+
+    expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    expect(document.querySelector('.editor-block-selection-interaction-shield')).not.toBeNull();
+    expect(isBlockSelectionInteractionPending(view.dom)).toBe(true);
+
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(document.querySelector('.editor-block-selection-interaction-shield')).toBeNull();
+    expect(isBlockSelectionInteractionPending(view.dom)).toBe(false);
   });
 
   it('suppresses only the click generated immediately after an activated block drag', () => {

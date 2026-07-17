@@ -1,6 +1,10 @@
 import { $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
+import { Fragment } from '@milkdown/kit/prose/model';
+import { TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { normalizeFootnoteLabel } from './footnoteLabels';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
 
@@ -43,3 +47,98 @@ export const footnoteRefInputRule = $inputRule(() => {
   (rule as UndoableInputRule).undoable = false;
   return rule;
 });
+
+const footnoteReferencePattern = /\[\^([^\]\n]+)\]$/;
+
+export function handleFootnoteReferenceTextInput(
+  view: EditorView,
+  from: number,
+  to: number,
+  text: string,
+): boolean {
+  if (view.composing || text !== ']' || from !== to) return false;
+
+  const { state } = view;
+  const { selection } = state;
+  if (!selection.empty || from !== selection.from || to !== selection.to) return false;
+
+  const parent = selection.$from.parent;
+  if (!parent.inlineContent || parent.type.spec.code) return false;
+  const parentOffset = selection.$from.parentOffset;
+  const suffix = parent.textBetween(parentOffset, parent.content.size, '', '');
+  if (suffix !== '' && suffix !== ']') return false;
+
+  const textBefore = parent.textBetween(
+    Math.max(0, parentOffset - MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS),
+    parentOffset,
+    undefined,
+    '\uFFFC',
+  ) + text;
+  const match = footnoteReferencePattern.exec(textBefore);
+  const id = normalizeFootnoteLabel(match?.[1]);
+  if (!match || !id) return false;
+
+  const start = from - (match[0].length - text.length);
+  if (!hasNonBlankFootnoteRefInputPrefix(state.doc, selection.$from.start(), start)) {
+    return false;
+  }
+
+  const nodeType = state.schema.nodes.footnote_reference ?? state.schema.nodes.footnote_ref;
+  if (!nodeType) return false;
+  const attrs = nodeType.name === 'footnote_reference' ? { label: id } : { id };
+  const replaceTo = suffix ? to + suffix.length : to;
+  markEditorUserInput(view);
+  view.dispatch(state.tr.replaceWith(start, replaceTo, nodeType.create(attrs)));
+  return true;
+}
+
+const MAX_FOOTNOTE_DEF_SHORTCUT_CHARS = 8_192;
+const footnoteDefinitionPrefixPattern = /^(\[\^([^\]]+)\]:[ \t]*)/;
+
+export function handleFootnoteDefinitionShortcutEnter(view: EditorView): boolean {
+  const { state } = view;
+  const { selection } = state;
+  if (!selection.empty || selection.$from.depth < 1) return false;
+
+  const paragraphType = state.schema.nodes.paragraph;
+  const source = selection.$from.parent;
+  if (!paragraphType || source.type !== paragraphType) return false;
+  if (selection.$from.parentOffset !== source.content.size) return false;
+  if (source.content.size > MAX_FOOTNOTE_DEF_SHORTCUT_CHARS) return false;
+
+  const text = source.textBetween(0, source.content.size, '', '');
+  const match = footnoteDefinitionPrefixPattern.exec(text);
+  const id = normalizeFootnoteLabel(match?.[2]);
+  if (!match || !id) return false;
+
+  const footnoteType = state.schema.nodes.footnote_definition
+    ?? state.schema.nodes.footnote_def;
+  if (!footnoteType) return false;
+
+  const body = paragraphType.create(null, source.content.cut(match[1].length));
+  const attrs = footnoteType.name === 'footnote_definition'
+    ? { label: id }
+    : { id };
+  const footnote = footnoteType.create(attrs, [body]);
+  const trailingParagraph = paragraphType.create();
+  const replacement = Fragment.fromArray([footnote, trailingParagraph]);
+  const parentDepth = selection.$from.depth - 1;
+  const parent = selection.$from.node(parentDepth);
+  if (!parent.canReplace(
+    selection.$from.index(parentDepth),
+    selection.$from.indexAfter(parentDepth),
+    replacement,
+  )) {
+    return false;
+  }
+
+  const from = selection.$from.before(selection.$from.depth);
+  const to = selection.$from.after(selection.$from.depth);
+  const tr = state.tr.replaceWith(from, to, replacement);
+  view.dispatch(
+    tr
+      .setSelection(TextSelection.create(tr.doc, from + footnote.nodeSize + 1))
+      .scrollIntoView(),
+  );
+  return true;
+}
