@@ -146,7 +146,7 @@ export interface E2EBridge {
     activeSessionId: string | null;
   }>;
   switchChatSession(id: string): Promise<void>;
-  setAppViewMode(mode: 'notes' | 'chat'): Promise<void>;
+  setAppViewMode(mode: 'notes' | 'chat' | 'graph'): Promise<void>;
   initializeNotesRootStore(): Promise<void>;
   openNotesRoot(path: string, name?: string): Promise<boolean>;
   closeNotesRoot(): Promise<boolean>;

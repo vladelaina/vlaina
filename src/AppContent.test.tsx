@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppContent } from './AppContent';
 import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
 
-type AppViewMode = 'notes' | 'chat' | 'whiteboard' | 'lab';
+type AppViewMode = 'notes' | 'chat' | 'whiteboard' | 'graph' | 'lab';
 
 const mocks = vi.hoisted(() => ({
   appViewMode: 'notes' as AppViewMode,
@@ -30,6 +30,9 @@ const mocks = vi.hoisted(() => ({
   notesSidebarUnmounts: 0,
   whiteboardMounts: 0,
   whiteboardSidebarMounts: 0,
+  graphMounts: 0,
+  graphSidebarMounts: 0,
+  notesPrimaryReady: true,
 }));
 
 vi.mock('@/components/layout/shell/AppShell', () => ({
@@ -75,7 +78,7 @@ vi.mock('@/components/Notes/NotesView', () => {
     }) => {
       React.useEffect(() => {
         onStartupReady?.();
-        onPrimaryContentReady?.();
+        if (mocks.notesPrimaryReady) onPrimaryContentReady?.();
       }, [onPrimaryContentReady, onStartupReady]);
 
       return <div data-testid="notes-view" data-active={String(active)} />;
@@ -130,6 +133,35 @@ vi.mock('@/components/Whiteboard', () => ({
     }, []);
 
     return <div data-testid="whiteboard-sidebar" />;
+  },
+}));
+
+vi.mock('@/components/Graph', () => ({
+  GraphView: ({
+    active,
+    onStartupReady,
+    onPrimaryContentReady,
+  }: {
+    active?: boolean;
+    onStartupReady?: () => void;
+    onPrimaryContentReady?: () => void;
+  }) => {
+    React.useEffect(() => {
+      mocks.graphMounts += 1;
+    }, []);
+    React.useEffect(() => {
+      onStartupReady?.();
+      onPrimaryContentReady?.();
+    }, [onPrimaryContentReady, onStartupReady]);
+
+    return <div data-testid="graph-view" data-active={String(active)} />;
+  },
+  GraphSidebar: () => {
+    React.useEffect(() => {
+      mocks.graphSidebarMounts += 1;
+    }, []);
+
+    return <div data-testid="graph-sidebar" />;
   },
 }));
 
@@ -361,6 +393,9 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.notesSidebarUnmounts = 0;
     mocks.whiteboardMounts = 0;
     mocks.whiteboardSidebarMounts = 0;
+    mocks.graphMounts = 0;
+    mocks.graphSidebarMounts = 0;
+    mocks.notesPrimaryReady = true;
     mocks.unifiedLoaded = true;
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([importedTheme]);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
@@ -384,7 +419,7 @@ describe('AppContent view switching chrome readiness', () => {
     });
     await waitFor(() => {
       expect(mocks.temporaryChatToggleModuleImports).toBeGreaterThanOrEqual(1);
-    });
+    }, { timeout: 3000 });
   });
 
   it('prewarms managed models and account entitlements after the initial notes view is ready', async () => {
@@ -419,8 +454,8 @@ describe('AppContent view switching chrome readiness', () => {
 
     expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'true');
-    expect(screen.queryByTestId('chat-sidebar')).toBeNull();
-    expect(screen.queryByTestId('chat-view')).toBeNull();
+    expect(screen.getByTestId('chat-sidebar')).toHaveAttribute('data-active', 'false');
+    expect(screen.getByTestId('chat-view')).toHaveAttribute('data-active', 'false');
     expect(await screen.findByTestId('notes-tab-row', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(mocks.notesSidebarMounts).toBe(1);
 
@@ -450,9 +485,9 @@ describe('AppContent view switching chrome readiness', () => {
     const { rerender } = render(<AppContent />);
 
     expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
-    expect(screen.queryByTestId('notes-sidebar')).toBeNull();
-    expect(screen.queryByTestId('notes-view')).toBeNull();
-    expect(mocks.notesSidebarMounts).toBe(0);
+    expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'false');
+    expect(screen.getByTestId('notes-view')).toHaveAttribute('data-active', 'false');
+    expect(mocks.notesSidebarMounts).toBe(1);
 
     mocks.appViewMode = 'notes';
     rerender(<AppContent />);
@@ -485,11 +520,40 @@ describe('AppContent view switching chrome readiness', () => {
     expect(mocks.whiteboardSidebarMounts).toBe(1);
   });
 
-  it('keeps previously visited inactive sidebars mounted but out of layout', async () => {
+  it('prewarms the graph view and sidebar after the initial notes view is ready', async () => {
+    const { rerender } = render(<AppContent />);
+
+    expect(await screen.findByTestId('graph-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('graph-sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('graph-sidebar').parentElement).toHaveClass('hidden');
+    expect(mocks.graphMounts).toBe(1);
+    expect(mocks.graphSidebarMounts).toBe(1);
+
+    mocks.appViewMode = 'graph';
+    rerender(<AppContent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('graph-view')).toHaveAttribute('data-active', 'true');
+    });
+    expect(screen.getByTestId('graph-sidebar').parentElement).not.toHaveClass('hidden');
+    expect(mocks.graphMounts).toBe(1);
+    expect(mocks.graphSidebarMounts).toBe(1);
+  });
+
+  it('prewarms graph and whiteboard in the background before notes primary content is ready', async () => {
+    mocks.notesPrimaryReady = false;
+    render(<AppContent />);
+
+    expect(await screen.findByTestId('graph-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('whiteboard-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(mocks.prewarmManagedStartupDataInBackground).not.toHaveBeenCalled();
+  });
+
+  it('keeps inactive prewarmed sidebars mounted but out of layout', async () => {
     const { rerender } = render(<AppContent />);
 
     expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
-    expect(screen.queryByTestId('chat-sidebar')).toBeNull();
+    expect(screen.getByTestId('chat-sidebar')).toHaveAttribute('data-active', 'false');
 
     mocks.appViewMode = 'chat';
     rerender(<AppContent />);

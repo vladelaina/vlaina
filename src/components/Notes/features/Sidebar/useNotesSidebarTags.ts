@@ -17,6 +17,7 @@ import {
 } from './useNotesSidebarTagContentCache';
 
 const TAG_SCAN_IDLE_DELAY_MS = 250;
+const EMPTY_STARRED_ENTRIES: StarredEntry[] = [];
 export const MAX_TAG_AUTO_SCAN_SCOPE_ENTRIES = 500;
 
 export {
@@ -30,7 +31,7 @@ export function useNotesSidebarTags({
   noteContentsCacheRevision = 0,
   liveNoteContent,
   scanAllNotes,
-  starredEntries = [],
+  starredEntries = EMPTY_STARRED_ENTRIES,
   currentNotesRootPath = null,
   active = true,
 }: {

@@ -4,6 +4,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import {
   preloadChatSidebarModule,
   preloadChatViewModule,
+  preloadGraphViewModule,
   preloadAIStoreModule,
   preloadModelSelectorModule,
   preloadNotesSidebarModule,
@@ -17,11 +18,12 @@ const CENTER_CHROME_RENDER_DELAY_MS = 0;
 const VISIBLE_SIDEBAR_RENDER_DELAY_MS = import.meta.env.DEV ? 750 : 120;
 export const INITIAL_UNIFIED_VIEW_WAIT_TIMEOUT_MS = import.meta.env.DEV ? null : 3000;
 
-type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard'>;
+type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard' | 'graph'>;
 const PREWARMED_APP_VIEW_MODES = [
   'notes',
   'chat',
   'whiteboard',
+  'graph',
 ] satisfies readonly ReadyAppViewMode[];
 
 interface UseAppContentViewLifecycleOptions {
@@ -50,6 +52,11 @@ function preloadActiveViewModule(viewMode: AppViewMode) {
 
   if (viewMode === 'whiteboard') {
     void preloadWhiteboardViewModule();
+    return;
+  }
+
+  if (viewMode === 'graph') {
+    void preloadGraphViewModule();
   }
 }
 
@@ -57,6 +64,11 @@ function preloadPrewarmedViewModules() {
   void preloadNotesViewModule();
   void preloadChatViewModule();
   void preloadWhiteboardViewModule();
+  void preloadGraphViewModule();
+}
+
+function addPrewarmedAppViews(views: Set<AppViewMode>): Set<AppViewMode> {
+  return new Set([...views, ...PREWARMED_APP_VIEW_MODES]);
 }
 
 export function useAppContentViewLifecycle({
@@ -204,7 +216,7 @@ export function useAppContentViewLifecycle({
   }, [effectiveAppViewMode, shouldRenderDeferredChrome]);
 
   useEffect(() => {
-    if (!activeViewReady || !primaryContentReady) return;
+    if (!activeViewReady || !shouldRenderDeferredChrome) return;
     if (!isPrewarmedAppViewMode(effectiveAppViewMode)) return;
 
     preloadPrewarmedViewModules();
@@ -213,17 +225,22 @@ export function useAppContentViewLifecycle({
     void preloadNotesTabRowModule();
     void preloadModelSelectorModule();
     void preloadTemporaryChatToggleModule();
-    if (unifiedLoaded && !didPrewarmManagedStartupDataRef.current) {
-      didPrewarmManagedStartupDataRef.current = true;
-      void preloadAIStoreModule()
-        .then((mod) => {
-          mod.actions.prewarmManagedStartupDataInBackground();
-        })
-        .catch(() => {
-        });
-    }
 
-  }, [activeViewReady, effectiveAppViewMode, primaryContentReady, unifiedLoaded]);
+    setMountedAppViews(addPrewarmedAppViews);
+    setRenderedSidebarAppViews(addPrewarmedAppViews);
+  }, [activeViewReady, effectiveAppViewMode, shouldRenderDeferredChrome]);
+
+  useEffect(() => {
+    if (!activeViewReady || !primaryContentReady || !unifiedLoaded) return;
+    if (didPrewarmManagedStartupDataRef.current) return;
+    didPrewarmManagedStartupDataRef.current = true;
+    void preloadAIStoreModule()
+      .then((mod) => {
+        mod.actions.prewarmManagedStartupDataInBackground();
+      })
+      .catch(() => {
+      });
+  }, [activeViewReady, primaryContentReady, unifiedLoaded]);
 
   return {
     handleActiveViewReady,

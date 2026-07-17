@@ -15,9 +15,10 @@ import {
   Heading5,
   Heading6,
   Highlighter,
-  LassoSelect,
   ListOrdered,
   ListTodo,
+  LassoSelect,
+  Network,
   NotebookText,
   PenTool,
   Pencil,
@@ -116,6 +117,7 @@ import {
 } from '@heroicons/react/24/solid';
 
 import { CropIcon } from './custom/mit/CropIcon';
+import { EraserBlockIcon } from './custom/mit/EraserBlockIcon';
 import { TemporaryChatOffIcon } from './custom/mit/TemporaryChatOffIcon';
 import { TemporaryChatOnIcon } from './custom/mit/TemporaryChatOnIcon';
 import { PrimerPinIcon } from './custom/mit/PrimerPinIcon';
@@ -258,6 +260,7 @@ export const icons: Record<string, IconSource> = {
   'editor.inlineMath': SquareFunction,
   'editor.toc': TableOfContents,
   'editor.diagram': ChartNetwork,
+  'graph.network': Network,
   'editor.footnote': NotebookText,
   'editor.abbreviation': CaseSensitive,
   'editor.video': Video,
@@ -277,6 +280,7 @@ export const icons: Record<string, IconSource> = {
   'whiteboard.watercolor': Brush,
   'whiteboard.crayon': Pencil,
   'whiteboard.eraser': Eraser,
+  'whiteboard.areaEraser': EraserBlockIcon,
   'whiteboard.image': PhotoIcon,
   'media.play': PlayIcon,
   'media.pause': PauseIcon,

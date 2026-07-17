@@ -17,6 +17,9 @@ import {
 } from './ai/providerStoreUtils'
 import { resolveRestoredChatSessionId } from './ai/runtimeSelection'
 
+const EMPTY_AI_ARRAY: never[] = [];
+const EMPTY_AI_RECORD: Record<string, never> = {};
+
 export { createAIChatSession } from './ai/chatState'
 export { startAIStoreRuntimeEffects } from './ai/runtimeEffectsStart'
 
@@ -193,12 +196,12 @@ export const useAIStore = () => {
   const uiState = useAIUIStore();
 
   return {
-    providers: aiData?.providers || [],
-    models: aiData?.models || [],
-    benchmarkResults: aiData?.benchmarkResults || {},
-    fetchedModels: aiData?.fetchedModels || {},
-    sessions: aiData?.sessions || [],
-    messages: aiData?.messages || {},
+    providers: aiData?.providers || EMPTY_AI_ARRAY,
+    models: aiData?.models || EMPTY_AI_ARRAY,
+    benchmarkResults: aiData?.benchmarkResults || EMPTY_AI_RECORD,
+    fetchedModels: aiData?.fetchedModels || EMPTY_AI_RECORD,
+    sessions: aiData?.sessions || EMPTY_AI_ARRAY,
+    messages: aiData?.messages || EMPTY_AI_RECORD,
     selectedModelId: aiData?.selectedModelId || null,
     customSystemPrompt: aiData?.customSystemPrompt || '',
     includeTimeContext: aiData?.includeTimeContext !== false,

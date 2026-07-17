@@ -14,7 +14,7 @@ import {
   loadRecentNotes,
   persistGlobalNoteIconSize,
 } from '../storage';
-import { MetadataFile, NoteCoverMetadata, NotesStore } from '../types';
+import { MetadataFile, NoteCoverMetadata, NotesStore, ScanAllNotesOptions } from '../types';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { isSafeStoredNotePath } from './featureSliceContentUtils';
 import { createFeatureMetadataActions } from './featureSliceMetadataActions';
@@ -37,7 +37,7 @@ export interface FeatureSlice {
 
   loadStarred: (notesRootPath: string) => Promise<void>;
   loadMetadata: (notesRootPath: string) => Promise<void>;
-  scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<void>;
+  scanAllNotes: (options?: ScanAllNotesOptions) => Promise<void>;
   cancelNoteContentScan: () => void;
   pruneNoteContentsCacheToOpenNotes: () => void;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];

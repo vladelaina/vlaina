@@ -38,9 +38,10 @@ export function getFileTreePointerDragSnapshot() {
 }
 
 export function useFileTreePointerDragState<T>(selector: (snapshot: FileTreePointerDragSnapshot) => T) {
-  return useSyncExternalStore(
+  const currentSnapshot = useSyncExternalStore(
     subscribe,
-    () => selector(getFileTreePointerDragSnapshot()),
-    () => selector(getFileTreePointerDragSnapshot()),
+    getFileTreePointerDragSnapshot,
+    getFileTreePointerDragSnapshot,
   );
+  return selector(currentSnapshot);
 }

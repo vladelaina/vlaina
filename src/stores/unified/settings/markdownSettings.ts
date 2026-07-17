@@ -15,6 +15,9 @@ export type ResolvedMarkdownSettings = MarkdownSettings & {
   };
 };
 
+let cachedMarkdownSettingsSource: MarkdownSettings | undefined;
+let cachedResolvedMarkdownSettings: ResolvedMarkdownSettings | undefined;
+
 export function resolveMarkdownThemeSettings(
   settings?: Partial<MarkdownThemeSettings> | null
 ): MarkdownThemeSettings {
@@ -64,7 +67,12 @@ export function resolveMarkdownSettings(
 }
 
 export function selectMarkdownSettings(state: { data: UnifiedData }): ResolvedMarkdownSettings {
-  return resolveMarkdownSettings(state.data.settings.markdown);
+  const source = state.data.settings.markdown;
+  if (cachedMarkdownSettingsSource !== source || !cachedResolvedMarkdownSettings) {
+    cachedMarkdownSettingsSource = source;
+    cachedResolvedMarkdownSettings = resolveMarkdownSettings(source);
+  }
+  return cachedResolvedMarkdownSettings;
 }
 
 export function selectCodeBlockLineNumbersEnabled(state: { data: UnifiedData }): boolean {

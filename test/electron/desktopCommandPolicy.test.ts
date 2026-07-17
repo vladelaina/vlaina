@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import path from 'node:path';
 import {
   buildDesktopCommandEnvironment,
   canAlwaysAllowDesktopCommand,
@@ -17,7 +18,7 @@ describe('desktop command policy', () => {
       locale: 'zh-CN',
     }, '/home/example')).toEqual({
       command: 'pnpm install',
-      cwd: '/home/example/project',
+      cwd: path.resolve('/home/example', 'project'),
       purpose: 'Install project dependencies',
       timeoutMs: 30_000,
       locale: 'zh-CN',

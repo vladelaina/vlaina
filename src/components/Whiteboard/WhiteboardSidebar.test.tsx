@@ -67,6 +67,12 @@ describe('WhiteboardSidebar', () => {
     vi.clearAllMocks();
   });
 
+  it('loads the current notes root when mounted for background prewarm', async () => {
+    render(<WhiteboardSidebar />);
+
+    await waitFor(() => expect(store.loadForNotesRoot).toHaveBeenCalledWith('/notesRoot'));
+  });
+
   it('renames a board from the inline editor', async () => {
     render(<WhiteboardSidebar />);
 

@@ -219,10 +219,10 @@ function loadNotesChatFloatingSize(): NotesChatFloatingSize {
     ?? NOTES_CHAT_FLOATING_DEFAULT_SIZE;
 }
 
-function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard'> {
+function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard' | 'graph'> {
   try {
     const saved = loadScalarString(STORAGE_KEY_LAST_APP_VIEW_MODE);
-    if (saved === 'notes' || saved === 'chat' || saved === 'whiteboard') {
+    if (saved === 'notes' || saved === 'chat' || saved === 'whiteboard' || saved === 'graph') {
       return saved;
     }
   } catch {
@@ -231,7 +231,7 @@ function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat' | 'whitebo
 }
 
 export function saveLastAppViewMode(mode: AppViewMode): void {
-  if (mode !== 'notes' && mode !== 'chat' && mode !== 'whiteboard') return;
+  if (mode !== 'notes' && mode !== 'chat' && mode !== 'whiteboard' && mode !== 'graph') return;
   saveString(STORAGE_KEY_LAST_APP_VIEW_MODE, mode);
   if (mode === 'notes' || mode === 'chat') useUnifiedStore.getState().setLastAppViewMode(mode, true);
 }

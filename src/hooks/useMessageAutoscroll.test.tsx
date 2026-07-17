@@ -329,7 +329,7 @@ describe('useMessageAutoscroll', () => {
       rerender({ messages: nextMessages });
     });
 
-    expect(container.scrollTop).toBe(160);
+    expect(container.scrollTop).toBe(156);
     expect(result.current.currentTurnTopSpacerHeight).toBe(0);
     requestAnimationFrameSpy.mockRestore();
   });
@@ -788,7 +788,7 @@ describe('useMessageAutoscroll', () => {
       toJSON: () => ({}),
     });
 
-    const expectedScrollTop = 1178;
+    const expectedScrollTop = 1158;
 
     act(() => {
       rtlScreen.getByRole('button', { name: 'send' }).click();

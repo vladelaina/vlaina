@@ -51,6 +51,13 @@ export function restoreReferenceLinkStyleFromReference(
   return output === markdown ? markdown : output;
 }
 
+export function collectMarkdownReferenceLinkDestinations(markdown: string): string[] {
+  if (!markdown.includes(']:')) return [];
+  const definitions = collectReferenceDefinitions(markdown);
+  if (definitions.size === 0) return [];
+  return collectReferenceUsages(markdown, definitions).map((usage) => usage.definition.destination);
+}
+
 function collectReferenceDefinitions(markdown: string): Map<string, ReferenceDefinition> {
   const definitions = new Map<string, ReferenceDefinition>();
   const lines = collectMarkdownLines(markdown);

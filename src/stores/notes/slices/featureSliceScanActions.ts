@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import type { NotesStore } from '../types';
+import type { NotesStore, ScanAllNotesOptions } from '../types';
 import { createCachedNoteContentEntry } from '../document/noteContentCache';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
@@ -22,12 +22,43 @@ interface CreateNoteContentScanActionsOptions {
   set: Parameters<StateCreator<NotesStore, [], [], FeatureSlice>>[0];
 }
 
+const NOTE_CONTENT_SCAN_BATCH_SIZE = 32;
+
+function preserveLiveNoteCacheEntries(
+  cache: NotesStore['noteContentsCache'],
+  state: NotesStore,
+) {
+  if (state.currentNote) {
+    const currentEntry = state.noteContentsCache.get(state.currentNote.path);
+    cache.set(
+      state.currentNote.path,
+      createCachedNoteContentEntry(
+        state.currentNote.content,
+        currentEntry?.modifiedAt ?? null,
+        currentEntry?.size !== undefined ? { size: currentEntry.size } : {},
+      ),
+    );
+  }
+  state.openTabs.forEach((tab) => {
+    if (tab.path === state.currentNote?.path) return;
+    const cachedEntry = state.noteContentsCache.get(tab.path);
+    if (cachedEntry && (tab.isDirty || !cache.has(tab.path))) {
+      cache.set(tab.path, cachedEntry);
+    }
+  });
+  Object.keys(state.draftNotes).forEach((path) => {
+    const cachedEntry = state.noteContentsCache.get(path);
+    if (cachedEntry) cache.set(path, cachedEntry);
+  });
+}
+
 export function createNoteContentScanActions({
   get,
   isActiveNotesRootRequest,
   set,
 }: CreateNoteContentScanActionsOptions) {
   let noteContentScanController: AbortController | null = null;
+  let noteContentScanPromise: Promise<void> | null = null;
   let noteContentScanGeneration = 0;
 
   const cancelNoteContentScan = () => {
@@ -36,7 +67,7 @@ export function createNoteContentScanActions({
     noteContentScanController = null;
   };
 
-  const scanAllNotes = async (options?: { signal?: AbortSignal }) => {
+  const runNoteContentScan = async (options?: ScanAllNotesOptions) => {
     cancelNoteContentScan();
     const scanController = new AbortController();
     const scanGeneration = noteContentScanGeneration;
@@ -65,7 +96,46 @@ export function createNoteContentScanActions({
       const storage = getStorageAdapter();
       const scannedCache: NotesStore['noteContentsCache'] = new Map();
       const filePaths = collectNoteContentScanPaths(rootFolder.children, notesPath, isScanActive);
+      const priorityPaths = new Set(options?.priorityPaths);
+      if (priorityPaths.size > 0) {
+        filePaths.sort((left, right) =>
+          Number(priorityPaths.has(right.path)) - Number(priorityPaths.has(left.path))
+        );
+      }
       if (!isScanActive()) return;
+
+      const pendingPriorityPaths = new Set(
+        filePaths
+          .map(({ path }) => path)
+          .filter((path) => priorityPaths.has(path)),
+      );
+      let priorityPathsPublished = false;
+
+      const publishPriorityPaths = () => {
+        if (
+          !options?.onPriorityPathsScanned
+          || priorityPathsPublished
+          || pendingPriorityPaths.size > 0
+          || !isActiveNotesRootRequest(notesPath)
+          || !isScanActive()
+        ) {
+          return;
+        }
+        priorityPathsPublished = true;
+        const latestState = get();
+        const cache = new Map(latestState.noteContentsCache);
+        scannedCache.forEach((entry, path) => cache.set(path, entry));
+        preserveLiveNoteCacheEntries(cache, latestState);
+        set({ noteContentsCache: cache });
+        options?.onPriorityPathsScanned?.();
+      };
+
+      const finishBatchPriorityPaths = (batch: Array<{ path: string }>) => {
+        batch.forEach(({ path }) => pendingPriorityPaths.delete(path));
+        publishPriorityPaths();
+      };
+
+      publishPriorityPaths();
 
       let scannedContentChars = 0;
       const addScannedEntry = (
@@ -88,13 +158,13 @@ export function createNoteContentScanActions({
         scannedCache.set(path, createCachedNoteContentEntry(nextContent, modifiedAt, options));
       };
 
-      const BATCH_SIZE = 10;
-      for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+      for (let i = 0; i < filePaths.length; i += NOTE_CONTENT_SCAN_BATCH_SIZE) {
         if (!isScanActive()) return;
 
-        const batch = filePaths.slice(i, i + BATCH_SIZE);
+        const batch = filePaths.slice(i, i + NOTE_CONTENT_SCAN_BATCH_SIZE);
         if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
           batch.forEach(({ path }) => addScannedEntry(path, '', null));
+          finishBatchPriorityPaths(batch);
           continue;
         }
 
@@ -142,35 +212,14 @@ export function createNoteContentScanActions({
             );
           }
         });
+        finishBatchPriorityPaths(batch);
       }
 
       if (!isActiveNotesRootRequest(notesPath) || !isScanActive()) return;
 
       const latestState = get();
       const cache = new Map(scannedCache);
-      if (latestState.currentNote) {
-        const currentEntry = latestState.noteContentsCache.get(latestState.currentNote.path);
-        cache.set(
-          latestState.currentNote.path,
-          createCachedNoteContentEntry(
-            latestState.currentNote.content,
-            currentEntry?.modifiedAt ?? null,
-            currentEntry?.size !== undefined ? { size: currentEntry.size } : {},
-          ),
-        );
-      }
-      latestState.openTabs.forEach((tab) => {
-        if (tab.path === latestState.currentNote?.path) return;
-
-        const cachedEntry = latestState.noteContentsCache.get(tab.path);
-        if (cachedEntry && (tab.isDirty || !cache.has(tab.path))) {
-          cache.set(tab.path, cachedEntry);
-        }
-      });
-      Object.keys(latestState.draftNotes).forEach((path) => {
-        const cachedEntry = latestState.noteContentsCache.get(path);
-        if (cachedEntry) cache.set(path, cachedEntry);
-      });
+      preserveLiveNoteCacheEntries(cache, latestState);
 
       if (isScanActive()) {
         set({ noteContentsCache: cache });
@@ -181,6 +230,28 @@ export function createNoteContentScanActions({
         noteContentScanController = null;
       }
     }
+  };
+
+  const scanAllNotes = (options?: ScanAllNotesOptions): Promise<void> => {
+    if (
+      options?.background
+      && noteContentScanPromise
+      && noteContentScanController
+      && !noteContentScanController.signal.aborted
+    ) {
+      return noteContentScanPromise;
+    }
+    const promise = runNoteContentScan(options);
+    noteContentScanPromise = promise;
+    void promise.then(
+      () => {
+        if (noteContentScanPromise === promise) noteContentScanPromise = null;
+      },
+      () => {
+        if (noteContentScanPromise === promise) noteContentScanPromise = null;
+      },
+    );
+    return promise;
   };
 
   return { cancelNoteContentScan, scanAllNotes };
