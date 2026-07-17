@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { SettingsTextarea } from '@/components/Settings/components/SettingsFields';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { SETTINGS_BEFORE_CLOSE_EVENT } from '../../settingsEvents';
 
 const SYSTEM_PROMPT_MAX_LENGTH = 4000;
 
@@ -30,17 +31,23 @@ export function AIBehaviorSettings() {
     }
   }, [customSystemPrompt]);
 
-  useEffect(() => {
-    return () => {
-      if (!isEditingPromptRef.current) return;
-      if (isComposingPromptRef.current) return;
-      const latestDraft = latestDraftRef.current;
-      const latestPersistedPrompt = latestPersistedPromptRef.current;
-      if (latestDraft !== latestPersistedPrompt) {
-        setCustomSystemPrompt(latestDraft);
-      }
-    };
+  const flushLatestPromptDraft = useCallback(() => {
+    if (!isEditingPromptRef.current || isComposingPromptRef.current) return;
+    const latestDraft = latestDraftRef.current;
+    const latestPersistedPrompt = latestPersistedPromptRef.current;
+    if (latestDraft !== latestPersistedPrompt) {
+      setCustomSystemPrompt(latestDraft);
+    }
+    isEditingPromptRef.current = false;
   }, [setCustomSystemPrompt]);
+
+  useEffect(() => {
+    window.addEventListener(SETTINGS_BEFORE_CLOSE_EVENT, flushLatestPromptDraft);
+    return () => {
+      window.removeEventListener(SETTINGS_BEFORE_CLOSE_EVENT, flushLatestPromptDraft);
+      flushLatestPromptDraft();
+    };
+  }, [flushLatestPromptDraft]);
 
   const commitPromptDraft = () => {
     if (isComposingPromptRef.current) {
@@ -60,6 +67,7 @@ export function AIBehaviorSettings() {
 
       <div className={cn("min-w-0 overflow-hidden rounded-[var(--vlaina-radius-26px)] p-2", chatComposerPillSurfaceClass)}>
         <SettingsTextarea
+          data-settings-control="ai-system-prompt"
           autoGrow={true}
           value={draftSystemPrompt}
           onChange={(event) => {

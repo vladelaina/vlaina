@@ -1,4 +1,5 @@
 export const OPEN_SETTINGS_EVENT = 'open-settings';
+export const REQUEST_CLOSE_SETTINGS_EVENT = 'settings:request-close';
 export const SETTINGS_BEFORE_CLOSE_EVENT = 'settings:before-close';
 export const SETTINGS_CLOSED_EVENT = 'settings:closed';
 

@@ -153,7 +153,15 @@ async function syncManagedProviderModelsFromStartup(
   }
 
   managedModelsLastRefreshAttemptAt = now;
-  await syncManagedProviderModels(options);
+  let startupPromise!: Promise<void>;
+  startupPromise = syncManagedProviderModels(options)
+    .finally(() => {
+      if (managedModelsRefreshInFlight === startupPromise) {
+        managedModelsRefreshInFlight = null;
+      }
+    });
+  managedModelsRefreshInFlight = startupPromise;
+  await startupPromise;
 }
 
 export async function refreshManagedProviderAction(): Promise<void> {

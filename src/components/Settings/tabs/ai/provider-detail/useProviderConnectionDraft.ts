@@ -8,7 +8,7 @@ import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 interface UseProviderConnectionDraftOptions {
   provider: Provider | undefined;
   updateProvider: (id: string, updates: Partial<Provider>) => void;
-  onDraftChange?: (draft: { name?: string; apiHost?: string }) => void;
+  onDraftChange?: (draft: { name?: string; apiHost?: string; apiKey?: string }) => void;
   onDraftClear?: () => void;
 }
 
@@ -222,6 +222,7 @@ export function useProviderConnectionDraft({
 
   const handleApiKeyChange = (nextApiKey: string) => {
     setApiKey(nextApiKey);
+    onDraftChange?.({ apiKey: nextApiKey });
   };
 
   const handleCopyApiKey = async () => {
