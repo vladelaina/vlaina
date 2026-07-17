@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { filterCodeBlockLanguages, LanguageSelector } from './LanguageSelector';
@@ -97,5 +97,27 @@ describe('LanguageSelector', () => {
     expect(autoDetectButton.className).toContain('hover:bg-[var(--vlaina-color-pill-surface-hover)]');
     expect(autoDetectButton.className).toContain('hover:shadow-[var(--vlaina-shadow-menu-hover)]');
     expect(autoDetectButton.className).toContain('hover:text-[var(--vlaina-accent)]');
+  });
+
+  it('does not select a language while an unmarked keydown belongs to an active composition', () => {
+    const onLanguageChange = vi.fn();
+    const onOpenChange = vi.fn();
+    render(
+      <LanguageSelector
+        language="ts"
+        displayName="typescript"
+        getNodeText={() => ''}
+        onLanguageChange={onLanguageChange}
+        isOpen
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    const searchInput = screen.getByPlaceholderText('Search language...');
+    fireEvent.compositionStart(searchInput);
+    fireEvent.keyDown(searchInput, { key: 'Enter', isComposing: false });
+
+    expect(onLanguageChange).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 });

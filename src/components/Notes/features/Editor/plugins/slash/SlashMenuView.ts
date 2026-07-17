@@ -222,7 +222,7 @@ export class SlashMenuView {
 
   private handleDocumentKeyDown = (event: KeyboardEvent) => {
     const state = slashPluginKey.getState(this.editorView.state);
-    if (!state?.isOpen || event.isComposing) return;
+    if (!state?.isOpen || event.isComposing || this.editorView.composing) return;
 
     const filtered = filterSlashItems(state.query, getSlashMenuItems());
     if (filtered.length === 0) return;

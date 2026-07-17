@@ -41,6 +41,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const isComposingRef = useRef(false);
 
     const filteredLanguages = useMemo(() => {
         return filterCodeBlockLanguages(searchTerm);
@@ -74,7 +75,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
     }, [activeIndex]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.nativeEvent.isComposing) {
+        if (e.nativeEvent.isComposing || isComposingRef.current) {
             return;
         }
         if (e.key === 'ArrowDown') {
@@ -151,6 +152,12 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                             placeholder={t('editor.searchLanguage')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onCompositionStart={() => {
+                                isComposingRef.current = true;
+                            }}
+                            onCompositionEnd={() => {
+                                isComposingRef.current = false;
+                            }}
                             onClick={(e) => e.stopPropagation()}
                             onKeyDown={handleKeyDown}
                         />

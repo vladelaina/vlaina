@@ -11,7 +11,6 @@ import {
   getEventData,
   hasNonAsciiText,
   isCompositionInputEvent,
-  isCompositionResidueText,
   isContentEditingUserEvent,
   isInputEvent,
   shouldClearCompositionAppendGuard,
@@ -263,12 +262,13 @@ export function usePendingMarkdownUserInputMarker({
           inputData &&
           (
             event.inputType === 'insertCompositionText' ||
+            event.inputType === 'insertFromComposition' ||
             event.isComposing ||
             (isCompositionActiveRef.current && !hasCompositionEndedRef.current)
           )
         ) {
           latestCompositionDataRef.current = inputData;
-          if (event.inputType === 'insertCompositionText' && isCompositionResidueText(inputData)) {
+          if (event.inputType === 'insertCompositionText' && !hasNonAsciiText(inputData)) {
             latestCompositionResidueDataRef.current = inputData;
           }
         }

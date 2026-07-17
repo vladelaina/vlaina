@@ -115,6 +115,7 @@ class SlashImageLibrarySession {
   };
 
   private handleDocumentKeyDown = (event: KeyboardEvent) => {
+    if (event.isComposing || this.view.composing) return;
     if (event.key !== 'Escape') return;
     event.preventDefault();
     event.stopPropagation();

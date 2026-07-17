@@ -154,6 +154,27 @@ describe('textEditorPopupDom', () => {
     expect(outerKeydown).not.toHaveBeenCalled();
   });
 
+  it('ignores unmarked shortcuts while a text composition session is active', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const onCancel = vi.fn();
+    const onSave = vi.fn();
+    const { textarea } = mountTextEditorPopup({
+      container,
+      value: 'draft',
+      onInput: vi.fn(),
+      onCancel,
+      onSave,
+    });
+
+    textarea.dispatchEvent(new CompositionEvent('compositionstart'));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }));
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('defers the initial textarea resize when a resize scheduler is provided', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
