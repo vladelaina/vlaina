@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import {
   EDITOR_SELECTOR,
   FILE_TREE_FILE_SELECTOR,
@@ -7,6 +9,7 @@ import {
   NOTE_COVER_REGION_SELECTOR,
   SELECTED_BLOCK_SELECTOR,
   cleanupIsolatedElectron,
+  closeElectron,
   collectEditorDomMetrics,
   createNotesRootFilesFixture,
   getOpenBridgePages,
@@ -19,6 +22,8 @@ import {
   stopMainThreadFrameProbe,
   waitForEditorAnimationFrame,
 } from './notesE2E';
+
+const ANIMATED_GIF_BASE64 = 'R0lGODlhIAAQAPf/MQAA/v0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAP0AAAD/ACH/C05FVFNDQVBFMi4wAwEAAAAh+QQEFAAfACwAAAAAIAAQAAAIJwADCBxIsKDBgwgTKlzIsKHDhxAjSpxIsaLFixgzatzIsaPHjxADAgAh+QQFFAD/ACwfAA8AAQABAAAIBAD/BQQAIfkEBRQA/wAsAAAAACAAEAAACCcAAQgcSLCgwYMIEypcyLChw4cQI0qcSLGixYsYM2rcyLGjx48QAwIAIfkEBRQA/wAsHwAPAAEAAQAACAQA/wUEADs=';
 
 const COVER_ASSET_PATH = 'assets/e2e-cover.svg';
 const NOTE_ICON_ASSET_PATH = 'assets/e2e-note-icon.svg';
@@ -846,6 +851,70 @@ async function selectCoverAssetFromPicker(page: Page, gridFilename: string) {
 
 test.describe('notes top cover e2e coverage', () => {
   test.setTimeout(120_000);
+
+  test('restores a local GIF cover after relaunch', async () => {
+    const first = await launchIsolatedElectron('notes-gif-cover-restart-a');
+    let second: Awaited<ReturnType<typeof launchIsolatedElectron>> | null = null;
+
+    try {
+      await first.app.firstWindow();
+      const [page] = await getOpenBridgePages(first.app, 1);
+      const fixture = await createNotesRootFilesFixture(page, {
+        name: 'gif-cover-restart',
+        files: [{
+          filename: 'gif-cover.md',
+          content: createCoveredMarkdown('GIF Cover Restart', 2, 'assets/animated.gif'),
+        }],
+      });
+      const assetDirectory = path.join(fixture.notesRootPath, 'assets');
+      await fs.mkdir(assetDirectory, { recursive: true });
+      await fs.writeFile(
+        path.join(assetDirectory, 'animated.gif'),
+        Buffer.from(ANIMATED_GIF_BASE64, 'base64'),
+      );
+
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'GIF Cover Restart',
+        minFileCount: 1,
+      });
+      await expect.poll(() => page.locator(
+        '[data-file-tree-image-background="assets/animated.gif"] [style*="background-image"]'
+      ).count(), { timeout: 30_000 }).toBe(1);
+      await page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'gif-cover' }).first().click();
+      await expect.poll(async () => page.locator(NOTE_COVER_IMAGE_SELECTOR).evaluateAll((images) => {
+        const image = images[0] as HTMLImageElement | undefined;
+        return image ? { complete: image.complete, naturalWidth: image.naturalWidth } : null;
+      }), { timeout: 30_000 }).toEqual({ complete: true, naturalWidth: 32 });
+
+      await closeElectron(first.app);
+      second = await launchIsolatedElectron('notes-gif-cover-restart-b', {
+        envOverrides: { VLAINA_USER_DATA_DIR: first.userDataDir },
+      });
+      await second.app.firstWindow();
+      const [restoredPage] = await getOpenBridgePages(second.app, 1);
+      await openNotesRootInNotes(restoredPage, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'GIF Cover Restart',
+        minFileCount: 1,
+      });
+      await expect.poll(() => restoredPage.locator(
+        '[data-file-tree-image-background="assets/animated.gif"] [style*="background-image"]'
+      ).count(), { timeout: 30_000 }).toBe(1);
+      await restoredPage.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'gif-cover' }).first().click();
+
+      await expect.poll(async () => restoredPage.locator(NOTE_COVER_IMAGE_SELECTOR).evaluateAll((images) => {
+        const image = images[0] as HTMLImageElement | undefined;
+        return image ? { complete: image.complete, naturalWidth: image.naturalWidth } : null;
+      }), { timeout: 30_000 }).toEqual({ complete: true, naturalWidth: 32 });
+      await expect(restoredPage.locator(NOTE_COVER_IMAGE_SELECTOR)).toBeVisible();
+    } finally {
+      if (second) {
+        await cleanupIsolatedElectron(second.app, second.userDataRoot);
+      }
+      await cleanupIsolatedElectron(first.app, first.userDataRoot);
+    }
+  });
 
   test('renders a frontmatter cover at the top, opens the picker, and removes it cleanly', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-cover-functional');

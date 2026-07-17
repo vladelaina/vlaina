@@ -1,7 +1,7 @@
 .milkdown .code-block-container {
   --vlaina-code-block-selected-border-outline: var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) solid var(--vlaina-color-white);
   --vlaina-code-block-selected-border-outline-offset: calc(-1 * var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)));
-  background: var(--vlaina-code-block-background);
+  background: var(--vlaina-markdown-color-code-block-bg);
   border: var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) solid transparent;
   box-sizing: border-box;
   transition: none;
@@ -27,7 +27,7 @@
 .milkdown .code-block-container .cm-gutterElement,
 .milkdown .code-block-container .cm-lineNumbers,
 .milkdown .code-block-container .cm-gutter-filler {
-  background-color: var(--vlaina-code-block-background) !important;
+  background-color: var(--vlaina-markdown-color-code-block-bg) !important;
   border: none !important;
   border-right: none !important;
   box-shadow: none !important;
@@ -90,8 +90,8 @@
 }
 
 .milkdown .code-block-container.editor-block-selected-contained {
-  background: var(--vlaina-code-block-background);
-  background-color: var(--vlaina-code-block-background);
+  background: var(--vlaina-markdown-color-code-block-bg);
+  background-color: var(--vlaina-markdown-color-code-block-bg);
 }
 
 .milkdown .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),
@@ -129,8 +129,8 @@
 .milkdown .code-block-container.editor-block-selected-contained .cm-gutterElement,
 .milkdown .code-block-container.editor-block-selected-contained .cm-lineNumbers,
 .milkdown .code-block-container.editor-block-selected-contained .cm-gutter-filler {
-  background: var(--vlaina-code-block-background) !important;
-  background-color: var(--vlaina-code-block-background) !important;
+  background: var(--vlaina-markdown-color-code-block-bg) !important;
+  background-color: var(--vlaina-markdown-color-code-block-bg) !important;
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode .cm-editor,
@@ -181,7 +181,7 @@
   display: inline !important;
   visibility: visible !important;
   opacity: 1 !important;
-  color: var(--vlaina-code-syntax-muted) !important;
+  color: var(--vlaina-markdown-color-code-muted) !important;
   -webkit-text-fill-color: currentColor !important;
 }
 
@@ -218,7 +218,7 @@
   font-family: var(--font-mono), monospace;
   font-size: var(--vlaina-font-0875rem);
   line-height: var(--vlaina-leading-175);
-  color: var(--vlaina-code-syntax-foreground);
+  color: var(--vlaina-markdown-color-code-text);
   text-rendering: auto;
   font-kerning: none;
   font-variant-ligatures: none;
@@ -238,10 +238,10 @@
   z-index: var(--vlaina-z-10);
   min-width: var(--vlaina-min-width-code-block-line-numbers);
   padding: var(--vlaina-padding-code-block-line-numbers);
-  color: var(--vlaina-code-syntax-muted);
+  color: var(--vlaina-markdown-color-code-muted);
   text-align: right;
   user-select: none;
-  background: var(--vlaina-code-block-background);
+  background: var(--vlaina-markdown-color-code-block-bg);
 }
 
 .milkdown .code-block-container .code-block-lazy-copy-placeholder {
@@ -250,16 +250,16 @@
 
 .milkdown .code-block-container .cm-content {
   padding: 0 !important;
-  color: var(--vlaina-code-syntax-foreground);
+  color: var(--vlaina-markdown-color-code-text);
 }
 
 .milkdown .code-block-container .cm-line {
   padding: var(--vlaina-padding-code-block-line) !important;
-  color: var(--vlaina-code-syntax-foreground);
+  color: var(--vlaina-markdown-color-code-text);
 }
 
 .milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg) !important;
+  background: var(--vlaina-markdown-color-selection) !important;
 }
 
 .milkdown .code-block-container .cm-content::selection,
@@ -280,11 +280,11 @@
 }
 
 .milkdown .code-block-container:not(.ProseMirror-selectednode):not(.editor-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg) !important;
+  background: var(--vlaina-markdown-color-selection) !important;
 }
 
 .milkdown .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg) !important;
+  background: var(--vlaina-markdown-color-selection) !important;
 }
 
 .milkdown .ProseMirror.editor-toolbar-copy-feedback-active .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
@@ -302,9 +302,9 @@
 }
 
 .milkdown .ProseMirror .editor-block-selected .code-block-container {
-  background: var(--vlaina-code-block-background);
-  background-color: var(--vlaina-code-block-background);
-  color: var(--vlaina-code-syntax-foreground);
+  background: var(--vlaina-markdown-color-code-block-bg);
+  background-color: var(--vlaina-markdown-color-code-block-bg);
+  color: var(--vlaina-markdown-color-code-text);
   transition: none;
 }
 
@@ -316,7 +316,7 @@
 .milkdown .ProseMirror .editor-block-selected .code-block-container .code-block-chrome-language,
 .milkdown .ProseMirror .editor-block-selected .code-block-container .code-block-chrome-language-label,
 .milkdown .ProseMirror .editor-block-selected .code-block-container .code-block-chrome-copy-button {
-  color: var(--vlaina-code-syntax-muted);
+  color: var(--vlaina-markdown-color-code-muted);
   -webkit-text-fill-color: currentColor;
 }
 
@@ -325,8 +325,8 @@
 .milkdown .ProseMirror .editor-block-selected .code-block-container .cm-gutterElement,
 .milkdown .ProseMirror .editor-block-selected .code-block-container .cm-lineNumbers,
 .milkdown .ProseMirror .editor-block-selected .code-block-container .cm-gutter-filler {
-  background: var(--vlaina-code-block-background) !important;
-  background-color: var(--vlaina-code-block-background) !important;
+  background: var(--vlaina-markdown-color-code-block-bg) !important;
+  background-color: var(--vlaina-markdown-color-code-block-bg) !important;
   transition: none !important;
 }
 

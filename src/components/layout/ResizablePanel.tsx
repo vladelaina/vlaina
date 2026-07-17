@@ -79,7 +79,7 @@ export function ResizablePanel({
     onWidthChange?.(clampedWidth);
   }, [getMaxWidth, maxWidth, minWidth, onWidthChange]);
 
-  const { isDragging, handleDragStart } = useResizableDivider({
+  const { isDragging, handleDragStart, handleDoubleClick } = useResizableDivider({
     width,
     minWidth,
     maxWidth,
@@ -146,6 +146,7 @@ export function ResizablePanel({
     >
       <ResizeHandle
         onMouseDown={handleDragStart}
+        onDoubleClick={handleDoubleClick}
         isDragging={isDragging}
         position="absolute"
         zIndexClassName="z-[var(--vlaina-z-100)]"

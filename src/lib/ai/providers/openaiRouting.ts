@@ -1,6 +1,5 @@
 import type { ApiTranscriptMessage, AIModel, ChatCompletionRequest, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSendOptions, Provider } from '../types'
 import { resolveApiModelId } from '../utils'
-import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService'
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript'
 import { parseThinkingContent, stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
@@ -10,6 +9,7 @@ import {
   sanitizeCurrentRequestTextContent,
 } from '@/lib/ai/requestContext'
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy'
+import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService'
 
 export function isDeepSeekOpenAICompatible(provider: Provider, model: AIModel): boolean {
   const haystack = [provider.name, provider.apiHost, model.name, model.apiModelId].join(' ').toLowerCase()
@@ -41,12 +41,14 @@ function isOfficialXaiProvider(provider: Provider): boolean {
   }
 }
 
-export function shouldUseWebSearchTextProtocol(provider: Provider, model: AIModel): boolean {
-  return provider.id === MANAGED_PROVIDER_ID || isClaudeModel(provider, model) || isMoonshotModel(provider, model)
+export function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {
+  return provider.id !== MANAGED_PROVIDER_ID &&
+    provider.endpointType !== 'anthropic' &&
+    isDeepSeekOpenAICompatible(provider, model)
 }
 
-export function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {
-  return provider.endpointType !== 'anthropic' && isDeepSeekOpenAICompatible(provider, model)
+export function shouldUseWebSearchTextProtocol(provider: Provider, model: AIModel): boolean {
+  return provider.id === MANAGED_PROVIDER_ID || isClaudeModel(provider, model) || isMoonshotModel(provider, model)
 }
 
 export function shouldUseXaiNativeWebSearch(provider: Provider, model: AIModel): boolean {

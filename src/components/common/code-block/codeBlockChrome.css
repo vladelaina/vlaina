@@ -1,7 +1,7 @@
 .code-block-chrome {
   min-width: 0;
   max-width: 100%;
-  background: var(--vlaina-code-block-background);
+  background: var(--vlaina-markdown-color-code-block-bg);
 }
 
 .code-block-chrome-header {
@@ -19,7 +19,7 @@
   display: flex;
   align-items: center;
   gap: var(--vlaina-space-0625rem);
-  color: var(--vlaina-code-syntax-muted);
+  color: var(--vlaina-markdown-color-code-muted);
   font-family: var(--font-mono), monospace;
   font-size: var(--vlaina-font-13);
 }
@@ -27,12 +27,12 @@
 .code-block-chrome-language-label {
   font-family: var(--font-mono), monospace;
   font-size: var(--vlaina-font-13);
-  color: var(--vlaina-code-syntax-muted);
+  color: var(--vlaina-markdown-color-code-muted);
   transition: color var(--vlaina-duration-150) var(--vlaina-ease-css-default);
 }
 
 button:hover .code-block-chrome-language-label {
-  color: var(--vlaina-code-syntax-foreground);
+  color: var(--vlaina-markdown-color-code-text);
 }
 
 .code-block-chrome-copy-button {
@@ -72,44 +72,49 @@ button:hover .code-block-chrome-language-label {
   grid-column: 1 / -1;
 }
 
+.code-block-chrome-code {
+  font-size: inherit;
+  line-height: inherit;
+}
+
 .code-block-chrome-line-numbers {
   grid-column: 1;
   min-width: var(--vlaina-min-width-code-block-chrome-line-numbers);
   margin: var(--vlaina-margin-code-block-chrome-line-numbers);
   padding: var(--vlaina-padding-code-block-chrome-line-numbers);
-  color: var(--vlaina-code-syntax-muted);
+  color: var(--vlaina-markdown-color-code-muted);
   font-family: var(--font-mono), monospace;
-  font-size: var(--vlaina-font-0875rem);
-  line-height: var(--vlaina-leading-1625);
+  font-size: inherit;
+  line-height: inherit;
   text-align: right;
   user-select: none;
 }
 
 .code-block-chrome .hljs {
-  color: var(--vlaina-code-syntax-foreground);
+  color: var(--vlaina-markdown-color-code-text);
   background: transparent;
 }
 
 .code-block-chrome .hljs-comment,
 .code-block-chrome .hljs-quote,
 .code-block-chrome .hljs-meta {
-  color: var(--vlaina-code-syntax-muted);
+  color: var(--vlaina-markdown-color-code-muted);
 }
 
 .code-block-chrome .hljs-keyword,
 .code-block-chrome .hljs-doctag,
 .code-block-chrome .hljs-formula {
-  color: var(--vlaina-code-syntax-keyword);
+  color: var(--vlaina-markdown-color-code-keyword);
 }
 
 .code-block-chrome .hljs-title.class_,
 .code-block-chrome .hljs-title.class_.inherited__ {
-  color: var(--vlaina-code-syntax-name);
+  color: var(--vlaina-markdown-color-code-name);
 }
 
 .code-block-chrome .hljs-title,
 .code-block-chrome .hljs-title.function_ {
-  color: var(--vlaina-code-syntax-function);
+  color: var(--vlaina-markdown-color-code-function);
 }
 
 .code-block-chrome .hljs-attr,
@@ -121,12 +126,12 @@ button:hover .code-block-chrome-language-label {
 .code-block-chrome .hljs-selector-attr,
 .code-block-chrome .hljs-selector-class,
 .code-block-chrome .hljs-selector-id {
-  color: var(--vlaina-code-syntax-constant);
+  color: var(--vlaina-markdown-color-code-constant);
 }
 
 .code-block-chrome .hljs-type,
 .code-block-chrome .hljs-variable.language_ {
-  color: var(--vlaina-code-syntax-type);
+  color: var(--vlaina-markdown-color-code-type);
 }
 
 .code-block-chrome .hljs-operator,
@@ -134,49 +139,49 @@ button:hover .code-block-chrome-language-label {
 .code-block-chrome .hljs-punctuation,
 .code-block-chrome .hljs-subst,
 .code-block-chrome .hljs-params {
-  color: var(--vlaina-code-syntax-operator);
+  color: var(--vlaina-markdown-color-code-operator);
 }
 
 .code-block-chrome .hljs-string,
 .code-block-chrome .hljs-regexp,
 .code-block-chrome .hljs-meta .hljs-string {
-  color: var(--vlaina-code-syntax-string);
+  color: var(--vlaina-markdown-color-code-string);
 }
 
 .code-block-chrome .hljs-built_in,
 .code-block-chrome .hljs-symbol {
-  color: var(--vlaina-code-syntax-variable);
+  color: var(--vlaina-markdown-color-code-variable);
 }
 
 .code-block-chrome .hljs-selector-tag,
 .code-block-chrome .hljs-selector-pseudo,
 .code-block-chrome .hljs-name,
 .code-block-chrome .hljs-quote {
-  color: var(--vlaina-code-syntax-tag);
+  color: var(--vlaina-markdown-color-code-tag);
 }
 
 .code-block-chrome .hljs-section {
-  color: var(--vlaina-code-syntax-markup);
+  color: var(--vlaina-markdown-color-code-markup);
   font-weight: var(--vlaina-font-weight-bold);
 }
 
 .code-block-chrome .hljs-bullet {
-  color: var(--vlaina-code-syntax-list);
+  color: var(--vlaina-markdown-color-code-list);
 }
 
 .code-block-chrome .hljs-addition {
-  color: var(--vlaina-code-syntax-tag);
-  background-color: var(--vlaina-code-syntax-addition-bg);
+  color: var(--vlaina-markdown-color-code-tag);
+  background-color: var(--vlaina-markdown-color-code-addition-bg);
 }
 
 .code-block-chrome .hljs-deletion {
-  color: var(--vlaina-code-syntax-invalid);
-  background-color: var(--vlaina-code-syntax-deletion-bg);
+  color: var(--vlaina-markdown-color-code-invalid);
+  background-color: var(--vlaina-markdown-color-code-deletion-bg);
 }
 
 .code-block-chrome .hljs-invalid,
 .code-block-chrome .hljs-error {
-  color: var(--vlaina-code-syntax-invalid);
+  color: var(--vlaina-markdown-color-code-invalid);
 }
 
 .code-block-chrome .hljs-emphasis {

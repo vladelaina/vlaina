@@ -85,6 +85,7 @@ export interface ElectronMediaApi {
 export interface ElectronAppApi {
   getVersion(): Promise<string>;
   setLanguage?(language: string): Promise<boolean>;
+  findMarkdownGitRoot?(filePath: string): Promise<string | null>;
   onOpenMarkdownFile?(callback: (filePath: string) => void): () => void;
   reportStartupReady?(): void;
   getErrorLogInfo?(): Promise<{
@@ -217,6 +218,56 @@ export interface ElectronWebSearchApi {
   cancelRequest(requestId: string): Promise<boolean>;
 }
 
+export interface ElectronComputerCommandResult {
+  status: 'completed' | 'failed' | 'denied' | 'cancelled' | 'timed_out';
+  command: string;
+  cwd: string;
+  exitCode?: number | null;
+  signal?: string | null;
+  stdout?: string;
+  stderr?: string;
+  truncated?: boolean;
+  durationMs?: number;
+  fileChanges?: Array<{
+    path: string;
+    kind: 'added' | 'modified' | 'deleted';
+    additions: number;
+    deletions: number;
+    patch: string;
+    truncated?: boolean;
+  }>;
+  fileChangesTruncated?: boolean;
+}
+
+export interface ElectronComputerApi {
+  startCommand(requestId: string, request: {
+    command: string;
+    cwd?: string;
+    purpose?: string;
+    timeoutSeconds?: number;
+    locale?: string;
+  }): Promise<ElectronComputerCommandResult>;
+  cancelCommand(requestId: string): Promise<boolean>;
+  respondToApproval(
+    requestId: string,
+    decision: 'run_once' | 'always' | 'cancel',
+  ): Promise<boolean>;
+  onCommandEvent(
+    requestId: string,
+    callback: (event: {
+      type: 'approval_requested' | 'started' | 'output';
+      stream?: 'stdout' | 'stderr';
+      text?: string;
+      command?: string;
+      cwd?: string;
+      purpose?: string;
+      timeoutSeconds?: number;
+      risk?: 'standard' | 'elevated';
+      canAlwaysAllow?: boolean;
+    }) => void,
+  ): () => void;
+}
+
 export interface ElectronDragDropApi {
   getPathForFile(file: File): string;
   authorizePath(filePath: string): Promise<{
@@ -247,7 +298,7 @@ export interface ElectronFsApi {
   mkdir(filePath: string, recursive?: boolean): Promise<void>;
   deleteFile(filePath: string): Promise<void>;
   deleteDir(filePath: string, recursive?: boolean): Promise<void>;
-  listDir(filePath: string): Promise<Array<{
+  listDir(filePath: string, maxEntries?: number): Promise<Array<{
     name: string;
     path: string;
     isDirectory: boolean;
@@ -370,6 +421,7 @@ export interface DesktopApi {
   update?: ElectronUpdateApi;
   export: ElectronExportApi;
   aiProvider: ElectronAIProviderHttpApi;
+  computer?: ElectronComputerApi;
   webSearch?: ElectronWebSearchApi;
   dragDrop: ElectronDragDropApi;
   dialog: ElectronDialogApi;

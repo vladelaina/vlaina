@@ -2,11 +2,12 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
 import { cn } from '@/lib/utils';
-import { formatBenchmarkLatency, type HealthStatus } from '../components/ModelListItem';
+import type { HealthStatus } from '../components/ModelListItem';
 import { useI18n } from '@/lib/i18n';
 import { getModelPresentationName } from '@/components/Chat/features/Input/modelFamilyRegistry';
 import { providerInputClassName, providerInputShellClassName } from './providerInputStyles';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { ModelBenchmarkErrorInfo } from './ModelBenchmarkErrorInfo';
 
 const SLOW_BENCHMARK_LATENCY_MS = 5000;
 
@@ -183,8 +184,10 @@ export function ModelRow({
 
   const content = (
     <>
-      <div className="min-w-0 flex-1 truncate text-[var(--vlaina-font-sm)] font-semibold">{getModelPresentationName({ name: model, apiModelId: model })}</div>
-      <HealthBadge health={health} />
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[var(--vlaina-font-sm)] font-semibold">
+        <span className="min-w-0 truncate">{getModelPresentationName({ name: model, apiModelId: model })}</span>
+        {health?.status === 'error' && health.error ? <ModelBenchmarkErrorInfo error={health.error} /> : null}
+      </div>
       <div className={cn('shrink-0', decorativeTrailing && 'pointer-events-none')}>{trailing}</div>
     </>
   );
@@ -233,38 +236,6 @@ export function ModelSearchInput({
         </button>
       ) : null}
     />
-  );
-}
-
-function HealthBadge({ health }: { health?: HealthStatus }) {
-  const { t } = useI18n();
-
-  if (!health) return null;
-
-  if (health.status === 'loading') {
-    return <div className="h-3.5 w-3.5 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-accent)] animate-spin" />;
-  }
-
-  if (health.status === 'success') {
-    const isSlow = typeof health.latency === 'number' && health.latency >= SLOW_BENCHMARK_LATENCY_MS;
-    return (
-      <span
-        className={cn(
-          'rounded-full px-2 py-1 text-[var(--vlaina-font-10)] font-medium',
-          isSlow
-            ? 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--vlaina-color-status-warning-fg)]'
-            : 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--vlaina-color-status-success-fg)]'
-        )}
-      >
-        {formatBenchmarkLatency(health.latency)}
-      </span>
-    );
-  }
-
-  return (
-    <span className="rounded-full bg-[var(--vlaina-color-status-danger-bg)] px-2 py-1 text-[var(--vlaina-font-10)] font-medium text-[var(--vlaina-color-status-danger-fg)]" title={health.error}>
-      {t('settings.ai.failed')}
-    </span>
   );
 }
 

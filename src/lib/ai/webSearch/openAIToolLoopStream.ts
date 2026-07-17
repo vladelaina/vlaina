@@ -14,16 +14,16 @@ import {
   countNoResultSearchAttempts, emitApiTranscript, emitChunk, emitWebSearchStatus, finishNoResultSearchLocally,
   finishWebSearchCapabilityLocally, getLatestUserText, hasAnySearchResults, hasSuccessfulRead,
   hasVisibleAnswerContent, resolveFinalAssistantApiContent, shouldRequirePageRead, shouldStopNoResultSearchLoop,
-  throwIfAborted, throwIfMissingVisibleAnswer, withSourceLinks, withStatusPrefix, withoutTools,
+  throwIfAborted, throwIfMissingVisibleAnswer, withSourceLinks, withoutTools,
 } from './openAIToolLoopShared';
-import { buildTextProtocolSearchMessages } from './openAIToolLoopTextProtocolSearch';
 import {
   boundedToolNameForLog, buildCachedReadToolMessages, cacheReadContentForToolMessages, getReadToolUrls,
   hasOnlyAlreadyReadToolCalls, hasOnlySearchToolCalls,
 } from './openAIToolLoopToolArgs';
-import { appendForcedReadMessages, buildAssistantToolMessage, runToolCallsInParallel } from './openAIToolLoopToolRuntime';
-import { recoverStreamingVisibleAnswer } from './openAIToolLoopRecovery';
+import { appendForcedReadMessages, buildAssistantToolMessage, runToolCallsSequentially } from './openAIToolLoopToolRuntime';
+import { buildNoToolRecoveryMessages, recoverStreamingVisibleAnswer } from './openAIToolLoopRecovery';
 import { MAX_WEB_SEARCH_TOOL_LOOPS } from './openAIToolLoopTypes';
+import { createWebSearchExecutionSession } from './executionSession';
 
 export async function runOpenAIWebSearchToolLoop({
   body,
@@ -35,48 +35,11 @@ export async function runOpenAIWebSearchToolLoop({
   signal,
 }: ToolLoopOptions): Promise<string> {
   throwIfAborted(signal);
+  const session = createWebSearchExecutionSession();
   const localIntent = classifyWebSearchIntent(getLatestUserText(body));
   if (localIntent.action === 'answer-capability') {
     return finishWebSearchCapabilityLocally({ body, onChunk, onApiTranscript, signal });
   }
-  if (localIntent.action === 'prefetch') {
-    addChatDebugLog('web-search-loop', 'stream local intent requested search', {
-      query: localIntent.query,
-      reason: localIntent.reason,
-    });
-    const {
-      messages: prefetchMessages,
-      statusHistory: prefetchStatusHistory,
-      sourceUrls: prefetchSourceUrls,
-    } = await buildTextProtocolSearchMessages({
-      body,
-      query: localIntent.query,
-      client,
-      onStatus,
-      signal,
-    });
-    let latestPrefetchContent = '';
-    const emitPrefetchContent = (content: string) => {
-      latestPrefetchContent = content;
-      emitChunk(onChunk, signal, withStatusPrefix(prefetchStatusHistory, latestPrefetchContent));
-    };
-    emitChunk(onChunk, signal, withStatusPrefix(prefetchStatusHistory, latestPrefetchContent));
-    const answerResponse = await request({
-      ...withoutTools(body),
-      messages: prefetchMessages as ChatCompletionRequest['messages'],
-    });
-    const answer = await consumeOpenAIStreamWithTools(answerResponse, emitPrefetchContent, { signal });
-    throwIfAborted(signal);
-    const finalApiContent = withSourceLinks(answer.assistantContent || answer.content, prefetchSourceUrls);
-    throwIfMissingVisibleAnswer(finalApiContent);
-    const finalContent = withStatusPrefix(prefetchStatusHistory, finalApiContent);
-    emitChunk(onChunk, signal, finalContent);
-    emitApiTranscript(onApiTranscript, signal, [
-      buildFinalAssistantTranscriptMessage(finalApiContent, answer.reasoningContent),
-    ]);
-    return finalContent;
-  }
-
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
@@ -88,6 +51,7 @@ export async function runOpenAIWebSearchToolLoop({
   let forcedReadAttemptedUrls = new Set<string>();
   let messages = appendWebSearchSystemInstruction(body.messages as OpenAIWireMessage[]);
   const responseTranscript: OpenAIWireMessage[] = [];
+  let pendingPrefetchTranscript: OpenAIWireMessage[] = [];
   const readContentByUrl = new Map<string, string>();
   const emitStatus = (status: WebSearchStatus) => {
     const safeStatus = sanitizeWebSearchStatus(status);
@@ -104,12 +68,32 @@ export async function runOpenAIWebSearchToolLoop({
     statusHistory.push(safeStatus);
     appendSuccessfulReadSources(sourceUrls, safeStatus);
     emitWebSearchStatus(onStatus, signal, safeStatus);
-    emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
   };
   const emitContent = (content: string) => {
     latestContent = content;
-    emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
+    emitChunk(onChunk, signal, latestContent);
   };
+
+  if (localIntent.action === 'prefetch') {
+    const toolCall = {
+      id: 'prefetch_web_search',
+      type: 'function' as const,
+      function: {
+        name: 'web_search',
+        arguments: JSON.stringify({ query: localIntent.query }),
+      },
+    };
+    const assistantMessage: OpenAIWireMessage = { role: 'assistant', content: '', tool_calls: [toolCall] };
+    const toolMessages = await runToolCallsSequentially([toolCall], {
+      client,
+      onStatus: emitStatus,
+      signal,
+      autoReadAfterSearch: true,
+      session,
+    });
+    messages = [...messages, assistantMessage, ...toolMessages];
+    pendingPrefetchTranscript = [assistantMessage, ...toolMessages];
+  }
 
   for (let loopIndex = 0; loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS; loopIndex += 1) {
     throwIfAborted(signal);
@@ -133,10 +117,19 @@ export async function runOpenAIWebSearchToolLoop({
       hasResults: Boolean(latestResultsStatus),
       successfulRead: latestResultsHaveSuccessfulRead,
     });
+    const shouldUsePrefetchedEvidence = localIntent.action === 'prefetch' && latestResultsHaveSuccessfulRead;
+    const reminderMessage = buildVisibleAnswerReminderMessage();
+    const requestMessages = shouldUsePrefetchedEvidence
+      ? buildNoToolRecoveryMessages(body, messages, sourceUrls, reminderMessage)
+      : messages;
+    if (pendingPrefetchTranscript.length > 0) {
+      if (!shouldUsePrefetchedEvidence) responseTranscript.push(...pendingPrefetchTranscript);
+      pendingPrefetchTranscript = [];
+    }
     const response = await request({
-      ...body,
-      messages: messages as ChatCompletionRequest['messages'],
-      tools: buildWebSearchTools(),
+      ...(shouldUsePrefetchedEvidence ? withoutTools(body) : body),
+      messages: requestMessages as ChatCompletionRequest['messages'],
+      ...(shouldUsePrefetchedEvidence ? {} : { tools: buildWebSearchTools() }),
     });
     const result = await consumeOpenAIStreamWithTools(response, emitContent, { signal });
     throwIfAborted(signal);
@@ -156,7 +149,7 @@ export async function runOpenAIWebSearchToolLoop({
           messages,
           latestResultsStatus,
           loopIndex,
-          { client, onStatus: emitStatus, signal },
+          { client, onStatus: emitStatus, signal, session },
           forcedReadAttemptedUrls,
         );
         throwIfAborted(signal);
@@ -169,7 +162,7 @@ export async function runOpenAIWebSearchToolLoop({
         messages = forcedRead.messages;
         responseTranscript.push(...forcedRead.addedMessages);
         latestContent = '';
-        emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
+        emitChunk(onChunk, signal, latestContent);
         continue;
       }
       const visibleAnswerContent = result.assistantContent || stripThinkingContent(result.content);
@@ -184,7 +177,7 @@ export async function runOpenAIWebSearchToolLoop({
         latestContent = '';
         latestAssistantApiContent = '';
         latestReasoningContent = '';
-        emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
+        emitChunk(onChunk, signal, latestContent);
         continue;
       }
       if (!hasVisibleAnswerContent(visibleAnswerContent)) {
@@ -210,7 +203,7 @@ export async function runOpenAIWebSearchToolLoop({
       const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
       responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
       emitApiTranscript(onApiTranscript, signal, responseTranscript);
-      return withStatusPrefix(statusHistory, finalContent);
+      return finalContent;
     }
 
     const visibleAnswerWithToolCalls = result.assistantContent || stripThinkingContent(result.content);
@@ -229,7 +222,7 @@ export async function runOpenAIWebSearchToolLoop({
       const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
       responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
       emitApiTranscript(onApiTranscript, signal, responseTranscript);
-      return withStatusPrefix(statusHistory, finalContent);
+      return finalContent;
     }
 
     const assistantToolMessage = buildAssistantToolMessage(result);
@@ -246,7 +239,7 @@ export async function runOpenAIWebSearchToolLoop({
       ];
       responseTranscript.push(assistantToolMessage, ...toolMessages);
       latestContent = '';
-      emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
+      emitChunk(onChunk, signal, latestContent);
       continue;
     }
     addChatDebugLog('web-search-loop', 'running tool calls', {
@@ -256,7 +249,12 @@ export async function runOpenAIWebSearchToolLoop({
         name: boundedToolNameForLog(call.function.name),
       })),
     });
-    const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus, signal });
+    const toolMessages = await runToolCallsSequentially(result.toolCalls, {
+      client,
+      onStatus: emitStatus,
+      signal,
+      session,
+    });
     throwIfAborted(signal);
     cacheReadContentForToolMessages(readContentByUrl, result.toolCalls, toolMessages);
     messages = [
@@ -290,5 +288,5 @@ export async function runOpenAIWebSearchToolLoop({
   const fallbackApiContent = withSourceLinks(latestAssistantApiContent, sourceUrls);
   responseTranscript.push(buildFinalAssistantTranscriptMessage(fallbackApiContent, latestReasoningContent));
   emitApiTranscript(onApiTranscript, signal, responseTranscript);
-  return withStatusPrefix(statusHistory, fallbackContent);
+  return fallbackContent;
 }

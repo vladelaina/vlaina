@@ -155,6 +155,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         return getImageViewerResourceSrc(baseSrc, resolvedSrc);
     }, [baseSrc, resolvedSrc]);
     const hasLoadError = !!loadError || mediaLoadError;
+    const canOpenViewer = Boolean(resolvedSrc) && !hasLoadError && !isActive && !isDragging && !isBlockDragging;
     const {
         lockedEditFrame,
         isViewerOpen,
@@ -228,6 +229,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     draggable={false}
                     className={cn(
                         'relative flex flex-col leading-none text-[var(--vlaina-font-0)] select-none',
+                        canOpenViewer && 'cursor-pointer',
                         (isHovered || isEditingCaption || isActive) && !isBlockDragging ? 'z-[var(--vlaina-z-10)]' : '',
                     )}
                     style={positionedContainerStyle}

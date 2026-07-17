@@ -14,6 +14,7 @@ import type { MessageListProps } from './MessageListTypes';
 import { buildRenderedMessageState } from './messageListState';
 import { TAIL_ANCHOR_THRESHOLD, useMessageListViewport } from './useMessageListViewport';
 import { useMessageListMeasurement } from './useMessageListMeasurement';
+import { useUIStore } from '@/stores/uiSlice';
 
 export const MessageList = memo(function MessageList({
   active = true,
@@ -33,6 +34,7 @@ export const MessageList = memo(function MessageList({
   onEdit,
   onSwitchVersion
 }: MessageListProps) {
+  const fontSize = useUIStore((state) => state.fontSize);
   const renderedState = useMemo(
     () => buildRenderedMessageState(messages),
     [messages],
@@ -71,6 +73,7 @@ export const MessageList = memo(function MessageList({
     activeMeasuredMessageId,
     activeRef,
     chatId,
+    fontSize,
     isSessionActive,
     lastStreamingMessageId,
     layoutWidth,
@@ -83,10 +86,11 @@ export const MessageList = memo(function MessageList({
       activeMessageId: activeMeasuredMessageId,
       cacheKey: chatId,
       containerWidth: Math.max(layoutWidth, 1),
+      fontSize,
       isSessionActive,
       measuredHeights,
     }),
-    [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, measuredHeights, renderedMessages]
+    [activeMeasuredMessageId, chatId, fontSize, isSessionActive, layoutWidth, measuredHeights, renderedMessages]
   );
 
   const positionedFrameLayout = useMemo(() => {

@@ -13,7 +13,8 @@ function setupViewDom() {
   };
 }
 
-afterEach(() => {
+afterEach(async () => {
+  await new Promise((resolve) => window.setTimeout(resolve, 0));
   document.body.innerHTML = '';
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
@@ -62,6 +63,14 @@ describe('startBlockDragSession', () => {
     expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
     expect(cursorRoot.style.cursor).toBe('');
     expect(document.body.style.userSelect).toBe('');
+
+    const followUpClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+    document.dispatchEvent(followUpClick);
+    expect(followUpClick.defaultPrevented).toBe(true);
+
+    const intentionalClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+    document.dispatchEvent(intentionalClick);
+    expect(intentionalClick.defaultPrevented).toBe(false);
   });
 
   it('activates drag after threshold and emits normalized selection rect', () => {
@@ -138,6 +147,107 @@ describe('startBlockDragSession', () => {
     expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
     expect(document.body.classList.contains('editor-block-dragging-cursor')).toBe(false);
     expect(document.body.style.userSelect).toBe('');
+  });
+
+  it('suppresses only the click generated immediately after an activated block drag', () => {
+    const { view } = setupViewDom();
+    const link = document.createElement('a');
+    link.href = 'https://example.test';
+    document.body.appendChild(link);
+    const linkClick = vi.fn();
+    const documentClick = vi.fn();
+    link.addEventListener('click', linkClick);
+    document.addEventListener('click', documentClick, true);
+
+    startBlockDragSession({
+      view,
+      event: new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 10,
+        clientY: 20,
+      }),
+      startZone: 'below-last-block',
+      dragThreshold: 4,
+      cursor: 'crosshair',
+      onActivate: vi.fn(),
+      onDragMove: vi.fn(),
+      onPlainClick: vi.fn(),
+    });
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      cancelable: true,
+      buttons: 1,
+      clientX: 30,
+      clientY: 40,
+    }));
+    document.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 40,
+    }));
+
+    const followUpClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+    link.dispatchEvent(followUpClick);
+
+    expect(followUpClick.defaultPrevented).toBe(true);
+    expect(linkClick).not.toHaveBeenCalled();
+    expect(documentClick).not.toHaveBeenCalled();
+
+    const intentionalClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+    link.dispatchEvent(intentionalClick);
+
+    expect(intentionalClick.defaultPrevented).toBe(false);
+    expect(linkClick).toHaveBeenCalledTimes(1);
+    expect(documentClick).toHaveBeenCalledTimes(1);
+    document.removeEventListener('click', documentClick, true);
+  });
+
+  it('releases follow-up click suppression when the drag produces no click event', async () => {
+    const { view } = setupViewDom();
+    const button = document.createElement('button');
+    document.body.appendChild(button);
+    const buttonClick = vi.fn();
+    button.addEventListener('click', buttonClick);
+
+    startBlockDragSession({
+      view,
+      event: new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 10,
+        clientY: 20,
+      }),
+      startZone: 'below-last-block',
+      dragThreshold: 4,
+      cursor: 'crosshair',
+      onActivate: vi.fn(),
+      onDragMove: vi.fn(),
+      onPlainClick: vi.fn(),
+    });
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      cancelable: true,
+      buttons: 1,
+      clientX: 30,
+      clientY: 40,
+    }));
+    document.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 40,
+    }));
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+    const intentionalClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+    button.dispatchEvent(intentionalClick);
+
+    expect(intentionalClick.defaultPrevented).toBe(false);
+    expect(buttonClick).toHaveBeenCalledTimes(1);
   });
 
   it('can be stopped manually', () => {

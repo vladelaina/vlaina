@@ -9,16 +9,8 @@ import {
   type MarkdownFenceState,
 } from '@/lib/markdown/markdownFence';
 import {
-  MARKDOWN_BODY_LINE_HEIGHT,
   MARKDOWN_BLOCKQUOTE_CONTENT_INSET,
-  MARKDOWN_BLOCKQUOTE_LINE_HEIGHT,
   MARKDOWN_BLOCKQUOTE_PADDING_Y,
-  MARKDOWN_HEADING_FIVE_LINE_HEIGHT,
-  MARKDOWN_HEADING_FOUR_LINE_HEIGHT,
-  MARKDOWN_HEADING_ONE_LINE_HEIGHT,
-  MARKDOWN_HEADING_SIX_LINE_HEIGHT,
-  MARKDOWN_HEADING_THREE_LINE_HEIGHT,
-  MARKDOWN_HEADING_TWO_LINE_HEIGHT,
   MARKDOWN_LIST_CONTENT_INSET,
   MARKDOWN_LIST_ITEM_MARGIN_Y,
   MARKDOWN_LIST_MARGIN_Y,
@@ -47,21 +39,21 @@ const MAX_CACHED_MARKDOWN_BLOCK_CHARS = 50_000;
 const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS = 50_000;
 export const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS = 200_000;
 export const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS = 5_000;
-const HEADING_MEASUREMENTS: Array<{ lineHeight: number; variant: TextBlockVariant }> = [
-  { variant: 'heading-1', lineHeight: MARKDOWN_HEADING_ONE_LINE_HEIGHT },
-  { variant: 'heading-2', lineHeight: MARKDOWN_HEADING_TWO_LINE_HEIGHT },
-  { variant: 'heading-3', lineHeight: MARKDOWN_HEADING_THREE_LINE_HEIGHT },
-  { variant: 'heading-4', lineHeight: MARKDOWN_HEADING_FOUR_LINE_HEIGHT },
-  { variant: 'heading-5', lineHeight: MARKDOWN_HEADING_FIVE_LINE_HEIGHT },
-  { variant: 'heading-6', lineHeight: MARKDOWN_HEADING_SIX_LINE_HEIGHT },
+const HEADING_VARIANTS: TextBlockVariant[] = [
+  'heading-1',
+  'heading-2',
+  'heading-3',
+  'heading-4',
+  'heading-5',
+  'heading-6',
 ];
 
 const parsedMarkdownBlocksCache = new Map<string, MarkdownMeasurementBlock[]>();
 
 export { getMarkdownFenceState, isMarkdownFenceClose, type MarkdownFenceState };
 
-function getHeadingMeasurement(depth: number): { lineHeight: number; variant: TextBlockVariant } {
-  return HEADING_MEASUREMENTS[depth - 1] ?? HEADING_MEASUREMENTS[5]!;
+function getHeadingVariant(depth: number): TextBlockVariant {
+  return HEADING_VARIANTS[depth - 1] ?? 'heading-6';
 }
 
 function pushMeasurementBlock(
@@ -78,7 +70,6 @@ function pushMeasurementBlock(
 function buildBoundedMarkdownTextBlock(
   text: string,
   variant: TextBlockVariant,
-  lineHeight: number,
   widthInset: number = 0,
   extraHeight: number = 0,
 ): MarkdownMeasurementBlock | null {
@@ -87,7 +78,6 @@ function buildBoundedMarkdownTextBlock(
       ? text.slice(0, MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS)
       : text,
     variant,
-    lineHeight,
     widthInset,
     extraHeight,
   );
@@ -157,8 +147,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     if (headingMatch) {
       const depth = headingMatch[1]!.length;
       const text = headingMatch[2] ?? '';
-      const heading = getHeadingMeasurement(depth);
-      const block = buildBoundedMarkdownTextBlock(text, heading.variant, heading.lineHeight);
+      const block = buildBoundedMarkdownTextBlock(text, getHeadingVariant(depth));
       if (block) {
         pushMeasurementBlock(blocks, block);
       }
@@ -186,7 +175,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
         { maxTokens: MAX_LAYOUT_VIDEO_IMAGE_TOKENS },
       ).trim();
       if (textWithoutMedia) {
-        const block = buildBoundedMarkdownTextBlock(textWithoutMedia, 'body', MARKDOWN_BODY_LINE_HEIGHT);
+        const block = buildBoundedMarkdownTextBlock(textWithoutMedia, 'body');
         if (block) {
           pushMeasurementBlock(blocks, block);
         }
@@ -212,7 +201,6 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       const block = buildBoundedMarkdownTextBlock(
         text,
         'body',
-        MARKDOWN_BLOCKQUOTE_LINE_HEIGHT,
         MARKDOWN_BLOCKQUOTE_CONTENT_INSET,
         MARKDOWN_BLOCKQUOTE_PADDING_Y,
       );
@@ -250,7 +238,6 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       const block = buildBoundedMarkdownTextBlock(
         text,
         'body',
-        MARKDOWN_BODY_LINE_HEIGHT,
         MARKDOWN_LIST_CONTENT_INSET,
         MARKDOWN_LIST_MARGIN_Y + itemCount * MARKDOWN_LIST_ITEM_MARGIN_Y,
       );
@@ -261,7 +248,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       continue;
     }
 
-    const paragraph = buildBoundedMarkdownTextBlock(sectionLines.join(' '), 'body', MARKDOWN_BODY_LINE_HEIGHT);
+    const paragraph = buildBoundedMarkdownTextBlock(sectionLines.join(' '), 'body');
     if (paragraph) {
       pushMeasurementBlock(blocks, paragraph);
     }

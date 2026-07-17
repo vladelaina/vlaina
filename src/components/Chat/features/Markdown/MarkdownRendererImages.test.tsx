@@ -214,6 +214,16 @@ describe('MarkdownRenderer images', () => {
     expect(container.innerHTML).not.toContain('javascript:alert');
   });
 
+  it('renders video markdown outside paragraph elements', () => {
+    const { container } = render(
+      <MarkdownRenderer content={'![video](https://example.com/movie.mp4)'} />
+    );
+
+    const videoBlock = container.querySelector('.video-block');
+    expect(videoBlock).toBeInTheDocument();
+    expect(videoBlock?.closest('p')).toBeNull();
+  });
+
   it('drops dangerous schemes from non-url raw HTML attributes', () => {
     const { container } = render(
       <MarkdownRenderer

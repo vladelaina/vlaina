@@ -28,6 +28,8 @@ export function normalizeManagedErrorPayload(payload, status) {
     message = 'UPSTREAM_UNAVAILABLE';
   } else if (normalizedCode === 'unsupported_message_content' || normalizedCode === 'unsupported_model_input') {
     message = 'UNSUPPORTED_MODEL_INPUT';
+  } else if (normalizedCode === 'unsupported_tool_calling') {
+    message = 'UNSUPPORTED_TOOL_CALLING';
   } else if (normalizedCode === 'invalid_request') {
     message = 'INVALID_REQUEST';
   }

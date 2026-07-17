@@ -88,22 +88,30 @@ export function useNotesSidebarTags({
   });
   const tags = useMemo(
     () => {
+      const getContentSource = (path: string) => {
+        if (liveNoteContent?.path === path) {
+          return liveNoteContent;
+        }
+
+        const cachedNote = noteContentsCache.get(path);
+        if (cachedNote) {
+          return cachedNote;
+        }
+
+        const sidebarCachedNote = sidebarTagContentCache.get(path);
+        return isFreshSidebarTagContentEntry(
+          sidebarCachedNote,
+          noteContentsCacheRevision,
+          currentNotesRootPath,
+        )
+          ? sidebarCachedNote
+          : undefined;
+      };
       const index = reconcileNotesSidebarTagIndex(
         tagIndexRef.current,
         scopeEntries,
-        (path) =>
-          liveNoteContent?.path === path
-            ? liveNoteContent.content
-            : noteContentsCache.get(path)?.content ??
-              (
-                isFreshSidebarTagContentEntry(
-                  sidebarTagContentCache.get(path),
-                  noteContentsCacheRevision,
-                  currentNotesRootPath,
-                )
-                  ? sidebarTagContentCache.get(path)?.content
-                  : undefined
-              ),
+        (path) => getContentSource(path)?.content,
+        getContentSource,
       );
 
       return buildNotesSidebarTagsFromTagIndex(index);

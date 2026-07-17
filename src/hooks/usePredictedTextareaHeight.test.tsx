@@ -79,8 +79,7 @@ describe('usePredictedTextareaHeight', () => {
     expect(ResizeObserverMock.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
   });
 
-  it('does not lock fallback height while the textarea has no layout width', () => {
-    vi.useFakeTimers();
+  it('waits for an observed width before measuring an initially hidden textarea', async () => {
     let width = 0;
     const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'clientWidth');
     Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', {
@@ -96,12 +95,42 @@ describe('usePredictedTextareaHeight', () => {
       expect(textLayoutMocks.measureTextareaContentHeight).not.toHaveBeenCalled();
 
       width = 320;
-      act(() => {
-        vi.advanceTimersByTime(120);
+      await act(async () => {
+        ResizeObserverMock.instances[0]!.callback([], ResizeObserverMock.instances[0] as unknown as ResizeObserver);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       });
 
       expect(textarea!.style.height).toBe('60px');
       expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalClientWidth) {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', originalClientWidth);
+      } else {
+        delete (HTMLTextAreaElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+    }
+  });
+
+  it('preserves the last valid height while the textarea is hidden', async () => {
+    let width = 320;
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => width,
+    });
+
+    try {
+      const view = render(<Harness value={'first line\nsecond line'} />);
+      const textarea = view.container.querySelector('textarea');
+      expect(textarea!.style.height).toBe('60px');
+
+      width = 0;
+      await act(async () => {
+        ResizeObserverMock.instances[0]!.callback([], ResizeObserverMock.instances[0] as unknown as ResizeObserver);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      });
+
+      expect(textarea!.style.height).toBe('60px');
     } finally {
       if (originalClientWidth) {
         Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', originalClientWidth);

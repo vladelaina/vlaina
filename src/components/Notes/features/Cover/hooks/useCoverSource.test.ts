@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCoverResolveOptions, useCoverSource } from './useCoverSource';
+import { getCoverDimensionProbeSrc, getCoverResolveOptions, useCoverSource } from './useCoverSource';
 import { clearCoverAssetUrlResolveCacheForTests, resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
@@ -74,6 +74,7 @@ describe('useCoverSource', () => {
       notesRootPath: '/notes-root-a',
       currentNotePath: 'notes/today.md',
     });
+    expect(options.animatedPlaybackKey).toBe('notes/today.md');
     hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
     hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
 
@@ -105,7 +106,14 @@ describe('useCoverSource', () => {
 
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/notesRoot/assets/animated.gif');
     expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
+    expect(hoisted.loadImageWithDimensions).toHaveBeenCalledWith(
+      expect.stringMatching(/^blob:animated-cover#vlaina-replay=.*&vlaina-dimension-probe=1$/),
+    );
     expect(result.current.isError).toBe(false);
+  });
+
+  it('keeps static cover dimension probes on the displayed source', () => {
+    expect(getCoverDimensionProbeSrc('assets/cover.png', 'blob:cover')).toBe('blob:cover');
   });
 
   it('marks error when local resolution fails', async () => {
@@ -295,6 +303,54 @@ describe('useCoverSource', () => {
     });
     expect(result.current.previewSrc).toBe('/covers/preview.webp');
     expect(result.current.isSelectionCommitting).toBe(false);
+  });
+
+  it('keeps an active preview when the current cover finishes resolving', async () => {
+    let resolveDimensions: ((value: { width: number; height: number }) => void) | undefined;
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
+    hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
+      resolveDimensions = resolve;
+    }));
+
+    const { result } = renderHook(() =>
+      useCoverSource({ url: 'assets/a.png', notesRootPath: '/notes-root-a' })
+    );
+
+    await waitFor(() => expect(resolveDimensions).toBeDefined());
+    act(() => {
+      result.current.setPreviewSrc('/covers/preview.webp');
+    });
+
+    await act(async () => {
+      resolveDimensions?.({ width: 1000, height: 500 });
+    });
+
+    expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    expect(result.current.previewSrc).toBe('/covers/preview.webp');
+  });
+
+  it('keeps an active preview when the current cover fails to resolve', async () => {
+    let rejectResolution: ((reason: Error) => void) | undefined;
+    hoisted.resolveNotesRootAssetPath.mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectResolution = reject;
+    }));
+
+    const { result } = renderHook(() =>
+      useCoverSource({ url: 'assets/missing.png', notesRootPath: '/notes-root-a' })
+    );
+
+    await waitFor(() => expect(rejectResolution).toBeDefined());
+    act(() => {
+      result.current.setPreviewSrc('/covers/preview.webp');
+    });
+
+    await act(async () => {
+      rejectResolution?.(new Error('resolve failed'));
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.previewSrc).toBe('/covers/preview.webp');
   });
 
   it('clears committing state after new cover resolves', async () => {

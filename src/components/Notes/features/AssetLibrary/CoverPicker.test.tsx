@@ -116,7 +116,7 @@ describe('CoverPicker', () => {
 
     const anchor = Array.from(container.querySelectorAll('div'))
       .find((element) => element.className.includes('top-[var(--vlaina-size-80px)]'));
-    expect(anchor?.className).toContain('right-[max(var(--vlaina-size-16px)');
+    expect(anchor?.className).toContain('right-[var(--vlaina-width-cover-picker-inset)]');
   });
 
   it('removes the current cover without bubbling pointer events to cover interactions', () => {
@@ -186,6 +186,27 @@ describe('CoverPicker', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('clears the preview before closing on Escape', () => {
+    const onClose = vi.fn();
+    const onPreview = vi.fn();
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={onClose}
+        onSelect={vi.fn()}
+        onPreview={onPreview}
+        notesRootPath="/notesRoot"
+        currentNotePath="note.md"
+      />,
+    );
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(onPreview).toHaveBeenCalledWith(null);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('debounces cover previews while moving across library items', async () => {
     hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [{ filename: 'a.png' }];
@@ -219,7 +240,7 @@ describe('CoverPicker', () => {
     vi.useRealTimers();
   });
 
-  it('keeps the visible preview when leaving the asset grid inside the picker', async () => {
+  it('clears the visible preview when leaving the asset grid', async () => {
     hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [{ filename: 'a.png' }];
     const onPreview = vi.fn();
@@ -249,7 +270,38 @@ describe('CoverPicker', () => {
       vi.advanceTimersByTime(180);
     });
 
-    expect(onPreview).not.toHaveBeenCalledWith(null);
+    expect(onPreview).toHaveBeenCalledWith(null);
+    vi.useRealTimers();
+  });
+
+  it('clears the visible preview when switching to upload', async () => {
+    hoisted.loadAssets.mockResolvedValue(undefined);
+    hoisted.assetList = [{ filename: 'a.png' }];
+    const onPreview = vi.fn();
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onPreview={onPreview}
+        notesRootPath="/notesRoot"
+        currentNotePath="note.md"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('asset-grid')).toBeInTheDocument());
+
+    vi.useFakeTimers();
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'hover a' }));
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+    expect(onPreview).toHaveBeenCalledWith('a.png');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    expect(onPreview).toHaveBeenLastCalledWith(null);
     vi.useRealTimers();
   });
 

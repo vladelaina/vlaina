@@ -12,7 +12,9 @@ export interface UseMessageAutoscrollOptions {
 }
 
 export interface MessageAutoscrollBehavior {
+  handleEditMessage: (messageId: string) => void;
   handleNewUserMessage: () => void;
+  handleRegenerateMessage: (messageId: string) => void;
   containerRef: RefObject<HTMLDivElement | null>;
   spacerHeight: number;
   currentTurnTopSpacerHeight: number;

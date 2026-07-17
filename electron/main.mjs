@@ -198,6 +198,8 @@ if (!gotSingleInstanceLock) {
 }
 
 registerDesktopIpc({
+  app,
+  dialog: electron.dialog,
   handleIpc,
   normalizeExternalUrl,
   resolveTargetWindow,

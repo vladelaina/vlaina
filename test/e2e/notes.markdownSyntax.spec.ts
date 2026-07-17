@@ -836,7 +836,7 @@ test.describe('notes markdown syntax rendering', () => {
         }
       });
 
-      const installedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      const installedTheme = await installReferenceTyporaTheme(page, 'phycat-sky.css');
       console.info('[notes-markdown-syntax-typora-theme]', installedTheme);
 
       const openMetrics = await openMarkdownFixture(page, {

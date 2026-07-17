@@ -8,8 +8,7 @@ import {
 } from '@/components/Chat/common/messageClipboard'
 import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
-import { stripWebSearchRequestMarkup } from '@/lib/ai/webSearch/requestMarkup'
-import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
+import { sanitizeWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
 import { isRetryStatusMessage } from '@/lib/ai/retryStatusMessage'
 
 const MAX_MESSAGE_VERSIONS = 20
@@ -24,14 +23,17 @@ export function createMessageVersion(
   createdAt: number,
   kind: MessageVersion['kind'],
   apiTranscript?: ApiTranscriptMessage[],
+  webSearchStatuses?: ChatMessage['webSearchStatuses'],
 ): MessageVersion {
   const normalizedApiTranscript = normalizeApiTranscriptMessages(apiTranscript)
+  const normalizedWebSearchStatuses = sanitizeWebSearchStatuses(webSearchStatuses)
   return {
     content,
     createdAt,
     kind,
     subsequentMessages: [],
-    ...(normalizedApiTranscript ? { apiTranscript: normalizedApiTranscript } : {})
+    ...(normalizedApiTranscript ? { apiTranscript: normalizedApiTranscript } : {}),
+    ...(normalizedWebSearchStatuses.length > 0 ? { webSearchStatuses: normalizedWebSearchStatuses } : {}),
   }
 }
 
@@ -79,8 +81,7 @@ export function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: s
 }
 
 export function hasVisibleAssistantReply(content: string): boolean {
-  const withoutWebSearchStatuses = extractWebSearchStatuses(content || '').content
-  const visibleContent = stripWebSearchRequestMarkup(stripThinkingContent(withoutWebSearchStatuses))
+  const visibleContent = stripThinkingContent(content || '')
   return visibleContent.length > 0 && !isRetryStatusMessage(visibleContent)
 }
 

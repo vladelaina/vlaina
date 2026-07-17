@@ -74,13 +74,14 @@ describe('GraphView', () => {
 
     render(
       <StrictMode>
-        <GraphView />
+        <GraphView active={false} />
       </StrictMode>,
     );
 
     expect(await screen.findByRole('img', { name: 'app.viewGraph' })).toBeInTheDocument();
+    expect(document.querySelector('[data-graph-view-mode="true"]')).toHaveAttribute('data-graph-active', 'false');
     await waitFor(() => expect(hoisted.notesState.scanAllNotes).toHaveBeenCalledWith(
-      expect.objectContaining({ priorityPaths: ['Alpha.md'] }),
+      expect.objectContaining({ background: true, priorityPaths: ['Alpha.md'] }),
     ));
   });
 });

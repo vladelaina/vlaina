@@ -1152,7 +1152,7 @@ test.describe('notes tab split panes', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
-      const installedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      const installedTheme = await installReferenceTyporaTheme(page, 'phycat-sky.css');
 
       const fixture = await createNotesRootFilesFixture(page, {
         name: 'split-pane-actions-close',
@@ -1224,7 +1224,7 @@ test.describe('notes tab split panes', () => {
         await expect(betaMarkdownRoot).toHaveAttribute('data-markdown-theme-platform', 'typora');
         await expect.poll(async () => betaPreview.locator('.image-block-container[data-src="./assets/logo.png#logo#left"]').evaluate((element) =>
           window.getComputedStyle(element).float
-        ), { timeout: 10_000, message: 'Expected split preview logo image to receive Typora/VLOOK left logo styling' })
+        ), { timeout: 10_000, message: 'Expected split preview logo image to receive Typora left logo styling' })
           .toBe('left');
       }
       await expect.poll(async () => betaLogoImage.evaluate((image) => ({
@@ -1771,7 +1771,7 @@ test.describe('notes tab split panes', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
-      await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      await installReferenceTyporaTheme(page, 'phycat-sky.css');
       await runSplitSpacingAudit(page, 'split-pane-external-spacing-audit');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);

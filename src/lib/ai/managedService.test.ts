@@ -476,7 +476,7 @@ describe('managedService', () => {
     expect(clearClientSessionMock).not.toHaveBeenCalled();
   });
 
-  it('sanitizes managed chat completion bodies before web requests', async () => {
+  it('preserves native tool calls while removing legacy function messages from managed web requests', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const fetchMock = vi.fn().mockResolvedValue(
       managedJsonResponse({ choices: [{ message: { content: 'ok' } }] })
@@ -487,6 +487,11 @@ describe('managedService', () => {
 
     await requestManagedChatCompletion({
       model: 'deepseek-chat',
+      tools: [{ type: 'function', function: { name: 'web_search' } }],
+      tool_choice: 'auto',
+      parallel_tool_calls: true,
+      functions: [{ name: 'legacy_search' }],
+      function_call: 'auto',
       messages: [
         {
           role: 'assistant',
@@ -499,10 +504,24 @@ describe('managedService', () => {
           }],
         },
         { role: 'tool', tool_call_id: 'call-1' },
+        { role: 'assistant', content: '', function_call: { name: 'legacy_search', arguments: '{}' } },
+        { role: 'function', name: 'legacy_search', content: 'legacy result' },
+        {
+          role: 'assistant',
+          content: 'Visible final answer',
+          reasoning_content: 'final reasoning',
+          tool_calls: [],
+          tool_call_id: 'stale-id',
+        },
       ],
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    expect(body.tools).toEqual([{ type: 'function', function: { name: 'web_search' } }]);
+    expect(body.tool_choice).toBe('auto');
+    expect(body.parallel_tool_calls).toBe(true);
+    expect(body.functions).toBeUndefined();
+    expect(body.function_call).toBeUndefined();
     expect(body.messages).toEqual([
       {
         role: 'assistant',
@@ -515,6 +534,11 @@ describe('managedService', () => {
         }],
       },
       { role: 'tool', tool_call_id: 'call-1', content: '' },
+      {
+        role: 'assistant',
+        content: 'Visible final answer',
+        reasoning_content: 'final reasoning',
+      },
     ]);
   });
 
@@ -545,7 +569,7 @@ describe('managedService', () => {
     expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'message-79' });
   });
 
-  it('sanitizes managed chat completion bodies before desktop bridge requests', async () => {
+  it('preserves native tool transcript messages before managed desktop bridge requests', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(true);
     managedChatCompletionMock.mockResolvedValue({ choices: [{ message: { content: 'ok' } }] });
 
@@ -561,6 +585,9 @@ describe('managedService', () => {
           type: 'function',
           function: { name: 'web_search', arguments: '{"query":"x"}' },
         }],
+      }, {
+        role: 'user',
+        content: 'Continue',
       }],
     });
 
@@ -574,7 +601,7 @@ describe('managedService', () => {
           type: 'function',
           function: { name: 'web_search', arguments: '{"query":"x"}' },
         }],
-      }],
+      }, { role: 'user', content: 'Continue' }],
     });
   });
 

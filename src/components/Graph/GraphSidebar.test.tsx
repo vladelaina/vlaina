@@ -89,6 +89,8 @@ describe('GraphSidebar', () => {
     render(<GraphSidebar />);
 
     expect(screen.queryByText('app.viewGraph')).not.toBeInTheDocument();
+    expect(screen.getByText('graph.modeLocal')).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('[data-graph-mode-indicator="true"]')).toHaveClass('translate-x-full');
     const exactResult = screen.getByRole('button', { name: 'PlanPlan.md' });
     const prefixResult = screen.getByRole('button', { name: 'Planningdocs/Planning.md' });
     const wordResult = screen.getByRole('button', { name: 'Product PlanProduct Plan.md' });

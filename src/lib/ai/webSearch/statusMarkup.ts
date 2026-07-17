@@ -8,6 +8,7 @@ export const MAX_WEB_SEARCH_STATUS_JSON_LENGTH = 20000;
 export const MAX_WEB_SEARCH_STATUS_MARKUPS = 32;
 const MAX_OVERSIZED_STATUS_JSON_EXTRA_SCAN_CHARS = 4096;
 const MAX_SOURCE_URL_LENGTH = 4096;
+const MAX_STORED_WEB_SEARCH_STATUSES = 24;
 const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
@@ -90,6 +91,14 @@ export function sanitizeWebSearchStatus(value: unknown): WebSearchStatus | null 
     }
   }
   return status;
+}
+
+export function sanitizeWebSearchStatuses(value: unknown): WebSearchStatus[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(sanitizeWebSearchStatus)
+    .filter((status): status is WebSearchStatus => Boolean(status))
+    .slice(-MAX_STORED_WEB_SEARCH_STATUSES);
 }
 
 function escapeStatusJson(value: string): string {

@@ -1,0 +1,112 @@
+import { createAIError } from '@/lib/ai/errors';
+import { runManagedTextAgentToolLoop } from '@/lib/ai/computerUse/managedTextAgentToolLoop';
+import { runOpenAIJsonAgentToolLoop, runOpenAIStreamingAgentToolLoop } from '@/lib/ai/computerUse/openAIAgentToolLoop';
+import { requestManagedChatCompletion, requestManagedChatCompletionStream } from '@/lib/ai/managedService';
+import { AIErrorType, type ChatCompletionRequest, type ChatSendOptions } from '@/lib/ai/types';
+import { translate } from '@/lib/i18n';
+import { createHtmlRejectingChunkHandler } from './openaiRuntime';
+import { requestOpenAIChatCompletionWithRetry } from './openaiRequests';
+
+interface ComputerUseRequestOptions {
+  body: ChatCompletionRequest;
+  onChunk?: (chunk: string) => void;
+  options: ChatSendOptions;
+  signal?: AbortSignal;
+}
+
+export function runManagedComputerUseMessage({
+  body,
+  onChunk,
+  options,
+  signal,
+}: ComputerUseRequestOptions): Promise<string> {
+  let didHandleLocalTool = false;
+  const onCommandStatus: NonNullable<ChatSendOptions['onComputerCommandStatus']> = (status) => {
+    didHandleLocalTool = true;
+    options.onComputerCommandStatus?.(status);
+  };
+  const onWebSearchStatus: NonNullable<ChatSendOptions['onWebSearchStatus']> = (status) => {
+    didHandleLocalTool = true;
+    options.onWebSearchStatus?.(status);
+  };
+  const nativeRequest = runOpenAIJsonAgentToolLoop({
+    body,
+    defaultCwd: options.computerUseCwd,
+    onChunk: onChunk || (() => {}),
+    onApiTranscript: options.onApiTranscript,
+    onCommandStatus,
+    onWebSearchStatus,
+    signal,
+    webSearchEnabled: options.webSearchEnabled === true,
+    requestJson: (nextBody) => requestManagedChatCompletion({
+      ...nextBody,
+      stream: false,
+    }, signal),
+  });
+  return nativeRequest.catch(async (error: unknown) => {
+    const errorCode = error && typeof error === 'object'
+      ? String((error as { errorCode?: unknown }).errorCode || '').trim().toLowerCase()
+      : '';
+    const errorMessage = error instanceof Error ? error.message : '';
+    const unsupportedToolCalling = errorCode === 'unsupported_tool_calling' ||
+      errorMessage.includes('UNSUPPORTED_TOOL_CALLING');
+    if (!unsupportedToolCalling || didHandleLocalTool) throw error;
+    try {
+      return await runManagedTextAgentToolLoop({
+        body,
+        defaultCwd: options.computerUseCwd,
+        onChunk: onChunk || (() => {}),
+        onApiTranscript: options.onApiTranscript,
+        onCommandStatus: options.onComputerCommandStatus,
+        onWebSearchStatus: options.onWebSearchStatus,
+        signal,
+        webSearchEnabled: options.webSearchEnabled === true,
+        requestText: (nextBody, nextOnChunk) => requestManagedChatCompletionStream({
+          ...nextBody,
+          stream: true,
+        } as unknown as Record<string, unknown>, createHtmlRejectingChunkHandler(nextOnChunk, signal), signal),
+      });
+    } catch (fallbackError) {
+      if (
+        fallbackError && typeof fallbackError === 'object' &&
+        (fallbackError as { message?: unknown }).message === translate('chat.computerUse.invalidProtocol')
+      ) {
+        throw createAIError(AIErrorType.INVALID_REQUEST, translate('chat.computerUse.unavailableForModel'));
+      }
+      throw fallbackError;
+    }
+  });
+}
+
+export function runOpenAIComputerUseMessage({
+  body,
+  headers,
+  onChunk,
+  options,
+  retryDelayMs,
+  signal,
+  url,
+}: ComputerUseRequestOptions & {
+  headers: Record<string, string>;
+  retryDelayMs: number;
+  url: string;
+}): Promise<string> {
+  return runOpenAIStreamingAgentToolLoop({
+    body,
+    defaultCwd: options.computerUseCwd,
+    onChunk: onChunk || (() => {}),
+    onApiTranscript: options.onApiTranscript,
+    onCommandStatus: options.onComputerCommandStatus,
+    onWebSearchStatus: options.onWebSearchStatus,
+    signal,
+    webSearchEnabled: options.webSearchEnabled === true,
+    request: (nextBody) => requestOpenAIChatCompletionWithRetry({
+      url,
+      headers,
+      body: nextBody,
+      signal,
+      scope: 'computer-operation-model',
+      retryDelayMs,
+    }),
+  });
+}

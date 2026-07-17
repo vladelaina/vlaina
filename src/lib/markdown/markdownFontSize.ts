@@ -23,13 +23,14 @@ export function applyMarkdownFontSize(fontSize: number, ownerDocument?: Document
   const styleElement = getMarkdownFontSizeStyleElement(doc);
   const rootStyle = doc.documentElement.style;
   const hasLegacyRootFontSize = rootStyle.getPropertyValue('--vlaina-markdown-font-size') !== '';
-  if (styleElement.dataset.fontSizePx === fontSizePx && !hasLegacyRootFontSize) return;
+  const hasCanonicalStyle = styleElement.textContent?.includes('--vlaina-markdown-font-body-size:') ?? false;
+  if (styleElement.dataset.fontSizePx === fontSizePx && !hasLegacyRootFontSize && hasCanonicalStyle) return;
 
   if (hasLegacyRootFontSize) {
     rootStyle.removeProperty('--vlaina-markdown-font-size');
   }
-  if (styleElement.dataset.fontSizePx === fontSizePx) return;
+  if (styleElement.dataset.fontSizePx === fontSizePx && hasCanonicalStyle) return;
 
   styleElement.dataset.fontSizePx = fontSizePx;
-  styleElement.textContent = `${MARKDOWN_FONT_SIZE_SELECTOR} { --vlaina-markdown-font-size: ${fontSizePx}; }`;
+  styleElement.textContent = `${MARKDOWN_FONT_SIZE_SELECTOR} { --vlaina-markdown-font-body-size: ${fontSizePx}; }`;
 }

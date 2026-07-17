@@ -9,9 +9,15 @@ import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
 import { MAX_THINKING_TAG_MATCHES } from '@/lib/ai/stripThinkingContent';
 import { MAX_API_TRANSCRIPT_MESSAGES } from '@/lib/ai/apiTranscript';
 import { MAX_CURRENT_REQUEST_CONTENT_PARTS, MAX_CURRENT_REQUEST_MESSAGE_CHARS } from '@/lib/ai/requestContext';
+import { translate } from '@/lib/i18n';
 
 const mocks = vi.hoisted(() => ({
   bridge: undefined as undefined | {
+    computer?: {
+      startCommand: ReturnType<typeof vi.fn>;
+      cancelCommand: ReturnType<typeof vi.fn>;
+      onCommandEvent: ReturnType<typeof vi.fn>;
+    };
     webSearch?: {
       search: ReturnType<typeof vi.fn>;
       read: ReturnType<typeof vi.fn>;
@@ -851,6 +857,26 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       prompt: 'draw a house',
       n: 1,
     });
+  });
+
+  it('returns a localized validation error when computer control is enabled for an image model', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'draw a house',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+      undefined,
+      { computerUseEnabled: true },
+    )).rejects.toMatchObject({
+      type: AIErrorType.INVALID_REQUEST,
+      message: translate('chat.computerUse.unavailableForModel'),
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('sanitizes current text image references before image generation requests', async () => {
@@ -1908,6 +1934,268 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(body.messages[0].role).toBe('system');
     expect(body.messages[0].content).toContain('<web_search_request>');
     expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'hi' });
+  });
+
+  it('routes managed computer control through native tool calls', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: '',
+            tool_calls: [{
+              id: 'call-disk',
+              type: 'function',
+              function: {
+                name: 'run_command',
+                arguments: '{"command":"df -h","purpose":"Inspect disk usage"}',
+              },
+            }],
+          },
+        }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{ message: { role: 'assistant', content: 'Disk usage was inspected.' } }],
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      computer: {
+        startCommand: vi.fn(async () => ({
+          status: 'completed',
+          command: 'df -h',
+          cwd: '/tmp/project',
+          exitCode: 0,
+          stdout: 'Filesystem  Size  Used  Avail',
+          stderr: '',
+          durationMs: 5,
+        })),
+        cancelCommand: vi.fn(async () => true),
+        onCommandEvent: vi.fn(() => () => undefined),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'Inspect disk usage',
+      [],
+      buildModel({
+        id: 'vlaina-managed:deepseek-v4-flash',
+        apiModelId: 'deepseek-v4-flash',
+        name: 'DeepSeek V4 Flash',
+        providerId: 'vlaina-managed',
+      }),
+      buildProvider({ id: 'vlaina-managed', name: 'vlaina managed', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { computerUseEnabled: true, computerUseCwd: '/tmp/project' },
+    );
+
+    expect(result).toBe('Disk usage was inspected.');
+    expect(mocks.bridge.computer?.startCommand).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const call of fetchMock.mock.calls) {
+      const body = JSON.parse(call[1].body);
+      expect(body.stream).toBe(false);
+      expect(body.tools).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'function', function: expect.objectContaining({ name: 'run_command' }) }),
+      ]));
+      expect(body.tool_choice).toBe('auto');
+    }
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'assistant', tool_calls: expect.any(Array) }),
+      expect.objectContaining({ role: 'tool', tool_call_id: 'call-disk' }),
+    ]));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).messages.at(-1).content).not.toContain('fileChanges');
+  });
+
+  it('falls back to the bounded text protocol only when managed native tools are unsupported', async () => {
+    const commandMarkup = '<｜｜DSML｜｜tool_calls><｜｜DSML｜｜invoke name="run_command"><｜｜DSML｜｜parameter name="command">pwd</｜｜DSML｜｜parameter><｜｜DSML｜｜parameter name="purpose">Inspect working directory</｜｜DSML｜｜parameter></｜｜DSML｜｜invoke></｜｜DSML｜｜tool_calls>';
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: false,
+        error: 'UNSUPPORTED_TOOL_CALLING',
+        errorCode: 'unsupported_tool_calling',
+      }), { status: 400 }))
+      .mockResolvedValueOnce(streamResponse(
+        `data: ${JSON.stringify({ choices: [{ delta: { content: commandMarkup } }] })}\n\ndata: [DONE]\n\n`,
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        'data: {"choices":[{"delta":{"content":"Working directory inspected."}}]}\n\ndata: [DONE]\n\n',
+      ));
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      computer: {
+        startCommand: vi.fn(async () => ({
+          status: 'completed',
+          command: 'pwd',
+          cwd: '/tmp/project',
+          exitCode: 0,
+          stdout: '/tmp/project',
+          stderr: '',
+          durationMs: 2,
+        })),
+        cancelCommand: vi.fn(async () => true),
+        onCommandEvent: vi.fn(() => () => undefined),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'Inspect the working directory',
+      [],
+      buildModel({ id: 'vlaina-managed:test-model', apiModelId: 'test-model', providerId: 'vlaina-managed' }),
+      buildProvider({ id: 'vlaina-managed', name: 'vlaina managed', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { computerUseEnabled: true, computerUseCwd: '/tmp/project' },
+    );
+
+    expect(result).toBe('Working directory inspected.');
+    expect(mocks.bridge.computer?.startCommand).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const nativeBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const fallbackBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(nativeBody.tools).toEqual(expect.any(Array));
+    expect(nativeBody.stream).toBe(false);
+    expect(fallbackBody.tools).toBeUndefined();
+    expect(fallbackBody.stream).toBe(true);
+  });
+
+  it('never falls back after a managed native command has entered the local approval flow', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{ message: {
+          role: 'assistant',
+          content: '',
+          tool_calls: [{
+            id: 'call-once',
+            type: 'function',
+            function: {
+              name: 'run_command',
+              arguments: '{"command":"pwd","purpose":"Inspect working directory"}',
+            },
+          }],
+        } }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: false,
+        error: 'UNSUPPORTED_TOOL_CALLING',
+        errorCode: 'unsupported_tool_calling',
+      }), { status: 400 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const startCommand = vi.fn(async () => ({
+      status: 'completed',
+      command: 'pwd',
+      cwd: '/tmp/project',
+      exitCode: 0,
+      stdout: '/tmp/project',
+      stderr: '',
+      durationMs: 2,
+    }));
+    mocks.bridge = {
+      computer: {
+        startCommand,
+        cancelCommand: vi.fn(async () => true),
+        onCommandEvent: vi.fn(() => () => undefined),
+      },
+    };
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'Inspect the working directory',
+      [],
+      buildModel({ id: 'vlaina-managed:test-model', apiModelId: 'test-model', providerId: 'vlaina-managed' }),
+      buildProvider({ id: 'vlaina-managed', name: 'vlaina managed', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { computerUseEnabled: true, computerUseCwd: '/tmp/project' },
+    )).rejects.toMatchObject({
+      message: 'UNSUPPORTED_TOOL_CALLING',
+      errorCode: 'unsupported_tool_calling',
+    });
+
+    expect(startCommand).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses visible text instead of native command transcripts in later managed turns with computer control on or off', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{ message: { role: 'assistant', content: 'The second turn works.' } }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(
+        streamResponse('data: {"choices":[{"delta":{"content":"The second turn works."}}]}\n\ndata: [DONE]\n\n'),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new OpenAICompatibleClient();
+    const history: ChatMessage[] = [{
+      id: 'previous-assistant',
+      role: 'assistant',
+      content: 'The first command completed.',
+      apiTranscript: [{
+        role: 'assistant',
+        content: '',
+        tool_calls: [{
+          id: 'managed_0_0',
+          type: 'function',
+          function: { name: 'run_command', arguments: '{"command":"uname -a","purpose":"Inspect system"}' },
+        }],
+      }, {
+        role: 'tool',
+        tool_call_id: 'managed_0_0',
+        name: 'run_command',
+        content: '{"kind":"vlaina-computer-command","version":1,"phase":"completed","command":"uname -a"}',
+      }, {
+        role: 'assistant',
+        content: 'The first command completed.',
+      }],
+      modelId: 'deepseek-v4-flash',
+      timestamp: 1,
+      versions: [{
+        content: 'The first command completed.',
+        createdAt: 1,
+        kind: 'original',
+        subsequentMessages: [],
+      }],
+      currentVersionIndex: 0,
+    }];
+    const model = buildModel({
+      id: 'vlaina-managed:deepseek-v4-flash',
+      apiModelId: 'deepseek-v4-flash',
+      name: 'DeepSeek V4 Flash',
+      providerId: 'vlaina-managed',
+    });
+    const provider = buildProvider({ id: 'vlaina-managed', name: 'vlaina managed', apiKey: '' });
+
+    const result = await client.sendMessage(
+      'Continue with another question',
+      history,
+      model,
+      provider,
+      vi.fn(),
+      undefined,
+      { computerUseEnabled: true, computerUseCwd: '/tmp/project' },
+    );
+    const resultAfterDisable = await client.sendMessage(
+      'Continue after disabling computer control',
+      history,
+      model,
+      provider,
+      vi.fn(),
+    );
+
+    expect(result).toBe('The second turn works.');
+    expect(resultAfterDisable).toBe('The second turn works.');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [index, call] of fetchMock.mock.calls.entries()) {
+      const body = JSON.parse(call[1].body);
+      expect(body.messages).toEqual(expect.arrayContaining([
+        { role: 'assistant', content: 'The first command completed.' },
+      ]));
+      expect(body.messages.some((message: { role: string }) => message.role === 'tool')).toBe(false);
+      expect(body.messages.some((message: { tool_calls?: unknown }) => message.tool_calls !== undefined)).toBe(false);
+      expect(JSON.stringify(body)).not.toContain('vlaina-computer-command');
+      if (index === 0) expect(body.tools).toEqual(expect.any(Array));
+      else expect(body.tools).toBeUndefined();
+    }
   });
 
   it('handles OpenRouter Claude search requests through the text protocol without tool messages', async () => {

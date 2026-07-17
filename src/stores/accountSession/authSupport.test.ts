@@ -84,6 +84,57 @@ describe('normalizeAuthError', () => {
     useUIStore.setState({ languagePreference: 'zh-CN' });
 
     expect(normalizeAuthError('Incorrect verification code')).toBe('๑ᵒᯅᵒ๑ 验证码错误');
+    expect(normalizeAuthError('Invalid or expired verification code')).toBe('๑ᵒᯅᵒ๑ 验证码无效或已过期');
+    expect(normalizeAuthError('This email is not allowed to register')).toBe('๑ᵒᯅᵒ๑ 此邮箱暂不允许注册');
+    expect(normalizeAuthError('Too many verification emails requested. Please try again later.')).toBe(
+      '๑ᵒᯅᵒ๑ 获取验证码次数过多，请稍后再试'
+    );
+    expect(normalizeAuthError('Email sign-in is temporarily unavailable')).toBe(
+      '๑ᵒᯅᵒ๑ 登录失败，请稍后重试'
+    );
+  });
+
+  it('localizes OAuth and sign-out failures', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+
+    expect(normalizeAuthError('OAuth temporarily unavailable')).toBe('๑ᵒᯅᵒ๑ 登录失败');
+    expect(normalizeAuthError('Google OAuth temporarily unavailable')).toBe('๑ᵒᯅᵒ๑ 登录失败');
+    expect(normalizeAuthError('Desktop OAuth session expired')).toBe('๑ᵒᯅᵒ๑ 登录失败');
+    expect(normalizeAuthError('Failed to revoke session: HTTP 500')).toBe('๑ᵒᯅᵒ๑ 退出登录失败，请重试');
+  });
+
+  it('does not expose public authentication API errors as raw English', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    const messages = [
+      'Invalid email address',
+      'Invalid verification code',
+      'Invalid or expired verification code',
+      'Email sign-in is temporarily unavailable',
+      'This email is not allowed to register',
+      'Too many verification emails requested. Please try again later.',
+      'Missing OAuth state',
+      'Invalid OAuth state',
+      'OAuth session not found',
+      'OAuth session expired',
+      'OAuth browser verification failed',
+      'OAuth temporarily unavailable',
+      'Google OAuth temporarily unavailable',
+      'Invalid desktop OAuth state',
+      'Invalid desktop verifier',
+      'Invalid desktop result token',
+      'Invalid desktop callback URL',
+      'Desktop OAuth verification failed',
+      'Desktop OAuth callback verification failed',
+      'Desktop OAuth session not found',
+      'Desktop OAuth session expired',
+      'Desktop sign-in is temporarily unavailable',
+      'Missing session token',
+      'Failed to revoke session',
+    ];
+
+    for (const message of messages) {
+      expect(normalizeAuthError(message), message).not.toBe(message);
+    }
   });
 
   it('detects email code request cooldown errors', () => {

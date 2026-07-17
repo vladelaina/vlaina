@@ -93,14 +93,26 @@ export async function sendMessageWithEndpointFallback({
     return activeClient.sendMessage(...args);
   };
   const onRetryStatus = options?.onRetryStatus;
+  let didReceiveComputerToolStatus = false;
+  const requestOptions: ChatSendOptions | undefined = options?.computerUseEnabled
+    ? {
+        ...options,
+        onComputerCommandStatus: (status) => {
+          didReceiveComputerToolStatus = true;
+          options.onComputerCommandStatus?.(status);
+        },
+      }
+    : options;
   const verifiedModelEndpointType = getVerifiedModelEndpointType(model);
   const verifiedProviderEndpointType = getVerifiedProviderEndpointType(provider);
   const isManagedProvider = isManagedProviderId(provider.id);
-  const shouldAutoRetry = !isManagedProvider && options?.webSearchEnabled !== true;
+  const shouldAutoRetry = !isManagedProvider
+    && options?.webSearchEnabled !== true
+    && options?.computerUseEnabled !== true;
 
   if (isManagedProvider) {
     return sendWithPreStreamRetry(
-      (trackedOnChunk) => sendWithActiveClient(content, history, model, provider, trackedOnChunk, signal, options),
+      (trackedOnChunk) => sendWithActiveClient(content, history, model, provider, trackedOnChunk, signal, requestOptions),
       onChunk,
       signal,
       retryDelayMs,
@@ -123,7 +135,7 @@ export async function sendMessageWithEndpointFallback({
         trackedOnChunk(chunk);
       },
       signal,
-      options,
+      requestOptions,
     ),
     onChunk,
     signal,
@@ -148,7 +160,8 @@ export async function sendMessageWithEndpointFallback({
       if (
         signal?.aborted ||
         didReceiveEndpointChunk ||
-        options?.webSearchEnabled ||
+        didReceiveComputerToolStatus ||
+        (options?.webSearchEnabled && !options?.computerUseEnabled) ||
         !shouldTryAlternateEndpointAfterEndpointError(error)
       ) {
         throw error;
@@ -184,7 +197,7 @@ export async function sendMessageWithEndpointFallback({
           trackedOnChunk(chunk);
         },
         signal,
-        options,
+        requestOptions,
       ),
       onChunk,
       signal,
@@ -202,7 +215,7 @@ export async function sendMessageWithEndpointFallback({
     if (didReceiveOpenAIChunk) {
       throw openAIError;
     }
-    if (options?.webSearchEnabled) {
+    if (didReceiveComputerToolStatus || (options?.webSearchEnabled && !options?.computerUseEnabled)) {
       throw openAIError;
     }
     if (!isLikelyAnthropicModel(model)) {
@@ -221,7 +234,7 @@ export async function sendMessageWithEndpointFallback({
           { ...provider, endpointType: 'anthropic' },
           trackedOnChunk,
           signal,
-          options,
+          requestOptions,
         ),
         onChunk,
         signal,

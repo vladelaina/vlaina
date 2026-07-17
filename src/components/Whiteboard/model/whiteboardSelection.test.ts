@@ -12,8 +12,8 @@ const lasso = [
 describe('whiteboard lasso selection', () => {
   it('selects elements inside the lasso path', () => {
     const elements: WhiteboardElement[] = [
-      { height: 40, id: 'inside', text: '', type: 'rect', width: 40, x: 40, y: 40 },
-      { height: 40, id: 'outside', text: '', type: 'rect', width: 40, x: 180, y: 40 },
+      { height: 40, id: 'inside', text: '', type: 'image', width: 40, x: 40, y: 40 },
+      { height: 40, id: 'outside', text: '', type: 'image', width: 40, x: 180, y: 40 },
     ];
 
     expect(getElementsInLasso(elements, lasso)).toEqual(['inside']);
@@ -48,8 +48,8 @@ describe('whiteboard lasso selection', () => {
 
   it('selects elements and strokes with one lasso pass', () => {
     const elements: WhiteboardElement[] = [
-      { height: 40, id: 'inside', text: '', type: 'rect', width: 40, x: 40, y: 40 },
-      { height: 40, id: 'outside', text: '', type: 'rect', width: 40, x: 180, y: 40 },
+      { height: 40, id: 'inside', text: '', type: 'image', width: 40, x: 40, y: 40 },
+      { height: 40, id: 'outside', text: '', type: 'image', width: 40, x: 180, y: 40 },
     ];
     const strokes: WhiteboardStroke[] = [
       {

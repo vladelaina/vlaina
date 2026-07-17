@@ -4,6 +4,7 @@ import { AppContent } from '@/AppContent';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { MarkdownThemeDirectorySync } from '@/components/markdown-theme/MarkdownThemeDirectorySync';
 import { MarkdownThemeLoader } from '@/components/markdown-theme/MarkdownThemeLoader';
+import { useEffectiveImportedMarkdownThemeId } from '@/components/markdown-theme/markdownThemePreview';
 import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
 import { ThemeProvider } from '@/components/theme-provider';
 import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
@@ -73,12 +74,13 @@ function AppThemeSync() {
   const { setTheme } = useTheme();
   const colorMode = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
   const importedThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
-  const importedThemePlatform = useImportedMarkdownThemePlatform(importedThemeId);
+  const effectiveImportedThemeId = useEffectiveImportedMarkdownThemeId(importedThemeId);
+  const importedThemePlatform = useImportedMarkdownThemePlatform(effectiveImportedThemeId);
 
   useLayoutEffect(() => {
     const normalizedColorMode = normalizeColorModePreference(colorMode);
     const effectiveColorMode = resolveImportedMarkdownThemeColorModePreference({
-      importedThemeId,
+      importedThemeId: effectiveImportedThemeId,
       importedThemePlatform,
       appPreference: normalizedColorMode,
     });
@@ -99,7 +101,7 @@ function AppThemeSync() {
       cleanupColorModeSync();
       systemColorModeQuery?.removeEventListener?.('change', syncNativeTheme);
     };
-  }, [colorMode, importedThemeId, importedThemePlatform, setTheme]);
+  }, [colorMode, effectiveImportedThemeId, importedThemePlatform, setTheme]);
 
   return null;
 }

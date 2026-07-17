@@ -13,6 +13,7 @@ interface UseResizableDividerOptions {
   maxWidth: number;
   getMaxWidth?: () => number;
   defaultWidth: number;
+  getDefaultWidth?: () => number;
   onWidthChange: (width: number) => void;
   onWidthCommit?: (width: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
@@ -42,6 +43,7 @@ export function useResizableDivider({
   maxWidth,
   getMaxWidth,
   defaultWidth,
+  getDefaultWidth,
   onWidthChange,
   onWidthCommit,
   onDragStateChange,
@@ -87,6 +89,13 @@ export function useResizableDivider({
   } = useResizeDragSession<number>({
     value: width,
     defaultValue: clampWidth(defaultWidth, minWidth, resolveMaxWidth(minWidth, maxWidth, getMaxWidth)),
+    getDefaultValue: getDefaultWidth
+      ? () => clampWidth(
+          getDefaultWidth(),
+          minWidth,
+          resolveMaxWidth(minWidth, maxWidth, getMaxWidth),
+        )
+      : undefined,
     onValueChange: onWidthChange,
     onValueCommit: onWidthCommit,
     onDragStateChange,
@@ -96,16 +105,26 @@ export function useResizableDivider({
     listenTarget: 'document',
     liveUpdateMode,
     useOverlay,
-    allowDoubleClickReset,
+    allowDoubleClickReset: false,
   });
 
   const handleDragStart = useCallback((event: ResizeDragStartEvent) => {
+    if (allowDoubleClickReset && event.detail === 2) {
+      event.preventDefault();
+      return;
+    }
     beginDrag(event);
-  }, [beginDrag]);
+  }, [allowDoubleClickReset, beginDrag]);
+
+  const handleDoubleClick = useCallback((event: ResizeDragStartEvent) => {
+    event.preventDefault();
+    resetToDefaultValue();
+  }, [resetToDefaultValue]);
 
   return {
     isDragging,
     handleDragStart,
+    handleDoubleClick: allowDoubleClickReset ? handleDoubleClick : undefined,
     resetToDefaultWidth: resetToDefaultValue,
   };
 }

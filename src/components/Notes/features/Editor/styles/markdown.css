@@ -24,7 +24,7 @@
   [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],
   [data-type='html-block'][data-value='<!--vlaina-rendered-html-boundary-blank-line-->']
 ) {
-  min-height: var(--vlaina-height-markdown-blank-line);
+  min-height: var(--vlaina-markdown-size-blank-line);
   margin: var(--vlaina-space-0);
   padding: var(--vlaina-space-0);
   pointer-events: none;
@@ -32,7 +32,7 @@
 
 .milkdown .ProseMirror > p.editor-editable-markdown-blank-line,
 .milkdown .ProseMirror > p.editor-empty-paragraph:not(.is-editor-empty) {
-  min-height: var(--vlaina-height-markdown-blank-line);
+  min-height: var(--vlaina-markdown-size-blank-line);
   margin: var(--vlaina-space-0);
   padding: var(--vlaina-space-0);
 }
@@ -95,7 +95,7 @@
 .heading-toggle-btn {
   position: absolute;
   left: var(--vlaina-editor-collapse-pos-heading, -22px);
-  top: calc((1em + var(--vlaina-markdown-heading-line-extra, var(--vlaina-size-8px))) / 2);
+  top: calc((1em + var(--vlaina-editor-heading-line-extra, var(--vlaina-size-8px))) / 2);
   transform: translateY(var(--vlaina-translate--50pct));
   width: var(--vlaina-size-18px);
   height: var(--vlaina-size-18px);
@@ -312,11 +312,11 @@
   width: var(--vlaina-size-16px);
   height: var(--vlaina-size-16px);
   /* Center the checkbox against the first task text line, including user font-size changes. */
-  margin-top: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-16px)) / 2);
+  margin-top: calc((var(--vlaina-markdown-line-height-body) - var(--vlaina-size-16px)) / 2);
   /* Pull checkbox left to align with list markers (bullets/numbers)
      while keeping the LI content box aligned for collapse buttons */
   margin-left: var(--vlaina-space--15rem);
-  border: var(--vlaina-border-width-2) solid var(--vlaina-text-tertiary);
+  border: var(--vlaina-border-width-2) solid var(--vlaina-markdown-color-task-border);
   border-radius: var(--vlaina-radius-4px);
   /* Soften corners for Apple-like feel */
   background-color: transparent;
@@ -331,8 +331,8 @@
 
 /* Checked state */
 .milkdown li[data-item-type="task"][data-checked="true"]::before {
-  background-color: var(--vlaina-accent);
-  border-color: var(--vlaina-accent);
+  background-color: var(--vlaina-markdown-color-task-checked-bg);
+  border-color: var(--vlaina-markdown-color-task-checked-bg);
   background-image: var(--vlaina-task-checkbox-check-icon);
   background-size: var(--vlaina-size-12px);
   background-position: center;
@@ -342,7 +342,7 @@
 /* Checked text style - strikethrough */
 .milkdown li[data-item-type="task"][data-checked="true"]>p {
   text-decoration: line-through;
-  color: var(--vlaina-text-tertiary);
+  color: var(--vlaina-markdown-color-task-checked-text);
 }
 
 /* Task list paragraph should fill available space for proper click handling */
@@ -400,7 +400,7 @@
 .milkdown [data-type='html-block'] td {
   min-width: var(--vlaina-size-0);
   padding: var(--vlaina-space-6px) var(--vlaina-space-13px);
-  border: var(--vlaina-border-width-1) solid var(--vlaina-border);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-markdown-color-border);
   text-align: inherit;
   word-break: normal;
   overflow-wrap: normal;
@@ -443,7 +443,7 @@
 }
 
 .milkdown table tr:hover > th {
-  background-color: var(--vlaina-bg-secondary) !important;
+  background-color: var(--vlaina-markdown-color-surface-muted) !important;
 }
 
 /* Tooltip Animation */

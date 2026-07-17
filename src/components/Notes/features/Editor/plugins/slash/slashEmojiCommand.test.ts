@@ -24,6 +24,6 @@ describe('slash emoji preview', () => {
     expect(previewRule).not.toContain('top:');
 
     const emptyBlockRule = css.match(/\.slash-emoji-inline-preview-empty-block\s*\{[^}]+\}/)?.[0] ?? '';
-    expect(emptyBlockRule).toContain('top: calc(1lh - 1em)');
+    expect(emptyBlockRule).toContain('top: var(--vlaina-slash-menu-marker-offset)');
   });
 });

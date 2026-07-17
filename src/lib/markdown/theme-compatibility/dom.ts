@@ -6,6 +6,7 @@ export const MARKDOWN_IMPORTED_THEME_ATTRIBUTE = 'data-markdown-imported-theme';
 export const IMPORTED_MARKDOWN_THEME_STYLE_ATTRIBUTE = 'data-vlaina-imported-markdown-theme';
 export const IMPORTED_MARKDOWN_THEME_POST_BRIDGE_STYLE_ATTRIBUTE = 'data-vlaina-imported-markdown-theme-post-bridge';
 export const IMPORTED_APP_THEME_STYLE_ATTRIBUTE = 'data-vlaina-imported-app-theme';
+export const IMPORTED_APP_THEME_PLATFORM_ATTRIBUTE = 'data-vlaina-imported-app-theme-platform';
 
 export const MARKDOWN_THEME_ROOT_SELECTOR = `[${MARKDOWN_THEME_ROOT_ATTRIBUTE}="true"]`;
 export const IMPORTED_MARKDOWN_THEME_STYLE_SELECTOR = `style[${IMPORTED_MARKDOWN_THEME_STYLE_ATTRIBUTE}="true"]`;

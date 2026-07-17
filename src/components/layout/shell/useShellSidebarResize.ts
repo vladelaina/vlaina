@@ -1,7 +1,7 @@
 import {
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_MAX_WIDTH,
-  getDefaultSidebarWidth,
+  getAutoSizedSidebarDefaultWidth,
 } from '@/lib/layout/sidebarWidth';
 import { useResizableDivider } from './useResizableDivider';
 
@@ -25,7 +25,8 @@ export function useShellSidebarResize({
     width,
     minWidth: SIDEBAR_MIN_WIDTH,
     maxWidth: SIDEBAR_MAX_WIDTH,
-    defaultWidth: getDefaultSidebarWidth(),
+    defaultWidth: getAutoSizedSidebarDefaultWidth(),
+    getDefaultWidth: getAutoSizedSidebarDefaultWidth,
     onWidthChange,
     onWidthCommit,
     onDragStateChange,

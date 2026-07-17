@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { registerManagedIpc } from '../../electron/managedIpc.mjs';
+import { normalizeManagedErrorPayload } from '../../electron/managedIpcErrors.mjs';
 
 const MAX_MANAGED_IPC_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_MANAGED_STREAM_LINE_CHARS = 1024 * 1024;
@@ -53,6 +54,17 @@ async function waitForSenderCall(
 }
 
 describe('managed ipc stream bridge', () => {
+  it('preserves the stable unsupported tool capability error', () => {
+    expect(normalizeManagedErrorPayload({
+      error: 'UNSUPPORTED_TOOL_CALLING',
+      errorCode: 'unsupported_tool_calling',
+    }, 400)).toEqual({
+      message: 'UNSUPPORTED_TOOL_CALLING',
+      statusCode: 400,
+      errorCode: 'unsupported_tool_calling',
+    });
+  });
+
   it('uses public managed requests for model listing only', async () => {
     const { handlers, options } = registerHarness();
     options.requestManagedPublicJson.mockResolvedValueOnce({ data: [] });

@@ -2,9 +2,10 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag, stripErrorTags } from '@/lib/ai/errorTag';
 import { measureTextBlockHeight } from '@/lib/text-layout';
 import {
-  MARKDOWN_BODY_FONT,
-  MARKDOWN_BODY_LINE_HEIGHT,
+  MARKDOWN_BODY_FONT_SIZE,
   MARKDOWN_BLOCK_GAP,
+  getMarkdownBodyFont,
+  getMarkdownBodyLineHeight,
 } from '@/components/common/markdown/markdownMetrics';
 import { getChatContentWidth } from './chatWidthBuckets';
 import {
@@ -37,14 +38,18 @@ function clampAssistantEstimateContent(content: string, isStreaming: boolean): s
   return content.slice(0, MAX_ASSISTANT_ESTIMATE_PARSE_CHARS);
 }
 
-function estimateAssistantRemainderHeight(content: string, isStreaming: boolean): number {
+function estimateAssistantRemainderHeight(
+  content: string,
+  isStreaming: boolean,
+  fontSize: number,
+): number {
   if (isStreaming || content.length <= MAX_ASSISTANT_ESTIMATE_PARSE_CHARS) {
     return 0;
   }
 
   const remainingChars = content.length - MAX_ASSISTANT_ESTIMATE_PARSE_CHARS;
   return Math.ceil(remainingChars / ASSISTANT_LONG_TEXT_CHARS_PER_LINE)
-    * MARKDOWN_BODY_LINE_HEIGHT
+    * getMarkdownBodyLineHeight(fontSize)
     * ASSISTANT_LONG_TEXT_EXTRA_LINE_HEIGHT;
 }
 
@@ -52,6 +57,7 @@ function estimateThinkingHeight(
   body: string,
   isComplete: boolean,
   contentWidth: number,
+  fontSize: number,
 ): number {
   if (!body) {
     return 0;
@@ -61,10 +67,11 @@ function estimateThinkingHeight(
     return ASSISTANT_THINKING_HEADER_HEIGHT;
   }
 
+  const lineHeight = getMarkdownBodyLineHeight(fontSize);
   const bodyHeight = measureTextBlockHeight(body, contentWidth, {
-    font: MARKDOWN_BODY_FONT,
-    lineHeight: MARKDOWN_BODY_LINE_HEIGHT,
-    minHeight: MARKDOWN_BODY_LINE_HEIGHT,
+    font: getMarkdownBodyFont(fontSize),
+    lineHeight,
+    minHeight: lineHeight,
     prepareOptions: { whiteSpace: 'pre-wrap' },
   });
 
@@ -75,6 +82,7 @@ export function estimateAssistantMessageHeight(
   message: ChatMessage,
   containerWidth: number,
   isStreaming: boolean,
+  fontSize: number = MARKDOWN_BODY_FONT_SIZE,
 ): number {
   const contentWidth = Math.max(1, getChatContentWidth(containerWidth) - ASSISTANT_LEFT_PADDING);
   const estimateContent = clampAssistantEstimateContent(message.content, isStreaming);
@@ -96,6 +104,7 @@ export function estimateAssistantMessageHeight(
     thinking.body,
     thinking.isComplete,
     contentWidth,
+    fontSize,
   );
   if (thinkingHeight > 0) {
     height += thinkingHeight;
@@ -105,7 +114,7 @@ export function estimateAssistantMessageHeight(
   }
 
   if (parsedMarkdown.blocks.length > 0) {
-    height += getMarkdownBlocksHeight(parsedMarkdown, contentWidth);
+    height += getMarkdownBlocksHeight(parsedMarkdown, contentWidth, fontSize);
     if (thinkingHeight > 0) {
       height += MARKDOWN_BLOCK_GAP;
     }
@@ -123,14 +132,17 @@ export function estimateAssistantMessageHeight(
     if (height > 0) {
       height += ASSISTANT_ERROR_MARGIN_TOP;
     }
-    height += measureErrorHeight(parsedError.content, contentWidth) + ASSISTANT_ERROR_MARGIN_BOTTOM;
+    height += measureErrorHeight(parsedError.content, contentWidth, fontSize) + ASSISTANT_ERROR_MARGIN_BOTTOM;
   }
 
   if (!isStreaming) {
     height += ASSISTANT_TOOLBAR_HEIGHT;
   }
 
-  return Math.max(height + estimateAssistantRemainderHeight(message.content, isStreaming), MARKDOWN_BODY_LINE_HEIGHT);
+  return Math.max(
+    height + estimateAssistantRemainderHeight(message.content, isStreaming, fontSize),
+    getMarkdownBodyLineHeight(fontSize),
+  );
 }
 
 export function estimateChatLoadingHeight(): number {

@@ -10,6 +10,7 @@ import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/f
 import { getScrollRoot, getToolbarRoot } from '../floating-toolbar/floatingToolbarDom';
 import { applySlashMenuPosition } from './slashMenuPositioning';
 import { createSlashMenuElement, destroySlashMenuElement } from './slashMenuDom';
+import { isEditorInsertionContextCurrent } from './slashInsertUtils';
 
 let activeSession: SlashImageLibrarySession | null = null;
 type SelectionBookmark = ReturnType<EditorView['state']['selection']['getBookmark']>;
@@ -21,6 +22,9 @@ class SlashImageLibrarySession {
   private readonly unlistenOverlay: () => void;
   private readonly scrollRoot: HTMLElement | null;
   private readonly positionRoot: HTMLElement | null;
+  private readonly sourceDoc: EditorView['state']['doc'];
+  private readonly sourceSelection: EditorView['state']['selection'];
+  private readonly sourceNotePath: string | undefined;
 
   constructor(
     private readonly view: EditorView,
@@ -29,6 +33,9 @@ class SlashImageLibrarySession {
   ) {
     this.scrollRoot = getScrollRoot(view);
     this.positionRoot = getToolbarRoot(view) ?? this.scrollRoot;
+    this.sourceDoc = view.state.doc;
+    this.sourceSelection = view.state.selection;
+    this.sourceNotePath = useNotesStore.getState().currentNote?.path;
     this.unlistenOverlay = onNotesOverlayOpen(({ source }) => {
       if (source !== 'slash-image-library') this.destroy();
     });
@@ -72,9 +79,18 @@ class SlashImageLibrarySession {
   private insert(path: string) {
     const notePath = useNotesStore.getState().currentNote?.path;
     try {
+      if (
+        notePath !== this.sourceNotePath
+        || !isEditorInsertionContextCurrent(this.view, this.sourceDoc, this.sourceSelection)
+      ) {
+        return;
+      }
       const selection = this.bookmark.resolve(this.view.state.doc);
-      this.view.dispatch(this.view.state.tr.setSelection(selection));
-      insertImageNodeAtSelection(this.view, getImagePathRelativeToNote(path, notePath));
+      insertImageNodeAtSelection(
+        this.view,
+        getImagePathRelativeToNote(path, notePath),
+        selection,
+      );
     } finally {
       this.closeAndFocus();
     }

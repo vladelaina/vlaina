@@ -190,7 +190,7 @@
   height: var(--vlaina-size-4px);
   border-radius: var(--vlaina-radius-pill);
   background: currentColor;
-  box-shadow: 0 6px currentColor, 0 12px currentColor;
+  box-shadow: var(--vlaina-shadow-table-grip-dots-vertical);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-indicator {
@@ -414,7 +414,7 @@
   position: fixed;
   z-index: var(--vlaina-z-50);
   display: flex;
-  width: 196px;
+  width: var(--vlaina-size-196px);
   flex-direction: column;
   gap: var(--vlaina-space-2px);
   padding: var(--vlaina-space-6px);

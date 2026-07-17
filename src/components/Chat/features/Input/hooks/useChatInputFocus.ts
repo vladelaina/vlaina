@@ -5,18 +5,27 @@ export function useChatInputFocus(textareaRef: RefObject<HTMLTextAreaElement | n
   const focusRafRef = useRef<number | null>(null);
   const restoreFocusListenerRef = useRef<(() => void) | null>(null);
 
-  const scheduleComposerFocus = useCallback((position?: number) => {
+  const scheduleFocus = useCallback((position?: number, forceRefocus = false) => {
     if (focusRafRef.current !== null) {
       cancelAnimationFrame(focusRafRef.current);
     }
     focusRafRef.current = requestAnimationFrame(() => {
       focusRafRef.current = null;
       const input = textareaRef.current;
-      if (!focusVisibleTextareaAt(input, position)) {
-        return;
+      if (forceRefocus && input && document.activeElement === input) {
+        input.blur();
       }
+      focusVisibleTextareaAt(input, position);
     });
   }, [textareaRef]);
+
+  const scheduleComposerFocus = useCallback((position?: number) => {
+    scheduleFocus(position);
+  }, [scheduleFocus]);
+
+  const scheduleComposerRefocus = useCallback((position?: number) => {
+    scheduleFocus(position, true);
+  }, [scheduleFocus]);
 
   const scheduleFocusOnWindowFocus = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -49,6 +58,7 @@ export function useChatInputFocus(textareaRef: RefObject<HTMLTextAreaElement | n
 
   return {
     scheduleComposerFocus,
+    scheduleComposerRefocus,
     scheduleFocusOnWindowFocus,
   };
 }

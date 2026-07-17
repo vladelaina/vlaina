@@ -90,18 +90,6 @@
   overflow-x: visible !important;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write.done::before,
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write.done::after {
-  content: none !important;
-  display: none !important;
-  width: auto !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: none !important;
-}
-
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(figure, pre, blockquote, details, summary, .v-caption, .md-alert, .milkdown-table-block) {
   overflow-wrap: break-word;
   break-inside: avoid;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushWhiteboardStorage } from '@/components/Whiteboard/storage';
 import { desktopWindow } from '@/lib/desktop/window';
 import { isElectronRuntime } from '@/lib/electron/bridge';
 import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
@@ -138,6 +139,7 @@ export function useElectronCloseGuard() {
           { name: 'unified storage', task: flushPendingSave() },
           { name: 'chat session storage', task: flushPendingSessionJsonSaves() },
           { name: 'starred notes registry', task: flushStarredRegistry() },
+          { name: 'whiteboard storage', task: flushWhiteboardStorage() },
         ];
 
         const initialNotesState = useNotesStore.getState();

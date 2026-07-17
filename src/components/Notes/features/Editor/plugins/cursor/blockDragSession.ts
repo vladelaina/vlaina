@@ -50,6 +50,22 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
   const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
   const ownerWindow = ownerDocument.defaultView ?? window;
 
+  const suppressFollowUpClick = () => {
+    let timeoutId: number | null = null;
+    const cleanup = () => {
+      ownerWindow.removeEventListener('click', handleClick, true);
+      if (timeoutId !== null) ownerWindow.clearTimeout(timeoutId);
+    };
+    const handleClick = (clickEvent: MouseEvent) => {
+      cleanup();
+      clickEvent.preventDefault();
+      clickEvent.stopPropagation();
+      clickEvent.stopImmediatePropagation();
+    };
+    ownerWindow.addEventListener('click', handleClick, true);
+    timeoutId = ownerWindow.setTimeout(cleanup, 0);
+  };
+
   const applyVisualState = (nextCursor: string) => {
     if (!visualStateApplied) {
       view.dom.classList.add(BLOCK_SELECTION_PENDING_CLASS);
@@ -98,9 +114,13 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     onDragMove(selectionRect);
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (upEvent: MouseEvent) => {
     if (!activated) {
       onPlainClick(startZone);
+      suppressFollowUpClick();
+    } else {
+      upEvent.preventDefault();
+      suppressFollowUpClick();
     }
     teardown();
   };

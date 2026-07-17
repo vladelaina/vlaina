@@ -59,7 +59,7 @@ export function createSyncE2EEditorActions(): EditorBridgeActions {
             .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
         ),
         rect: (() => {
-          const rect = target.rect;
+          const rect = target.element.getBoundingClientRect();
           return {
             left: rect.left,
             top: rect.top,

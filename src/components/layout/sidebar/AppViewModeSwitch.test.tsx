@@ -54,9 +54,9 @@ describe('AppViewModeSwitch', () => {
     expect(chatTab).toHaveStyle({ flexGrow: 1 });
     const activeBackground = container.querySelector('[aria-hidden="true"]');
     expect(activeBackground).toHaveClass('bg-[var(--vlaina-sidebar-row-selected-bg)]');
-    expect(screen.getByText('Chat')).toHaveClass('opacity-100');
-    expect(screen.getByText('Notes')).toHaveClass('opacity-0');
-    expect(screen.getByText('Board')).toHaveClass('opacity-0');
+    expect(screen.getByText('Chat')).toHaveClass('opacity-[var(--vlaina-opacity-100)]');
+    expect(screen.getByText('Notes')).toHaveClass('opacity-[var(--vlaina-opacity-0)]');
+    expect(screen.getByText('Board')).toHaveClass('opacity-[var(--vlaina-opacity-0)]');
 
     fireEvent.click(notesTab);
 
@@ -66,7 +66,7 @@ describe('AppViewModeSwitch', () => {
     expect(notesTab.className).not.toContain('transition-colors');
     expect(notesTab).toHaveStyle({ color: 'var(--vlaina-sidebar-row-selected-text)' });
     expect(notesTab).toHaveStyle({ flexGrow: 1 });
-    expect(screen.getByText('Notes')).toHaveClass('opacity-100');
+    expect(screen.getByText('Notes')).toHaveClass('opacity-[var(--vlaina-opacity-100)]');
     expect(chatTab).toHaveAttribute('aria-selected', 'false');
     expect(chatTab).toHaveStyle({ flexGrow: 0 });
     expect(container.querySelector('[aria-hidden="true"]')).toBe(activeBackground);

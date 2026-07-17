@@ -136,12 +136,12 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
         )}
         {highlightedHTML ? (
           <code
-            className={`block whitespace-pre font-mono text-sm leading-relaxed hljs ${language} !bg-transparent !p-0`}
+            className={`code-block-chrome-code block whitespace-pre font-mono hljs ${language} !bg-transparent !p-0`}
             dangerouslySetInnerHTML={{ __html: highlightedHTML }}
           />
         ) : (
           <pre className="m-0 p-0 bg-transparent">
-            <code className={`font-mono text-sm leading-relaxed ${language}`}>
+            <code className={`code-block-chrome-code font-mono ${language}`}>
               {codeText}
             </code>
           </pre>

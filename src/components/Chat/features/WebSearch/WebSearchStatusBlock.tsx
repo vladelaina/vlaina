@@ -26,6 +26,12 @@ const WEB_SEARCH_MESSAGE_KEYS: Record<string, MessageKey> = {
   'The page could not be reached.': 'chat.webSearch.pageUnreachable',
   'The page returned an HTTP error.': 'chat.webSearch.pageHttpError',
   'Web search is temporarily unavailable.': 'chat.webSearch.unavailable',
+  'Only URLs returned by the current web search can be read.': 'chat.webSearch.blockedSource',
+  'New searches are not allowed after page reading has started.': 'chat.webSearch.unavailable',
+  'The search request budget was exhausted.': 'chat.webSearch.unavailable',
+  'The page reading budget was exhausted.': 'chat.webSearch.unavailable',
+  'The web search tool budget was exhausted.': 'chat.webSearch.unavailable',
+  'Sensitive values cannot be sent to web search.': 'chat.webSearch.unavailable',
 };
 
 function phaseLabel(status: WebSearchStatus, t: Translate): string {
@@ -79,23 +85,30 @@ function uniqueSourceItems(
 
 function sourceItemsFromStatuses(statuses: WebSearchStatus[]): Array<{ url: string; label: string; detail?: string }> {
   const titleByUrl = new Map<string, string>();
-  const results: NonNullable<WebSearchStatus['results']> = [];
-  const urls: string[] = [];
 
   for (const status of statuses) {
     for (const result of status.results ?? []) {
       if (!titleByUrl.has(result.url) && result.title?.trim()) {
         titleByUrl.set(result.url, result.title.trim());
       }
-      results.push(result);
     }
-    urls.push(...(status.urls ?? []));
   }
 
+  const latestStatus = statuses[statuses.length - 1];
+  const urls = latestStatus?.phase === 'results'
+    ? (latestStatus.results ?? []).map((result) => result.url)
+    : latestStatus?.phase === 'complete'
+      ? statuses
+          .filter((status) => status.phase === 'complete')
+          .flatMap((status) => status.urls ?? [])
+      : latestStatus?.urls ?? [];
+
   return uniqueSourceItems(
-    results.map((result) => ({
-      ...result,
-      title: titleByUrl.get(result.url) || result.title,
+    urls.map((url) => ({
+      url,
+      title: titleByUrl.get(url) || hostLabel(url),
+      snippet: '',
+      publishedAt: null,
     })),
     urls,
   );

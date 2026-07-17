@@ -108,7 +108,7 @@ export async function loadNoteDocument({
           size: diskSize,
           metadata: mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedDiskContent), fileInfo),
           nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
-            updateBaseline: true,
+            baselineContent: diskContent,
             size: diskSize,
           }),
         };
@@ -124,7 +124,7 @@ export async function loadNoteDocument({
       nextCache: normalizedCachedContent === cachedContent
         ? cache
         : setCachedNoteContent(cache, notePath, normalizedCachedContent, cachedModifiedAt, {
-          updateBaseline: !allowStaleCachedContent,
+          baselineContent: cachedEntry?.savedContent ?? cachedContent,
         }),
     };
   }
@@ -145,7 +145,7 @@ export async function loadNoteDocument({
     size,
     metadata: mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedContent), fileInfo),
     nextCache: setCachedNoteContent(cache, notePath, normalizedContent, modifiedAt, {
-      updateBaseline: true,
+      baselineContent: content,
       size,
     }),
   };

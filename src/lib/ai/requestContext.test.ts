@@ -430,11 +430,12 @@ describe('requestContext', () => {
     ]);
   });
 
-  it('removes web search status markup from model history', () => {
+  it('does not serialize web search status metadata into model history', () => {
     const history = [
       createMessage({
         role: 'assistant',
-        content: '<web-search-status>{"phase":"results","query":"x"}</web-search-status>\n\nFinal answer',
+        content: 'Final answer',
+        webSearchStatuses: [{ phase: 'results', query: 'x' }],
       }),
     ];
 
@@ -442,7 +443,7 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toBe('Final answer');
   });
 
-  it('removes leaked web search request markup from model history', () => {
+  it('treats legacy web search request text as ordinary history content', () => {
     const history = [
       createMessage({
         role: 'assistant',
@@ -455,7 +456,7 @@ describe('requestContext', () => {
     ];
 
     const sanitized = sanitizeHistory(history);
-    expect(sanitized[0].content).toBe('Final answer');
+    expect(sanitized[0].content).toBe(history[0].content);
   });
 
   it('removes rendered thinking markup from fallback model history', () => {
@@ -729,6 +730,52 @@ describe('requestContext', () => {
 
     expect(result[0]?.apiTranscript).toEqual(apiTranscript);
     expect(result[0]?.versions[0]?.apiTranscript).toBeUndefined();
+  });
+
+  it('removes local command file diffs from future provider history', () => {
+    const result = buildRequestHistory({
+      history: [createMessage({
+        role: 'assistant',
+        content: 'Command completed',
+        apiTranscript: [{
+          role: 'assistant',
+          content: '',
+          tool_calls: [{
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'run_command', arguments: '{}' },
+          }],
+        }, {
+          role: 'tool',
+          tool_call_id: 'call-1',
+          name: 'run_command',
+          content: JSON.stringify({
+            kind: 'vlaina-computer-command',
+            version: 1,
+            phase: 'completed',
+            command: 'printf ok',
+            cwd: '/tmp/project',
+            fileChanges: [{
+              path: 'src/private.ts',
+              kind: 'modified',
+              additions: 1,
+              deletions: 1,
+              patch: '-private-before\n+private-after',
+            }],
+            fileChangesTruncated: true,
+            updatedAt: 1,
+          }),
+        }],
+      })],
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: false,
+    });
+
+    const transcriptText = JSON.stringify(result[0]?.apiTranscript);
+    expect(transcriptText).not.toContain('private-after');
+    expect(transcriptText).not.toContain('fileChanges');
+    expect(transcriptText).toContain('printf ok');
   });
 
   it('does not leave orphan oversized version transcripts available for provider fallback replay', () => {

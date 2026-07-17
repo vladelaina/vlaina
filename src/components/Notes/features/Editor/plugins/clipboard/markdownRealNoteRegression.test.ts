@@ -117,7 +117,7 @@ describe('real note markdown regression', () => {
         '',
         'Use ==highlighted text==, ++underlined text++, and <span style="color: #41a8ea">blue note</span>.',
         '',
-        '<img src="assets/diagram one.png" alt="Diagram &lt;Draft&gt;" title="Architecture &amp; Flow" />',
+        '![Diagram <Draft>](<assets/diagram one.png> "Architecture & Flow")',
       ].join('\n'),
     },
     {

@@ -64,4 +64,35 @@ describe('useImageMediaLifecycle', () => {
         expect(hook.updateNodeAttrs).not.toHaveBeenCalled();
         expect(hook.setIsReady).toHaveBeenCalledWith(true);
     });
+
+    it('persists initial width and generated alt in one node update', () => {
+        const parentElement = document.createElement('div');
+        Object.defineProperty(parentElement, 'offsetWidth', { value: 400 });
+        const container = document.createElement('div');
+        parentElement.appendChild(container);
+        const updateNodeAttrs = vi.fn();
+        const setWidth = vi.fn();
+        const setCaptionInput = vi.fn();
+        const hook = renderHook(() => useImageMediaLifecycle({
+            width: 'auto',
+            nodeSrc: 'assets/demo.png',
+            nodeAlt: '',
+            containerRef: { current: container },
+            setWidth,
+            setCaptionInput,
+            setNaturalRatio: vi.fn(),
+            setIsReady: vi.fn(),
+            updateNodeAttrs,
+        }));
+
+        act(() => {
+            hook.result.current.onMediaLoaded(mediaSize);
+        });
+
+        expect(updateNodeAttrs).toHaveBeenCalledTimes(1);
+        expect(updateNodeAttrs).toHaveBeenCalledWith({
+            width: '25%',
+            alt: 'demo',
+        });
+    });
 });

@@ -47,6 +47,7 @@ import {
 } from './blankAreaDragBoxPlainClicks';
 import { createBlankAreaDragBoxPluginView } from './blankAreaDragBoxPluginView';
 import { createBlankAreaDragBoxPluginProps } from './blankAreaDragBoxPluginProps';
+import { resolveListParagraphEndPlainClick } from './listParagraphEndPlainClick';
 
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 export { shouldClearBlockSelectionForTransaction } from './blankAreaDragBoxState';
@@ -113,7 +114,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     }
     const startZone = resolveBlankAreaDragStartZone(view, event);
     if (!startZone) return null;
-
     clearTextSelectionForDragSession(view);
     clearSession();
 
@@ -132,6 +132,8 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           : CLEAR_BLOCKS_ACTION);
       },
       onPlainClick({ zone, action, clientX, clientY }) {
+        const paragraphEndAction = resolveListParagraphEndPlainClick(view, event);
+        const resolvedAction = paragraphEndAction ?? action;
         if (zone === 'below-last-block') {
           dispatchTailBlankClickAction(view);
           return;
@@ -140,11 +142,15 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           clearBlockSelection(view);
           return;
         }
-        if (!action) {
+        if (!resolvedAction) {
           clearBlockSelection(view);
           return;
         }
-        dispatchBlankAreaPlainClick(view, action, clientX, clientY);
+        if (paragraphEndAction) {
+          dispatchBlankAreaPlainClick(view, resolvedAction);
+          return;
+        }
+        dispatchBlankAreaPlainClick(view, resolvedAction, clientX, clientY);
       },
       onActivateSelectionState() {
         setBlockSelectionVisualState(view, true);

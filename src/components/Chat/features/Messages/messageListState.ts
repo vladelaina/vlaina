@@ -4,14 +4,24 @@ import { isManagedModelId } from '@/lib/ai/managedService';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import type { RenderedMessageRow, RenderedMessageState } from './MessageListTypes';
 
+const pureManagedAuthErrorByMessage = new WeakMap<ChatMessage, boolean>();
+
 function isPureManagedAuthErrorMessage(message: ChatMessage): boolean {
+  const cached = pureManagedAuthErrorByMessage.get(message);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const parsedError = parseErrorTag(message.content);
   if (parsedError?.type !== 'AUTH_ERROR' || !isManagedModelId(message.modelId)) {
+    pureManagedAuthErrorByMessage.set(message, false);
     return false;
   }
 
   const contentWithoutError = stripFirstErrorTag(message.content);
-  return stripThinkingContent(contentWithoutError).trim().length === 0;
+  const isPureAuthError = stripThinkingContent(contentWithoutError).trim().length === 0;
+  pureManagedAuthErrorByMessage.set(message, isPureAuthError);
+  return isPureAuthError;
 }
 
 export function buildRenderedMessageState(messages: ChatMessage[]): RenderedMessageState {

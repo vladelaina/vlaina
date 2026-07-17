@@ -28,6 +28,7 @@ describe('useCoverPreviewReset', () => {
     renderHook(() =>
       useCoverPreviewReset({
         previewSrc: null,
+        scale: 1,
         setCrop,
         setZoom,
         setIsImageReady,
@@ -48,6 +49,7 @@ describe('useCoverPreviewReset', () => {
     renderHook(() =>
       useCoverPreviewReset({
         previewSrc: '/covers/preview.webp',
+        scale: 1.4,
         setCrop,
         setZoom,
         setIsImageReady,
@@ -68,6 +70,7 @@ describe('useCoverPreviewReset', () => {
     renderHook(() =>
       useCoverPreviewReset({
         previewSrc: '/covers/preview.webp',
+        scale: 1.4,
         setCrop,
         setZoom,
         setIsImageReady,
@@ -77,5 +80,30 @@ describe('useCoverPreviewReset', () => {
     expectCropResetUpdater(setCrop);
     expect(setZoom).toHaveBeenCalledWith(1);
     expect(setIsImageReady).not.toHaveBeenCalled();
+  });
+
+  it('restores the saved cover zoom when preview ends', () => {
+    hoisted.getCachedDimensions.mockReturnValue({ width: 1600, height: 1213 });
+    const setCrop = vi.fn();
+    const setZoom = vi.fn();
+    const setIsImageReady = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ previewSrc }) =>
+        useCoverPreviewReset({
+          previewSrc,
+          scale: 1.4,
+          setCrop,
+          setZoom,
+          setIsImageReady,
+        }),
+      { initialProps: { previewSrc: '/covers/preview.webp' as string | null } }
+    );
+
+    expect(setZoom).toHaveBeenLastCalledWith(1);
+
+    rerender({ previewSrc: null });
+
+    expect(setZoom).toHaveBeenLastCalledWith(1.4);
   });
 });

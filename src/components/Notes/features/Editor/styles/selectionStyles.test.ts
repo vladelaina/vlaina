@@ -8,11 +8,12 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain(":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora)");
     expect(css).toContain('--typora-inline-code-bg');
     expect(css).toContain('--typora-table-hover-bg');
+    expect(css).toContain('--typora-code-editor-bg: var(--d-cb, var(--code-bg, var(--code-block-bg, var(--background-primary, transparent))));');
     expect(css).toContain("[data-markdown-theme-color-scheme-mode='fixed-light']");
     expect(css).toContain('color-scheme: light;');
-    expect(css).toContain('--vlaina-code-block-background: #f5f5f5;');
+    expect(css).toContain('--vlaina-code-block-background: var(--vlaina-typora-fixed-light-code-block-bg);');
     expect(css).toContain('--vlaina-color-editor-inline-code-bg: var(--vlaina-code-inline-background);');
-    expect(css).toContain('--vlaina-text-primary: #2c2c2b;');
+    expect(css).toContain('--vlaina-text-primary: var(--vlaina-typora-fixed-light-text-primary);');
     expect(css).toContain("#write .callout.md-alert");
     expect(css).toContain("#write .md-hr::before");
     expect(css).toContain(".milkdown table tr:hover > :is(th, td)");
@@ -24,10 +25,12 @@ describe("editor style theme compatibility", () => {
     const scope = ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora)";
 
     expect(css).toContain(`${scope} #write {`);
-    expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, 1200px));');
-    expect(css).toContain('max-width: 100% !important;');
+    expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, var(--max-width, 1200px)));');
+    expect(css).toContain('max-width: var(--typora-page-max-width);');
+    expect(css).toContain('padding-inline: var(--typora-page-padding-inline);');
+    expect(css).toContain('--code-size: 0.9rem;');
     expect(css).toContain('background: transparent !important;');
-    expect(css).toContain(`${scope} #write.done::before,`);
+    expect(css).not.toContain(`${scope} #write.done::before,`);
     expect(css).toContain(`${scope} #write :is(.md-htmlblock, .video-block, .v-caption.iframe) :is(iframe, video, object, embed),`);
     const typoraHtmlBlockOverflowRule = extractCssRule(
       css,
@@ -47,7 +50,7 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain(`${scope} #write :is(.md-htmlblock.vlook-media-html-block, [data-type='html-block'].md-htmlblock.vlook-media-html-block) {`);
     expect(css).toContain('.milkdown-table-block.table-figure.editor-typora-table-figure-without-caption');
     expect(css).toContain(`${scope} #write .v-btn-group.editor-typora-button-group-has-selected {`);
-    expect(css).toContain(`${scope} #write :is(blockquote, details, .md-alert) {`);
+    expect(css).toContain(`:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora #write :is(blockquote, details, .md-alert)) {`);
     expect(css).toContain(`${scope} #write table :is(th, td).td-span {`);
     expect(css).toContain(`${scope} #write .vlook-caption-gap {`);
     expect(css).toContain(`${scope} #write .vlook-caption-target-codeblock.code-block-container.md-fences,`);
@@ -166,9 +169,9 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(\n  [data-type='math-inline'],\n  [data-type='math-block'],\n  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])\n).ProseMirror-selectednode * {");
     expect(css).toContain("color: var(--vlaina-editor-block-selection-fg) !important;");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .mermaid-block.ProseMirror-selectednode :is(text, tspan, .nodeLabel, .nodeLabel *, .label, .label *, .edgeLabel, .edgeLabel *) {");
-    expect(css).toContain("color: var(--vlaina-mermaid-text) !important;");
-    expect(css).toContain("-webkit-text-fill-color: var(--vlaina-mermaid-text) !important;");
-    expect(css).toContain("fill: var(--vlaina-mermaid-text) !important;");
+    expect(css).toContain("color: var(--vlaina-markdown-color-text) !important;");
+    expect(css).toContain("-webkit-text-fill-color: var(--vlaina-markdown-color-text) !important;");
+    expect(css).toContain("fill: var(--vlaina-markdown-color-text) !important;");
     expect(keyboardRichNodeRule).toContain(".ProseMirror-selectednode {");
     expect(keyboardRichNodeRule).toContain("background: var(--vlaina-math-hover-color) !important;");
     expect(keyboardRichNodeRule).toContain("box-shadow:");

@@ -118,7 +118,7 @@ export function NoteToolbarMoreMenu({
             <NoteMenuButton
               className={cn(
                 exportMenuItemClassName,
-                'group gap-2 [&:focus_.source-mode-shortcut]:opacity-100',
+                'group gap-2 [&:focus_.source-mode-shortcut]:opacity-[var(--vlaina-opacity-100)]',
               )}
               onSelect={onSourceModeSelect}
             >
@@ -131,7 +131,7 @@ export function NoteToolbarMoreMenu({
               <ShortcutKeys
                 keys={sourceModeShortcutKeys}
                 aria-hidden="true"
-                className="source-mode-shortcut ml-4 shrink-0 opacity-0 transition-opacity duration-[var(--vlaina-duration-100)] group-hover:opacity-100 group-focus:opacity-100"
+                className="source-mode-shortcut ml-4 shrink-0 opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-100)] group-hover:opacity-[var(--vlaina-opacity-100)] group-focus:opacity-[var(--vlaina-opacity-100)]"
                 keyClassName={SOFT_SHORTCUT_KEY_CLASSNAME}
               />
             </NoteMenuButton>

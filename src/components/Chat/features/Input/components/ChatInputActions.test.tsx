@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ChatInputActions } from './ChatInputActions';
 
@@ -82,5 +82,59 @@ describe('ChatInputActions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
 
     expect(screen.getByRole('button', { name: '@chat.mentionFileOrFolder' })).toBeInTheDocument();
+  });
+
+  it('restores composer focus after the upload action closes', async () => {
+    const onRequestComposerFocus = vi.fn();
+    renderActions({ onRequestComposerFocus });
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'chat.uploadFile' }));
+
+    await waitFor(() => {
+      expect(onRequestComposerFocus).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('hides computer control outside the desktop runtime', () => {
+    renderActions({ computerUseAvailable: false });
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
+
+    expect(screen.queryByRole('button', { name: 'chat.computerUse' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'chat.computerUse.disable' })).not.toBeInTheDocument();
+  });
+
+  it('requests confirmation before enabling desktop computer control', () => {
+    const onRequestEnableComputerUse = vi.fn();
+    renderActions({
+      computerUseAvailable: true,
+      computerUseEnabled: false,
+      onRequestEnableComputerUse,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'chat.computerUse' }));
+
+    expect(onRequestEnableComputerUse).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'chat.computerUse' })).not.toBeInTheDocument();
+  });
+
+  it('shows an active desktop control button that disables the feature directly', () => {
+    const onDisableComputerUse = vi.fn();
+    const onRequestComposerFocus = vi.fn();
+    renderActions({
+      computerUseAvailable: true,
+      computerUseEnabled: true,
+      onDisableComputerUse,
+      onRequestComposerFocus,
+    });
+
+    const activeButton = screen.getByRole('button', { name: 'chat.computerUse.disable' });
+    expect(activeButton).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(activeButton);
+
+    expect(onDisableComputerUse).toHaveBeenCalledTimes(1);
+    expect(onRequestComposerFocus).toHaveBeenCalledTimes(1);
   });
 });

@@ -30,6 +30,7 @@ import {
     startLinkTooltipHideTimer,
     startLinkTooltipShowTimer,
 } from './linkTooltipTimerActions';
+import { setLinkTooltipHoverCaretHidden } from './linkTooltipCaretVisibility';
 
 export class LinkTooltipView {
     dom: HTMLElement;
@@ -60,12 +61,12 @@ export class LinkTooltipView {
             view: this.view,
             dom: this.dom,
             showLinkWithDelay: (link, shouldValidateCursor) => {
-                if (this.activeLink === link) return;
+                if (this.activeLink === link) return setLinkTooltipHoverCaretHidden(this.view.dom, true);
                 startLinkTooltipShowTimer(
                     this.timers,
                     this.view,
                     link,
-                    (nextLink) => this.show(nextLink),
+                    (nextLink) => this.show(nextLink, true),
                     shouldValidateCursor,
                 );
             },
@@ -136,10 +137,10 @@ export class LinkTooltipView {
         this.showLinkAfterDispatch(start);
     };
 
-    show(link: HTMLElement) {
+    show(link: HTMLElement, hideEditorCaret = false) {
         const href = link.getAttribute('href') || link.getAttribute('data-href');
         if (href === null) return;
-
+        setLinkTooltipHoverCaretHidden(this.view.dom, hideEditorCaret);
         this.activeLink = link;
         this.activeAnchor = { type: 'link', link };
 
@@ -176,6 +177,7 @@ export class LinkTooltipView {
             return;
         }
 
+        setLinkTooltipHoverCaretHidden(this.view.dom, false);
         this.timers.clearAll();
         this.dom.removeAttribute('data-editing');
 
@@ -206,6 +208,7 @@ export class LinkTooltipView {
     }
 
     showAtPosition(from: number, to: number, autoFocus: boolean) {
+        setLinkTooltipHoverCaretHidden(this.view.dom, false);
         const selectedText = getBoundedTextBetween(this.view.state.doc, from, to, '');
 
         this.activeLink = null;
@@ -266,6 +269,7 @@ export class LinkTooltipView {
     }
 
     destroy() {
+        setLinkTooltipHoverCaretHidden(this.view.dom, false);
         this.timers.clearShow();
         this.timers.clearHide();
         this.timers.clearAll();

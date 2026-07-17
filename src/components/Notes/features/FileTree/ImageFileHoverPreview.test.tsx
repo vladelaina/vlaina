@@ -42,6 +42,10 @@ describe('ImageFileHoverPreview', () => {
         notesPath: '/notesRoot',
       });
     });
+    expect(document.querySelector('[data-image-file-hover-preview="true"]')).toBeNull();
+    expect(document.documentElement).not.toHaveAttribute(
+      'data-image-file-hover-preview-active',
+    );
     await act(async () => {
       vi.advanceTimersByTime(150);
       await Promise.resolve();
@@ -81,6 +85,10 @@ describe('ImageFileHoverPreview', () => {
       vi.runOnlyPendingTimers();
     });
 
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(document.documentElement).not.toHaveAttribute(
+      'data-image-file-hover-preview-active',
+    );
     expect(mocks.resolveNotesRootRelativeFullPath).not.toHaveBeenCalled();
     expect(mocks.loadImageAsBlob).not.toHaveBeenCalled();
   });

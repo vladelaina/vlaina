@@ -1,9 +1,8 @@
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
+import { WHITEBOARD_SYSTEM_STORAGE_SCOPE } from '@/lib/storage/whiteboardStoragePaths';
 import { getNextWhiteboardIdSequence } from '../model/whiteboardIds';
-import { WHITEBOARD_DEFAULT_RULER_STATE, type WhiteboardRulerState } from './useWhiteboardRuler';
 import type {
-  WhiteboardConnector,
   WhiteboardElement,
   WhiteboardPaperStyle,
   WhiteboardStroke,
@@ -13,17 +12,11 @@ import { useWhiteboardStore } from '../stores/useWhiteboardStore';
 
 interface WhiteboardStorageBridgeOptions {
   active: boolean;
-  appliedBoardIdRef: MutableRefObject<string | null>;
-  connectorIdRef: MutableRefObject<number>;
-  elementIdRef: MutableRefObject<number>;
-  setConnectorSourceId: Dispatch<SetStateAction<string | null>>;
-  setConnectors: Dispatch<SetStateAction<WhiteboardConnector[]>>;
+  appliedBoardKeyRef: MutableRefObject<string | null>;
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
   setPaper: Dispatch<SetStateAction<WhiteboardPaperStyle>>;
-  setSelectedConnectorIds: Dispatch<SetStateAction<string[]>>;
   setSelectedElementIds: Dispatch<SetStateAction<string[]>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
-  setRuler: Dispatch<SetStateAction<WhiteboardRulerState>>;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
   setViewport: Dispatch<SetStateAction<WhiteboardViewport>>;
   strokeIdRef: MutableRefObject<number>;
@@ -31,24 +24,19 @@ interface WhiteboardStorageBridgeOptions {
 
 export function useWhiteboardStorageBridge({
   active,
-  appliedBoardIdRef,
-  connectorIdRef,
-  elementIdRef,
-  setConnectorSourceId,
-  setConnectors,
+  appliedBoardKeyRef,
   setElements,
   setPaper,
-  setSelectedConnectorIds,
   setSelectedElementIds,
   setSelectedStrokeIds,
-  setRuler,
   setStrokes,
   setViewport,
   strokeIdRef,
 }: WhiteboardStorageBridgeOptions) {
-  const notesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? null);
+  const notesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? WHITEBOARD_SYSTEM_STORAGE_SCOPE);
   const activeBoardId = useWhiteboardStore((state) => state.activeBoardId);
   const activeSnapshot = useWhiteboardStore((state) => state.activeSnapshot);
+  const loadedNotesRootPath = useWhiteboardStore((state) => state.loadedNotesRootPath);
   const loadWhiteboards = useWhiteboardStore((state) => state.loadForNotesRoot);
 
   useEffect(() => {
@@ -57,24 +45,19 @@ export function useWhiteboardStorageBridge({
   }, [active, loadWhiteboards, notesRootPath]);
 
   useEffect(() => {
-    if (!activeSnapshot || !activeBoardId || appliedBoardIdRef.current === activeBoardId) return;
-    appliedBoardIdRef.current = activeBoardId;
-    setConnectors(activeSnapshot.connectors);
+    const boardKey = activeBoardId && loadedNotesRootPath ? `${loadedNotesRootPath}\n${activeBoardId}` : null;
+    if (loadedNotesRootPath !== notesRootPath || !activeSnapshot || !boardKey || appliedBoardKeyRef.current === boardKey) return;
+    appliedBoardKeyRef.current = boardKey;
     setElements(activeSnapshot.elements);
     setPaper(activeSnapshot.paper ?? 'dots');
-    setRuler(activeSnapshot.ruler ?? WHITEBOARD_DEFAULT_RULER_STATE);
     setStrokes(activeSnapshot.strokes);
     setViewport(activeSnapshot.viewport);
-    setSelectedConnectorIds([]);
     setSelectedElementIds([]);
     setSelectedStrokeIds([]);
-    setConnectorSourceId(null);
     strokeIdRef.current = getNextWhiteboardIdSequence(activeSnapshot.strokes, 'wb-stroke-');
-    connectorIdRef.current = getNextWhiteboardIdSequence(activeSnapshot.connectors, 'wb-connector-');
-    elementIdRef.current = getNextWhiteboardIdSequence(activeSnapshot.elements, 'wb-element-');
   }, [
-    activeBoardId, activeSnapshot, appliedBoardIdRef, connectorIdRef, elementIdRef, setConnectorSourceId,
-    setConnectors, setElements, setPaper, setRuler, setSelectedConnectorIds, setSelectedElementIds, setSelectedStrokeIds, setStrokes,
+    activeBoardId, activeSnapshot, appliedBoardKeyRef, loadedNotesRootPath, notesRootPath,
+    setElements, setPaper, setSelectedElementIds, setSelectedStrokeIds, setStrokes,
     setViewport, strokeIdRef,
   ]);
 }

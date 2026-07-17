@@ -35,6 +35,10 @@ function findCursorTextSelectionFrom($pos: ResolvedPos, dir: 1 | -1): Selection 
   return null;
 }
 
+function isInSameTopLevelBlock(left: ResolvedPos, right: ResolvedPos): boolean {
+  return left.depth > 0 && right.depth > 0 && left.before(1) === right.before(1);
+}
+
 function setTextSelectionAtBlockTail(tr: Transaction, selection: TextSelection): Transaction {
   return tr.setSelection(TextSelection.create(tr.doc, selection.$from.end()));
 }
@@ -42,7 +46,8 @@ function setTextSelectionAtBlockTail(tr: Transaction, selection: TextSelection):
 function findFollowingMarkdownBlankLineBlock(
   tr: Transaction,
   pos: number,
-): { from: number; to: number } | null {
+): Array<{ from: number; to: number }> {
+  const blankLines: Array<{ from: number; to: number }> = [];
   let offset = 0;
   for (let index = 0; index < tr.doc.childCount; index += 1) {
     const node = tr.doc.child(index);
@@ -51,27 +56,38 @@ function findFollowingMarkdownBlankLineBlock(
     offset = to;
 
     if (to <= pos) continue;
-    if (node.type.name === 'hr') continue;
+    if (from < pos) continue;
+    if (blankLines.length === 0 && node.type.name === 'hr') continue;
 
-    return isMarkdownBlankLinePlaceholderNode(node) ? { from, to } : null;
+    if (isMarkdownBlankLinePlaceholderNode(node)) {
+      blankLines.push({ from, to });
+      continue;
+    }
+
+    return blankLines;
   }
-  return null;
+  return blankLines;
 }
 
 function setSelectionAtMarkdownBlankLine(tr: Transaction, pos: number): Transaction | null {
-  const blankLine = findFollowingMarkdownBlankLineBlock(tr, pos);
-  if (!blankLine) return null;
+  const blankLines = findFollowingMarkdownBlankLineBlock(tr, pos);
+  if (blankLines.length === 0) return null;
 
   const paragraphType = tr.doc.type.schema.nodes.paragraph;
   if (!paragraphType) return null;
 
-  const paragraph = paragraphType.create(
-    null,
-    tr.doc.type.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER),
-  );
-  tr = tr.replaceWith(blankLine.from, blankLine.to, paragraph);
+  for (let index = blankLines.length - 1; index >= 0; index -= 1) {
+    const blankLine = blankLines[index]!;
+    const paragraph = paragraphType.create(
+      null,
+      tr.doc.type.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER),
+    );
+    tr = tr.replaceWith(blankLine.from, blankLine.to, paragraph);
+  }
+
+  const firstBlankLine = blankLines[0]!;
   return tr.setSelection(
-    TextSelection.create(tr.doc, blankLine.from + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length),
+    TextSelection.create(tr.doc, firstBlankLine.from + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length),
   );
 }
 
@@ -84,11 +100,19 @@ function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Tra
   const nodeBefore = $pos.nodeBefore;
 
   if (isCursorTextblock($pos.parent)) {
-    return tr.setSelection(TextSelection.create(tr.doc, $pos.end()));
+    return tr.setSelection(TextSelection.create(tr.doc, safePos));
   }
 
   if (nodeAfter && isCursorTextblock(nodeAfter)) {
     return tr.setSelection(TextSelection.create(tr.doc, safePos + 1 + nodeAfter.content.size));
+  }
+
+  const nextSelection = findCursorTextSelectionFrom($pos, 1);
+  if (
+    nextSelection instanceof TextSelection
+    && isInSameTopLevelBlock($pos, nextSelection.$from)
+  ) {
+    return setTextSelectionAtBlockTail(tr, nextSelection);
   }
 
   const markdownBlankLineSelection = setSelectionAtMarkdownBlankLine(tr, safePos);
@@ -96,7 +120,6 @@ function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Tra
     return markdownBlankLineSelection;
   }
 
-  const nextSelection = findCursorTextSelectionFrom($pos, 1);
   if (nextSelection instanceof TextSelection) {
     return setTextSelectionAtBlockTail(tr, nextSelection);
   }

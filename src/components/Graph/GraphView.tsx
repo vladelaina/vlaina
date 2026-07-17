@@ -35,7 +35,7 @@ export function GraphView({
       ? state.nodePositionsByRoot[currentNotesRootPath] ?? EMPTY_GRAPH_NODE_POSITIONS
       : EMPTY_GRAPH_NODE_POSITIONS
   ));
-  const loading = useGraphNoteScan({ active, onPrimaryContentReady, onStartupReady });
+  const loading = useGraphNoteScan({ onPrimaryContentReady, onStartupReady });
 
   const {
     fallbackFocusPath,
@@ -76,6 +76,7 @@ export function GraphView({
     <section
       aria-label={t('app.viewGraph')}
       data-graph-view-mode="true"
+      data-graph-active={active ? 'true' : 'false'}
       className="relative h-full min-h-0 overflow-hidden bg-[var(--vlaina-color-graph-canvas)] text-[var(--vlaina-color-text-primary)]"
     >
       {loading ? (
@@ -89,6 +90,7 @@ export function GraphView({
       ) : (
         <>
           <GraphCanvas
+            active={active}
             graph={layout}
             positionOverrides={positionOverrides}
             selectedPath={focusPath}

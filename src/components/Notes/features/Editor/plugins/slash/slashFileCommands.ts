@@ -5,6 +5,8 @@ import { translate } from '@/lib/i18n';
 import { getBaseName, getStorageAdapter } from '@/lib/storage/adapter';
 import { openDialog } from '@/lib/storage/dialog';
 import { handleEditorImageFiles } from '../image-upload/handleEditorImageFiles';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { isEditorInsertionContextCurrent } from './slashInsertUtils';
 
 const MAX_PICKED_IMAGE_BYTES = 50 * 1024 * 1024;
 
@@ -23,6 +25,9 @@ function isInsertableImageSize(size: number | null | undefined) {
 export async function insertImageFromFilePicker(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);
   const insertionBookmark = view.state.selection.getBookmark();
+  const insertionDoc = view.state.doc;
+  const insertionSelection = view.state.selection;
+  const insertionNotePath = useNotesStore.getState().currentNote?.path;
 
   try {
     const selected = await openDialog({
@@ -50,12 +55,13 @@ export async function insertImageFromFilePicker(ctx: Ctx) {
       type: getMimeType(fileName),
     });
 
-    view.dispatch(
-      view.state.tr
-        .setSelection(insertionBookmark.resolve(view.state.doc))
-        .scrollIntoView()
-    );
-    await handleEditorImageFiles([file], view);
+    if (
+      !isEditorInsertionContextCurrent(view, insertionDoc, insertionSelection)
+      || useNotesStore.getState().currentNote?.path !== insertionNotePath
+    ) return;
+
+    const resolvedInsertionSelection = insertionBookmark.resolve(view.state.doc);
+    await handleEditorImageFiles([file], view, useNotesStore.getState, resolvedInsertionSelection);
   } catch (error) {
   }
 }

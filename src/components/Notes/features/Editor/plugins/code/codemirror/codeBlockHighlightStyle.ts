@@ -3,20 +3,20 @@ import { tags } from '@lezer/highlight';
 import { themeFontWeightTokens } from '@/styles/themeTokens';
 
 const githubSyntax = {
-  foreground: 'var(--vlaina-code-syntax-foreground)',
-  muted: 'var(--vlaina-code-syntax-muted)',
-  keyword: 'var(--vlaina-code-syntax-keyword)',
-  name: 'var(--vlaina-code-syntax-name)',
-  function: 'var(--vlaina-code-syntax-function)',
-  constant: 'var(--vlaina-code-syntax-constant)',
-  type: 'var(--vlaina-code-syntax-type)',
-  operator: 'var(--vlaina-code-syntax-operator)',
-  string: 'var(--vlaina-code-syntax-string)',
-  variable: 'var(--vlaina-code-syntax-variable)',
-  tag: 'var(--vlaina-code-syntax-tag)',
-  markup: 'var(--vlaina-code-syntax-markup)',
-  list: 'var(--vlaina-code-syntax-list)',
-  invalid: 'var(--vlaina-code-syntax-invalid)',
+  foreground: 'var(--vlaina-markdown-color-code-text)',
+  muted: 'var(--vlaina-markdown-color-code-muted)',
+  keyword: 'var(--vlaina-markdown-color-code-keyword)',
+  name: 'var(--vlaina-markdown-color-code-name)',
+  function: 'var(--vlaina-markdown-color-code-function)',
+  constant: 'var(--vlaina-markdown-color-code-constant)',
+  type: 'var(--vlaina-markdown-color-code-type)',
+  operator: 'var(--vlaina-markdown-color-code-operator)',
+  string: 'var(--vlaina-markdown-color-code-string)',
+  variable: 'var(--vlaina-markdown-color-code-variable)',
+  tag: 'var(--vlaina-markdown-color-code-tag)',
+  markup: 'var(--vlaina-markdown-color-code-markup)',
+  list: 'var(--vlaina-markdown-color-code-list)',
+  invalid: 'var(--vlaina-markdown-color-code-invalid)',
 };
 
 export const codeBlockHighlightStyle = HighlightStyle.define([

@@ -15,6 +15,7 @@ import type { PositionedNoteGraph } from './model/graphLayout';
 import type { GraphNodePositions, GraphNodePosition } from './store/useGraphUIStore';
 
 interface GraphCanvasProps {
+  active?: boolean;
   graph: PositionedNoteGraph;
   positionOverrides: GraphNodePositions;
   selectedPath: string | null;
@@ -66,7 +67,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
     simulationPositions: forceSimulation.positionsRef.current,
   });
   const viewportController = useGraphViewportController({
-    nodeKey: `${geometry.nodeKey}\n${forceLayoutVersion}`,
+    nodeKey: `${geometry.nodeKey}\n${forceLayoutVersion}\n${props.active === false ? 'inactive' : 'active'}`,
     nodes: geometry.nodes,
     selectedPath: props.selectedPath,
     svgRef,

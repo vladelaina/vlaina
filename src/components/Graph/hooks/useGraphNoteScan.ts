@@ -4,7 +4,6 @@ import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { collectNoteGraphPaths } from '../model/noteGraph';
 
 export function useGraphNoteScan(args: {
-  active: boolean;
   onPrimaryContentReady?: () => void;
   onStartupReady?: () => void;
 }) {
@@ -25,7 +24,6 @@ export function useGraphNoteScan(args: {
   }, [args.onStartupReady]);
 
   useEffect(() => {
-    if (!args.active) return;
     if (!rootFolder || !notesPath || rootFolderPath !== notesPath) {
       setLoading(false);
       primaryContentReadyRef.current?.();
@@ -42,6 +40,7 @@ export function useGraphNoteScan(args: {
     };
     setLoading(true);
     void scanAllNotes({
+      background: true,
       signal: abortController.signal,
       priorityPaths: collectNoteGraphPaths(rootFolder.children),
       onPriorityPathsScanned: reportPrimaryContentReady,
@@ -52,7 +51,7 @@ export function useGraphNoteScan(args: {
       });
 
     return () => abortController.abort();
-  }, [args.active, currentNotesRootPath, notesPath, rootFolder, rootFolderPath, scanAllNotes]);
+  }, [currentNotesRootPath, notesPath, rootFolder, rootFolderPath, scanAllNotes]);
 
   return loading;
 }

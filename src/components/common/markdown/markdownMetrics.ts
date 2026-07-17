@@ -64,3 +64,43 @@ export const MARKDOWN_TABLE_LINE_HEIGHT = MARKDOWN_BODY_LINE_HEIGHT;
 export const MARKDOWN_TABLE_CELL_PADDING_Y = themeMarkdownMetricTokens.tableCellPaddingYPx;
 export const MARKDOWN_TABLE_BORDER_Y = themeMarkdownMetricTokens.tableBorderYPx;
 export const MARKDOWN_TABLE_ROW_BORDER_Y = themeMarkdownMetricTokens.tableRowBorderYPx;
+
+const MARKDOWN_HEADING_METRICS = [
+  [themeMarkdownMetricTokens.headingOneFontSizePx, themeMarkdownMetricTokens.headingOneLineHeightPx],
+  [themeMarkdownMetricTokens.headingTwoFontSizePx, themeMarkdownMetricTokens.headingTwoLineHeightPx],
+  [themeMarkdownMetricTokens.headingThreeFontSizePx, themeMarkdownMetricTokens.headingThreeLineHeightPx],
+  [themeMarkdownMetricTokens.headingFourFontSizePx, themeMarkdownMetricTokens.headingFourLineHeightPx],
+  [themeMarkdownMetricTokens.headingFiveFontSizePx, themeMarkdownMetricTokens.headingFiveLineHeightPx],
+  [themeMarkdownMetricTokens.headingSixFontSizePx, themeMarkdownMetricTokens.headingSixLineHeightPx],
+] as const;
+
+export function normalizeMarkdownBodyFontSize(fontSize: number = MARKDOWN_BODY_FONT_SIZE): number {
+  return Number.isFinite(fontSize) && fontSize > 0 ? fontSize : MARKDOWN_BODY_FONT_SIZE;
+}
+
+export function getMarkdownFontScale(fontSize: number = MARKDOWN_BODY_FONT_SIZE): number {
+  return normalizeMarkdownBodyFontSize(fontSize) / MARKDOWN_BODY_FONT_SIZE;
+}
+
+export function getMarkdownBodyFont(fontSize: number = MARKDOWN_BODY_FONT_SIZE): string {
+  return `normal ${themeFontWeightTokens.normal} ${normalizeMarkdownBodyFontSize(fontSize)}px ${APP_SANS_FONT_FAMILY}`;
+}
+
+export function getMarkdownBodyLineHeight(fontSize: number = MARKDOWN_BODY_FONT_SIZE): number {
+  return normalizeMarkdownBodyFontSize(fontSize) + themeMarkdownMetricTokens.bodyLineHeightExtraPx;
+}
+
+export function getMarkdownTextLineHeight(
+  variant: 'body' | 'heading-1' | 'heading-2' | 'heading-3' | 'heading-4' | 'heading-5' | 'heading-6',
+  fontSize: number = MARKDOWN_BODY_FONT_SIZE,
+): number {
+  if (variant === 'body') {
+    return getMarkdownBodyLineHeight(fontSize);
+  }
+
+  const level = Number.parseInt(variant.slice('heading-'.length), 10);
+  const [defaultHeadingSize, defaultLineHeight] = MARKDOWN_HEADING_METRICS[level - 1]
+    ?? MARKDOWN_HEADING_METRICS[5];
+  const lineHeightExtra = defaultLineHeight - defaultHeadingSize;
+  return defaultHeadingSize * getMarkdownFontScale(fontSize) + lineHeightExtra;
+}

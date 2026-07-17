@@ -63,6 +63,7 @@ function renderTargetHook(overrides: Partial<Parameters<typeof useNotesOpenMarkd
 describe('useNotesOpenMarkdownTarget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete (window as Window & { vlainaDesktop?: unknown }).vlainaDesktop;
     mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'daily/today.md', content: '' };
   });
@@ -153,6 +154,28 @@ describe('useNotesOpenMarkdownTarget', () => {
     });
     expect(props.openNote).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
+  });
+
+  it('opens desktop Markdown targets from their detected Git repository root', async () => {
+    (window as any).vlainaDesktop = {
+      platform: 'electron',
+      app: {
+        findMarkdownGitRoot: vi.fn(async () => '/external/project'),
+      },
+    };
+    const { props, result } = renderTargetHook({
+      currentNotesRootPath: '/external/project/docs',
+      notesPath: '/external/project/docs',
+    });
+
+    await act(async () => {
+      await result.current.openMarkdownTarget('/external/project/docs/setup.md');
+    });
+
+    expect(props.openNotesRoot).toHaveBeenCalledWith('/external/project', undefined, {
+      preserveSidebarTree: false,
+    });
+    expect(result.current.pendingOpenMarkdownTargetNotesRootPath).toBe('/external/project');
   });
 
   it('falls back to opening the selected file when its parent folder cannot be opened as a notesRoot', async () => {

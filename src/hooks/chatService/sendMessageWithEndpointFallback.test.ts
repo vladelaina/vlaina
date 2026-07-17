@@ -1284,6 +1284,67 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateProvider).not.toHaveBeenCalled();
   });
 
+  it('can discover an alternate endpoint before any computer operation starts', async () => {
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi.fn()
+        .mockRejectedValueOnce(new Error('OpenAI-compatible chat failed'))
+        .mockResolvedValueOnce('anthropic computer ok'),
+    };
+
+    await expect(sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk: vi.fn(),
+      client,
+      updateModel,
+      retryDelayMs: 0,
+      options: { computerUseEnabled: true },
+    })).resolves.toBe('anthropic computer ok');
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
+  });
+
+  it('never retries or changes endpoints after a computer operation status is emitted', async () => {
+    const operationError = new Error('request failed after local approval');
+    const onComputerCommandStatus = vi.fn();
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi.fn(async (_content, _history, _model, _provider, _onChunk, _signal, options) => {
+        options?.onComputerCommandStatus?.({
+          id: 'call-1',
+          phase: 'completed',
+          command: 'printf ok',
+          cwd: '/tmp/project',
+          updatedAt: 1,
+        });
+        throw operationError;
+      }),
+    };
+
+    await expect(sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider(),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+      options: { computerUseEnabled: true, onComputerCommandStatus },
+    })).rejects.toBe(operationError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(onComputerCommandStatus).toHaveBeenCalledTimes(1);
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
   it('does not auto-retry web search requests', async () => {
     const updateProvider = vi.fn();
     const transientError = {

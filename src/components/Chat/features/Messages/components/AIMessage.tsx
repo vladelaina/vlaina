@@ -5,12 +5,12 @@ import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag, stripFirstErrorTag } from '@/lib/ai/errorTag';
 import { isManagedModelId } from '@/lib/ai/managedService';
-import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
-import { stripWebSearchRequestMarkup } from '@/lib/ai/webSearch/requestMarkup';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { parseRetryStatusMessage } from '@/lib/ai/retryStatusMessage';
+import { extractComputerCommandStatuses } from '@/lib/ai/computerUse/transcript';
+import { ComputerCommandStatusBlock } from '@/components/Chat/features/ComputerUse/ComputerCommandStatusBlock';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -81,6 +81,7 @@ export function AIMessage({
 }: AIMessageProps) {
   const [copiedCodeBlockId, setCopiedCodeBlockId] = useState<string | null>(null);
   const copiedCodeBlockTimerRef = useRef<number | null>(null);
+  const contentMayContainControlMarkup = msg.content.includes('<');
   const {
     errorType,
     errorCode,
@@ -88,23 +89,41 @@ export function AIMessage({
     webSearchStatuses,
     contentWithoutError,
   } = useMemo(() => {
+    if (!contentMayContainControlMarkup) {
+      return {
+        errorType: undefined,
+        errorCode: undefined,
+        errorContent: null,
+        webSearchStatuses: msg.webSearchStatuses || [],
+        contentWithoutError: msg.content,
+      };
+    }
+
     const parsedError = parseErrorTag(msg.content);
     const nextErrorContent = parsedError?.content ?? null;
     const withoutError = nextErrorContent
       ? stripFirstErrorTag(msg.content)
       : msg.content;
-    const webSearch = extractWebSearchStatuses(withoutError);
-
     return {
       errorType: parsedError?.type,
       errorCode: parsedError?.code,
       errorContent: nextErrorContent,
-      webSearchStatuses: webSearch.statuses,
-      contentWithoutError: stripWebSearchRequestMarkup(webSearch.content),
+      webSearchStatuses: msg.webSearchStatuses || [],
+      contentWithoutError: withoutError,
     };
-  }, [msg.content]);
+  }, [contentMayContainControlMarkup, msg.content, msg.webSearchStatuses]);
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
-  const isEmptyCompletedResponse = !isLoading && stripThinkingContent(contentWithoutError).trim().length === 0;
+  const contentWithoutThinking = useMemo(
+    () => contentMayContainControlMarkup
+      ? stripThinkingContent(contentWithoutError)
+      : contentWithoutError.trim(),
+    [contentMayContainControlMarkup, contentWithoutError],
+  );
+  const computerCommandStatuses = useMemo(() => extractComputerCommandStatuses(
+    msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript,
+    isLoading,
+  ), [isLoading, msg.apiTranscript, msg.currentVersionIndex, msg.versions]);
+  const isEmptyCompletedResponse = !isLoading && contentWithoutThinking.length === 0;
   const visibleContent = contentWithoutError || ' ';
   const isManagedAuthErrorMessage = errorType === 'AUTH_ERROR'
     && isManagedModelId(msg.modelId);
@@ -146,7 +165,11 @@ export function AIMessage({
     }, themeUiFeedbackTokens.copyFeedbackDurationMs);
   }, []);
 
-  if (shouldHideManagedAuthError && stripThinkingContent(contentWithoutError).trim().length === 0) {
+  if (
+    shouldHideManagedAuthError &&
+    contentWithoutThinking.length === 0 &&
+    computerCommandStatuses.length === 0
+  ) {
     return null;
   }
 
@@ -155,8 +178,9 @@ export function AIMessage({
         <div className="[&>*:last-child]:mb-0">
             <WebSearchStatusBlock
                 statuses={webSearchStatuses}
-                isWaitingForAnswer={isLoading && stripThinkingContent(contentWithoutError).trim().length === 0}
+                isWaitingForAnswer={isLoading && contentWithoutThinking.length === 0}
             />
+            <ComputerCommandStatusBlock statuses={computerCommandStatuses} />
             {retryStatus ? (
                 <RetryStatusMessage detail={retryStatus.detail} countdown={retryStatus.countdown} />
             ) : (

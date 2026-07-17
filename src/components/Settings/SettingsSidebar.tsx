@@ -101,7 +101,7 @@ export function SettingsSidebar({
                           {showUpdateIndicator ? (
                             <DesktopUpdateBadge
                               version={sidebarUpdateVersion}
-                              className="ml-auto max-w-[7.5rem] max-[900px]:ml-0"
+                              className="ml-auto max-w-[var(--vlaina-size-120px)] max-[900px]:ml-0"
                             />
                           ) : null}
                         </button>

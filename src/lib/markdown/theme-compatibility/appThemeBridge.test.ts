@@ -2,6 +2,74 @@ import { describe, expect, it } from 'vitest';
 import { buildImportedAppThemeCss } from './appThemeBridge';
 
 describe('imported app theme bridge', () => {
+  it('maps Phycat light theme variables and Typora base defaults into app shell tokens', () => {
+    const bridged = buildImportedAppThemeCss(
+      [
+        ':root {',
+        '  --element-color: #3498db;',
+        '  --element-color-deep: #2980b9;',
+        '  --element-color-shallow: #aed6f1;',
+        '  --element-color-so-shallow: #eaf2f8;',
+        '  --element-color-soo-shallow: #f4faff;',
+        '  --element-color-linecode: #1a5276;',
+        '  --element-color-linecode-background: #ebf5fb;',
+        '  --glass-bg-color: #cee6fa2b;',
+        '  --head-title-h2-color: #fff;',
+        '  --appui-color: #3498db;',
+        '  --appui-color-icon: #3498db;',
+        '  --appui-color-text: #2c3e50;',
+        '  --primary-color: #3498db;',
+        '}',
+      ].join('\n'),
+      'phycat-sky',
+      'typora'
+    );
+
+    expect(bridged).toContain('--bg-color: #ffffff;');
+    expect(bridged).toContain('--text-color: #333333;');
+    expect(bridged).toContain('--vlaina-color-surface-main: var(--bg-color);');
+    expect(bridged).toContain('--vlaina-color-text-primary: var(--text-color);');
+    expect(bridged).toContain('--vlaina-color-accent: var(--primary-color);');
+    expect(bridged).toContain('--vlaina-sidebar-surface: var(--glass-bg-color);');
+    expect(bridged).toContain('--vlaina-sidebar-text: var(--appui-color-text);');
+    expect(bridged).toContain('--vlaina-sidebar-row-hover: var(--element-color-soo-shallow);');
+    expect(bridged).toContain('--vlaina-sidebar-row-selected-bg: var(--element-color);');
+    expect(bridged).toContain('--vlaina-sidebar-row-active: var(--element-color);');
+    expect(bridged).toContain('--vlaina-sidebar-row-selected-text: var(--head-title-h2-color);');
+    expect(bridged).toContain('--vlaina-sidebar-notes-file-icon: var(--appui-color-icon);');
+    expect(bridged).toContain('--vlaina-code-inline-background: var(--element-color-linecode-background);');
+    expect(bridged).toContain('--vlaina-code-inline-foreground: var(--element-color-linecode);');
+  });
+
+  it('prefers explicit Phycat dark surface and active-file variables over Typora defaults', () => {
+    const bridged = buildImportedAppThemeCss(
+      [
+        ':root {',
+        '  --bg-color: #282a36;',
+        '  --text-color: #f8f8f2;',
+        '  --text-color-secondary: #7e8c9f;',
+        '  --primary-color: #ff5555;',
+        '  --border-color: #44475a;',
+        '  --item-hover-bg-color: rgba(22, 22, 22, 0.14);',
+        '  --active-file-bg-color: color-mix(in srgb, var(--primary-color), transparent 85%);',
+        '  --active-file-text-color: #ffffff;',
+        '  --code-block-bg: rgba(0, 0, 0, 0.3);',
+        '}',
+      ].join('\n'),
+      'phycat-vampire',
+      'typora'
+    );
+
+    expect(bridged).toContain('--vlaina-color-surface-main: var(--bg-color);');
+    expect(bridged).toContain('--vlaina-color-text-primary: var(--text-color);');
+    expect(bridged).toContain('--vlaina-color-text-muted: var(--text-color-secondary);');
+    expect(bridged).toContain('--vlaina-color-border: var(--border-color);');
+    expect(bridged).toContain('--vlaina-sidebar-row-hover: var(--item-hover-bg-color);');
+    expect(bridged).toContain('--vlaina-sidebar-row-active: var(--active-file-bg-color);');
+    expect(bridged).toContain('--vlaina-sidebar-row-selected-text: var(--active-file-text-color);');
+    expect(bridged).toContain('--vlaina-code-block-background: var(--code-block-bg);');
+  });
+
   it('maps Typora/VLOOK theme variables into Vlaina app shell tokens', () => {
     const css = [
       ':root {',
@@ -12,6 +80,7 @@ describe('imported app theme bridge', () => {
       '  --pn-c: #ebedef;',
       '  --pn-c-a: #d4d9dd;',
       '  --bq-bg-fd: #ebedef80;',
+      '  --ac-t2-fd: #8f985e1a;',
       '  --a-c: #d36c28;',
       '  --a-o-c: #8f985e;',
       '  --v-selected-c: #1c1e1f33;',
@@ -22,6 +91,7 @@ describe('imported app theme bridge', () => {
       '  --ac-gn: #29a953;',
       '  --ac-og: #f38019;',
       '  --ac-rd: #d01010;',
+      '  --toc-h-num-c: #1c1e1f80;',
       '  --v-fm-text-local: Inter, sans-serif;',
       '  --v-fm-code-local: "JetBrains Mono", monospace;',
       '}',
@@ -40,8 +110,12 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--vlaina-color-setting-panel: var(--db-ext);');
     expect(bridged).toContain('--vlaina-color-setting-field: var(--db-ext);');
     expect(bridged).toContain('--vlaina-color-setting-control: var(--pn-c);');
-    expect(bridged).toContain('--vlaina-sidebar-row-selected-bg: var(--v-selected-c);');
-    expect(bridged).toContain('--vlaina-sidebar-row-selected-text: var(--a-c);');
+    expect(bridged).toContain('--vlaina-sidebar-surface: var(--pn-c);');
+    expect(bridged).toContain('--vlaina-sidebar-row-selected-bg: var(--ac-t2-fd);');
+    expect(bridged).toContain('--vlaina-sidebar-row-hover: var(--ac-t2-fd);');
+    expect(bridged).toContain('--vlaina-sidebar-row-active: var(--ac-t2-fd);');
+    expect(bridged).toContain('--vlaina-sidebar-row-selected-bg: var(--ac-t2-fd);');
+    expect(bridged).toContain('--vlaina-sidebar-row-selected-text: var(--df);');
     expect(bridged).toContain('--vlaina-code-block-background: var(--code-bg);');
     expect(bridged).toContain('--vlaina-code-inline-background: var(--code-bg);');
     expect(bridged).toContain('--vlaina-code-syntax-foreground: var(--code-t);');
@@ -55,7 +129,8 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--vlaina-color-scrollbar-thumb: var(--pn-c-a);');
     expect(bridged).toContain('--vlaina-color-scrollbar-thumb-hover: var(--a-c);');
     expect(bridged).toContain('--vlaina-sidebar-text: var(--df);');
-    expect(bridged).toContain('--vlaina-sidebar-notes-folder-icon: var(--ac-bu);');
+    expect(bridged).toContain('--vlaina-sidebar-notes-file-icon: var(--toc-h-num-c);');
+    expect(bridged).toContain('--vlaina-sidebar-notes-folder-icon: var(--toc-h-num-c);');
     expect(bridged).toContain('--vlaina-color-table-drag-control-border: var(--pn-c-a);');
     expect(bridged).toContain('--font-sans: var(--v-fm-text-local);');
     expect(bridged).toContain('--font-text: var(--v-fm-text-local);');
@@ -162,7 +237,7 @@ describe('imported app theme bridge', () => {
     );
 
     expect(bridged).not.toContain('javascript:alert');
-    expect(bridged).not.toContain('--vlaina-color-surface-main');
+    expect(bridged).toContain('--vlaina-color-surface-main: var(--bg-color);');
     expect(bridged).not.toContain('--font-sans');
     expect(bridged).toContain('--vlaina-color-text-primary: var(--df);');
   });
@@ -236,7 +311,7 @@ describe('imported app theme bridge', () => {
 
     expect(bridged).toContain('--vlaina-imported-app-background-layer: linear-gradient(red, blue);');
     expect(bridged).not.toContain('--vlaina-imported-app-background:');
-    expect(bridged).not.toContain('--vlaina-color-surface-main');
+    expect(bridged).toContain('--vlaina-color-surface-main: var(--bg-color);');
     expect(bridged).toContain('--vlaina-color-text-primary: var(--df);');
   });
 

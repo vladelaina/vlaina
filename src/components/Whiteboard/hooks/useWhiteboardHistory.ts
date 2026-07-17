@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { isEditableTarget } from '../model/whiteboardInteractions';
-import type { WhiteboardConnector, WhiteboardElement, WhiteboardPaperStyle, WhiteboardStroke } from '../model/whiteboardModel';
+import type { WhiteboardElement, WhiteboardPaperStyle, WhiteboardStroke } from '../model/whiteboardModel';
 
 interface WhiteboardSnapshot {
-  connectors: WhiteboardConnector[];
   elements: WhiteboardElement[];
   paper: WhiteboardPaperStyle;
   strokes: WhiteboardStroke[];
@@ -13,18 +12,15 @@ interface WhiteboardHistoryOptions extends WhiteboardSnapshot {
   active: boolean;
   historyKey: string | null;
   setPaper: Dispatch<SetStateAction<WhiteboardPaperStyle>>;
-  setConnectors: Dispatch<SetStateAction<WhiteboardConnector[]>>;
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
 }
 
 export function useWhiteboardHistory({
   active,
-  connectors,
   elements,
   historyKey,
   paper,
-  setConnectors,
   setElements,
   setPaper,
   setStrokes,
@@ -44,18 +40,16 @@ export function useWhiteboardHistory({
   }, [historyKey]);
 
   const getSnapshot = useCallback(() => ({
-    connectors: [...connectors],
     elements: [...elements],
     paper,
     strokes: [...strokes],
-  }), [connectors, elements, paper, strokes]);
+  }), [elements, paper, strokes]);
 
   const applySnapshot = useCallback((snapshot: WhiteboardSnapshot) => {
-    setConnectors(snapshot.connectors);
     setElements(snapshot.elements);
     setPaper(snapshot.paper);
     setStrokes(snapshot.strokes);
-  }, [setConnectors, setElements, setPaper, setStrokes]);
+  }, [setElements, setPaper, setStrokes]);
 
   const pushHistory = useCallback(() => {
     undoStackRef.current = [...undoStackRef.current.slice(-99), getSnapshot()];

@@ -1261,4 +1261,88 @@ test.describe('notes image block interaction', () => {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
   });
+
+  test('keeps image toolbar state colors stable while the image block is selected', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-image-toolbar-selected-color');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'notes-image-toolbar-selected-color.md',
+        content: createHtmlImageBlockMarkdown(),
+      });
+
+      const imageBlock = page.locator(
+        `${NOTE_IMAGE_BLOCK_SELECTOR}[data-alt="Notes html image block alt sentinel"]`
+      );
+      await scrollImageBlockIntoView(imageBlock);
+      await waitForImageBlockReady(imageBlock, 'selected toolbar color image');
+
+      const readButtonPaint = (action: string) => imageBlock
+        .locator(`[data-image-toolbar-action="${action}"]`)
+        .evaluate((button) => {
+          const style = getComputedStyle(button);
+          const svgStyle = getComputedStyle(button.querySelector('svg')!);
+          const pathStyle = getComputedStyle(button.querySelector('path')!);
+          return {
+            color: style.color,
+            backgroundColor: style.backgroundColor,
+            opacity: style.opacity,
+            filter: style.filter,
+            webkitTextFillColor: style.webkitTextFillColor,
+            svgColor: svgStyle.color,
+            svgStroke: svgStyle.stroke,
+            svgFill: svgStyle.fill,
+            pathColor: pathStyle.color,
+            pathStroke: pathStyle.stroke,
+            pathFill: pathStyle.fill,
+          };
+        });
+      const readToolbarPaint = async () => {
+        const active = await readButtonPaint('align-center');
+        await imageBlock.locator('[data-image-toolbar-action="align-left"]').hover();
+        await page.waitForTimeout(250);
+        const hover = await readButtonPaint('align-left');
+        await imageBlock.locator('[data-image-toolbar-action="delete"]').hover();
+        await page.waitForTimeout(250);
+        const danger = await readButtonPaint('delete');
+        return { active, hover, danger };
+      };
+
+      const selectableBlocks = await page.evaluate(() =>
+        (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          tagName: string;
+          from: number;
+          to: number;
+        }>
+      );
+      const imageIndex = selectableBlocks.findIndex((block) =>
+        block.tagName === 'DIV' && block.to - block.from > 1
+      );
+      expect(imageIndex, JSON.stringify(selectableBlocks, null, 2)).toBeGreaterThanOrEqual(0);
+
+      for (const dark of [false, true]) {
+        await clearSelectedNoteBlocks(page);
+        await page.evaluate((useDarkTheme) => {
+          document.documentElement.classList.toggle('dark', useDarkTheme);
+        }, dark);
+        await hoverImageBlockContent(imageBlock);
+        await waitForImageToolbarInteractive(imageBlock);
+        const hoveredPaint = await readToolbarPaint();
+
+        await page.evaluate(async (targetIndex) => {
+          await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([targetIndex]);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        }, imageIndex);
+        await hoverImageBlockContent(imageBlock);
+        await waitForImageToolbarInteractive(imageBlock);
+
+        expect(await readToolbarPaint()).toEqual(hoveredPaint);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 });

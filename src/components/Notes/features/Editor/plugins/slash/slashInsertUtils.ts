@@ -1,6 +1,9 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
+import type { Selection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 import {
   findTopLevelBlockAfter,
@@ -13,6 +16,14 @@ export {
 } from '../shared/insertedNodeSelection';
 
 const EDITABLE_BLANK_LINE_PLACEHOLDER_PATTERN = /[\u200B\u200C]/g;
+
+export function isEditorInsertionContextCurrent(
+  view: EditorView,
+  sourceDoc: ProseNode,
+  sourceSelection: Selection,
+): boolean {
+  return view.state.doc.eq(sourceDoc) && view.state.selection.eq(sourceSelection);
+}
 
 export function getSlashInsertViewportPosition(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);

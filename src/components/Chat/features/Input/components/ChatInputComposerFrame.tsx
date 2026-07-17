@@ -24,6 +24,8 @@ import { ChatInputActions } from './ChatInputActions';
 import { ManagedQuotaNotice, managedQuotaNoticeFrameClass } from './ManagedQuotaNotice';
 import { NoteMentionPicker } from './NoteMentionPicker';
 import type { NoteMentionCandidate } from '../noteMentionHelpers';
+import { ComputerCommandApprovalNotice } from '@/components/Chat/features/ComputerUse/ComputerCommandApprovalNotice';
+import { usePendingComputerCommandApprovals } from '@/lib/ai/computerUse/approvalState';
 
 interface ChatInputComposerFrameProps {
   activeCandidatePath: string | null;
@@ -31,6 +33,8 @@ interface ChatInputComposerFrameProps {
   attachments: Attachment[];
   canSend: boolean;
   canSubmit: boolean;
+  computerUseAvailable: boolean;
+  computerUseEnabled: boolean;
   composerRootRef: RefObject<HTMLDivElement | null>;
   currentPageCandidates: NoteMentionCandidate[];
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -57,6 +61,7 @@ interface ChatInputComposerFrameProps {
   onComposerChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   onComposerDrop: (event: DragEvent<HTMLDivElement>) => void | Promise<void>;
   onComposerDropCapture: (event: DragEvent<HTMLDivElement>) => void;
+  onDisableComputerUse: () => void;
   onCompositionEnd: (event: CompositionEvent<HTMLTextAreaElement>) => void;
   onCompositionStart: (event: CompositionEvent<HTMLTextAreaElement>) => void;
   onDragEnter: (event: DragEvent<HTMLDivElement>) => void;
@@ -65,13 +70,16 @@ interface ChatInputComposerFrameProps {
   onRemoveAttachment: (attachmentId: string) => void;
   onRemoveNoteMention: (path: string) => void;
   onRequestComposerFocus: (position?: number) => void;
+  onRequestEnableComputerUse: () => void;
   onSend: () => void;
   onTextareaScroll: (event: UIEvent<HTMLTextAreaElement>) => void;
   onToggleWebSearch: () => void;
   showMentionPicker: boolean;
+  showComputerCommandApproval: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   textareaScrollTop: number;
   webSearchEnabled: boolean;
+  webSearchAvailable?: boolean;
 }
 
 export function ChatInputComposerFrame({
@@ -80,6 +88,8 @@ export function ChatInputComposerFrame({
   attachments,
   canSend,
   canSubmit,
+  computerUseAvailable,
+  computerUseEnabled,
   composerRootRef,
   currentPageCandidates,
   fileInputRef,
@@ -106,6 +116,7 @@ export function ChatInputComposerFrame({
   onComposerChange,
   onComposerDrop,
   onComposerDropCapture,
+  onDisableComputerUse,
   onCompositionEnd,
   onCompositionStart,
   onDragEnter,
@@ -114,15 +125,22 @@ export function ChatInputComposerFrame({
   onRemoveAttachment,
   onRemoveNoteMention,
   onRequestComposerFocus,
+  onRequestEnableComputerUse,
   onSend,
   onTextareaScroll,
   onToggleWebSearch,
   showMentionPicker,
+  showComputerCommandApproval,
   textareaRef,
   textareaScrollTop,
   webSearchEnabled,
+  webSearchAvailable = true,
 }: ChatInputComposerFrameProps) {
   const { t } = useI18n();
+  const pendingComputerCommandApprovals = usePendingComputerCommandApprovals();
+  const hasComputerCommandApproval = showComputerCommandApproval &&
+    pendingComputerCommandApprovals.length > 0;
+  const hasComposerNotice = isQuotaSendBlocked || hasComputerCommandApproval;
 
   return (
     <>
@@ -136,7 +154,8 @@ export function ChatInputComposerFrame({
         onChange={handleHiddenFileInputChange}
       />
 
-      <div className={cn('relative z-[var(--vlaina-z-10)]', isQuotaSendBlocked && managedQuotaNoticeFrameClass)}>
+      <div className={cn('relative z-[var(--vlaina-z-10)]', hasComposerNotice && managedQuotaNoticeFrameClass)}>
+        {hasComputerCommandApproval ? <ComputerCommandApprovalNotice /> : null}
         <div
           data-chat-input="true"
           ref={composerRootRef}
@@ -144,7 +163,7 @@ export function ChatInputComposerFrame({
             'relative z-[var(--vlaina-z-10)]',
             chatComposerFrameClass,
             chatComposerSurfaceClass,
-            isQuotaSendBlocked && [
+            hasComposerNotice && [
               '!shadow-none',
               'hover:!shadow-none',
             ]
@@ -225,7 +244,12 @@ export function ChatInputComposerFrame({
               canSubmit={canSubmit}
               showSendReadyState={!isQuotaSendBlocked && canSend}
               webSearchEnabled={webSearchEnabled}
+              webSearchAvailable={webSearchAvailable}
               onToggleWebSearch={onToggleWebSearch}
+              computerUseAvailable={computerUseAvailable}
+              computerUseEnabled={computerUseEnabled}
+              onRequestEnableComputerUse={onRequestEnableComputerUse}
+              onDisableComputerUse={onDisableComputerUse}
               onRequestComposerFocus={onRequestComposerFocus}
               onStop={handleStopButton}
               onSend={onSend}

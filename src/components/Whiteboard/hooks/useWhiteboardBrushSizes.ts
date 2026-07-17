@@ -20,9 +20,13 @@ export function useWhiteboardBrushSizes() {
     }));
   }, []);
 
+  const setBrushSize = useCallback((tool: WhiteboardBrushTool, size: number) => {
+    setBrushSizes((current) => ({ ...current, [tool]: size }));
+  }, []);
+
   const setBrushColor = useCallback((tool: WhiteboardDrawingTool, color: string) => {
     setBrushColors((current) => ({ ...current, [tool]: color }));
   }, []);
 
-  return { brushColors, brushSizes, resizeBrush, setBrushColor };
+  return { brushColors, brushSizes, resizeBrush, setBrushColor, setBrushSize };
 }

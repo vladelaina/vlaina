@@ -12,17 +12,11 @@ export type WhiteboardTool =
   | 'watercolor'
   | 'crayon'
   | 'eraser'
-  | 'ruler'
-  | 'note'
-  | 'rect'
-  | 'ellipse'
-  | 'image'
-  | 'connector';
-export type WhiteboardElementType = 'note' | 'rect' | 'ellipse' | 'image';
-export type WhiteboardNoteColor = 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'gray';
+  | 'stroke-eraser';
+export type WhiteboardElementType = 'image';
 export type WhiteboardPaperStyle = 'blank' | 'dots' | 'grid' | 'ruled';
 export type WhiteboardDrawingTool = Extract<WhiteboardTool, 'pen' | 'pencil' | 'marker' | 'fountain' | 'watercolor' | 'crayon'>;
-export type WhiteboardBrushTool = WhiteboardDrawingTool | 'eraser';
+export type WhiteboardBrushTool = WhiteboardDrawingTool | 'stroke-eraser';
 export type WhiteboardBrushColors = Record<WhiteboardDrawingTool, string>;
 export type WhiteboardBrushSizes = Record<WhiteboardBrushTool, number>;
 
@@ -51,14 +45,7 @@ export interface WhiteboardElement {
   height: number;
   imageAssetPath?: string;
   imageSrc?: string;
-  noteColor?: WhiteboardNoteColor;
   text: string;
-}
-
-export interface WhiteboardConnector {
-  id: string;
-  fromId: string;
-  toId: string;
 }
 
 export interface WhiteboardStroke {
@@ -88,27 +75,19 @@ export const WHITEBOARD_INITIAL_VIEWPORT: WhiteboardViewport = {
   zoom: themeWhiteboardTokens.defaultZoom,
 };
 
-export const WHITEBOARD_TOOL_GROUPS: WhiteboardToolConfig[][] = [
-  [
-    { id: 'select', labelKey: 'whiteboard.tool.select', icon: 'whiteboard.select' },
-    { id: 'hand', labelKey: 'whiteboard.tool.hand', icon: 'whiteboard.hand' },
-  ],
-  [
-    { id: 'pen', labelKey: 'whiteboard.tool.pen', icon: 'whiteboard.pen' },
-    { id: 'pencil', labelKey: 'whiteboard.tool.pencil', icon: 'whiteboard.pencil' },
-    { id: 'marker', labelKey: 'whiteboard.tool.marker', icon: 'whiteboard.marker' },
-    { id: 'fountain', labelKey: 'whiteboard.tool.fountain', icon: 'whiteboard.fountain' },
-    { id: 'watercolor', labelKey: 'whiteboard.tool.watercolor', icon: 'whiteboard.watercolor' },
-    { id: 'crayon', labelKey: 'whiteboard.tool.crayon', icon: 'whiteboard.crayon' },
-    { id: 'eraser', labelKey: 'whiteboard.tool.eraser', icon: 'whiteboard.eraser' },
-    { id: 'ruler', labelKey: 'whiteboard.tool.ruler', icon: 'whiteboard.ruler' },
-  ],
-  [
-    { id: 'note', labelKey: 'whiteboard.tool.note', icon: 'whiteboard.note' },
-    { id: 'rect', labelKey: 'whiteboard.tool.rect', icon: 'whiteboard.rect' },
-    { id: 'ellipse', labelKey: 'whiteboard.tool.ellipse', icon: 'whiteboard.ellipse' },
-    { id: 'connector', labelKey: 'whiteboard.tool.connector', icon: 'whiteboard.connector' },
-  ],
+export const WHITEBOARD_DRAWING_TOOLS: WhiteboardToolConfig[] = [
+  { id: 'pen', labelKey: 'whiteboard.tool.pen', icon: 'whiteboard.pen' },
+  { id: 'pencil', labelKey: 'whiteboard.tool.pencil', icon: 'whiteboard.pencil' },
+  { id: 'marker', labelKey: 'whiteboard.tool.marker', icon: 'whiteboard.marker' },
+  { id: 'fountain', labelKey: 'whiteboard.tool.fountain', icon: 'whiteboard.fountain' },
+  { id: 'watercolor', labelKey: 'whiteboard.tool.watercolor', icon: 'whiteboard.watercolor' },
+  { id: 'crayon', labelKey: 'whiteboard.tool.crayon', icon: 'whiteboard.crayon' },
+];
+
+export const WHITEBOARD_ERASER_TOOLS: WhiteboardToolConfig[] = [
+  { id: 'select', labelKey: 'whiteboard.tool.select', icon: 'whiteboard.select' },
+  { id: 'eraser', labelKey: 'whiteboard.tool.eraser', icon: 'whiteboard.eraser' },
+  { id: 'stroke-eraser', labelKey: 'whiteboard.tool.strokeEraser', icon: 'whiteboard.eraser' },
 ];
 
 export const WHITEBOARD_BRUSHES: Record<WhiteboardDrawingTool, WhiteboardBrush> = {
@@ -151,7 +130,6 @@ export const WHITEBOARD_BRUSHES: Record<WhiteboardDrawingTool, WhiteboardBrush> 
 };
 
 export const WHITEBOARD_SEED_ELEMENTS: WhiteboardElement[] = [];
-export const WHITEBOARD_SEED_CONNECTORS: WhiteboardConnector[] = [];
 export const WHITEBOARD_SEED_STROKES: WhiteboardStroke[] = [];
 export const WHITEBOARD_DEFAULT_BRUSH_SIZES: WhiteboardBrushSizes = {
   pen: 1,
@@ -160,7 +138,7 @@ export const WHITEBOARD_DEFAULT_BRUSH_SIZES: WhiteboardBrushSizes = {
   fountain: 1,
   watercolor: 1,
   crayon: 1,
-  eraser: 1,
+  'stroke-eraser': 1,
 };
 export const WHITEBOARD_DEFAULT_BRUSH_COLORS: WhiteboardBrushColors = {
   pen: themeWhiteboardTokens.brushColorSwatches[0],
@@ -171,7 +149,6 @@ export const WHITEBOARD_DEFAULT_BRUSH_COLORS: WhiteboardBrushColors = {
   crayon: themeWhiteboardTokens.brushColorSwatches[2],
 };
 
-export const WHITEBOARD_DEFAULT_NOTE_COLOR: WhiteboardNoteColor = 'yellow';
 export const WHITEBOARD_DEFAULT_PAPER_STYLE: WhiteboardPaperStyle = 'dots';
 
 export function clampWhiteboardZoom(zoom: number): number {
@@ -224,31 +201,12 @@ export function resizeWhiteboardElement(
   };
 }
 
-export function createWhiteboardElement(
-  id: string,
-  type: Exclude<WhiteboardElementType, 'image'>,
-  point: WhiteboardPoint,
-): WhiteboardElement {
-  const isNote = type === 'note';
-  const width = isNote ? themeWhiteboardTokens.noteWidthPx : themeWhiteboardTokens.shapeWidthPx;
-  const height = isNote ? themeWhiteboardTokens.noteHeightPx : themeWhiteboardTokens.shapeHeightPx;
-  return {
-    id,
-    type,
-    x: Math.round(point.x - width / 2),
-    y: Math.round(point.y - height / 2),
-    width,
-    height,
-    text: '',
-  };
-}
-
 export function isDrawingTool(tool: WhiteboardTool): tool is WhiteboardDrawingTool {
   return tool === 'pen' || tool === 'pencil' || tool === 'marker' || tool === 'fountain' || tool === 'watercolor' || tool === 'crayon';
 }
 
 export function isBrushTool(tool: WhiteboardTool): tool is WhiteboardBrushTool {
-  return isDrawingTool(tool) || tool === 'eraser';
+  return isDrawingTool(tool) || tool === 'stroke-eraser';
 }
 
 export function getStrokeWidth(tool: WhiteboardDrawingTool, pressure: number, size = 1): number {
@@ -257,12 +215,16 @@ export function getStrokeWidth(tool: WhiteboardDrawingTool, pressure: number, si
 }
 
 export function getBrushPreviewRadius(tool: WhiteboardBrushTool, size: number): number {
-  if (tool === 'eraser') return getEraserRadius(size);
+  if (tool === 'stroke-eraser') return getStrokeEraserRadius(size);
   return getStrokeWidth(tool, 1, size) / 2;
 }
 
 export function getEraserRadius(size: number): number {
   return themeWhiteboardTokens.eraserRadiusPx * size;
+}
+
+export function getStrokeEraserRadius(size: number): number {
+  return themeWhiteboardTokens.strokeEraserRadiusPx * size;
 }
 
 export function resizeBrushSize(size: number, deltaY: number): number {

@@ -7,8 +7,9 @@ import {
   flushPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from '@/stores/notes/pendingEditorMarkdown';
-import { themeEditorLayoutTokens } from '@/styles/themeTokens';
+import { themeEditorLayoutTokens, themeImageBlockStyleTokens } from '@/styles/themeTokens';
 import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
+import { publishLiveMarkdownPreview } from './hooks/pendingMarkdownLivePreview';
 
 const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 
@@ -56,6 +57,7 @@ export function MarkdownSourceEditor({
       return true;
     }
     updateContent(markdown);
+    publishLiveMarkdownPreview(currentNotePath, markdown);
     draftBaseContentRef.current = markdown;
     return true;
   }, [currentNotePath, updateContent]);
@@ -116,7 +118,7 @@ export function MarkdownSourceEditor({
       return;
     }
 
-    textarea.style.height = 'auto';
+    textarea.style.height = themeImageBlockStyleTokens.heightAuto;
     textarea.style.height = `${Math.max(textarea.scrollHeight, textarea.clientHeight)}px`;
   }, []);
 
@@ -257,6 +259,7 @@ export function MarkdownSourceEditor({
         EDITOR_LAYOUT_CLASS
       )}
       data-note-content-root="true"
+      data-vlaina-markdown-font-size-surface="true"
       data-markdown-theme-root="true"
       data-markdown-theme-platform="vlaina"
       data-markdown-compat="native"
@@ -277,11 +280,7 @@ export function MarkdownSourceEditor({
           const nextValue = event.currentTarget.value;
           updateSourceDraft(nextValue);
           updateCommittedSourceDraft(nextValue);
-          if (mode === 'fallback') {
-            updateContent(nextValue);
-          } else {
-            scheduleContentCommit();
-          }
+          scheduleContentCommit();
           scheduleTextareaResize();
           scheduleSave();
         }}
@@ -293,18 +292,14 @@ export function MarkdownSourceEditor({
             return;
           }
           updateCommittedSourceDraft(nextValue);
-          if (mode === 'fallback') {
-            updateContent(nextValue);
-          } else {
-            scheduleContentCommit();
-          }
+          scheduleContentCommit();
           scheduleSave();
         }}
         onBlur={flushSave}
         onMouseDownCapture={handleSourceMouseDownCapture}
         spellCheck={false}
         aria-label={t('editor.markdownSourceEditor')}
-        className="block min-h-[var(--vlaina-height-prosemirror-min)] w-full resize-none overflow-hidden bg-transparent px-0 py-2 pb-[var(--vlaina-height-prosemirror-bottom-padding)] font-mono text-sm leading-6 text-[var(--vlaina-text-primary)] outline-none"
+        className="block min-h-[var(--vlaina-height-prosemirror-min)] w-full resize-none overflow-hidden bg-transparent px-0 py-2 pb-[var(--vlaina-height-prosemirror-bottom-padding)] font-mono text-[length:var(--vlaina-markdown-font-body-size)] leading-[var(--vlaina-markdown-line-height-body)] text-[var(--vlaina-text-primary)] outline-none"
       />
     </div>
   );

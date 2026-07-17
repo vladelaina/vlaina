@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { UniversalIconPicker } from '@/components/common/UniversalIconPicker';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
@@ -143,7 +144,9 @@ export class SlashEmojiPickerSession {
     const menu = document.createElement('div');
     menu.className = 'slash-emoji-picker';
     menu.setAttribute('data-no-editor-drag-box', 'true');
-    menu.style.position = this.positionRoot ? 'absolute' : 'fixed';
+    menu.style.position = this.positionRoot
+      ? themeDomStyleTokens.positionAbsolute
+      : themeDomStyleTokens.positionFixed;
     menu.style.zIndex = 'var(--vlaina-z-modal-max)';
     (this.positionRoot ?? document.body).appendChild(menu);
     this.root = createRoot(menu);

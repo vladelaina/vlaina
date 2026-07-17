@@ -6,6 +6,14 @@ import {
 
 export class RequestManager {
     private controllers = new Map<string, AbortController>();
+    private generations = new Map<string, number>();
+    private controllerGenerations = new WeakMap<AbortController, { sessionId: string; generation: number }>();
+
+    private markLatestController(sessionId: string, controller: AbortController) {
+        const generation = (this.generations.get(sessionId) ?? 0) + 1;
+        this.generations.set(sessionId, generation);
+        this.controllerGenerations.set(controller, { sessionId, generation });
+    }
 
     private abortControllerForSession(sessionId: string): string {
         const resolvedSessionId = resolveSessionIdAlias(sessionId);
@@ -29,6 +37,7 @@ export class RequestManager {
         this.abortControllerForSession(resolvedSessionId);
         const controller = new AbortController();
         this.controllers.set(resolvedSessionId, controller);
+        this.markLatestController(resolvedSessionId, controller);
         return controller;
     }
 
@@ -57,6 +66,11 @@ export class RequestManager {
         return this.controllers.get(resolveSessionIdAlias(sessionId)) === controller;
     }
 
+    isLatest(controller: AbortController): boolean {
+        const entry = this.controllerGenerations.get(controller);
+        return !!entry && this.generations.get(entry.sessionId) === entry.generation;
+    }
+
     isGenerating(sessionId: string): boolean {
         return this.controllers.has(resolveSessionIdAlias(sessionId));
     }
@@ -74,6 +88,7 @@ export class RequestManager {
 
         this.controllers.delete(sourceSessionId);
         this.controllers.set(resolvedToSessionId, controller);
+        this.markLatestController(resolvedToSessionId, controller);
     }
 }
 

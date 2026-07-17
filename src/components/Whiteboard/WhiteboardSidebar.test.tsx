@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WhiteboardSidebar } from './WhiteboardSidebar';
 
@@ -67,10 +67,16 @@ describe('WhiteboardSidebar', () => {
     vi.clearAllMocks();
   });
 
+  it('loads the current notes root when mounted for background prewarm', async () => {
+    render(<WhiteboardSidebar />);
+
+    await waitFor(() => expect(store.loadForNotesRoot).toHaveBeenCalledWith('/notesRoot'));
+  });
+
   it('renames a board from the inline editor', async () => {
     render(<WhiteboardSidebar />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'sidebar.rename' }));
+    fireEvent.click(openBoardContextMenu().getByText('sidebar.rename'));
     const input = screen.getByRole('textbox', { name: 'sidebar.rename' });
     fireEvent.change(input, { target: { value: 'Research' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -81,9 +87,26 @@ describe('WhiteboardSidebar', () => {
   it('confirms board deletion before removing it', async () => {
     render(<WhiteboardSidebar />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.delete' }));
+    fireEvent.click(openBoardContextMenu().getByText('common.delete'));
     fireEvent.click(screen.getByRole('button', { name: 'confirm-delete' }));
 
     await waitFor(() => expect(store.deleteBoard).toHaveBeenCalledWith('board-1'));
   });
+
+  it('uses the shared chat context menu when right-clicking a board name', () => {
+    render(<WhiteboardSidebar />);
+
+    expect(screen.queryByRole('button', { name: 'sidebar.rename' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'common.delete' })).not.toBeInTheDocument();
+    const menu = openBoardContextMenu();
+    expect(menu.getByText('sidebar.rename')).toBeInTheDocument();
+    expect(menu.getByText('common.delete')).toBeInTheDocument();
+  });
 });
+
+function openBoardContextMenu() {
+  fireEvent.contextMenu(screen.getByRole('button', { name: 'Ideas' }), { clientX: 120, clientY: 160 });
+  const layer = document.querySelector<HTMLElement>('[data-sidebar-context-menu-layer="true"]');
+  expect(layer).not.toBeNull();
+  return within(layer!);
+}

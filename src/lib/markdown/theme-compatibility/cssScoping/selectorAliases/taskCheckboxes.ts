@@ -12,6 +12,38 @@ export function normalizeTaskCheckboxAliases(selector: string): string {
 
   let result = selector
     .replace(
+      /(^|[\s>+~,(])\.task-list-item\s+input(?:\[[^\]]+\])*:checked\s*\+\s*(p|span)(?=$|[\s>+~),.#\[:])/gi,
+      (_match, prefix: string, contentElement: string) =>
+        `${prefix}${stash(`li[data-item-type='task'][data-checked='true'] > ${contentElement}`)}`
+    )
+    .replace(
+      /(^|[\s>+~,(])\.task-list-item\s+input(?:\[[^\]]+\])*\s*\+\s*(p|span)(?=$|[\s>+~),.#\[:])/gi,
+      (_match, prefix: string, contentElement: string) =>
+        `${prefix}${stash(`li[data-item-type='task'] > ${contentElement}`)}`
+    )
+    .replace(
+      /(^|[\s>+~,(])\.task-list-item\s+input(?:\[[^\]]+\])*:checked(?:::after|:after)(?=$|[\s>+~),.#\[:])/gi,
+      (_match, prefix: string) =>
+        `${prefix}${stash(":is(#write li[data-item-type='task'][data-checked='true'])::after")}`
+    )
+    .replace(
+      /(^|[\s>+~,(])\.task-list-item\s+input(?:\[[^\]]+\])*(?:::after|:after)(?=$|[\s>+~),.#\[:])/gi,
+      (_match, prefix: string) => `${prefix}${stash(":is(#write li[data-item-type='task'])::after")}`
+    )
+    .replace(
+      /(^|[\s>+~,(])\.task-list-item\s+input(?:\[[^\]]+\])*:checked(?:(?:::before|::after|:before|:after))?(?=$|[\s>+~),.#\[:])/gi,
+      (_match, prefix: string) =>
+        `${prefix}${stash(":is(#write li[data-item-type='task'][data-checked='true'])::before")}`
+    )
+    .replace(
+      /(^|[\s>+~,(])\.task-list-item\s+input(?:\[[^\]]+\])*(?:(?:::before|::after|:before|:after))?(?=$|[\s>+~),.#\[:])/gi,
+      (_match, prefix: string) => `${prefix}${stash(":is(#write li[data-item-type='task'])::before")}`
+    )
+    .replace(
+      /(^|[\s>+~,(])\.task-list-item(?=$|[\s>+~),.#\[:])/gi,
+      (_match, prefix: string) => `${prefix}${stash("li[data-item-type='task']")}`
+    )
+    .replace(
       /(^|[\s>+~,(])li\s+label\.checkbox(?=$|[\s>+~),.#\[:])/gi,
       (_match, prefix: string) => `${prefix}${stash("li[data-item-type='task']::before")}`
     )

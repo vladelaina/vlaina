@@ -54,12 +54,19 @@ test.describe('graph interactions', () => {
         notesRootPath: fixture.notesRootPath,
         name: 'Large Graph',
       });
+      const graphView = page.locator(GRAPH_VIEW_SELECTOR);
+      const nodes = graphView.locator('[data-graph-node-hit-target]');
+      const renderedEdges = graphView.locator('[data-graph-edge-layer="base"]');
+      await expect(graphView).toHaveAttribute('data-graph-active', 'false', { timeout: 30_000 });
+      await expect(nodes).toHaveCount(noteCount, { timeout: 30_000 });
+      await expect(renderedEdges).toHaveAttribute(
+        'data-graph-edge-count',
+        String(noteCount * linksPerNote),
+      );
       const graphOpenedAt = Date.now();
       await setAppViewMode(page, 'graph');
 
-      const graphView = page.locator(GRAPH_VIEW_SELECTOR);
-      const nodes = graphView.locator('[data-graph-node-hit-target]');
-      await expect(nodes).toHaveCount(noteCount, { timeout: 30_000 });
+      await expect(graphView).toHaveAttribute('data-graph-active', 'true');
       const entryAnimation = await nodes.evaluateAll((elements) => {
         const delays = elements.map((element) => (
           Number.parseFloat(getComputedStyle(element.parentElement!).animationDelay) || 0
@@ -76,11 +83,6 @@ test.describe('graph interactions', () => {
       expect(entryAnimation.dotAnimationName).toContain('vlaina-graph-node-dot-enter');
       expect(entryAnimation.minDelay).toBe(0);
       expect(entryAnimation.maxDelay).toBeGreaterThan(entryAnimation.minDelay);
-      const renderedEdges = graphView.locator('[data-graph-edge-layer="base"]');
-      await expect(renderedEdges).toHaveAttribute(
-        'data-graph-edge-count',
-        String(noteCount * linksPerNote),
-      );
       const topControls = graphView.locator('[data-graph-top-controls="true"]');
       await expect(topControls).toHaveAttribute('data-graph-node-count', String(noteCount));
       await expect(topControls).toHaveAttribute(

@@ -114,4 +114,21 @@ describe('useProviderBenchmarkSnapshot', () => {
       expect(hook.result.current.benchmarkingModelIds).toEqual([model.id]);
     });
   });
+
+  it('keeps local state stable when an equivalent results object is recreated', async () => {
+    const initialRecord = benchmarkRecord('success', 1);
+    const hook = renderHook(
+      ({ benchmarkResults }) => useProviderBenchmarkSnapshot({ providerId: provider.id, benchmarkResults }),
+      { initialProps: { benchmarkResults: { [provider.id]: initialRecord } } }
+    );
+    const initialHealthStatus = hook.result.current.healthStatus;
+    const initialModelIds = hook.result.current.benchmarkingModelIds;
+
+    await act(async () => {
+      hook.rerender({ benchmarkResults: { [provider.id]: { ...initialRecord } } });
+    });
+
+    expect(hook.result.current.healthStatus).toBe(initialHealthStatus);
+    expect(hook.result.current.benchmarkingModelIds).toBe(initialModelIds);
+  });
 });

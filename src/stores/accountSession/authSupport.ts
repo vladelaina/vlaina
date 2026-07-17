@@ -63,6 +63,15 @@ export function normalizeAuthError(raw: string): string {
   if (/^incorrect verification code$/i.test(message)) {
     return translate('account.error.incorrectVerificationCode');
   }
+  if (/^invalid or expired verification code$/i.test(message)) {
+    return translate('account.error.invalidOrExpiredVerificationCode');
+  }
+  if (/^this email is not allowed to register$/i.test(message)) {
+    return translate('account.error.registrationNotAllowed');
+  }
+  if (/^too many verification emails requested\.? please try again later\.?$/i.test(message)) {
+    return translate('account.error.tooManyVerificationRequests');
+  }
   if (/^invalid email address$/i.test(message)) {
     return translate('account.error.invalidEmailAddress');
   }
@@ -71,6 +80,9 @@ export function normalizeAuthError(raw: string): string {
   }
   if (/^failed to send verification code\b/i.test(message)) {
     return translate('account.error.sendVerificationCodeFailed');
+  }
+  if (/^email sign-in is temporarily unavailable$/i.test(message)) {
+    return translate('account.error.emailSignInFailed');
   }
   if (/^web sign-in is unavailable on local development origins/i.test(message)) {
     return translate('account.error.webSignInUnavailable');
@@ -86,6 +98,13 @@ export function normalizeAuthError(raw: string): string {
     /^sign-in start response is missing auth url or state$/i.test(message) ||
     /^sign-in start response contains unsupported auth url$/i.test(message) ||
     /^oauth state mismatch$/i.test(message) ||
+    /^(?:missing|invalid) (?:desktop )?oauth state$/i.test(message) ||
+    /^invalid desktop (?:verifier|result token|callback url)$/i.test(message) ||
+    /^(?:desktop )?oauth (?:browser |callback )?verification failed$/i.test(message) ||
+    /^(?:desktop )?oauth session (?:not found|expired)$/i.test(message) ||
+    /^oauth temporarily unavailable$/i.test(message) ||
+    /^\w+ oauth temporarily unavailable$/i.test(message) ||
+    /^(?:oauth|desktop sign-in|\w+ sign-in) is temporarily unavailable$/i.test(message) ||
     /^(?:authorization|account sign-in) failed$/i.test(message)
   ) {
     return translate('account.error.loginFailed');
@@ -102,6 +121,9 @@ export function normalizeAuthError(raw: string): string {
   }
   if (/system secure storage is unavailable/i.test(message)) {
     return translate('account.error.secureStorageUnavailable');
+  }
+  if (/^failed to revoke session(?:\b|:)/i.test(message)) {
+    return translate('account.error.signOutFailed');
   }
   if (
     /unable to reach vlaina api|failed to fetch|networkerror|network request failed|fetch failed|load failed|(?:net::)?err_[a-z_]+/i.test(

@@ -18,6 +18,11 @@ import {
   searchTimeRangeArg,
 } from './toolRunnerArgs';
 import type { WebSearchStatus } from './types';
+import {
+  createWebSearchExecutionSession,
+  type WebSearchExecutionSession,
+  WebSearchPolicyError,
+} from './executionSession';
 
 const AUTO_READ_AFTER_SEARCH_LIMIT = 3;
 const AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT = 3000;
@@ -32,6 +37,7 @@ export interface WebSearchToolRunnerOptions {
   onStatus?: (status: WebSearchStatus) => void;
   signal?: AbortSignal;
   autoReadAfterSearch?: boolean;
+  session?: WebSearchExecutionSession;
 }
 
 function collectUniqueSearchResultUrls(
@@ -72,6 +78,9 @@ function errorCode(error: unknown): string | undefined {
 }
 
 function friendlyToolErrorMessage(toolName: string, error?: unknown): string {
+  if (error instanceof WebSearchPolicyError) {
+    return error.message;
+  }
   if (toolName === WEB_SEARCH_TOOL_NAMES.search) {
     return 'Web search is temporarily unavailable.';
   }
@@ -124,6 +133,7 @@ export async function runWebSearchToolCall(
   options: WebSearchToolRunnerOptions = {},
 ): Promise<string> {
   const client = options.client ?? createWebSearchClient();
+  const session = options.session ?? createWebSearchExecutionSession();
   const args = parseArguments(toolCall.arguments);
   const toolName = normalizeToolName(toolCall.name);
 
@@ -134,6 +144,7 @@ export async function runWebSearchToolCall(
       if (!query) {
         return invalidToolArgumentsResult(options);
       }
+      session.beginSearch(query);
       const startedAt = performance.now();
       emitStatus(options, { phase: 'searching', query });
       const searchOptions = {
@@ -148,6 +159,7 @@ export async function runWebSearchToolCall(
       );
       throwIfAborted(options.signal);
       const safeResults = sanitizeSearchResults(response.results, 5);
+      session.registerSearchResults(safeResults);
       const safeResponse = { ...response, results: safeResults };
       emitStatus(options, {
         phase: safeResults.length > 0 ? 'results' : 'error',
@@ -172,10 +184,11 @@ export async function runWebSearchToolCall(
 
       const readStartedAt = performance.now();
       emitStatus(options, { phase: 'reading', urls });
+      const allowedUrls = session.authorizeReadUrls(urls);
       const pages = await callWebSearchClient(
         options.signal,
-        (signal) => client.readWebPages(urls, { contentLimit: AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT, retries: 0 }, signal),
-        () => client.readWebPages(urls, { contentLimit: AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT, retries: 0 }),
+        (signal) => client.readWebPages(allowedUrls, { contentLimit: AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT, retries: 0 }, signal),
+        () => client.readWebPages(allowedUrls, { contentLimit: AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT, retries: 0 }),
       );
       throwIfAborted(options.signal);
       const successfulPages = pages.filter((page) => page.ok);
@@ -206,13 +219,14 @@ export async function runWebSearchToolCall(
       if (!url) {
         return invalidToolArgumentsResult(options);
       }
+      const [allowedUrl] = session.authorizeReadUrls([url]);
       const startedAt = performance.now();
-      emitStatus(options, { phase: 'reading', urls: [url] });
+      emitStatus(options, { phase: 'reading', urls: [allowedUrl] });
       const readOptions = { contentLimit: contentLimitArg(args), retries: 0 };
       const page = await callWebSearchClient(
         options.signal,
-        (signal) => client.readWebPage(url, readOptions, signal),
-        () => client.readWebPage(url, readOptions),
+        (signal) => client.readWebPage(allowedUrl, readOptions, signal),
+        () => client.readWebPage(allowedUrl, readOptions),
       );
       throwIfAborted(options.signal);
       emitStatus(options, {
@@ -234,13 +248,14 @@ export async function runWebSearchToolCall(
       if (urls.length === 0) {
         return invalidToolArgumentsResult(options);
       }
+      const allowedUrls = session.authorizeReadUrls(urls);
       const startedAt = performance.now();
-      emitStatus(options, { phase: 'reading', urls });
+      emitStatus(options, { phase: 'reading', urls: allowedUrls });
       const readOptions = { contentLimit: contentLimitArg(args), retries: 0 };
       const pages = await callWebSearchClient(
         options.signal,
-        (signal) => client.readWebPages(urls, readOptions, signal),
-        () => client.readWebPages(urls, readOptions),
+        (signal) => client.readWebPages(allowedUrls, readOptions, signal),
+        () => client.readWebPages(allowedUrls, readOptions),
       );
       throwIfAborted(options.signal);
       const successfulPages = pages.filter((page) => page.ok);

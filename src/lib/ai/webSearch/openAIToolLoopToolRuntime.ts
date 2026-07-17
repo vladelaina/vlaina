@@ -3,7 +3,6 @@ import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import { runWebSearchToolCall, type WebSearchToolRunnerOptions } from './toolRunner';
 import type { WebSearchStatus } from './types';
 import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
-import { MAX_PARALLEL_WEB_SEARCH_TOOL_CALLS } from './openAIToolLoopTypes';
 import { buildReadReminderMessage } from './openAIToolLoopShared';
 import {
   buildToolCallDedupeKey,
@@ -78,53 +77,21 @@ export function buildAssistantToolMessage(result: {
   return message;
 }
 
-export async function runToolCallsInParallel(
+export async function runToolCallsSequentially(
   toolCalls: OpenAIToolCall[],
   options: WebSearchToolRunnerOptions,
 ): Promise<OpenAIWireMessage[]> {
-  const uniqueCalls: Array<{
-    key: string;
-    toolCall: OpenAIToolCall;
-    contentPromise?: Promise<string>;
-  }> = [];
-  const callsByKey = new Map<string, typeof uniqueCalls[number]>();
-  const callsByIndex = new Array<typeof uniqueCalls[number]>(toolCalls.length);
-
-  for (let index = 0; index < toolCalls.length; index += 1) {
-    const toolCall = toolCalls[index];
+  const contentByKey = new Map<string, string>();
+  const contents: string[] = [];
+  for (const toolCall of toolCalls) {
     const key = buildToolCallDedupeKey(toolCall);
-    let uniqueCall = callsByKey.get(key);
-    if (!uniqueCall) {
-      uniqueCall = { key, toolCall };
-      callsByKey.set(key, uniqueCall);
-      uniqueCalls.push(uniqueCall);
+    let content = contentByKey.get(key);
+    if (content === undefined) {
+      content = await runWebSearchToolCall(toolCall.function, options);
+      contentByKey.set(key, content);
     }
-    callsByIndex[index] = uniqueCall;
+    contents.push(content);
   }
-
-  let nextUniqueIndex = 0;
-
-  const worker = async () => {
-    while (nextUniqueIndex < uniqueCalls.length) {
-      const index = nextUniqueIndex;
-      nextUniqueIndex += 1;
-      const uniqueCall = uniqueCalls[index];
-      uniqueCall.contentPromise = runWebSearchToolCall(uniqueCall.toolCall.function, options);
-      await uniqueCall.contentPromise;
-    }
-  };
-
-  await Promise.all(Array.from(
-    { length: Math.min(MAX_PARALLEL_WEB_SEARCH_TOOL_CALLS, uniqueCalls.length) },
-    () => worker(),
-  ));
-
-  const contents = await Promise.all(callsByIndex.map(async (uniqueCall) => {
-    if (!uniqueCall.contentPromise) {
-      uniqueCall.contentPromise = runWebSearchToolCall(uniqueCall.toolCall.function, options);
-    }
-    return await uniqueCall.contentPromise;
-  }));
 
   return toolCalls.map((toolCall, index) => ({
     role: 'tool',

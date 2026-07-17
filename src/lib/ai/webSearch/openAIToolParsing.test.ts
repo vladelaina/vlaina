@@ -132,4 +132,20 @@ describe('openAIToolParsing', () => {
       padding: 'x'.repeat(4096),
     });
   });
+
+  it('drops duplicate and control-character tool call identifiers', () => {
+    const message = extractOpenAIMessageFromJson({
+      choices: [{
+        message: {
+          tool_calls: [
+            { id: 'call-1', function: { name: 'run_command', arguments: '{}' } },
+            { id: 'call-1', function: { name: 'run_command', arguments: '{}' } },
+            { id: 'call-2\u202E', function: { name: 'run_command', arguments: '{}' } },
+          ],
+        },
+      }],
+    });
+
+    expect(message.toolCalls.map((call) => call.id)).toEqual(['call-1']);
+  });
 });

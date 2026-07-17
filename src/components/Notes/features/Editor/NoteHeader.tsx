@@ -103,6 +103,7 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
             notesRootPath,
             currentNotePath,
             replayAnimated: true,
+            animatedPlaybackKey: currentNotePath,
         });
     }, [currentNotePath, notesRootPath]);
 

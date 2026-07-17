@@ -7,7 +7,6 @@ import {
   isBrushTool,
   zoomViewportAtPoint,
   type WhiteboardBrushTool,
-  type WhiteboardConnector,
   type WhiteboardElement,
   type WhiteboardPoint,
   type WhiteboardStroke,
@@ -18,17 +17,13 @@ import { fitViewportToContent } from '../model/whiteboardViewport';
 
 interface WhiteboardBoardActionsOptions {
   clearDraftStroke: () => void;
-  connectors: WhiteboardConnector[];
   elements: WhiteboardElement[];
   pushHistory: () => void;
   redo: () => void;
   resizeBrush: (tool: WhiteboardBrushTool, deltaY: number) => void;
-  setConnectors: Dispatch<SetStateAction<WhiteboardConnector[]>>;
-  setConnectorSourceId: Dispatch<SetStateAction<string | null>>;
   setDragState: Dispatch<SetStateAction<WhiteboardDragState | null>>;
   setDraftStroke: (stroke: WhiteboardStroke | null) => void;
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
-  setSelectedConnectorIds: Dispatch<SetStateAction<string[]>>;
   setSelectedElementId: Dispatch<SetStateAction<string | null>>;
   setSelectedStrokeIds: Dispatch<SetStateAction<string[]>>;
   setStrokes: Dispatch<SetStateAction<WhiteboardStroke[]>>;
@@ -44,7 +39,6 @@ interface WhiteboardBoardActionsOptions {
 
 export function useWhiteboardBoardActions(options: WhiteboardBoardActionsOptions) {
   const resetSelection = useCallback(() => {
-    options.setSelectedConnectorIds([]);
     options.setSelectedStrokeIds([]);
     options.setSelectedElementId(null);
   }, [options]);
@@ -82,13 +76,11 @@ export function useWhiteboardBoardActions(options: WhiteboardBoardActionsOptions
   }, [options, resetSelection]);
 
   const clearBoard = useCallback(() => {
-    if (options.elements.length > 0 || options.connectors.length > 0 || options.strokes.length > 0) options.pushHistory();
+    if (options.elements.length > 0 || options.strokes.length > 0) options.pushHistory();
     options.setElements([]);
-    options.setConnectors([]);
     options.setStrokes([]);
     options.setDraftStroke(null);
     resetSelection();
-    options.setConnectorSourceId(null);
   }, [options, resetSelection]);
 
   const fitView = useCallback(() => {

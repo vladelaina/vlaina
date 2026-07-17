@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppContent } from './AppContent';
 import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
 
-type AppViewMode = 'notes' | 'chat' | 'whiteboard' | 'lab';
+type AppViewMode = 'notes' | 'chat' | 'whiteboard' | 'graph' | 'lab';
 
 const mocks = vi.hoisted(() => ({
   appViewMode: 'notes' as AppViewMode,
@@ -21,7 +21,8 @@ const mocks = vi.hoisted(() => ({
   listImportedMarkdownThemesFromDirectory: vi.fn(),
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
-  refreshManagedProviderInBackground: vi.fn(),
+  prewarmManagedStartupDataInBackground: vi.fn(),
+  unifiedLoaded: true,
   settingsModuleImports: 0,
   temporaryChatToggleModuleImports: 0,
   fontSize: 17,
@@ -29,6 +30,9 @@ const mocks = vi.hoisted(() => ({
   notesSidebarUnmounts: 0,
   whiteboardMounts: 0,
   whiteboardSidebarMounts: 0,
+  graphMounts: 0,
+  graphSidebarMounts: 0,
+  notesPrimaryReady: true,
 }));
 
 vi.mock('@/components/layout/shell/AppShell', () => ({
@@ -38,14 +42,16 @@ vi.mock('@/components/layout/shell/AppShell', () => ({
     titleBarCenter,
     titleBarRight,
     mainOverlay,
+    sidebarHoverPeekEnabled,
   }: {
     children: React.ReactNode;
     sidebarContent?: React.ReactNode;
     titleBarCenter?: React.ReactNode;
     titleBarRight?: React.ReactNode;
     mainOverlay?: React.ReactNode;
+    sidebarHoverPeekEnabled?: boolean;
   }) => (
-    <div>
+    <div data-testid="app-shell" data-sidebar-hover-peek={String(sidebarHoverPeekEnabled)}>
       <div data-testid="titlebar-center">{titleBarCenter}</div>
       <div data-testid="titlebar-right">{titleBarRight}</div>
       <aside data-testid="sidebar">{sidebarContent}</aside>
@@ -72,7 +78,7 @@ vi.mock('@/components/Notes/NotesView', () => {
     }) => {
       React.useEffect(() => {
         onStartupReady?.();
-        onPrimaryContentReady?.();
+        if (mocks.notesPrimaryReady) onPrimaryContentReady?.();
       }, [onPrimaryContentReady, onStartupReady]);
 
       return <div data-testid="notes-view" data-active={String(active)} />;
@@ -127,6 +133,35 @@ vi.mock('@/components/Whiteboard', () => ({
     }, []);
 
     return <div data-testid="whiteboard-sidebar" />;
+  },
+}));
+
+vi.mock('@/components/Graph', () => ({
+  GraphView: ({
+    active,
+    onStartupReady,
+    onPrimaryContentReady,
+  }: {
+    active?: boolean;
+    onStartupReady?: () => void;
+    onPrimaryContentReady?: () => void;
+  }) => {
+    React.useEffect(() => {
+      mocks.graphMounts += 1;
+    }, []);
+    React.useEffect(() => {
+      onStartupReady?.();
+      onPrimaryContentReady?.();
+    }, [onPrimaryContentReady, onStartupReady]);
+
+    return <div data-testid="graph-view" data-active={String(active)} />;
+  },
+  GraphSidebar: () => {
+    React.useEffect(() => {
+      mocks.graphSidebarMounts += 1;
+    }, []);
+
+    return <div data-testid="graph-sidebar" />;
   },
 }));
 
@@ -249,7 +284,7 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
   };
 
   const getState = (): UnifiedState => ({
-    loaded: true,
+    loaded: mocks.unifiedLoaded,
     data: {
       settings: {
         ui: {
@@ -321,7 +356,7 @@ vi.mock('@/lib/appVersion', () => ({
 vi.mock('@/stores/useAIStore', () => ({
   startAIStoreRuntimeEffects: mocks.startAIStoreRuntimeEffects,
   actions: {
-    refreshManagedProviderInBackground: mocks.refreshManagedProviderInBackground,
+    prewarmManagedStartupDataInBackground: mocks.prewarmManagedStartupDataInBackground,
   },
 }));
 
@@ -358,6 +393,10 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.notesSidebarUnmounts = 0;
     mocks.whiteboardMounts = 0;
     mocks.whiteboardSidebarMounts = 0;
+    mocks.graphMounts = 0;
+    mocks.graphSidebarMounts = 0;
+    mocks.notesPrimaryReady = true;
+    mocks.unifiedLoaded = true;
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([importedTheme]);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
       directoryPath: '/app/.vlaina/app/themes',
@@ -380,17 +419,32 @@ describe('AppContent view switching chrome readiness', () => {
     });
     await waitFor(() => {
       expect(mocks.temporaryChatToggleModuleImports).toBeGreaterThanOrEqual(1);
-    });
+    }, { timeout: 3000 });
   });
 
-  it('prewarms the managed model catalog after the initial notes view is ready', async () => {
+  it('prewarms managed models and account entitlements after the initial notes view is ready', async () => {
     render(<AppContent />);
 
     expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
     await waitFor(() => {
-      expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledWith();
+      expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledWith();
     });
-    expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledTimes(1);
+    expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for unified data before prewarming managed startup data', async () => {
+    mocks.unifiedLoaded = false;
+    const { rerender } = render(<AppContent />);
+
+    expect(mocks.prewarmManagedStartupDataInBackground).not.toHaveBeenCalled();
+
+    mocks.unifiedLoaded = true;
+    rerender(<AppContent />);
+
+    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    await waitFor(() => {
+      expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {
@@ -458,8 +512,39 @@ describe('AppContent view switching chrome readiness', () => {
       expect(screen.getByTestId('whiteboard-view')).toHaveAttribute('data-active', 'true');
     });
     expect(screen.getByTestId('whiteboard-sidebar').parentElement).not.toHaveClass('hidden');
+    expect(screen.getByTestId('app-shell')).toHaveAttribute('data-sidebar-hover-peek', 'false');
+    expect(screen.getByTestId('titlebar-center').querySelector('[data-whiteboard-titlebar-slot="true"]')).toBeInTheDocument();
     expect(mocks.whiteboardMounts).toBe(1);
     expect(mocks.whiteboardSidebarMounts).toBe(1);
+  });
+
+  it('prewarms the graph view and sidebar after the initial notes view is ready', async () => {
+    const { rerender } = render(<AppContent />);
+
+    expect(await screen.findByTestId('graph-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('graph-sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('graph-sidebar').parentElement).toHaveClass('hidden');
+    expect(mocks.graphMounts).toBe(1);
+    expect(mocks.graphSidebarMounts).toBe(1);
+
+    mocks.appViewMode = 'graph';
+    rerender(<AppContent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('graph-view')).toHaveAttribute('data-active', 'true');
+    });
+    expect(screen.getByTestId('graph-sidebar').parentElement).not.toHaveClass('hidden');
+    expect(mocks.graphMounts).toBe(1);
+    expect(mocks.graphSidebarMounts).toBe(1);
+  });
+
+  it('prewarms graph and whiteboard in the background before notes primary content is ready', async () => {
+    mocks.notesPrimaryReady = false;
+    render(<AppContent />);
+
+    expect(await screen.findByTestId('graph-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('whiteboard-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(mocks.prewarmManagedStartupDataInBackground).not.toHaveBeenCalled();
   });
 
   it('keeps inactive prewarmed sidebars mounted but out of layout', async () => {
@@ -483,7 +568,7 @@ describe('AppContent view switching chrome readiness', () => {
 
     await waitFor(() => {
       expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent).toContain(
-        '--vlaina-markdown-font-size: 17px',
+        '--vlaina-markdown-font-body-size: 17px',
       );
     });
     expect(document.documentElement.style.fontSize).toBe('');

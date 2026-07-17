@@ -103,7 +103,21 @@ function hasBlockLevelChild(children: React.ReactNode): boolean {
       return true;
     }
 
-    const nestedChildren = (node.props as { children?: React.ReactNode }).children;
+    const nodeProps = node.props as {
+      children?: React.ReactNode;
+      node?: { tagName?: unknown };
+      src?: unknown;
+    };
+    const renderedTagName = typeof node.type === 'string'
+      ? node.type.toLowerCase()
+      : typeof nodeProps.node?.tagName === 'string'
+        ? nodeProps.node.tagName.toLowerCase()
+        : '';
+    if (renderedTagName === 'img' && parseVideoUrl(String(nodeProps.src ?? ''))) {
+      return true;
+    }
+
+    const nestedChildren = nodeProps.children;
     if (nestedChildren && hasBlockLevelChild(nestedChildren)) {
       return true;
     }
@@ -139,7 +153,7 @@ function ReadOnlyCodeBlockFallback({
 }) {
   return (
     <pre className={cn('my-4 overflow-x-auto rounded-2xl p-4', className)}>
-      <code className="font-mono text-sm leading-relaxed">
+      <code className="font-mono text-[length:inherit] leading-[inherit]">
         {children}
       </code>
     </pre>
@@ -153,7 +167,8 @@ function isInternalHashHref(href: unknown): href is string {
 function renderUnavailableImage(unavailableImageLabel = translate('chat.imageUnavailable')) {
   return (
     <span
-      className="inline-block rounded-md bg-[var(--vlaina-color-unavailable-bg)] px-2 py-1 text-xs text-[var(--vlaina-color-unavailable-fg)]"
+      className="inline-block rounded-md bg-[var(--vlaina-color-unavailable-bg)] px-2 py-1 text-[length:var(--vlaina-font-075em)] text-[var(--vlaina-color-unavailable-fg)]"
+      data-chat-markdown-unavailable="true"
       data-chat-selection-excluded="true"
     >
       [{unavailableImageLabel}]

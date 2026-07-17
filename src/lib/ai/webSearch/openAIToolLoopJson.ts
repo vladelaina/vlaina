@@ -12,15 +12,15 @@ import {
   countNoResultSearchAttempts, emitApiTranscript, emitChunk, emitWebSearchStatus, finishNoResultSearchLocally,
   finishWebSearchCapabilityLocally, getLatestUserText, hasAnySearchResults, hasSuccessfulRead,
   hasVisibleAnswerContent, resolveFinalAssistantApiContent, shouldRequirePageRead, shouldStopNoResultSearchLoop,
-  throwIfAborted, throwIfMissingVisibleAnswer, withSourceLinks, withStatusPrefix, withoutTools,
+  throwIfAborted, throwIfMissingVisibleAnswer, withSourceLinks, withoutTools,
 } from './openAIToolLoopShared';
-import { buildTextProtocolSearchMessages } from './openAIToolLoopTextProtocolSearch';
 import {
   boundedToolNameForLog, buildCachedReadToolMessages, cacheReadContentForToolMessages, getReadToolUrls,
   hasOnlyAlreadyReadToolCalls, hasOnlySearchToolCalls,
 } from './openAIToolLoopToolArgs';
-import { appendForcedReadMessages, buildAssistantToolMessage, runToolCallsInParallel } from './openAIToolLoopToolRuntime';
-import { recoverJsonVisibleAnswer } from './openAIToolLoopRecovery';
+import { appendForcedReadMessages, buildAssistantToolMessage, runToolCallsSequentially } from './openAIToolLoopToolRuntime';
+import { createWebSearchExecutionSession } from './executionSession';
+import { buildNoToolRecoveryMessages, recoverJsonVisibleAnswer } from './openAIToolLoopRecovery';
 import { MAX_WEB_SEARCH_TOOL_LOOPS } from './openAIToolLoopTypes';
 
 export async function runOpenAIWebSearchJsonToolLoop({
@@ -34,44 +34,11 @@ export async function runOpenAIWebSearchJsonToolLoop({
   autoReadAfterSearch,
 }: JsonToolLoopOptions): Promise<string> {
   throwIfAborted(signal);
+  const session = createWebSearchExecutionSession();
   const localIntent = classifyWebSearchIntent(getLatestUserText(body));
   if (localIntent.action === 'answer-capability') {
     return finishWebSearchCapabilityLocally({ body, onChunk, onApiTranscript, signal });
   }
-  if (localIntent.action === 'prefetch') {
-    addChatDebugLog('web-search-loop', 'json local intent requested search', {
-      query: localIntent.query,
-      reason: localIntent.reason,
-    });
-    const {
-      messages: prefetchMessages,
-      statusHistory: prefetchStatusHistory,
-      sourceUrls: prefetchSourceUrls,
-    } = await buildTextProtocolSearchMessages({
-      body,
-      query: localIntent.query,
-      client,
-      onStatus,
-      signal,
-    });
-    emitChunk(onChunk, signal, withStatusPrefix(prefetchStatusHistory, ''));
-    const answerPayload = await requestJson({
-      ...withoutTools(body),
-      stream: false,
-      messages: prefetchMessages as ChatCompletionRequest['messages'],
-    });
-    throwIfAborted(signal);
-    const answer = extractOpenAIMessageFromJson(answerPayload);
-    const finalApiContent = withSourceLinks(answer.content, prefetchSourceUrls);
-    throwIfMissingVisibleAnswer(finalApiContent);
-    const finalContent = withStatusPrefix(prefetchStatusHistory, finalApiContent);
-    emitChunk(onChunk, signal, finalContent);
-    emitApiTranscript(onApiTranscript, signal, [
-      buildFinalAssistantTranscriptMessage(finalApiContent, answer.reasoningContent),
-    ]);
-    return finalContent;
-  }
-
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
@@ -82,6 +49,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
   let forcedReadAttemptedUrls = new Set<string>();
   let messages = appendWebSearchSystemInstruction(body.messages as OpenAIWireMessage[]);
   const responseTranscript: OpenAIWireMessage[] = [];
+  let pendingPrefetchTranscript: OpenAIWireMessage[] = [];
   const readContentByUrl = new Map<string, string>();
   const emitStatus = (status: WebSearchStatus) => {
     const safeStatus = sanitizeWebSearchStatus(status);
@@ -98,8 +66,28 @@ export async function runOpenAIWebSearchJsonToolLoop({
     statusHistory.push(safeStatus);
     appendSuccessfulReadSources(sourceUrls, safeStatus);
     emitWebSearchStatus(onStatus, signal, safeStatus);
-    emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
   };
+
+  if (localIntent.action === 'prefetch') {
+    const toolCall = {
+      id: 'prefetch_web_search',
+      type: 'function' as const,
+      function: {
+        name: 'web_search',
+        arguments: JSON.stringify({ query: localIntent.query }),
+      },
+    };
+    const assistantMessage: OpenAIWireMessage = { role: 'assistant', content: '', tool_calls: [toolCall] };
+    const toolMessages = await runToolCallsSequentially([toolCall], {
+      client,
+      onStatus: emitStatus,
+      signal,
+      autoReadAfterSearch: true,
+      session,
+    });
+    messages = [...messages, assistantMessage, ...toolMessages];
+    pendingPrefetchTranscript = [assistantMessage, ...toolMessages];
+  }
 
   for (let loopIndex = 0; loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS; loopIndex += 1) {
     throwIfAborted(signal);
@@ -123,10 +111,19 @@ export async function runOpenAIWebSearchJsonToolLoop({
       hasResults: Boolean(latestResultsStatus),
       successfulRead: latestResultsHaveSuccessfulRead,
     });
-    const shouldDisableToolsForFinalAnswer = autoReadAfterSearch === true && latestResultsHaveSuccessfulRead;
-    const requestMessages = shouldDisableToolsForFinalAnswer
-      ? [...messages, buildVisibleAnswerReminderMessage()]
-      : messages;
+    const shouldUsePrefetchedEvidence = localIntent.action === 'prefetch' && latestResultsHaveSuccessfulRead;
+    const shouldDisableToolsForFinalAnswer = shouldUsePrefetchedEvidence
+      || autoReadAfterSearch === true && latestResultsHaveSuccessfulRead;
+    const reminderMessage = buildVisibleAnswerReminderMessage();
+    const requestMessages = shouldUsePrefetchedEvidence
+      ? buildNoToolRecoveryMessages(body, messages, sourceUrls, reminderMessage)
+      : shouldDisableToolsForFinalAnswer
+        ? [...messages, reminderMessage]
+        : messages;
+    if (pendingPrefetchTranscript.length > 0) {
+      if (!shouldUsePrefetchedEvidence) responseTranscript.push(...pendingPrefetchTranscript);
+      pendingPrefetchTranscript = [];
+    }
     const payload = await requestJson({
       ...(shouldDisableToolsForFinalAnswer ? withoutTools(body) : body),
       stream: false,
@@ -151,7 +148,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
           messages,
           latestResultsStatus,
           loopIndex,
-          { client, onStatus: emitStatus, signal, autoReadAfterSearch },
+          { client, onStatus: emitStatus, signal, autoReadAfterSearch, session },
           forcedReadAttemptedUrls,
         );
         throwIfAborted(signal);
@@ -164,7 +161,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
         messages = forcedRead.messages;
         responseTranscript.push(...forcedRead.addedMessages);
         latestContent = '';
-        emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
+        emitChunk(onChunk, signal, latestContent);
         continue;
       }
       if (!hasVisibleAnswerContent(latestContent) && loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS - 1) {
@@ -177,7 +174,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
         responseTranscript.push(reminderMessage);
         latestContent = '';
         latestReasoningContent = '';
-        emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
+        emitChunk(onChunk, signal, latestContent);
         continue;
       }
       if (!hasVisibleAnswerContent(latestContent)) {
@@ -200,7 +197,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
         sourceUrls,
         finalChars: finalAnswerContent.length,
       });
-      const finalContent = withStatusPrefix(statusHistory, finalAnswerContent);
+      const finalContent = finalAnswerContent;
       const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
       responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
       emitApiTranscript(onApiTranscript, signal, responseTranscript);
@@ -220,7 +217,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
         skippedToolCalls: result.toolCalls.map((call) => boundedToolNameForLog(call.function.name)),
         finalChars: finalAnswerContent.length,
       }, 'warn');
-      const finalContent = withStatusPrefix(statusHistory, finalAnswerContent);
+      const finalContent = finalAnswerContent;
       const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
       responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
       emitApiTranscript(onApiTranscript, signal, responseTranscript);
@@ -242,7 +239,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
       ];
       responseTranscript.push(assistantToolMessage, ...toolMessages);
       latestContent = '';
-      emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
+      emitChunk(onChunk, signal, latestContent);
       continue;
     }
     addChatDebugLog('web-search-loop', 'running tool calls', {
@@ -252,11 +249,12 @@ export async function runOpenAIWebSearchJsonToolLoop({
         name: boundedToolNameForLog(call.function.name),
       })),
     });
-    const toolMessages = await runToolCallsInParallel(result.toolCalls, {
+    const toolMessages = await runToolCallsSequentially(result.toolCalls, {
       client,
       onStatus: emitStatus,
       signal,
       autoReadAfterSearch,
+      session,
     });
     throwIfAborted(signal);
     cacheReadContentForToolMessages(readContentByUrl, result.toolCalls, toolMessages);
@@ -290,7 +288,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
   const fallbackAnswerContent = withSourceLinks(latestContent, sourceUrls);
   responseTranscript.push(buildFinalAssistantTranscriptMessage(fallbackAnswerContent, latestReasoningContent));
   emitApiTranscript(onApiTranscript, signal, responseTranscript);
-  const fallbackContent = withStatusPrefix(statusHistory, fallbackAnswerContent);
+  const fallbackContent = fallbackAnswerContent;
   emitChunk(onChunk, signal, fallbackContent);
   return fallbackContent;
 }

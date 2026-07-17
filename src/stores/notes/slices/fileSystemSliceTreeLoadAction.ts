@@ -3,8 +3,8 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import {
   buildFileTree,
   buildFileTreeLevel,
+  INITIAL_FILE_TREE_ENTRY_LIMIT,
   collectExpandedPaths,
-  isGitRepositoryDirectory,
   restoreExpandedState,
 } from '../fileTreeUtils';
 import { ensureFileNodeInTree } from '../fileTreePreservation';
@@ -80,9 +80,9 @@ export function createLoadFileTreeAction(
       const storage = getStorageAdapter();
       const basePath = await getNotesBasePath();
 
+      const workspacePromise = loadWorkspaceState(basePath);
       await ensureNotesFolder(basePath);
-
-      const workspace = await loadWorkspaceState(basePath);
+      const workspace = await workspacePromise;
 
       const fileTreeSortMode = workspace?.fileTreeSortMode ?? DEFAULT_FILE_TREE_SORT_MODE;
       const shouldBuildShallowInitialTree = !(get().rootFolder && get().rootFolderPath === basePath);
@@ -95,10 +95,12 @@ export function createLoadFileTreeAction(
         });
       }
       const builtChildren = shouldBuildShallowInitialTree
-        ? await buildFileTreeLevel(basePath, '', undefined, { detectGitRepositories: false })
+        ? await buildFileTreeLevel(basePath, '', undefined, {
+            detectGitRepositories: false,
+            maxEntries: INITIAL_FILE_TREE_ENTRY_LIMIT,
+          })
         : await buildFileTree(basePath);
 
-      const isRootGitRepository = await isGitRepositoryDirectory(basePath);
       const initialMetadata = mergeDraftMetadata(createEmptyMetadataFile(), get().noteMetadata);
 
       let children = sortNestedFileTree(builtChildren, {
@@ -164,7 +166,10 @@ export function createLoadFileTreeAction(
         isFolder: true as const,
         children: restoredChildren,
         expanded: true,
-        ...(isRootGitRepository ? { isGitRepository: true } : {}),
+        ...(currentStateBeforeTreeCommit.rootFolderPath === basePath &&
+        currentStateBeforeTreeCommit.rootFolder?.isGitRepository
+          ? { isGitRepository: true as const }
+          : {}),
       };
       const nextRootFolder =
         currentStateBeforeTreeCommit.rootFolderPath === basePath &&
@@ -180,6 +185,7 @@ export function createLoadFileTreeAction(
         starredNotes: starredPaths.notes,
         starredFolders: starredPaths.folders,
         fileTreeSortMode,
+        isLoading: false,
       });
 
       const restoreCandidatePaths = getWorkspaceRestoreCandidatePaths({
@@ -213,10 +219,6 @@ export function createLoadFileTreeAction(
         set,
         isCurrentRequest: isCurrentFileTreeLoadRequest,
       });
-
-      if (isCurrentFileTreeLoadRequest(requestId, basePath)) {
-        set({ isLoading: false });
-      }
     } catch (error) {
       if (requestId === latestLoadFileTreeRequestId) {
         if (isNoNotesRootSelectedError(error)) {

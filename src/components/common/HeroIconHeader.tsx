@@ -241,7 +241,7 @@ export function HeroIconHeader({
           <div
             className="flex-1 min-w-0"
             data-vlaina-markdown-font-size-surface="true"
-            style={{ fontSize: 'var(--vlaina-markdown-font-size, var(--vlaina-size-17px))' }}
+            style={{ fontSize: 'var(--vlaina-markdown-font-body-size)' }}
           >
              {renderTitle ? renderTitle() : (
                 <div
@@ -263,7 +263,7 @@ export function HeroIconHeader({
                 className="pointer-events-auto"
                 data-vlaina-markdown-font-size-surface="true"
                 style={{
-                  fontSize: 'var(--vlaina-markdown-font-size, var(--vlaina-size-17px))',
+                  fontSize: 'var(--vlaina-markdown-font-body-size)',
                   marginBottom: 'var(--vlaina-note-title-margin-bottom)',
                 }}
               >
@@ -275,7 +275,7 @@ export function HeroIconHeader({
                 className="pointer-events-auto"
                 data-vlaina-markdown-font-size-surface="true"
                 style={{
-                  fontSize: 'var(--vlaina-markdown-font-size, var(--vlaina-size-17px))',
+                  fontSize: 'var(--vlaina-markdown-font-body-size)',
                   marginBottom: 'var(--vlaina-note-title-margin-bottom)',
                 }}
               >

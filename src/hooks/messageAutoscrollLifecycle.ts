@@ -127,6 +127,21 @@ export function useMessageAutoscrollLifecycle({
     }
 
     if (previous && !isStreaming && isCurrentTurnAnchoredRef.current) {
+      const previousLastUserMessage = [...messagesRef.current]
+        .reverse()
+        .find((message) => message.role === "user");
+      const currentLastUserMessage = messages[getLastUserMessageIndex()];
+      if (previousLastUserMessage?.id !== currentLastUserMessage?.id) {
+        isAutoFollowRef.current = false;
+        isCurrentTurnAnchoredRef.current = false;
+        currentTurnAnchorModeRef.current = "near-composer";
+        userDetachedFromCurrentTurnRef.current = false;
+        currentTurnTopSpacerHeightRef.current = 0;
+        setCurrentTurnTopSpacerHeight(0);
+        setSpacerHeight(0);
+        return;
+      }
+
       updateSpacerHeightRef.current();
       restoreShortCompletedTurnAnchor();
 
@@ -147,7 +162,11 @@ export function useMessageAutoscrollLifecycle({
         }
       };
     }
-  }, [active, isCurrentTurnAnchoredRef, isStreaming, isStreamingRef, restoreShortCompletedTurnAnchor, updateSpacerHeightRef]);
+  }, [
+    active, currentTurnAnchorModeRef, currentTurnTopSpacerHeightRef, getLastUserMessageIndex, isAutoFollowRef,
+    isCurrentTurnAnchoredRef, isStreaming, isStreamingRef, messages, messagesRef, restoreShortCompletedTurnAnchor,
+    setCurrentTurnTopSpacerHeight, setSpacerHeight, updateSpacerHeightRef, userDetachedFromCurrentTurnRef,
+  ]);
 
   useLayoutEffect(() => {
     messagesRef.current = messages;

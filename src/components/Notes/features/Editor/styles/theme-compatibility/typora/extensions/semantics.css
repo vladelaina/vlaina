@@ -154,7 +154,7 @@
   position: absolute;
   inset-block-start: calc(100% - 1.5em);
   inset-inline-start: 45%;
-  width: calc(100px + 10%);
+  width: var(--vlaina-typora-heading-decoration-width);
   max-width: 55%;
   height: var(--vlaina-border-width-3, 3px);
   opacity: 0.4;

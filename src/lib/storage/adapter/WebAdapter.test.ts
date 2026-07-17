@@ -335,6 +335,34 @@ describe('WebAdapter', () => {
     );
   });
 
+  it('honors a smaller caller-provided list cap', async () => {
+    mockPrefixScans([
+      ...Array.from({ length: 3 }, (_, index) => ({
+        path: `/notesRoot/asset-${index}.png`,
+        content: new Uint8Array([index]),
+        isBinary: true,
+        size: 1,
+        modifiedAt: index,
+        createdAt: index,
+      })),
+      {
+        path: '/notesRoot/late.md',
+        content: 'late',
+        isBinary: false,
+        size: 4,
+        modifiedAt: 1,
+        createdAt: 1,
+      },
+    ]);
+
+    const entries = await adapter.listDir('/notesRoot', { maxEntries: 2 });
+
+    expect(entries).toHaveLength(2);
+    expect(entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'late.md' }),
+    ]));
+  });
+
   it('prioritizes markdown files before directories when applying the list cap', async () => {
     mockPrefixScans(
       [

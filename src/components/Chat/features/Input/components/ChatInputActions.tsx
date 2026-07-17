@@ -15,7 +15,12 @@ interface ChatInputActionsProps {
   canSubmit: boolean;
   showSendReadyState?: boolean;
   webSearchEnabled: boolean;
+  webSearchAvailable?: boolean;
   onToggleWebSearch: () => void;
+  computerUseAvailable?: boolean;
+  computerUseEnabled?: boolean;
+  onRequestEnableComputerUse?: () => void;
+  onDisableComputerUse?: () => void;
   onRequestComposerFocus: () => void;
   onStop: () => void;
   onSend: () => void;
@@ -31,7 +36,12 @@ export function ChatInputActions({
   canSubmit,
   showSendReadyState,
   webSearchEnabled,
+  webSearchAvailable = true,
   onToggleWebSearch,
+  computerUseAvailable = false,
+  computerUseEnabled = false,
+  onRequestEnableComputerUse = () => {},
+  onDisableComputerUse = () => {},
   onRequestComposerFocus,
   onStop,
   onSend,
@@ -50,6 +60,7 @@ export function ChatInputActions({
 
   const handleTriggerFileSelect = () => {
     if (disabled) return;
+    restoreComposerFocusOnCloseRef.current = true;
     onTriggerFileSelect();
     setActionsOpen(false);
   };
@@ -74,6 +85,19 @@ export function ChatInputActions({
   const handleDisableWebSearch = () => {
     if (disabled) return;
     onToggleWebSearch();
+    onRequestComposerFocus();
+  };
+
+  const handleEnableComputerUse = () => {
+    if (disabled) return;
+    restoreComposerFocusOnCloseRef.current = true;
+    setActionsOpen(false);
+    onRequestEnableComputerUse();
+  };
+
+  const handleDisableComputerUse = () => {
+    if (disabled) return;
+    onDisableComputerUse();
     onRequestComposerFocus();
   };
 
@@ -115,7 +139,7 @@ export function ChatInputActions({
               chatComposerPillSurfaceClass
             )}
           >
-            {!webSearchEnabled && (
+            {webSearchAvailable && !webSearchEnabled && (
               <button
                 type="button"
                 data-chat-input-action="enable-web-search"
@@ -128,6 +152,21 @@ export function ChatInputActions({
               >
                 <Icon name="file.public" size="md" className="text-[var(--vlaina-accent)]" />
                 <span>{t('chat.webSearch')}</span>
+              </button>
+            )}
+            {computerUseAvailable && !computerUseEnabled && (
+              <button
+                type="button"
+                data-chat-input-action="enable-computer-use"
+                onClick={handleEnableComputerUse}
+                className={cn(
+                  "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
+                  "text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]",
+                  getSidebarIdleRowSurfaceClass('chat')
+                )}
+              >
+                <Icon name="editor.keyboard" size="md" className="text-[var(--vlaina-accent)]" />
+                <span>{t('chat.computerUse')}</span>
               </button>
             )}
             {hasMentionCandidates && (
@@ -174,6 +213,22 @@ export function ChatInputActions({
             )}
           >
             <Icon name="file.public" size="md" />
+          </button>
+        )}
+        {computerUseAvailable && computerUseEnabled && (
+          <button
+            type="button"
+            aria-pressed="true"
+            aria-label={t('chat.computerUse.disable')}
+            data-chat-input-action="disable-computer-use"
+            onClick={handleDisableComputerUse}
+            disabled={disabled}
+            className={cn(
+              "w-9 h-9 flex items-center justify-center rounded-full bg-[var(--vlaina-sidebar-chat-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] transition-[background-color,color,transform] duration-[var(--vlaina-duration-200)] hover:bg-[var(--vlaina-sidebar-chat-row-active)] hover:text-[var(--vlaina-sidebar-row-selected-text)] active:scale-[var(--vlaina-scale-95)]",
+              disabled && 'cursor-default opacity-[var(--vlaina-opacity-45)] active:scale-[var(--vlaina-scale-100)]'
+            )}
+          >
+            <Icon name="editor.keyboard" size="md" />
           </button>
         )}
       </div>

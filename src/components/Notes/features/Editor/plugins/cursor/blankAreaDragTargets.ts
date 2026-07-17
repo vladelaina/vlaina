@@ -29,6 +29,7 @@ import {
   isExternalChatReadableTextTarget,
   isPointInSameEditorLayoutBlankArea,
 } from './blankAreaExternalTargets';
+import { resolveTaskCheckboxTarget } from '../task-list/taskCheckboxHitArea';
 
 export {
   MAX_BLANK_AREA_TEXT_HIT_CHARS,
@@ -197,6 +198,12 @@ function isNativeTextSelectionHit(hit: TextLinePointerHit | null): boolean {
 export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
   if (!(event.target instanceof HTMLElement)) return null;
   const target = event.target;
+  if (
+    view.dom.contains(target) &&
+    resolveTaskCheckboxTarget(view.dom, target, event.clientX, event.clientY)
+  ) {
+    return null;
+  }
 
   const editorScrollRoot = getScrollRoot(view.dom);
   const targetScrollRoot = getScrollRoot(target);

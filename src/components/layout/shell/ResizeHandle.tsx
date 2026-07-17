@@ -4,6 +4,7 @@ import { ResizeDividerVisual, RESIZE_HANDLE_HIT_WIDTH } from './ResizeDividerVis
 
 interface ResizeHandleProps {
   onMouseDown: MouseEventHandler<HTMLDivElement>;
+  onDoubleClick?: MouseEventHandler<HTMLDivElement>;
   isDragging: boolean;
   positionStyle: CSSProperties;
   position?: 'fixed' | 'absolute';
@@ -14,6 +15,7 @@ interface ResizeHandleProps {
 
 export function ResizeHandle({
   onMouseDown,
+  onDoubleClick,
   isDragging,
   positionStyle,
   position = 'fixed',
@@ -25,6 +27,7 @@ export function ResizeHandle({
     <div
       data-resize-handle={dataResizeHandleScope ?? 'true'}
       onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
       className={cn(
         position === 'fixed' ? 'fixed' : 'absolute',
         'top-0 bottom-0 cursor-col-resize bg-transparent transition-colors touch-none group flex items-center justify-center',

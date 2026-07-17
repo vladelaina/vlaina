@@ -134,6 +134,39 @@ describe('chatMessageFrames', () => {
     expect(second.items[1]).not.toBe(first.items[1]);
   });
 
+  it('does not rescan unchanged historical message content during streaming updates', () => {
+    const historicalMessage = createMessage('u1', 'user', 'history'.repeat(10_000));
+    const historicalContent = historicalMessage.content;
+    let contentReads = 0;
+    Object.defineProperty(historicalMessage, 'content', {
+      configurable: true,
+      get: () => {
+        contentReads += 1;
+        return historicalContent;
+      },
+    });
+    const streamingMessage = createMessage('a1', 'assistant', 'stream');
+
+    buildChatMessageFrameLayout([historicalMessage, streamingMessage], {
+      cacheKey: 'chat-stream-signature-cache',
+      containerWidth: 900,
+      isSessionActive: true,
+    });
+    const readsAfterInitialLayout = contentReads;
+
+    buildChatMessageFrameLayout([
+      historicalMessage,
+      { ...streamingMessage, content: 'stream updated' },
+    ], {
+      cacheKey: 'chat-stream-signature-cache',
+      containerWidth: 900,
+      isSessionActive: true,
+    });
+
+    expect(readsAfterInitialLayout).toBeGreaterThan(0);
+    expect(contentReads).toBe(readsAfterInitialLayout);
+  });
+
   it('invalidates estimated layout cache when long same-length content changes in sampled regions', () => {
     const prefix = 'a'.repeat(2000);
     const suffix = 'z'.repeat(2000);
@@ -362,6 +395,26 @@ describe('chatMessageFrames', () => {
     });
 
     expect(restored.get('u1')).toBe(144);
+  });
+
+  it('does not restore measured heights across markdown font sizes', () => {
+    const message = createMessage('font-size-cache', 'assistant', 'hello world');
+    rememberMeasuredChatMessageHeight(message, {
+      cacheKey: 'chat-font-size-cache',
+      containerWidth: 900,
+      fontSize: 17,
+      isSessionActive: false,
+      height: 144,
+    });
+
+    const restored = restoreCachedMeasuredHeights([message], {
+      cacheKey: 'chat-font-size-cache',
+      containerWidth: 900,
+      fontSize: 34,
+      isSessionActive: false,
+    });
+
+    expect(restored.has(message.id)).toBe(false);
   });
 
   it('restores cached measured heights across nearby widths in the same bucket', () => {

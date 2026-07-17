@@ -31,6 +31,18 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     const rootRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
+    const restoreFocusOnWindowFocusRef = useRef(false);
+
+    useEffect(() => {
+        const handleWindowFocus = () => {
+            if (!restoreFocusOnWindowFocusRef.current) return;
+            restoreFocusOnWindowFocusRef.current = false;
+            inputRef.current?.focus();
+        };
+
+        window.addEventListener('focus', handleWindowFocus);
+        return () => window.removeEventListener('focus', handleWindowFocus);
+    }, []);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -94,7 +106,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
 
     return (
         <div className={cn(
-            "absolute bottom-2 mb-0 max-w-[var(--vlaina-width-full-minus-16px)] z-[var(--vlaina-z-60)] transition-all duration-[var(--vlaina-duration-200)] select-auto",
+            "absolute bottom-2 mb-0 max-w-[var(--vlaina-width-full-minus-16px)] z-[var(--vlaina-z-60)] transition-all duration-[var(--vlaina-duration-200)] select-none",
             align === 'left' ? "left-2" : "right-2",
             "floating-toolbar-inner image-caption-toolbar !rounded-[var(--vlaina-radius-26px)]",
             chatComposerPillSurfaceClass,
@@ -120,6 +132,10 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     }}
                     onBlur={() => {
                         if (isComposingRef.current) {
+                            return;
+                        }
+                        if (!document.hasFocus()) {
+                            restoreFocusOnWindowFocusRef.current = true;
                             return;
                         }
                         onSubmit();

@@ -41,7 +41,12 @@ function createParagraphNode() {
 
 describe('imageNodeCommands', () => {
     it('marks image attr updates as user input so autosave can persist them', () => {
-        const imageNode = createImageNode({ src: './assets/demo.png', alt: 'demo' });
+        const imageNode = createImageNode({
+            src: './assets/demo.png',
+            alt: 'demo',
+            markdownSource: '<img src="./assets/demo.png" alt="demo">',
+            persistedSrc: './assets/demo.png',
+        });
         const doc = createDoc({ 12: imageNode });
         const tr: any = {
             setNodeMarkup: vi.fn(() => tr),
@@ -61,7 +66,11 @@ describe('imageNodeCommands', () => {
         expect(tr.setNodeMarkup).toHaveBeenCalledWith(
             12,
             undefined,
-            expect.objectContaining({ width: '70%' }),
+            expect.objectContaining({
+                width: '70%',
+                markdownSource: null,
+                persistedSrc: null,
+            }),
         );
         expect(view.dispatch).toHaveBeenCalledWith(tr);
     });
@@ -93,13 +102,16 @@ describe('imageNodeCommands', () => {
         expect(view.dispatch).not.toHaveBeenCalled();
     });
 
-    it('applies left alignment to the inserted image node when moving upward', () => {
+    it('preserves markdown source metadata when moving upward without changing alignment', () => {
         const imageAttrs = {
             src: './assets/demo.png',
             alt: 'demo',
             title: null,
+            align: 'center',
             width: '72%',
             crop: { x: 0, y: 0, width: 99.899209, height: 99.898319, ratio: 1.898247 },
+            markdownSource: '<picture><img src="./assets/demo.png" alt="demo"></picture>',
+            persistedSrc: null,
         };
         const initialDoc = createDoc({
             51: createImageNode(imageAttrs),
@@ -141,7 +153,6 @@ describe('imageNodeCommands', () => {
         const moved = moveImageNode(view, {
             sourcePos: 51,
             targetPos: 48,
-            alignment: 'left',
         });
 
         expect(moved).toBe(true);
@@ -155,8 +166,10 @@ describe('imageNodeCommands', () => {
 
         const nextAttrs = tr.setNodeMarkup.mock.calls[0][2];
         expect(nextAttrs.src).toBe('./assets/demo.png');
-        expect(nextAttrs.align).toBe('left');
+        expect(nextAttrs.align).toBe('center');
         expect(nextAttrs.width).toBe('72%');
+        expect(nextAttrs.markdownSource).toBe(imageAttrs.markdownSource);
+        expect(nextAttrs.persistedSrc).toBeNull();
         expect(listener).toHaveBeenCalledTimes(1);
         expect(view.dispatch).toHaveBeenCalledWith(tr);
     });

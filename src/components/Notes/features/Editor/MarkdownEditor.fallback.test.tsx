@@ -263,6 +263,22 @@ describe('MarkdownEditor source fallback', () => {
     vi.useRealTimers();
   });
 
+  it('uses the configured markdown font size in source mode', () => {
+    render(
+      <MarkdownSourceEditor
+        currentNotePath="alpha.md"
+        showBodyLineNumbers={false}
+        saveNote={mocks.notesState.saveNote}
+        mode="source"
+      />,
+    );
+
+    const sourceEditor = screen.getByLabelText('Markdown source editor');
+    expect(sourceEditor).toHaveClass('text-[length:var(--vlaina-markdown-font-body-size)]');
+    expect(sourceEditor).toHaveClass('leading-[var(--vlaina-markdown-line-height-body)]');
+    expect(sourceEditor.closest('[data-vlaina-markdown-font-size-surface="true"]')).toBeInstanceOf(HTMLElement);
+  });
+
   it('keeps markdown editable when the Milkdown runtime throws during render', async () => {
     render(<MarkdownEditor />);
 
@@ -271,7 +287,9 @@ describe('MarkdownEditor source fallback', () => {
 
     fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nEdited body' } });
 
-    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nEdited body');
+    await waitFor(() => {
+      expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nEdited body');
+    });
     expect(mocks.notesState.isDirty).toBe(true);
 
     fireEvent.blur(sourceEditor);
@@ -426,6 +444,8 @@ describe('MarkdownEditor source fallback', () => {
   });
 
   it('commits fallback Chinese text after compositionend', async () => {
+    const previewListener = vi.fn();
+    window.addEventListener('editor:note-markdown-preview', previewListener);
     render(<MarkdownEditor />);
 
     const sourceEditor = await screen.findByLabelText('Markdown source editor');
@@ -436,8 +456,14 @@ describe('MarkdownEditor source fallback', () => {
 
     fireEvent.compositionEnd(sourceEditor, { target: { value: '# Alpha\n\n你好' } });
 
-    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\n你好');
+    await waitFor(() => {
+      expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\n你好');
+    });
     expect(mocks.notesState.isDirty).toBe(true);
+    expect(previewListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: { path: 'alpha.md', content: '# Alpha\n\n你好' },
+    }));
+    window.removeEventListener('editor:note-markdown-preview', previewListener);
   });
 
   it('does not apply a stale source-mode frame commit after an external reload changes the note', () => {

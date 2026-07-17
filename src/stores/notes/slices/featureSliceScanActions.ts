@@ -58,6 +58,7 @@ export function createNoteContentScanActions({
   set,
 }: CreateNoteContentScanActionsOptions) {
   let noteContentScanController: AbortController | null = null;
+  let noteContentScanPromise: Promise<void> | null = null;
   let noteContentScanGeneration = 0;
 
   const cancelNoteContentScan = () => {
@@ -66,7 +67,7 @@ export function createNoteContentScanActions({
     noteContentScanController = null;
   };
 
-  const scanAllNotes = async (options?: ScanAllNotesOptions) => {
+  const runNoteContentScan = async (options?: ScanAllNotesOptions) => {
     cancelNoteContentScan();
     const scanController = new AbortController();
     const scanGeneration = noteContentScanGeneration;
@@ -229,6 +230,28 @@ export function createNoteContentScanActions({
         noteContentScanController = null;
       }
     }
+  };
+
+  const scanAllNotes = (options?: ScanAllNotesOptions): Promise<void> => {
+    if (
+      options?.background
+      && noteContentScanPromise
+      && noteContentScanController
+      && !noteContentScanController.signal.aborted
+    ) {
+      return noteContentScanPromise;
+    }
+    const promise = runNoteContentScan(options);
+    noteContentScanPromise = promise;
+    void promise.then(
+      () => {
+        if (noteContentScanPromise === promise) noteContentScanPromise = null;
+      },
+      () => {
+        if (noteContentScanPromise === promise) noteContentScanPromise = null;
+      },
+    );
+    return promise;
   };
 
   return { cancelNoteContentScan, scanAllNotes };

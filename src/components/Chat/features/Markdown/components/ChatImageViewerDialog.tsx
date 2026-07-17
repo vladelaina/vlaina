@@ -99,7 +99,7 @@ export function ChatImageViewerDialog({
         label={t('chat.closePreview')}
         data-no-focus-input="true"
         data-chat-image-viewer-control="true"
-        className="absolute right-12 top-[4.5rem] z-[var(--vlaina-z-10)]"
+        className="absolute right-12 top-[var(--vlaina-size-72px)] z-[var(--vlaina-z-10)]"
         onMouseDown={stopViewerControlMouseDown}
         onClick={(event) => {
           event.preventDefault();

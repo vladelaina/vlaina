@@ -1,19 +1,43 @@
-import { fetchManagedModels, MANAGED_PROVIDER_ID, requestManagedChatCompletion, requestManagedChatCompletionStream } from '@/lib/ai/managedService'
+import {
+  fetchManagedModels,
+  MANAGED_PROVIDER_ID,
+  requestManagedChatCompletion,
+  requestManagedChatCompletionStream,
+} from '@/lib/ai/managedService'
+import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
 import { sanitizeCurrentRequestTextContent, sanitizeHistory } from '@/lib/ai/requestContext'
 import { buildWebSearchCapabilityAnswer, classifyWebSearchIntent } from '@/lib/ai/webSearch/intent'
-import { runOpenAIWebSearchJsonToolLoop, runOpenAIWebSearchTextProtocolRequest, runOpenAIWebSearchTextProtocolTextRequest, runOpenAIWebSearchToolLoop } from '@/lib/ai/webSearch/openAIToolLoop'
+import {
+  runOpenAIWebSearchJsonToolLoop,
+  runOpenAIWebSearchTextProtocolRequest,
+  runOpenAIWebSearchTextProtocolTextRequest,
+  runOpenAIWebSearchToolLoop,
+} from '@/lib/ai/webSearch/openAIToolLoop'
+import {
+  runStreamingWebSearchEvidenceFallback,
+} from '@/lib/ai/webSearch/webSearchEvidenceFallback'
+import { translate } from '@/lib/i18n'
 import type { AIClient } from '../client'
-import type { AIModel, ChatMessage, ChatMessageContent, ChatSendOptions, Provider } from '../types'
+import { AIErrorType, type AIModel, type ChatMessage, type ChatMessageContent, type ChatSendOptions, type Provider } from '../types'
+import { createAIError } from '../errors'
 import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
 import { sendAnthropicMessage } from './anthropic'
 import { detectProviderEndpointModels, type ModelFetchResult } from './modelDetection'
 import { getFirstImageInput } from './openaiImages'
 import { sendManagedImageEdit, sendManagedImageGeneration, sendManagedMessage } from './openaiManaged'
+import { runManagedComputerUseMessage, runOpenAIComputerUseMessage } from './openaiComputerUse'
 import { requestOpenAIChatCompletionWithRetry, sendImageEdit, sendImageGeneration, streamResponse } from './openaiRequests'
-import { buildOpenAIChatRequest, extractTextPrompt, isGrokModel, shouldUseWebSearchTextProtocol, shouldUseXaiNativeWebSearch } from './openaiRouting'
+import {
+  buildOpenAIChatRequest,
+  extractTextPrompt,
+  isGrokModel,
+  shouldUseWebSearchTextProtocol,
+  shouldUseXaiNativeWebSearch,
+} from './openaiRouting'
 import { createHtmlRejectingChunkHandler, emitApiTranscript, emitChunk, throwIfAborted } from './openaiRuntime'
 import { sendXaiNativeWebSearchMessage } from './openaiXaiWebSearch'
+import { isTextOnlyMessage, isToolInputUnsupported } from './toolInputCompatibility'
 
 function createUnsupportedWebSearchError(): Error {
   return new Error('Web search is unavailable for this model.')
@@ -58,6 +82,13 @@ export class OpenAICompatibleClient implements AIClient {
     const imagePrompt = isImageModel ? sanitizeCurrentRequestTextContent(extractTextPrompt(message)) : ''
     const editImageUrl = isImageModel ? getFirstImageInput(message) : null
 
+    if (isImageModel && options?.computerUseEnabled) {
+      throw createAIError(
+        AIErrorType.INVALID_REQUEST,
+        translate('chat.computerUse.unavailableForModel'),
+      )
+    }
+
     if (!isImageModel && options?.webSearchEnabled) {
       const localWebSearchIntent = classifyWebSearchIntent(extractTextPrompt(message))
       if (localWebSearchIntent.action === 'answer-capability') {
@@ -71,6 +102,14 @@ export class OpenAICompatibleClient implements AIClient {
       }
       if (isImageModel) {
         return sendManagedImageGeneration({ model: resolveApiModelId(model), prompt: imagePrompt, n: 1 }, onChunk, signal)
+      }
+      if (options?.computerUseEnabled) {
+        return runManagedComputerUseMessage({
+          body,
+          onChunk,
+          options,
+          signal,
+        })
       }
       if (options?.webSearchEnabled && !isGrokModel(provider, model)) {
         return this.sendManagedWebSearchMessage(body, onChunk, signal, options, provider, model)
@@ -93,7 +132,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     if (provider.endpointType === 'anthropic') {
-      if (options?.webSearchEnabled) throw createUnsupportedWebSearchError()
+      if (options?.webSearchEnabled && !options.computerUseEnabled) throw createUnsupportedWebSearchError()
       return sendAnthropicMessage({
         message,
         history: safeHistory,
@@ -108,8 +147,19 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     const url = `${baseUrl}/chat/completions`
+    if (options?.computerUseEnabled) {
+      return runOpenAIComputerUseMessage({
+        body,
+        headers,
+        onChunk,
+        options,
+        retryDelayMs: this.webSearchRequestRetryDelayMs,
+        signal,
+        url,
+      })
+    }
     if (options?.webSearchEnabled) {
-      return this.sendOpenAIWebSearchMessage({ provider, model, baseUrl, url, headers, body, onChunk, signal, options })
+      return this.sendOpenAIWebSearchMessage({ provider, model, message, baseUrl, url, headers, body, onChunk, signal, options })
     }
 
     return streamResponse({ url, headers, body, onChunk: onChunk || (() => { }), signal, options, timeoutMs: this.timeout })
@@ -152,9 +202,10 @@ export class OpenAICompatibleClient implements AIClient {
     })
   }
 
-  private sendOpenAIWebSearchMessage({
+  private async sendOpenAIWebSearchMessage({
     provider,
     model,
+    message,
     baseUrl,
     url,
     headers,
@@ -165,6 +216,7 @@ export class OpenAICompatibleClient implements AIClient {
   }: {
     provider: Provider
     model: AIModel
+    message: ChatMessageContent
     baseUrl: string
     url: string
     headers: Record<string, string>
@@ -173,15 +225,40 @@ export class OpenAICompatibleClient implements AIClient {
     signal?: AbortSignal
     options: ChatSendOptions
   }): Promise<string> {
-    if (shouldUseXaiNativeWebSearch(provider, model)) {
-      return sendXaiNativeWebSearchMessage({
-        baseUrl,
+    const request = (nextBody: ReturnType<typeof buildOpenAIChatRequest>) =>
+      requestOpenAIChatCompletionWithRetry({
+        url,
         headers,
-        body,
-        onChunk: onChunk || (() => { }),
+        body: nextBody,
         signal,
-        options,
+        scope: 'web-search-model',
+        retryDelayMs: this.webSearchRequestRetryDelayMs,
       })
+    const loopOptions = {
+      body,
+      onChunk: onChunk || (() => { }),
+      onStatus: options.onWebSearchStatus,
+      onApiTranscript: options.onApiTranscript,
+      signal,
+      request,
+    }
+    if (shouldUseXaiNativeWebSearch(provider, model)) {
+      try {
+        return await sendXaiNativeWebSearchMessage({
+          baseUrl,
+          headers,
+          body,
+          onChunk: onChunk || (() => { }),
+          signal,
+          options,
+        })
+      } catch (error) {
+        if (!isTextOnlyMessage(message) || !isToolInputUnsupported(error)) throw error
+        addChatDebugLog('web-search-loop', 'xAI model rejected native web search; retrying with plain web evidence', {
+          model: body.model,
+        }, 'warn')
+        return await runStreamingWebSearchEvidenceFallback(loopOptions)
+      }
     }
     if (isGrokModel(provider, model)) {
       return streamResponse({ url, headers, body, onChunk: onChunk || (() => { }), signal, options, timeoutMs: this.timeout })
@@ -203,21 +280,16 @@ export class OpenAICompatibleClient implements AIClient {
         }),
       })
     }
-    return runOpenAIWebSearchToolLoop({
-      body,
-      onChunk: onChunk || (() => { }),
-      onStatus: options.onWebSearchStatus,
-      onApiTranscript: options.onApiTranscript,
-      signal,
-      request: (nextBody) => requestOpenAIChatCompletionWithRetry({
-        url,
-        headers,
-        body: nextBody,
-        signal,
-        scope: 'web-search-model',
-        retryDelayMs: this.webSearchRequestRetryDelayMs,
-      }),
-    })
+    try {
+      return await runOpenAIWebSearchToolLoop(loopOptions)
+    } catch (error) {
+      if (!isTextOnlyMessage(message) || !isToolInputUnsupported(error)) throw error
+      addChatDebugLog('web-search-loop', 'model rejected tool input; retrying with plain web evidence', {
+        model: body.model,
+        provider: provider.id,
+      }, 'warn')
+      return await runStreamingWebSearchEvidenceFallback(loopOptions)
+    }
   }
 
   async testConnection(provider: Provider): Promise<boolean> {

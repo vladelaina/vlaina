@@ -69,6 +69,37 @@ describe('accountCredentialStore', () => {
     expect(JSON.stringify(logDesktopAuth.mock.calls)).not.toContain('nts_rotated_secret');
   });
 
+  it('does not let stale rotation, update, or clear operations replace newer credentials', async () => {
+    const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');
+    const store = createAccountCredentialStore({
+      desktopLegacySessionHeader: 'x-app-session-token',
+    });
+    const credentials = {
+      appSessionToken: 'nts_current_session',
+      provider: 'google',
+      username: 'alice',
+      primaryEmail: 'alice@example.com',
+      avatarUrl: null,
+      authenticatedAt: 1,
+    };
+    await store.writeStoredAccountCredentials(credentials);
+
+    await store.rotateStoredSessionToken(
+      new Headers({ 'x-app-session-token': 'nts_stale_rotation' }),
+      'nts_old_session',
+    );
+    await expect(store.writeStoredAccountCredentialsIfCurrent(
+      { ...credentials, appSessionToken: 'nts_stale_update' },
+      'nts_old_session',
+    )).resolves.toBe(false);
+    await expect(store.clearStoredAccountCredentialsIfCurrent('nts_old_session')).resolves.toBe(false);
+
+    await expect(store.readStoredAccountCredentials()).resolves.toMatchObject({
+      appSessionToken: 'nts_current_session',
+      username: 'alice',
+    });
+  });
+
   it('stores account session tokens only as encrypted records', async () => {
     const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');
     const store = createAccountCredentialStore({

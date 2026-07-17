@@ -1,7 +1,8 @@
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useFileTreePointerDragState } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
-import { useAIStore } from '@/stores/useAIStore';
+import { actions as aiActions } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 import { ChatInputComposerFrame } from './components/ChatInputComposerFrame';
 import type { ChatInputProps } from './ChatInputTypes';
@@ -13,9 +14,13 @@ import { useChatInputBlockDrop } from './hooks/useChatInputBlockDrop';
 import { useChatInputDroppedNoteMentions } from './hooks/useChatInputDroppedNoteMentions';
 import { useChatInputEventHandlers } from './hooks/useChatInputEventHandlers';
 import { useChatInputFileTreeDrop } from './hooks/useChatInputFileTreeDrop';
+import { useChatInputCaretLayoutSync } from './hooks/useChatInputCaretLayoutSync';
 import { useChatInputFocus } from './hooks/useChatInputFocus';
 import { useChatInputRecall } from './hooks/useChatInputRecall';
 import { useNoteMentions } from './hooks/useNoteMentions';
+import { getWebSearchAvailability } from './webSearchAvailability';
+import { isElectronRuntime } from '@/lib/electron/bridge';
+import { ComputerUseEnableDialog } from '@/components/Chat/features/ComputerUse/ComputerUseEnableDialog';
 
 export const ChatInput = memo(function ChatInput({
   active = true,
@@ -33,9 +38,18 @@ export const ChatInput = memo(function ChatInput({
   acceptNotesBlockDrop = false,
 }: ChatInputProps) {
   const lastSubmittedMessageRef = useRef('');
+  const [showComputerUseEnableDialog, setShowComputerUseEnableDialog] = useState(false);
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
-  const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
+  const webSearchEnabled = useUnifiedStore((state) => state.data.ai?.webSearchEnabled === true);
+  const webSearchAvailable = useUnifiedStore((state) => getWebSearchAvailability(state.data.ai));
+  const computerUseEnabled = useUnifiedStore((state) => state.data.ai?.computerUseEnabled === true);
+  const computerUseAvailable = isElectronRuntime();
+  useEffect(() => {
+    if (webSearchEnabled && webSearchAvailable === false) {
+      aiActions.setWebSearchEnabled(false);
+    }
+  }, [webSearchAvailable, webSearchEnabled]);
   const isQuotaSendBlocked = hasSelectedModel && isManagedQuotaExhausted;
   const {
     attachments,
@@ -88,7 +102,22 @@ export const ChatInput = memo(function ChatInput({
     canSubmit: hasSelectedModel,
     focusTrigger,
   });
-  const { scheduleComposerFocus, scheduleFocusOnWindowFocus } = useChatInputFocus(textareaRef);
+  const {
+    scheduleComposerFocus,
+    scheduleComposerRefocus,
+    scheduleFocusOnWindowFocus,
+  } = useChatInputFocus(textareaRef);
+  useChatInputCaretLayoutSync({
+    composerRootRef,
+    isComposing,
+    scheduleComposerRefocus,
+    textareaRef,
+  });
+  const handleRemoveAttachment = useCallback((attachmentId: string) => {
+    const caretPosition = textareaRef.current?.selectionStart;
+    removeAttachment(attachmentId);
+    scheduleComposerFocus(caretPosition);
+  }, [removeAttachment, scheduleComposerFocus, textareaRef]);
 
   const {
     noteMentions,
@@ -233,7 +262,8 @@ export const ChatInput = memo(function ChatInput({
   });
 
   return (
-    <ChatInputComposerFrame
+    <>
+      <ChatInputComposerFrame
       activeCandidatePath={activeCandidatePath}
       applyMentionCandidate={applyMentionCandidate}
       attachments={attachments}
@@ -270,16 +300,31 @@ export const ChatInput = memo(function ChatInput({
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
-      onRemoveAttachment={removeAttachment}
+      onRemoveAttachment={handleRemoveAttachment}
       onRemoveNoteMention={removeNoteMention}
       onRequestComposerFocus={scheduleComposerFocus}
       onSend={() => handleSend()}
       onTextareaScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
-      onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
+      onToggleWebSearch={() => aiActions.setWebSearchEnabled(!webSearchEnabled)}
+      computerUseAvailable={computerUseAvailable}
+      computerUseEnabled={computerUseAvailable && computerUseEnabled}
+      onRequestEnableComputerUse={() => setShowComputerUseEnableDialog(true)}
+      onDisableComputerUse={() => aiActions.setComputerUseEnabled(false)}
       showMentionPicker={showMentionPicker}
+      showComputerCommandApproval={active}
       textareaRef={textareaRef}
       textareaScrollTop={textareaScrollTop}
       webSearchEnabled={webSearchEnabled}
-    />
+      webSearchAvailable={webSearchAvailable}
+      />
+      <ComputerUseEnableDialog
+        isOpen={showComputerUseEnableDialog}
+        onClose={() => setShowComputerUseEnableDialog(false)}
+        onConfirm={() => {
+          aiActions.setComputerUseEnabled(true);
+          setShowComputerUseEnableDialog(false);
+        }}
+      />
+    </>
   );
 });

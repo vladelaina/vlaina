@@ -92,7 +92,9 @@ export function moveImageNode(view: EditorView, options: MoveImageNodeOptions): 
     }
 
     markEditorImageUserInput(view);
-    const updatedAttrs = mergeImageNodeAttrs(imageNode.attrs, { align: nextAlign });
+    const updatedAttrs = nextAlign === currentAlign
+        ? imageNode.attrs
+        : mergeImageNodeAttrs(imageNode.attrs, { align: nextAlign });
     const tr = state.tr;
 
     tr.setMeta('addToHistory', true);

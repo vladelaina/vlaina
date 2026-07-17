@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { AppViewModeSwitch } from '@/components/layout/sidebar/AppViewModeSwitch';
 import {
   SidebarActionGroup,
@@ -13,6 +14,7 @@ import {
   getSidebarSelectedRowSurfaceClass,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { useI18n } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { rankGraphNodes } from './model/graphFilters';
 import { useNoteGraphModel } from './hooks/useNoteGraphModel';
 import { useGraphUIStore, type GraphMode } from './store/useGraphUIStore';
@@ -42,8 +44,19 @@ export function GraphSidebar() {
           <div
             role="group"
             aria-label={t('app.viewGraph')}
-            className="mx-2 mt-3 grid grid-cols-2 gap-1 rounded-xl bg-[var(--vlaina-sidebar-notes-row-active)] p-1"
+            className={cn(
+              'relative mx-2 mt-3 grid h-9 grid-cols-2 rounded-full p-1',
+              chatComposerPillSurfaceClass,
+            )}
           >
+            <span
+              data-graph-mode-indicator="true"
+              aria-hidden="true"
+              className={cn(
+                'absolute inset-y-1 left-1 w-[var(--vlaina-width-graph-mode-indicator)] rounded-full bg-[var(--vlaina-sidebar-row-selected-bg)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-[var(--vlaina-duration-200)] ease-[var(--vlaina-ease-feedback)] motion-reduce:transition-none',
+                mode === 'local' ? 'translate-x-full' : 'translate-x-0',
+              )}
+            />
             {GRAPH_MODES.map((graphMode) => {
               const active = graphMode === mode;
               return (
@@ -52,12 +65,12 @@ export function GraphSidebar() {
                   type="button"
                   aria-pressed={active}
                   onClick={() => setMode(graphMode)}
-                  className={[
-                    'h-[var(--vlaina-size-32px)] cursor-pointer rounded-lg text-[length:var(--vlaina-font-13)] font-medium transition-colors',
+                  className={cn(
+                    'relative z-[var(--vlaina-z-10)] h-7 cursor-pointer rounded-full text-[length:var(--vlaina-font-13)] font-medium transition-colors duration-[var(--vlaina-duration-200)]',
                     active
-                      ? 'bg-[var(--vlaina-sidebar-notes-surface)] text-[var(--vlaina-sidebar-row-selected-text)]'
-                      : 'bg-transparent text-[var(--vlaina-sidebar-notes-text-soft)] hover:text-[var(--vlaina-sidebar-row-selected-text)]',
-                  ].join(' ')}
+                      ? 'text-[var(--vlaina-sidebar-row-selected-text)]'
+                      : 'text-[var(--vlaina-sidebar-notes-text-soft)] hover:text-[var(--vlaina-sidebar-row-selected-text)]',
+                  )}
                 >
                   {t(graphMode === 'all' ? 'graph.modeAll' : 'graph.modeLocal')}
                 </button>

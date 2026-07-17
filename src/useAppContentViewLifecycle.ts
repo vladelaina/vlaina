@@ -32,6 +32,7 @@ interface UseAppContentViewLifecycleOptions {
   hasLaunchViewMode: boolean;
   initialUnifiedAppViewMode: AppViewMode | null;
   shouldWaitForInitialUnifiedView: boolean;
+  unifiedLoaded: boolean;
 }
 
 function isPrewarmedAppViewMode(viewMode: AppViewMode): viewMode is ReadyAppViewMode {
@@ -77,6 +78,7 @@ export function useAppContentViewLifecycle({
   hasLaunchViewMode,
   initialUnifiedAppViewMode,
   shouldWaitForInitialUnifiedView,
+  unifiedLoaded,
 }: UseAppContentViewLifecycleOptions) {
   const [mountedAppViews, setMountedAppViews] = useState<Set<AppViewMode>>(() =>
     hasLaunchViewMode ? new Set([appViewMode]) : new Set()
@@ -91,7 +93,7 @@ export function useAppContentViewLifecycle({
   const didReportStartupReadyRef = useRef(false);
   const didEnableCenterChromeRef = useRef(false);
   const didEnableDeferredChromeRef = useRef(false);
-  const didPrewarmManagedModelsRef = useRef(false);
+  const didPrewarmManagedStartupDataRef = useRef(false);
   const centerChromeTimerRef = useRef<number | null>(null);
   const deferredChromeTimerRef = useRef<number | null>(null);
   const preloadedPrimaryViewRef = useRef<AppViewMode | null>(null);
@@ -215,7 +217,7 @@ export function useAppContentViewLifecycle({
   }, [effectiveAppViewMode, shouldRenderDeferredChrome]);
 
   useEffect(() => {
-    if (!activeViewReady || !primaryContentReady) return;
+    if (!activeViewReady || !shouldRenderDeferredChrome) return;
     if (!isPrewarmedAppViewMode(effectiveAppViewMode)) return;
 
     preloadPrewarmedViewModules();
@@ -224,19 +226,22 @@ export function useAppContentViewLifecycle({
     void preloadNotesTabRowModule();
     void preloadModelSelectorModule();
     void preloadTemporaryChatToggleModule();
-    if (!didPrewarmManagedModelsRef.current) {
-      didPrewarmManagedModelsRef.current = true;
-      void preloadAIStoreModule()
-        .then((mod) => {
-          mod.actions.refreshManagedProviderInBackground();
-        })
-        .catch(() => {
-        });
-    }
 
     setMountedAppViews(addPrewarmedAppViews);
     setRenderedSidebarAppViews(addPrewarmedAppViews);
-  }, [activeViewReady, effectiveAppViewMode, primaryContentReady]);
+  }, [activeViewReady, effectiveAppViewMode, shouldRenderDeferredChrome]);
+
+  useEffect(() => {
+    if (!activeViewReady || !primaryContentReady || !unifiedLoaded) return;
+    if (didPrewarmManagedStartupDataRef.current) return;
+    didPrewarmManagedStartupDataRef.current = true;
+    void preloadAIStoreModule()
+      .then((mod) => {
+        mod.actions.prewarmManagedStartupDataInBackground();
+      })
+      .catch(() => {
+      });
+  }, [activeViewReady, primaryContentReady, unifiedLoaded]);
 
   return {
     handleActiveViewReady,

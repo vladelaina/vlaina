@@ -154,6 +154,9 @@ describe('ElectronAdapter', () => {
       { name: 'a.md', path: '/notesRoot/a.md', isDirectory: false, isFile: true },
     ]);
 
+    await adapter.listDir('/notesRoot', { maxEntries: 256 });
+    expect(mocks.bridge.fs.listDir).toHaveBeenLastCalledWith('/notesRoot', 256);
+
     await expect(adapter.listDir('/notesRoot', { recursive: true })).resolves.toEqual([
       { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
       { name: 'b.md', path: '/notesRoot/docs/b.md', isDirectory: false, isFile: true },

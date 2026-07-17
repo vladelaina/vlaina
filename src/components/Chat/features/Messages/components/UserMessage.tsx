@@ -81,8 +81,8 @@ function UserMessageInner({
   const textBubbleStyle = useMemo(
     () => ({
       ...(textBubbleWidth ? { width: `${textBubbleWidth}px` } : {}),
-      fontSize: 'var(--vlaina-markdown-font-size, var(--vlaina-size-17px))',
-      lineHeight: 'calc(var(--vlaina-markdown-font-size, var(--vlaina-size-17px)) + var(--vlaina-size-8px))',
+      fontSize: 'var(--vlaina-markdown-font-body-size)',
+      lineHeight: 'calc(var(--vlaina-markdown-font-body-size) + var(--vlaina-size-8px))',
     }),
     [textBubbleWidth],
   );
@@ -100,7 +100,7 @@ function UserMessageInner({
   const isCollapsedLongMessage = isLongMessage && !isLongMessageExpanded;
   const visibleText = isLongMessage && !isLongMessageExpanded ? collapsedText : parsedContent.text;
   const collapsedTextStyle = isCollapsedLongMessage ? {
-    maxHeight: `calc(${COLLAPSED_USER_MESSAGE_VISIBLE_LINES} * (var(--vlaina-markdown-font-size, var(--vlaina-size-17px)) + var(--vlaina-size-8px)))`,
+    maxHeight: `calc(${COLLAPSED_USER_MESSAGE_VISIBLE_LINES} * (var(--vlaina-markdown-font-body-size) + var(--vlaina-size-8px)))`,
     overflow: 'hidden',
   } : undefined;
   const imageGallery = useMemo(

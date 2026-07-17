@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { useWhiteboardHistory } from './useWhiteboardHistory';
-import type { WhiteboardConnector, WhiteboardElement, WhiteboardPaperStyle, WhiteboardStroke } from '../model/whiteboardModel';
+import type { WhiteboardElement, WhiteboardPaperStyle, WhiteboardStroke } from '../model/whiteboardModel';
 
 describe('useWhiteboardHistory', () => {
   it('clears undo and redo state when the active board changes', () => {
@@ -34,17 +34,14 @@ describe('useWhiteboardHistory', () => {
 });
 
 function useHistoryHarness(historyKey: string) {
-  const [connectors, setConnectors] = useState<WhiteboardConnector[]>([]);
   const [elements, setElements] = useState<WhiteboardElement[]>([]);
   const [strokes, setStrokes] = useState<WhiteboardStroke[]>([]);
   const [paper, setPaper] = useState<WhiteboardPaperStyle>('dots');
   const history = useWhiteboardHistory({
     active: true,
-    connectors,
     elements,
     historyKey,
     paper,
-    setConnectors,
     setElements,
     setPaper,
     setStrokes,

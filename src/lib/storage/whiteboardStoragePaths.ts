@@ -5,6 +5,7 @@ import { getNotesRootStorageKey } from '@/lib/storage/notesRootStorageKey';
 const SYSTEM_DIR = '.vlaina';
 const WHITEBOARDS_DIR = 'whiteboards';
 const NOTES_ROOTS_DIR = 'notes-roots';
+export const WHITEBOARD_SYSTEM_STORAGE_SCOPE = 'system-default';
 
 export async function getWhiteboardNotesRootsPath(): Promise<string> {
   return joinPath(await getStorageBasePath(), SYSTEM_DIR, WHITEBOARDS_DIR, NOTES_ROOTS_DIR);
