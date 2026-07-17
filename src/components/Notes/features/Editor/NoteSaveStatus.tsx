@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
+import { getErrorDiagnosticDetails } from '@/lib/diagnostics/errorDetails';
+import { logDiagnostic } from '@/lib/diagnostics/diagnosticsLog';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
@@ -7,10 +9,16 @@ import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 export function NoteSaveStatus({ notePath }: { notePath: string | null | undefined }) {
   const { t } = useI18n();
   const isDirty = useNotesStore((state) => state.isDirty);
-  const error = useNotesStore((state) => state.error);
-  const hasSaveError = Boolean(error && isDirty);
+  const saveError = useNotesStore((state) => state.saveError);
+  const saveErrorPath = useNotesStore((state) => state.saveErrorPath);
+  const hasSaveError = Boolean(saveError && saveErrorPath === notePath && isDirty);
   const [showSaved, setShowSaved] = useState(false);
   const wasDirtyRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasSaveError || !saveError) return;
+    logDiagnostic('note-save', 'save-error-visible', getErrorDiagnosticDetails(saveError));
+  }, [hasSaveError, saveError]);
 
   useEffect(() => {
     if (!notePath || isDraftNotePath(notePath)) {

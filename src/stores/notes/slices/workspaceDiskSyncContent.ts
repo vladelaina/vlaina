@@ -49,12 +49,15 @@ function assertDiskSyncContentWithinReadLimit(content: string): void {
   }
 }
 
-export async function readNormalizedDiskSyncContent(
+export async function readDiskSyncContent(
   storage: { readFile: (path: string, maxBytes?: number) => Promise<string> },
   fullPath: string,
-): Promise<string> {
+): Promise<{ baselineContent: string; content: string }> {
   const rawDiskContent = await storage.readFile(fullPath, MAX_NOTE_DISK_SYNC_BYTES);
   assertDiskSyncContentWithinReadLimit(rawDiskContent);
   assertEditorSafeMarkdownContent(rawDiskContent);
-  return normalizeEditorStateMarkdownDocument(rawDiskContent);
+  return {
+    baselineContent: rawDiskContent,
+    content: normalizeEditorStateMarkdownDocument(rawDiskContent),
+  };
 }

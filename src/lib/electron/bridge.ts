@@ -112,6 +112,58 @@ export interface ElectronAppApi {
   }>;
 }
 
+export type ElectronGitChangeStatus =
+  | 'added'
+  | 'modified'
+  | 'deleted'
+  | 'renamed'
+  | 'copied'
+  | 'untracked'
+  | 'conflicted';
+
+export interface ElectronGitChange {
+  path: string;
+  previousPath: string | null;
+  indexStatus: string;
+  workTreeStatus: string;
+  status: ElectronGitChangeStatus;
+  staged: boolean;
+  unstaged: boolean;
+}
+
+export interface ElectronGitStatus {
+  rootPath: string;
+  branch: string | null;
+  detached: boolean;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  remoteUrl: string | null;
+  changes: ElectronGitChange[];
+}
+
+export interface ElectronGitCommit {
+  hash: string;
+  shortHash: string;
+  subject: string;
+  author: string;
+  authoredAt: string;
+}
+
+export interface ElectronGitApi {
+  status(rootPath: string): Promise<ElectronGitStatus | null>;
+  fetch(rootPath: string): Promise<ElectronGitStatus>;
+  workingDiff(rootPath: string, filePath: string): Promise<string>;
+  history(rootPath: string, limit?: number): Promise<ElectronGitCommit[]>;
+  commitDiff(rootPath: string, hash: string): Promise<string>;
+  commit(
+    rootPath: string,
+    options: { message: string; paths: string[] }
+  ): Promise<ElectronGitStatus>;
+  pull(rootPath: string): Promise<ElectronGitStatus>;
+  push(rootPath: string): Promise<ElectronGitStatus>;
+}
+
 export interface ElectronUpdatePolicy {
   distribution: 'direct' | 'microsoft-store';
   checkEnabled: boolean;
@@ -368,6 +420,7 @@ export interface DesktopApi {
   clipboard: ElectronClipboardApi;
   media?: ElectronMediaApi;
   app?: ElectronAppApi;
+  git?: ElectronGitApi;
   update?: ElectronUpdateApi;
   export: ElectronExportApi;
   aiProvider: ElectronAIProviderHttpApi;

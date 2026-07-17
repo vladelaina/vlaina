@@ -76,6 +76,30 @@ describe('i18n messages', () => {
     expectLocalizedOutsideEnglish(editorActionKeys);
   });
 
+  it('keeps the Git workflow localized outside English', () => {
+    const gitWorkflowKeys = [
+      'git.sync',
+      'git.changes',
+      'git.history',
+      'git.noRemote',
+      'git.noHistory',
+      'git.commitMessage',
+      'git.commitMessagePlaceholder',
+      'git.selectAll',
+      'git.selectedCount',
+      'git.currentTime',
+      'git.loading',
+      'git.commitSuccess',
+      'git.pullSuccess',
+      'git.pushSuccess',
+      'git.operationFailed',
+      'git.saveBeforeOperationFailed',
+      'git.diffEmpty',
+    ] as const;
+
+    expectLocalizedOutsideEnglish(gitWorkflowKeys);
+  });
+
   it('keeps user-facing account and chat error labels localized outside English', () => {
     const userFacingErrorKeys = [
       'account.error.loginFailed',

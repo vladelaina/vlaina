@@ -66,6 +66,16 @@ describe('noteContentCache', () => {
     expect(getCachedNoteSize(cache, 'docs/alpha.md')).toBeNull();
   });
 
+  it('creates a cache entry with a non-enumerable raw disk baseline', () => {
+    const entry = createCachedNoteContentEntry('# Alpha\n', 7, {
+      baselineContent: '# Alpha\r\n',
+      size: 9,
+    });
+
+    expect(entry).toEqual({ content: '# Alpha\n', modifiedAt: 7 });
+    expect(entry.savedContent).toBe('# Alpha\r\n');
+  });
+
   it('returns a new map when cached disk size changes', () => {
     const cache = setCachedNoteContent(new Map(), 'docs/alpha.md', '# Alpha', 7, {
       size: 12,

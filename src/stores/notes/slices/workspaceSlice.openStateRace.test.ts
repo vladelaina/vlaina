@@ -126,6 +126,18 @@ describe('workspace note open state races', () => {
     expect(betaCacheEntry?.savedContent).toBe('# disk beta');
   });
 
+  it('preserves the raw disk baseline when opening normalized markdown', async () => {
+    storageAdapter.readFile.mockResolvedValue('# beta\r\n');
+    const store = createNotesStore();
+
+    await store.getState().openNote('beta.md');
+
+    const betaCacheEntry = store.getState().noteContentsCache.get('beta.md');
+    expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta\n' });
+    expect(betaCacheEntry?.content).toBe('# beta\n');
+    expect(betaCacheEntry?.savedContent).toBe('# beta\r\n');
+  });
+
   it('does not overwrite an absolute tab that becomes dirty while it is opening', async () => {
     let resolveRead: ((content: string) => void) | undefined;
     storageAdapter.readFile.mockImplementationOnce(() => new Promise((resolve) => {

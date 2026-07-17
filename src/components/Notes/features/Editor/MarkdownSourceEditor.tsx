@@ -7,8 +7,9 @@ import {
   flushPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from '@/stores/notes/pendingEditorMarkdown';
-import { themeEditorLayoutTokens } from '@/styles/themeTokens';
+import { registerCurrentEditorSaveFlusher } from './utils/editorSaveRegistry';
 import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
+import { useEditorSave } from './hooks/useEditorSave';
 
 const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 
@@ -30,6 +31,10 @@ export function MarkdownSourceEditor({
       state.currentNote?.path === currentNotePath ? state.currentNote.content : ''
     ), [currentNotePath])
   );
+  const currentNoteIsDirty = useNotesStore(useCallback(
+    (state) => state.currentNote?.path === currentNotePath && state.isDirty,
+    [currentNotePath]
+  ));
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftRef = useRef(currentNoteContent);
   const committedDraftRef = useRef(currentNoteContent);
@@ -39,10 +44,13 @@ export function MarkdownSourceEditor({
     markdown: currentNoteContent,
   });
   const isComposingRef = useRef(false);
-  const saveTimerRef = useRef<number | null>(null);
   const textareaResizeFrameRef = useRef<number | null>(null);
   const contentCommitFrameRef = useRef<number | null>(null);
+  const { debouncedSave: scheduleSave, flushSave: flushQueuedSave } = useEditorSave(saveNote);
 
+  useEffect(() => {
+    if (currentNoteIsDirty) scheduleSave();
+  }, [currentNoteIsDirty, currentNotePath, scheduleSave]);
   const updateContentIfCurrentNoteIsActive = useCallback((markdown: string) => {
     const currentNote = useNotesStore.getState().currentNote;
     if (currentNote?.path !== currentNotePath) {
@@ -102,13 +110,6 @@ export function MarkdownSourceEditor({
     return false;
   }, [currentNotePath]);
 
-  const clearPendingSave = useCallback(() => {
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
-  }, []);
-
   const resizeTextareaToContent = useCallback(() => {
     textareaResizeFrameRef.current = null;
     const textarea = textareaRef.current;
@@ -163,10 +164,6 @@ export function MarkdownSourceEditor({
   }, [currentNoteContent, currentNotePath, scheduleTextareaResize]);
 
   useEffect(() => {
-    return clearPendingSave;
-  }, [clearPendingSave, currentNotePath]);
-
-  useEffect(() => {
     scheduleTextareaResize();
     return () => {
       if (textareaResizeFrameRef.current !== null) {
@@ -217,26 +214,18 @@ export function MarkdownSourceEditor({
   useEffect(() => {
     return () => {
       flushSourceDraft({ force: true });
-      clearPendingSave();
       if (mode === 'source') {
         void saveNote({ explicit: false }).catch(() => undefined);
       }
     };
-  }, [clearPendingSave, flushSourceDraft, mode, saveNote]);
+  }, [flushSourceDraft, mode, saveNote]);
 
-  const scheduleSave = useCallback(() => {
-    clearPendingSave();
-    saveTimerRef.current = window.setTimeout(() => {
-      saveTimerRef.current = null;
-      void saveNote({ explicit: false }).catch(() => undefined);
-    }, themeEditorLayoutTokens.autoSaveDebounceMs);
-  }, [clearPendingSave, saveNote]);
-
-  const flushSave = useCallback(() => {
+  const flushSave = useCallback(async () => {
     flushSourceDraft({ force: true });
-    clearPendingSave();
-    void saveNote({ explicit: false }).catch(() => undefined);
-  }, [clearPendingSave, flushSourceDraft, saveNote]);
+    await flushQueuedSave();
+  }, [flushQueuedSave, flushSourceDraft]);
+
+  useEffect(() => registerCurrentEditorSaveFlusher(flushSave), [flushSave]);
 
   const handleSourceMouseDownCapture = useCallback((event: ReactMouseEvent<HTMLTextAreaElement>) => {
     if (event.button !== 0) return;

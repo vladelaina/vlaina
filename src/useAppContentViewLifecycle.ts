@@ -4,6 +4,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import {
   preloadChatSidebarModule,
   preloadChatViewModule,
+  preloadGitTitleBarActionModule,
   preloadAIStoreModule,
   preloadModelSelectorModule,
   preloadNotesSidebarModule,
@@ -216,6 +217,7 @@ export function useAppContentViewLifecycle({
     void preloadNotesTabRowModule();
     void preloadModelSelectorModule();
     void preloadTemporaryChatToggleModule();
+    void preloadGitTitleBarActionModule();
     if (!didPrewarmManagedModelsRef.current) {
       didPrewarmManagedModelsRef.current = true;
       void preloadAIStoreModule()

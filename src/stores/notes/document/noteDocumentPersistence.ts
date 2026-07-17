@@ -30,8 +30,11 @@ import {
 } from './noteDocumentGuards';
 import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { mergeNonConflictingNoteChanges } from './noteThreeWayMerge';
+import { writeNoteFileIfSemanticallyUnchanged } from './noteConditionalWrite';
+import { NoteWriteConflictError } from './noteWriteConflictError';
 
 export { assertEditorSafeMarkdownContent } from './noteDocumentGuards';
+export { NoteWriteConflictError } from './noteWriteConflictError';
 
 interface LoadNoteDocumentOptions {
   notesPath: string;
@@ -60,13 +63,6 @@ export interface SavedNoteDocument {
   size: number | null;
   nextCache: NoteContentCache;
   metadata: NoteMetadataEntry;
-}
-
-export class NoteWriteConflictError extends Error {
-  constructor() {
-    super('Current note changed on disk. Reload or resolve the conflict before saving.');
-    this.name = 'NoteWriteConflictError';
-  }
 }
 
 export async function loadNoteDocument({
@@ -108,7 +104,7 @@ export async function loadNoteDocument({
           size: diskSize,
           metadata: mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedDiskContent), fileInfo),
           nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
-            updateBaseline: true,
+            baselineContent: diskContent,
             size: diskSize,
           }),
         };
@@ -124,7 +120,7 @@ export async function loadNoteDocument({
       nextCache: normalizedCachedContent === cachedContent
         ? cache
         : setCachedNoteContent(cache, notePath, normalizedCachedContent, cachedModifiedAt, {
-          updateBaseline: !allowStaleCachedContent,
+          baselineContent: cachedEntry?.savedContent ?? cachedContent,
         }),
     };
   }
@@ -145,7 +141,7 @@ export async function loadNoteDocument({
     size,
     metadata: mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedContent), fileInfo),
     nextCache: setCachedNoteContent(cache, notePath, normalizedContent, modifiedAt, {
-      updateBaseline: true,
+      baselineContent: content,
       size,
     }),
   };
@@ -179,7 +175,7 @@ export async function saveNoteDocument({
     assertEditorSafeMarkdownContent(diskContent);
     const normalizedDiskContent = normalizeEditorStateMarkdownDocument(diskContent);
     if (stripUpdatedFrontmatter(normalizedDiskContent) !== stripUpdatedFrontmatter(normalizedCurrentContent)) {
-      throw new NoteWriteConflictError();
+      throw new NoteWriteConflictError('missing-cache-baseline');
     }
     verifiedDiskContent = diskContent;
   }
@@ -200,9 +196,11 @@ export async function saveNoteDocument({
     markExpectedExternalChange(fullPath);
     try {
       if (expectedDiskContent !== undefined && storage.writeFileIfUnchanged) {
-        const didWrite = await storage.writeFileIfUnchanged(fullPath, expectedDiskContent, content);
+        const didWrite = await writeNoteFileIfSemanticallyUnchanged({
+          storage, fullPath, expectedContent: expectedDiskContent, content,
+        });
         if (!didWrite) {
-          throw new NoteWriteConflictError();
+          throw new NoteWriteConflictError('conditional-write-rejected');
         }
       } else {
         await safeWriteTextFile(fullPath, content);
@@ -254,7 +252,7 @@ export async function saveNoteDocument({
         modifiedAt: diskModifiedAt,
         size: diskSize,
         nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
-          updateBaseline: true,
+          baselineContent: diskContent,
           size: diskSize,
         }),
       };
@@ -277,7 +275,7 @@ export async function saveNoteDocument({
         modifiedAt: diskModifiedAt,
         size: diskSize,
         nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
-          updateBaseline: true,
+          baselineContent: diskContent,
           size: diskSize,
         }),
       };
@@ -288,7 +286,7 @@ export async function saveNoteDocument({
         normalizedDiskContent,
       );
       if (mergedContent == null) {
-        throw new NoteWriteConflictError();
+        throw new NoteWriteConflictError('merge-conflict');
       }
       return writeNormalizedContent(mergedContent, diskContent);
     }

@@ -9,6 +9,7 @@ import {
   ChatSidebar,
   ChatView,
   DevMainOverlay,
+  GitTitleBarAction,
   LabView,
   ModelSelector,
   NotesSidebarWrapper,
@@ -166,10 +167,16 @@ export function AppContentShell({
     </Suspense>
   ) : null;
 
-  const rightSlot = shouldRenderDeferredChrome && effectiveAppViewMode === 'chat' ? (
-    <Suspense fallback={null}>
-      <TemporaryChatToggle />
-    </Suspense>
+  const rightSlot = shouldRenderDeferredChrome ? (
+    effectiveAppViewMode === 'notes' ? (
+      <Suspense fallback={null}>
+        <GitTitleBarAction />
+      </Suspense>
+    ) : effectiveAppViewMode === 'chat' ? (
+      <Suspense fallback={null}>
+        <TemporaryChatToggle />
+      </Suspense>
+    ) : null
   ) : null;
 
   const mainContent = shouldWaitForInitialUnifiedView ? (

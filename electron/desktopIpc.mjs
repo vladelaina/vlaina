@@ -7,6 +7,7 @@ import { getBase64DecodedByteLength } from './desktopAiProviderRequest.mjs';
 import { registerDesktopDialogIpc } from './desktopDialogIpc.mjs';
 import { openPathInFileManager, revealItemInFolder } from './desktopFileManager.mjs';
 import { registerDesktopFsIpc } from './desktopFsIpc.mjs';
+import { registerDesktopGitIpc } from './desktopGitIpc.mjs';
 import { renderHtmlToPdf } from './desktopPdfExport.mjs';
 import { registerDesktopWatchIpc } from './desktopWatchIpc.mjs';
 import { findMarkdownGitRoot } from './markdownOpenPath.mjs';
@@ -126,6 +127,8 @@ export function registerDesktopIpc({
     resolveTargetWindow,
     authorizeFsPath,
   });
+
+  registerDesktopGitIpc({ handleIpc });
 
   registerDesktopFsIpc({ handleIpc });
 

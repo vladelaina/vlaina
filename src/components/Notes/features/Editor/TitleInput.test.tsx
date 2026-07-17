@@ -2,6 +2,7 @@ import { fireEvent, render, screen, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TitleInput } from './TitleInput';
 import { NATIVE_CARET_OVERLAY_REFRESH_EVENT } from '@/hooks/useNativeCaretOverlay';
+import { flushCurrentTitleCommit } from './utils/titleCommitRegistry';
 
 const focusEditorMock = vi.hoisted(() => ({
   focusEditorToFirstLineEnd: vi.fn(),
@@ -12,10 +13,16 @@ const blockSelectionMocks = vi.hoisted(() => ({
 }));
 
 const notesState = {
-  renameNote: vi.fn(async () => undefined),
-  renameAbsoluteNote: vi.fn(async () => undefined),
+  renameNote: vi.fn<(path: string, title: string) => Promise<void>>().mockResolvedValue(undefined),
+  renameAbsoluteNote: vi.fn<(path: string, title: string) => Promise<void>>().mockResolvedValue(undefined),
   updateDraftNoteName: vi.fn(),
-  saveNote: vi.fn(async () => undefined),
+  saveNote: vi.fn<(options?: { explicit?: boolean; throwOnError?: boolean }) => Promise<void>>()
+    .mockResolvedValue(undefined),
+  currentNote: { path: 'docs/test.md' } as { path: string } | null,
+  error: null as string | null,
+  saveError: null as string | null,
+  saveErrorPath: null as string | null,
+  notesPath: '/notesRoot',
 };
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -24,7 +31,6 @@ vi.mock('@/stores/useNotesStore', () => ({
     {
       getState: () => ({
         ...notesState,
-        notesPath: '/notesRoot',
       }),
     },
   ),
@@ -63,6 +69,10 @@ describe('TitleInput', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    notesState.currentNote = { path: 'docs/test.md' };
+    notesState.error = null;
+    notesState.saveError = null;
+    notesState.saveErrorPath = null;
     width = 0;
     scrollHeight = 1200;
     originalRect = HTMLTextAreaElement.prototype.getBoundingClientRect;
@@ -256,6 +266,41 @@ describe('TitleInput', () => {
     fireEvent.focus(window);
 
     expect(input).toHaveFocus();
+  });
+
+  it('reports a failed rename to strict lifecycle title flushes', async () => {
+    notesState.renameNote.mockImplementationOnce(async () => {
+      notesState.error = 'rename denied';
+    });
+    render(<TitleInput notePath="docs/test.md" initialTitle="test" />);
+    fireEvent.change(screen.getByDisplayValue('test'), { target: { value: 'Renamed' } });
+
+    await expect(flushCurrentTitleCommit()).rejects.toThrow('rename denied');
+
+    expect(notesState.renameNote).toHaveBeenCalledWith('docs/test.md', 'Renamed');
+  });
+
+  it('waits for an in-flight title rename during a strict lifecycle flush', async () => {
+    let resolveRename: () => void = () => undefined;
+    notesState.renameNote.mockReturnValueOnce(new Promise<void>((resolve) => {
+      resolveRename = resolve;
+    }));
+    render(<TitleInput notePath="docs/test.md" initialTitle="test" />);
+    const input = screen.getByDisplayValue('test');
+    fireEvent.change(input, { target: { value: 'Renamed' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await vi.waitFor(() => expect(notesState.renameNote).toHaveBeenCalledTimes(1));
+
+    let strictFlushSettled = false;
+    const strictFlush = flushCurrentTitleCommit().finally(() => {
+      strictFlushSettled = true;
+    });
+    await Promise.resolve();
+    expect(strictFlushSettled).toBe(false);
+
+    notesState.currentNote = { path: 'docs/Renamed.md' };
+    resolveRename();
+    await expect(strictFlush).resolves.toBeUndefined();
   });
 
   it('does not save a composing draft title on blur', async () => {

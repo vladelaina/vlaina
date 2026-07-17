@@ -22,6 +22,15 @@ interface CreateNoteContentScanActionsOptions {
   set: Parameters<StateCreator<NotesStore, [], [], FeatureSlice>>[0];
 }
 
+interface ScannedNoteContent {
+  baselineContent?: string;
+  content: string;
+  contentLoaded: boolean;
+  modifiedAt: number | null;
+  path: string;
+  size: number | null;
+}
+
 export function createNoteContentScanActions({
   get,
   isActiveNotesRootRequest,
@@ -71,21 +80,20 @@ export function createNoteContentScanActions({
       const addScannedEntry = (
         path: string,
         content: string,
+        contentLoaded: boolean,
         modifiedAt: number | null,
-        options: { size?: number | null } = {},
+        options: { baselineContent?: string; size?: number | null } = {},
       ) => {
-        if (!isSearchableMarkdownContent(content) || scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
-          scannedCache.set(path, createCachedNoteContentEntry('', modifiedAt, options));
+        if (
+          !contentLoaded ||
+          !isSearchableMarkdownContent(content) ||
+          scannedContentChars + content.length > MAX_SCANNED_NOTE_CONTENT_CHARS
+        ) {
           return;
         }
 
-        const nextContent =
-          scannedContentChars + content.length <= MAX_SCANNED_NOTE_CONTENT_CHARS
-            ? content
-            : '';
-
-        scannedContentChars += nextContent.length;
-        scannedCache.set(path, createCachedNoteContentEntry(nextContent, modifiedAt, options));
+        scannedContentChars += content.length;
+        scannedCache.set(path, createCachedNoteContentEntry(content, modifiedAt, options));
       };
 
       const BATCH_SIZE = 10;
@@ -94,38 +102,44 @@ export function createNoteContentScanActions({
 
         const batch = filePaths.slice(i, i + BATCH_SIZE);
         if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
-          batch.forEach(({ path }) => addScannedEntry(path, '', null));
           continue;
         }
 
         const results = await Promise.allSettled(
-          batch.map(async ({ path, fullPath }) => {
-            if (!isScanActive()) return { path, content: '', modifiedAt: null, size: null };
+          batch.map(async ({ path, fullPath }): Promise<ScannedNoteContent> => {
+            if (!isScanActive()) return { path, content: '', contentLoaded: false, modifiedAt: null, size: null };
 
             const fileInfo = await storage.stat(fullPath).catch(() => null);
-            if (!isScanActive()) return { path, content: '', modifiedAt: null, size: null };
+            if (!isScanActive()) return { path, content: '', contentLoaded: false, modifiedAt: null, size: null };
             const modifiedAt = getKnownMarkdownModifiedAt(fileInfo);
             const size = getKnownMarkdownFileSize(fileInfo);
             const cachedEntry = noteContentsCache.get(path);
             if (cachedEntry && canReuseScannedNoteCacheEntry(cachedEntry, fileInfo)) {
-              return { path, content: cachedEntry.content, modifiedAt, size };
+              return {
+                path,
+                content: cachedEntry.content,
+                contentLoaded: true,
+                baselineContent: cachedEntry.savedContent ?? cachedEntry.content,
+                modifiedAt,
+                size,
+              };
             }
 
             if (!canReadBoundedMarkdownFile(fileInfo, MAX_SEARCHABLE_NOTE_BYTES)) {
-              return { path, content: '', modifiedAt, size };
+              return { path, content: '', contentLoaded: false, modifiedAt, size };
             }
 
             try {
               const rawContent = await storage.readFile(fullPath, MAX_SEARCHABLE_NOTE_BYTES);
               if (!isSearchableMarkdownContent(rawContent)) {
-                return { path, content: '', modifiedAt, size };
+                return { path, content: '', contentLoaded: false, modifiedAt, size };
               }
 
               const content = normalizeEditorStateMarkdownDocument(rawContent);
-              if (!isScanActive()) return { path, content: '', modifiedAt: null, size: null };
-              return { path, content, modifiedAt, size };
+              if (!isScanActive()) return { path, content: '', contentLoaded: false, modifiedAt: null, size: null };
+              return { path, content, contentLoaded: true, baselineContent: rawContent, modifiedAt, size };
             } catch {
-              return { path, content: '', modifiedAt: null, size: null };
+              return { path, content: '', contentLoaded: false, modifiedAt: null, size: null };
             }
           })
         );
@@ -137,8 +151,12 @@ export function createNoteContentScanActions({
             addScannedEntry(
               result.value.path,
               result.value.content,
+              result.value.contentLoaded,
               result.value.modifiedAt,
-              { size: result.value.size },
+              {
+                baselineContent: result.value.baselineContent,
+                size: result.value.size,
+              },
             );
           }
         });
@@ -155,7 +173,10 @@ export function createNoteContentScanActions({
           createCachedNoteContentEntry(
             latestState.currentNote.content,
             currentEntry?.modifiedAt ?? null,
-            currentEntry?.size !== undefined ? { size: currentEntry.size } : {},
+            {
+              baselineContent: currentEntry?.savedContent ?? currentEntry?.content,
+              ...(currentEntry?.size !== undefined ? { size: currentEntry.size } : {}),
+            },
           ),
         );
       }

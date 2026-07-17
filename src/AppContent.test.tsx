@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   refreshManagedProviderInBackground: vi.fn(),
   settingsModuleImports: 0,
   temporaryChatToggleModuleImports: 0,
+  gitTitleBarActionModuleImports: 0,
   fontSize: 17,
   notesSidebarMounts: 0,
   notesSidebarUnmounts: 0,
@@ -161,6 +162,13 @@ vi.mock('@/components/Chat/features/Temporary/TitleBarTemporaryChatToggle', () =
   mocks.temporaryChatToggleModuleImports += 1;
   return {
     TitleBarTemporaryChatToggle: () => <div data-testid="temporary-chat-toggle" />,
+  };
+});
+
+vi.mock('@/components/Notes/features/Git', () => {
+  mocks.gitTitleBarActionModuleImports += 1;
+  return {
+    GitTitleBarAction: () => <div data-testid="git-titlebar-action" />,
   };
 });
 
@@ -354,6 +362,7 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.fontSize = 17;
     mocks.settingsModuleImports = 0;
     mocks.temporaryChatToggleModuleImports = 0;
+    mocks.gitTitleBarActionModuleImports = 0;
     mocks.notesSidebarMounts = 0;
     mocks.notesSidebarUnmounts = 0;
     mocks.whiteboardMounts = 0;
@@ -380,6 +389,9 @@ describe('AppContent view switching chrome readiness', () => {
     });
     await waitFor(() => {
       expect(mocks.temporaryChatToggleModuleImports).toBeGreaterThanOrEqual(1);
+    });
+    await waitFor(() => {
+      expect(mocks.gitTitleBarActionModuleImports).toBeGreaterThanOrEqual(1);
     });
   });
 

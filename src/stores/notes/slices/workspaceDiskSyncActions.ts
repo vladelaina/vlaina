@@ -22,7 +22,7 @@ import {
   getKnownFileSize,
   getKnownModifiedAt,
   hasKnownFileSizeChanged,
-  readNormalizedDiskSyncContent,
+  readDiskSyncContent,
 } from './workspaceDiskSyncContent';
 
 function isCurrentDiskSyncTarget(get: NotesGet, notesPath: string, notePath: string) {
@@ -117,7 +117,7 @@ export function createWorkspaceDiskSyncAction(
           return 'ignored';
         }
 
-        let preloadedDiskContent: string | null = null;
+        let preloadedDiskContent: Awaited<ReturnType<typeof readDiskSyncContent>> | null = null;
         const isExpectedExternalChange =
           Boolean(options?.expectedExternalChange) || shouldIgnoreExpectedExternalChange(fullPath);
         if (isExpectedExternalChange) {
@@ -140,19 +140,19 @@ export function createWorkspaceDiskSyncAction(
             return 'ignored';
           }
 
-          preloadedDiskContent = await readNormalizedDiskSyncContent(storage, fullPath);
+          preloadedDiskContent = await readDiskSyncContent(storage, fullPath);
           if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
             return 'ignored';
           }
 
-          if (preloadedDiskContent === latestContent) {
+          if (preloadedDiskContent.content === latestContent) {
             set({
               noteContentsCache: setCachedNoteContent(
                 latestState.noteContentsCache,
                 currentNote.path,
                 latestContent,
                 nextModifiedAt,
-                { updateBaseline: true, size: nextSize },
+                { baselineContent: preloadedDiskContent.baselineContent, size: nextSize },
               ),
               error: null,
             });
@@ -168,10 +168,11 @@ export function createWorkspaceDiskSyncAction(
           return 'conflict';
         }
 
-        let nextContent = preloadedDiskContent;
-        if (nextContent === null) {
-          nextContent = await readNormalizedDiskSyncContent(storage, fullPath);
+        let nextDiskContent = preloadedDiskContent;
+        if (nextDiskContent === null) {
+          nextDiskContent = await readDiskSyncContent(storage, fullPath);
         }
+        const nextContent = nextDiskContent.content;
         if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
           return 'ignored';
         }
@@ -190,7 +191,7 @@ export function createWorkspaceDiskSyncAction(
               currentNote.path,
               nextContent,
               nextModifiedAt,
-              { updateBaseline: true, size: nextSize },
+              { baselineContent: nextDiskContent.baselineContent, size: nextSize },
             ),
             error: null,
           });
@@ -252,7 +253,7 @@ export function createWorkspaceDiskSyncAction(
             currentNote.path,
             nextContent,
             nextModifiedAt,
-            { updateBaseline: true, size: nextSize },
+            { baselineContent: nextDiskContent.baselineContent, size: nextSize },
           ),
           error: null,
         });

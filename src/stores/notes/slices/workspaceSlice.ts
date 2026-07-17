@@ -22,6 +22,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   isDirty: false,
   isLoading: false,
   error: null,
+  saveError: null,
+  saveErrorPath: null,
   openTabs: [],
   recentlyClosedTabs: [],
   noteNavigationHistory: [],

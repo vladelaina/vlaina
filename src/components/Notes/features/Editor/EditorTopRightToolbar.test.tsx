@@ -80,6 +80,14 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuTrigger: ({ children }: React.ComponentProps<'button'> & { asChild?: boolean }) => <>{children}</>,
 }));
 
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div role="tooltip">{children}</div>
+  ),
+}));
+
 vi.mock('@/components/ui/icons', () => ({
   Icon: ({ name }: { name: string }) => <span data-icon={name} />,
 }));
@@ -330,6 +338,51 @@ describe('EditorTopRightToolbar', () => {
     );
 
     expect(getCurrentNoteContent).not.toHaveBeenCalled();
+  });
+
+  it('matches the idle toolbar action color to the Git title bar action', () => {
+    const { getByRole } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
+        notesPath="/notesRoot"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+      />,
+    );
+
+    expect(getByRole('button', { name: 'Add to Starred' })).toHaveClass(
+      'text-[var(--vlaina-color-titlebar-button)]',
+    );
+    expect(getByRole('button', { name: 'Right Chat' })).toHaveClass(
+      'text-[var(--vlaina-color-titlebar-button)]',
+    );
+    expect(getByRole('button', { name: 'More note actions' })).toHaveClass(
+      'text-[var(--vlaina-color-titlebar-button)]',
+    );
+  });
+
+  it.each([
+    'Add to Starred',
+    'Right Chat',
+    'More note actions',
+  ])('provides the localized hover label for %s', (label) => {
+    const { getAllByRole } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
+        notesPath="/notesRoot"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+      />,
+    );
+    expect(getAllByRole('tooltip').some((tooltip) => tooltip.textContent === label)).toBe(true);
   });
 
   it('opens the right Chat floating panel from the toolbar action and removes it from the note menu', () => {

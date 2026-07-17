@@ -833,6 +833,24 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('preserves the raw disk baseline after reloading normalized markdown', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 9 });
+    storageAdapter.readFile.mockResolvedValue('# beta\r\n');
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('reloaded');
+    const cacheEntry = store.getState().noteContentsCache.get('docs/alpha.md');
+    expect(cacheEntry?.content).toBe('# beta\n');
+    expect(cacheEntry?.savedContent).toBe('# beta\r\n');
+  });
+
   it('keeps the file tree reference stable when disk sync mtime metadata does not affect name sorting', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });

@@ -125,6 +125,10 @@ export function createWorkspaceDocumentActions(
         latestSaveTargetContent !== contentAtSaveStart;
       const pathWasExternallyMutatedDuringSave =
         wasPathExternallyMutatedSince(currentNote.path, pathMutationRevision);
+      const clearsTargetSaveError = latestState.saveErrorPath === currentNote.path;
+      const externalMutationSaveError = pathWasExternallyMutatedDuringSave
+        ? 'Current note changed outside vlaina while saving. Its latest content is preserved; save again after reviewing it.'
+        : null;
 
       if (hasNewerSaveTargetEdit || pathWasExternallyMutatedDuringSave) {
         const preservedContent = latestSaveTargetContent ?? contentAtSaveStart;
@@ -141,8 +145,14 @@ export function createWorkspaceDocumentActions(
           ),
           openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, true),
           error: pathWasExternallyMutatedDuringSave
-            ? latestState.error ?? 'Current note changed outside vlaina while saving. Its latest content is preserved; save again after reviewing it.'
-            : null,
+            ? latestState.error ?? externalMutationSaveError
+            : clearsTargetSaveError ? null : latestState.error,
+          saveError: externalMutationSaveError ?? (
+            clearsTargetSaveError ? null : latestState.saveError
+          ),
+          saveErrorPath: externalMutationSaveError
+            ? currentNote.path
+            : clearsTargetSaveError ? null : latestState.saveErrorPath,
         });
         return;
       }
@@ -172,33 +182,46 @@ export function createWorkspaceDocumentActions(
             : { updateBaseline: true, size },
         ),
         openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, false),
-        error: null,
+        error: clearsTargetSaveError ? null : latestState.error,
+        saveError: clearsTargetSaveError ? null : latestState.saveError,
+        saveErrorPath: clearsTargetSaveError ? null : latestState.saveErrorPath,
       });
     } catch (error) {
       if (get().notesPath !== notesPath) return;
 
       const currentState = get();
-      const dirtyPath = currentState.currentNote?.path ?? notePathAtSaveStart;
+      const dirtyPath = draftNotes[notePathAtSaveStart]
+        ? currentState.currentNote?.path ?? notePathAtSaveStart
+        : notePathAtSaveStart;
+      const failedSaveTargetStillActive = currentState.currentNote?.path === dirtyPath;
+      const saveError = error instanceof Error ? error : new Error('Failed to save note');
       set({
-        error: error instanceof Error ? error.message : 'Failed to save note',
+        error: saveError.message,
+        saveError: saveError.message,
+        saveErrorPath: dirtyPath,
         ...(wasDirtyAtSaveStart
           ? {
-              isDirty: true,
-              openTabs: setNoteTabDirtyState(
-                setNoteTabDirtyState(currentState.openTabs, dirtyPath, true),
-                notePathAtSaveStart,
-                true,
-              ),
+              isDirty: failedSaveTargetStillActive ? true : currentState.isDirty,
+              openTabs: setNoteTabDirtyState(currentState.openTabs, dirtyPath, true),
             }
           : {}),
       });
+      if (options?.throwOnError) {
+        throw saveError;
+      }
     }
   };
 
   return {
     saveNote: async (options) => {
       while (saveInFlight) {
-        await saveInFlight;
+        try {
+          await saveInFlight;
+        } catch (error) {
+          if (options?.throwOnError) {
+            throw error;
+          }
+        }
         if (!options?.explicit && !get().isDirty) {
           return;
         }
@@ -246,7 +269,7 @@ export function createWorkspaceDocumentActions(
     },
 
     updateContent: (content: string) => {
-      const { currentNote, noteContentsCache, openTabs } = get();
+      const { currentNote, noteContentsCache, openTabs, saveErrorPath } = get();
       if (!currentNote) {
         return;
       }
@@ -264,6 +287,9 @@ export function createWorkspaceDocumentActions(
           content,
           getCachedNoteModifiedAt(noteContentsCache, currentNote.path)
         ),
+        ...(saveErrorPath === currentNote.path
+          ? { saveError: null, saveErrorPath: null }
+          : {}),
       });
     },
   };

@@ -9,6 +9,8 @@ export interface WorkspaceSlice {
   isDirty: NotesStore['isDirty'];
   isLoading: NotesStore['isLoading'];
   error: NotesStore['error'];
+  saveError: NotesStore['saveError'];
+  saveErrorPath: NotesStore['saveErrorPath'];
   openTabs: NotesStore['openTabs'];
   recentlyClosedTabs: NotesStore['recentlyClosedTabs'];
   noteNavigationHistory: NotesStore['noteNavigationHistory'];

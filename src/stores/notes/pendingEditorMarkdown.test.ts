@@ -408,6 +408,44 @@ describe('flushPendingEditorMarkdown', () => {
     });
   });
 
+  it('does not clear the active note save error when a background save succeeds', async () => {
+    saveNoteDocument.mockImplementationOnce(async ({ currentNote, cache }) => ({
+      content: currentNote.content,
+      metadata: {},
+      modifiedAt: 11,
+      size: currentNote.content.length,
+      nextCache: cache,
+    }));
+    useNotesStore.setState({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'beta.md', content: 'Unsaved beta' },
+      currentNoteRevision: 4,
+      isDirty: true,
+      error: 'beta save failed',
+      saveError: 'beta save failed',
+      saveErrorPath: 'beta.md',
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: false },
+        { path: 'beta.md', name: 'beta', isDirty: true },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Old alpha', modifiedAt: 2 }],
+        ['beta.md', { content: 'Unsaved beta', modifiedAt: 3 }],
+      ]),
+    });
+
+    const didSave = await savePendingEditorMarkdown('alpha.md', 'Unsaved alpha');
+
+    expect(didSave).toBe(true);
+    expect(useNotesStore.getState()).toMatchObject({
+      currentNote: { path: 'beta.md', content: 'Unsaved beta' },
+      isDirty: true,
+      error: 'beta save failed',
+      saveError: 'beta save failed',
+      saveErrorPath: 'beta.md',
+    });
+  });
+
   it('keeps the file tree reference stable when pending autosave only changes mtime metadata under name sorting', async () => {
     const rootFolder = {
       id: '',

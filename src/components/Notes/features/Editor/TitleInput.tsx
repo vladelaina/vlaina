@@ -1,11 +1,7 @@
 import { useState, useCallback, useRef, useEffect, type CSSProperties } from 'react';
-import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { focusEditorToFirstLineEnd } from './utils/focusEditor';
 import { NOTE_TITLE_INPUT_DATA_ATTR } from './utils/titleInputDom';
-import { registerCurrentTitleCommitter } from './utils/titleCommitRegistry';
-import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
-import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useI18n } from '@/lib/i18n';
 import { getInvalidFileNameReason } from '@/stores/notes/noteUtils';
 import { useToastStore } from '@/stores/useToastStore';
@@ -13,6 +9,7 @@ import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay'
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { clearCurrentEditorBlockSelection } from './utils/editorViewRegistry';
 import { useTitleInputAutoResize } from './hooks/useTitleInputAutoResize';
+import { useTitleCommit } from './hooks/useTitleCommit';
 
 interface TitleInputProps {
   notePath: string;
@@ -27,16 +24,10 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
   const [title, setTitle] = useState(initialTitle);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const skipNextBlurCommitRef = useRef(false);
-  const isCommittingRef = useRef(false);
   const titleActionFrameRef = useRef<number | null>(null);
   const lastInvalidToastAtRef = useRef(0);
-  const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
   const isComposingRef = useRef(false);
   const restoreFocusOnWindowFocusRef = useRef(false);
-  const renameNote = useNotesStore(s => s.renameNote);
-  const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
-  const updateDraftNoteName = useNotesStore(s => s.updateDraftNoteName);
-  const saveNote = useNotesStore(s => s.saveNote);
   const setNotesPreviewTitle = useUIStore(s => s.setNotesPreviewTitle);
   const addToast = useToastStore(s => s.addToast);
   const titleInputDataAttrs = { [NOTE_TITLE_INPUT_DATA_ATTR]: 'true' as const };
@@ -62,6 +53,15 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
     lastInvalidToastAtRef.current = now;
     addToast(message, 'error', themeUiFeedbackTokens.invalidFileNameToastDurationMs);
   }, [addToast]);
+  const { commitTitleIfNeeded, isCommittingRef } = useTitleCommit({
+    initialTitle,
+    isComposingRef,
+    notePath,
+    setNotesPreviewTitle,
+    setTitle,
+    showInvalidFileNameToast,
+    title,
+  });
 
   useEffect(() => {
     const handleWindowFocus = () => {
@@ -124,61 +124,6 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
 
   const handleTitleInteraction = useCallback(() => {
     clearCurrentEditorBlockSelection();
-  }, []);
-
-  const commitTitleIfNeeded = useCallback(async () => {
-    if (isCommittingRef.current) return;
-    if (isComposingRef.current) return;
-    const trimmed = title.trim();
-    if (!trimmed) {
-      if (isDraftNotePath(notePath)) {
-        updateDraftNoteName(notePath, '');
-        if (useNotesStore.getState().notesPath) {
-          await saveNote({ explicit: false });
-        }
-      }
-      setTitle('');
-      setNotesPreviewTitle(null, null);
-      return;
-    }
-
-    if (trimmed === initialTitle) {
-      setNotesPreviewTitle(null, null);
-      return;
-    }
-
-    const invalidReason = getInvalidFileNameReason(trimmed);
-    if (invalidReason) {
-      showInvalidFileNameToast(invalidReason);
-      return;
-    }
-
-    isCommittingRef.current = true;
-    try {
-      if (isDraftNotePath(notePath)) {
-        updateDraftNoteName(notePath, trimmed);
-        if (useNotesStore.getState().notesPath) {
-          await saveNote({ explicit: false });
-        }
-        setTitle(resolveDraftNoteTitle(trimmed));
-        return;
-      }
-
-      if (isAbsolutePath(notePath)) {
-        await renameAbsoluteNote(notePath, trimmed);
-      } else {
-        await renameNote(notePath, trimmed);
-      }
-    } finally {
-      isCommittingRef.current = false;
-      setNotesPreviewTitle(null, null);
-    }
-  }, [title, initialTitle, notePath, renameAbsoluteNote, renameNote, saveNote, setNotesPreviewTitle, showInvalidFileNameToast, updateDraftNoteName]);
-
-  commitTitleRef.current = commitTitleIfNeeded;
-
-  useEffect(() => {
-    return registerCurrentTitleCommitter(() => commitTitleRef.current());
   }, []);
 
   const handleBlur = useCallback(async () => {
@@ -248,7 +193,6 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
         cancelAnimationFrame(titleActionFrameRef.current);
         titleActionFrameRef.current = null;
       }
-      isCommittingRef.current = false;
       skipNextBlurCommitRef.current = false;
     };
   }, []);

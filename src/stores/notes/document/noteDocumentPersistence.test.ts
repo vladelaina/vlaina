@@ -106,6 +106,89 @@ describe('saveNoteDocument', () => {
     expect(clearExpectedExternalChange).toHaveBeenCalledWith('/notesRoot/alpha.md');
   });
 
+  it('uses the original disk text as the conditional-write baseline after normalizing line endings', async () => {
+    adapter.platform = 'electron';
+    adapter.stat
+      .mockResolvedValueOnce({ modifiedAt: 1, size: 10 })
+      .mockResolvedValueOnce({ modifiedAt: 1, size: 10 })
+      .mockResolvedValueOnce({ modifiedAt: 2, size: 15 });
+    adapter.readFile.mockResolvedValue('\uFEFF# Alpha\r\n');
+
+    const loaded = await loadNoteDocument({
+      notesPath: '/notesRoot',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+    await saveNoteDocument({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'alpha.md', content: '# Alpha\n\nEdited' },
+      cache: loaded.nextCache,
+    });
+
+    expect(loaded.content).toBe('# Alpha\n');
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledWith(
+      '/notesRoot/alpha.md',
+      '\uFEFF# Alpha\r\n',
+      '# Alpha\n\nEdited',
+    );
+  });
+
+  it('repairs a legacy normalized baseline when the disk only differs by line endings', async () => {
+    adapter.platform = 'electron';
+    adapter.stat
+      .mockResolvedValueOnce({ modifiedAt: 1, size: 9 })
+      .mockResolvedValueOnce({ modifiedAt: 2, size: 15 });
+    adapter.readFile.mockResolvedValue('# Alpha\r\n');
+    adapter.writeFileIfUnchanged
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const cache = setCachedNoteContent(new Map(), 'alpha.md', '# Alpha\n', 1, {
+      updateBaseline: true,
+      size: 9,
+    });
+
+    await saveNoteDocument({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'alpha.md', content: '# Alpha\n\nEdited' },
+      cache,
+    });
+
+    expect(adapter.writeFileIfUnchanged).toHaveBeenNthCalledWith(
+      1,
+      '/notesRoot/alpha.md',
+      '# Alpha\n',
+      '# Alpha\n\nEdited',
+    );
+    expect(adapter.writeFileIfUnchanged).toHaveBeenNthCalledWith(
+      2,
+      '/notesRoot/alpha.md',
+      '# Alpha\r\n',
+      '# Alpha\n\nEdited',
+    );
+  });
+
+  it('does not retry a rejected write when disk content differs beyond encoding', async () => {
+    adapter.platform = 'electron';
+    adapter.stat.mockResolvedValue({ modifiedAt: 1, size: 9 });
+    adapter.readFile.mockResolvedValue('# Changed\n');
+    adapter.writeFileIfUnchanged.mockResolvedValue(false);
+    const cache = setCachedNoteContent(new Map(), 'alpha.md', '# Alpha\n', 1, {
+      updateBaseline: true,
+      size: 9,
+    });
+
+    await expect(saveNoteDocument({
+      notesPath: '/notesRoot',
+      currentNote: { path: 'alpha.md', content: '# Local edit\n' },
+      cache,
+    })).rejects.toMatchObject({
+      name: 'NoteWriteConflictError',
+      conflictReason: 'conditional-write-rejected',
+    });
+
+    expect(adapter.writeFileIfUnchanged).toHaveBeenCalledTimes(1);
+  });
+
   it('refuses to overwrite an existing desktop note when its cache baseline is missing', async () => {
     adapter.platform = 'electron';
     adapter.stat.mockResolvedValue({ modifiedAt: 1, size: 2 });
