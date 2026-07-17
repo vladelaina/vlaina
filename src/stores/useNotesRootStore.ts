@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import {
   NOTES_ROOTS_STORAGE_KEY,
   isOversizedRecentNotesRootsStorageValue,
-  parseRecentNotesRootsStorageValue,
+  tryParseRecentNotesRootsStorageValue,
 } from './notesRootStoreSupport';
 import { createNotesRootLifecycleActions } from './notesRootStoreLifecycle';
 import { createNotesRootMutationActions } from './notesRootStoreMutations';
@@ -36,7 +36,10 @@ function registerNotesRootStorageListener(): void {
       return;
     }
 
-    const recentNotesRoots = parseRecentNotesRootsStorageValue(event.newValue);
+    const recentNotesRoots = tryParseRecentNotesRootsStorageValue(event.newValue);
+    if (!recentNotesRoots) {
+      return;
+    }
     const currentNotesRoot = useNotesRootStore.getState().currentNotesRoot;
     const refreshedCurrentNotesRoot = currentNotesRoot
       ? recentNotesRoots.find((notesRoot) => notesRoot.id === currentNotesRoot.id) ?? currentNotesRoot

@@ -55,6 +55,8 @@ export function SidebarContent({
   const starredEntries = useNotesStore((s) => s.starredEntries);
   const currentNotesRoot = useNotesRootStore((s) => s.currentNotesRoot);
   const recentNotesRoots = useNotesRootStore((s) => s.recentNotesRoots);
+  const notesRootStoreHasInitialized = useNotesRootStore((s) => s.hasInitialized);
+  const notesRootStoreIsLoading = useNotesRootStore((s) => s.isLoading);
   const openNotesRoot = useNotesRootStore((s) => s.openNotesRoot);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarWidth = useUIStore((s) => s.setSidebarWidth);
@@ -159,7 +161,9 @@ export function SidebarContent({
   const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
   const shouldShowFloatingEmptyHint = !isLoading && !hasNotesRootPendingRoot && !hasLoadedRootFolder;
   const shouldShowEmptyWorkspacePanel =
-    shouldShowInlineEmptyHint || (shouldShowFloatingEmptyHint && (!sidebarCollapsed || isPeeking));
+    notesRootStoreHasInitialized &&
+    !notesRootStoreIsLoading &&
+    (shouldShowInlineEmptyHint || (shouldShowFloatingEmptyHint && (!sidebarCollapsed || isPeeking)));
   const shouldRenderRootFolderRow = Boolean(
     displayRootFolder || hasNotesRootPendingRoot || shouldShowInlineEmptyHint,
   );

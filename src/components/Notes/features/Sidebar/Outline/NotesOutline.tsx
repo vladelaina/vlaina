@@ -35,11 +35,18 @@ export function NotesOutline({
   const { headings, activeId, jumpToHeading, renameHeading } = useNotesOutline(enabled);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const recentNotesRoots = useNotesRootStore((s) => s.recentNotesRoots);
+  const notesRootStoreHasInitialized = useNotesRootStore((s) => s.hasInitialized);
+  const notesRootStoreIsLoading = useNotesRootStore((s) => s.isLoading);
   const openNotesRoot = useNotesRootStore((s) => s.openNotesRoot);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const hasCurrentFile = Boolean(currentNotePath && !isDraftNotePath(currentNotePath));
-  const shouldShowEmptyWorkspacePanel = headings.length === 0 && !hasCurrentFile && (!sidebarCollapsed || isPeeking);
+  const shouldShowEmptyWorkspacePanel =
+    notesRootStoreHasInitialized &&
+    !notesRootStoreIsLoading &&
+    headings.length === 0 &&
+    !hasCurrentFile &&
+    (!sidebarCollapsed || isPeeking);
   const shouldShowOutlineEmpty = hasCurrentFile && headings.length === 0;
   const recentEmptyWorkspaceNotesRoots = useMemo(() => (
     getEmptyWorkspaceRecentNotesRoots(recentNotesRoots, null)

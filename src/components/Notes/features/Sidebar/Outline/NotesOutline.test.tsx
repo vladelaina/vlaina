@@ -20,6 +20,8 @@ const hoisted = vi.hoisted(() => ({
   notesRootState: {
     currentNotesRoot: null as { path: string; name: string } | null,
     recentNotesRoots: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
+    hasInitialized: true,
+    isLoading: false,
   },
   jumpToHeading: vi.fn(),
   renameHeading: vi.fn(() => true),
@@ -58,11 +60,15 @@ vi.mock('@/stores/useNotesRootStore', () => ({
   useNotesRootStore: (selector: (state: {
     currentNotesRoot: typeof hoisted.notesRootState.currentNotesRoot;
     recentNotesRoots: typeof hoisted.notesRootState.recentNotesRoots;
+    hasInitialized: boolean;
+    isLoading: boolean;
     openNotesRoot: typeof hoisted.openNotesRoot;
   }) => unknown) =>
     selector({
       currentNotesRoot: hoisted.notesRootState.currentNotesRoot,
       recentNotesRoots: hoisted.notesRootState.recentNotesRoots,
+      hasInitialized: hoisted.notesRootState.hasInitialized,
+      isLoading: hoisted.notesRootState.isLoading,
       openNotesRoot: hoisted.openNotesRoot,
     }),
 }));
@@ -107,6 +113,8 @@ describe('NotesOutline', () => {
     hoisted.uiState.sidebarCollapsed = false;
     hoisted.notesRootState.currentNotesRoot = null;
     hoisted.notesRootState.recentNotesRoots = [];
+    hoisted.notesRootState.hasInitialized = true;
+    hoisted.notesRootState.isLoading = false;
     hoisted.jumpToHeading.mockClear();
     hoisted.renameHeading.mockClear();
     hoisted.setNotesSidebarView.mockClear();
@@ -216,6 +224,18 @@ describe('NotesOutline', () => {
     expect(scrollRoot).toHaveClass('app-scrollbar-rounded');
     expect(scrollRoot).not.toHaveClass('pt-4');
     expect(scrollRoot).not.toHaveClass('pb-4');
+  });
+
+  it('does not render an empty recent list before notes root initialization finishes', () => {
+    hoisted.outlineState.headings = [];
+    hoisted.notesRootState.hasInitialized = false;
+    hoisted.notesRootState.recentNotesRoots = [
+      { id: 'notes-root-alpha', name: 'Alpha', path: '/notes-roots/alpha', lastOpened: 1 },
+    ];
+
+    render(<NotesOutline enabled={false} currentNotePath={null} />);
+
+    expect(screen.queryByTestId('empty-workspace-panel')).toBeNull();
   });
 
   it('opens a recent notes root from the outline empty workspace panel', () => {

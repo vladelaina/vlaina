@@ -19,6 +19,7 @@ export {
   normalizeRecentNotesRoots,
   parseRecentNotesRootsStorageValue,
   resolveRenamedNotesRootPath,
+  tryParseRecentNotesRootsStorageValue,
   upsertRecentNotesRoot,
 } from './notesRootInfoUtils';
 export {

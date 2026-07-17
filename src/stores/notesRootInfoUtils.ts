@@ -138,16 +138,21 @@ export function normalizeRecentNotesRoots(notesRoots: unknown): NotesRootInfo[] 
   return normalizedNotesRoots.slice(0, MAX_RECENT_NOTES_ROOTS);
 }
 
-export function parseRecentNotesRootsStorageValue(value: string | null): NotesRootInfo[] {
+export function tryParseRecentNotesRootsStorageValue(value: string | null): NotesRootInfo[] | null {
   if (!value || value.length > MAX_RECENT_NOTES_ROOTS_STORAGE_CHARS) {
-    return [];
+    return null;
   }
 
   try {
-    return normalizeRecentNotesRoots(JSON.parse(value));
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? normalizeRecentNotesRoots(parsed) : null;
   } catch {
-    return [];
+    return null;
   }
+}
+
+export function parseRecentNotesRootsStorageValue(value: string | null): NotesRootInfo[] {
+  return tryParseRecentNotesRootsStorageValue(value) ?? [];
 }
 
 export function isOversizedRecentNotesRootsStorageValue(value: string | null): boolean {

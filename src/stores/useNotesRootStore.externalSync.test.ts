@@ -299,4 +299,45 @@ describe('useNotesRootStore external sync', () => {
       path: '/notes-roots/alpha',
     });
   });
+
+  it.each([null, '{'])('ignores missing or malformed cross-window recent notesRoot updates', (newValue) => {
+    const recentNotesRoot = {
+      id: 'notes-root-1',
+      name: 'Alpha',
+      path: '/notes-roots/alpha',
+      lastOpened: 1,
+    };
+    useNotesRootStore.setState({
+      currentNotesRoot: recentNotesRoot,
+      recentNotesRoots: [recentNotesRoot],
+    });
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-notes-roots',
+      newValue,
+    }));
+
+    expect(useNotesRootStore.getState().recentNotesRoots).toEqual([recentNotesRoot]);
+  });
+
+  it('applies a valid empty cross-window recent notesRoot update', () => {
+    const recentNotesRoot = {
+      id: 'notes-root-1',
+      name: 'Alpha',
+      path: '/notes-roots/alpha',
+      lastOpened: 1,
+    };
+    useNotesRootStore.setState({
+      currentNotesRoot: recentNotesRoot,
+      recentNotesRoots: [recentNotesRoot],
+    });
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-notes-roots',
+      newValue: '[]',
+    }));
+
+    expect(useNotesRootStore.getState().recentNotesRoots).toEqual([]);
+    expect(useNotesRootStore.getState().currentNotesRoot).toEqual(recentNotesRoot);
+  });
 });

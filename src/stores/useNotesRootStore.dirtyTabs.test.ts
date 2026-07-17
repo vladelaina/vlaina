@@ -157,6 +157,110 @@ describe('useNotesRootStore dirty note protection', () => {
     expect(mocks.ensureNotesRootConfig).toHaveBeenCalledWith(latestNotesRoot.path);
   });
 
+  it('keeps recent notes roots when the saved current folder is temporarily inaccessible', async () => {
+    const savedNotesRoots = [
+      {
+        id: 'notes-root-latest',
+        name: 'latest',
+        path: '/notesRoot/latest',
+        lastOpened: 2,
+      },
+      {
+        id: 'notes-root-older',
+        name: 'older',
+        path: '/notesRoot/older',
+        lastOpened: 1,
+      },
+    ];
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      recentNotesRoots: savedNotesRoots,
+      currentNotesRootId: 'notes-root-latest',
+      deletedNotesRootPaths: [],
+    }));
+    mocks.storage.exists.mockImplementation(async (path: string) => {
+      if (path === '/notesRoot/latest') {
+        throw new Error('Folder is temporarily unavailable');
+      }
+      return true;
+    });
+    useNotesRootStore.setState({
+      currentNotesRoot: null,
+      recentNotesRoots: [],
+      isLoading: false,
+      hasInitialized: false,
+      error: null,
+    });
+
+    await useNotesRootStore.getState().initialize();
+
+    expect(useNotesRootStore.getState().currentNotesRoot).toBeNull();
+    expect(useNotesRootStore.getState().recentNotesRoots).toEqual(savedNotesRoots);
+    expect(JSON.parse(localStorage.getItem('vlaina-notes-roots') || '[]')).toEqual(savedNotesRoots);
+    expect(mocks.ensureNotesRootConfig).not.toHaveBeenCalled();
+    expect(mocks.storage.exists).not.toHaveBeenCalledWith('/notesRoot/older');
+  });
+
+  it('keeps recent notes roots when restoring the saved current folder fails', async () => {
+    const savedNotesRoot = {
+      id: 'notes-root-latest',
+      name: 'latest',
+      path: '/notesRoot/latest',
+      lastOpened: 2,
+    };
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      recentNotesRoots: [savedNotesRoot],
+      currentNotesRootId: savedNotesRoot.id,
+      deletedNotesRootPaths: [],
+    }));
+    mocks.ensureNotesRootConfig.mockRejectedValue(new Error('Folder is read-only'));
+    useNotesRootStore.setState({
+      currentNotesRoot: null,
+      recentNotesRoots: [],
+      isLoading: false,
+      hasInitialized: false,
+      error: null,
+    });
+
+    await expect(useNotesRootStore.getState().initialize()).rejects.toThrow('Folder is read-only');
+
+    expect(useNotesRootStore.getState().currentNotesRoot).toBeNull();
+    expect(useNotesRootStore.getState().recentNotesRoots).toEqual([savedNotesRoot]);
+    expect(useNotesRootStore.getState()).toMatchObject({
+      error: 'Folder is read-only',
+      hasInitialized: true,
+      isLoading: false,
+    });
+  });
+
+  it('shares one in-flight startup initialization', async () => {
+    const stateFile = createDeferred<string>();
+    mocks.storage.readFile.mockImplementation(() => stateFile.promise);
+    useNotesRootStore.setState({
+      currentNotesRoot: null,
+      recentNotesRoots: [],
+      isLoading: false,
+      hasInitialized: false,
+      error: null,
+    });
+
+    const firstInitialization = useNotesRootStore.getState().initialize();
+    const secondInitialization = useNotesRootStore.getState().initialize();
+
+    expect(secondInitialization).toBe(firstInitialization);
+    stateFile.resolve(JSON.stringify({
+      version: 1,
+      recentNotesRoots: [],
+      currentNotesRootId: null,
+      deletedNotesRootPaths: [],
+    }));
+    await firstInitialization;
+
+    expect(mocks.storage.readFile).toHaveBeenCalledTimes(1);
+    expect(useNotesRootStore.getState().hasInitialized).toBe(true);
+  });
+
   it('saves dirty regular tabs before opening another notesRoot', async () => {
     const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 

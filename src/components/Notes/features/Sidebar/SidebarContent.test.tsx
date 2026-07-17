@@ -32,6 +32,8 @@ const hoisted = vi.hoisted(() => ({
   }>,
   currentNotesRoot: null as { path: string; name: string } | null,
   recentNotesRoots: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
+  notesRootStoreHasInitialized: true,
+  notesRootStoreIsLoading: false,
   uiState: {
     sidebarCollapsed: false,
     sidebarWidth: 270,
@@ -68,6 +70,8 @@ vi.mock('@/stores/useNotesRootStore', () => ({
   useNotesRootStore: (selector: (state: any) => unknown) => selector({
     currentNotesRoot: hoisted.currentNotesRoot,
     recentNotesRoots: hoisted.recentNotesRoots,
+    hasInitialized: hoisted.notesRootStoreHasInitialized,
+    isLoading: hoisted.notesRootStoreIsLoading,
     openNotesRoot: hoisted.openNotesRoot,
   }),
 }));
@@ -315,6 +319,8 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.notesPath = '';
     hoisted.currentNotesRoot = null;
     hoisted.recentNotesRoots = [];
+    hoisted.notesRootStoreHasInitialized = true;
+    hoisted.notesRootStoreIsLoading = false;
     hoisted.uiState.sidebarCollapsed = false;
     hoisted.uiState.sidebarWidth = 270;
     hoisted.uiState.notesPreviewTitle = null;
@@ -938,6 +944,26 @@ describe('SidebarContent search highlight cleanup', () => {
       window.removeEventListener('app-open-markdown-target-file', openFileHandler);
       window.removeEventListener('app-open-markdown-target-folder', openFolderHandler);
     }
+  });
+
+  it('does not render an empty recent list before notes root initialization finishes', () => {
+    hoisted.notesRootStoreHasInitialized = false;
+    hoisted.recentNotesRoots = [
+      { id: 'notes-root-alpha', name: 'Alpha', path: '/notes-roots/alpha', lastOpened: 1 },
+    ];
+
+    render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(screen.queryByTestId('empty-workspace-panel')).toBeNull();
   });
 
   it('opens a recent notes root from the empty workspace panel', () => {
