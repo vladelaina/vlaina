@@ -34,8 +34,10 @@ export function ComputerCommandApprovalNotice() {
   return (
     <div
       data-computer-command-approval="true"
+      data-no-focus-input="true"
       aria-label={t('chat.computerUse')}
       className={managedQuotaNoticeSurfaceClass}
+      onMouseDown={(event) => event.preventDefault()}
     >
       <Button
         type="button"

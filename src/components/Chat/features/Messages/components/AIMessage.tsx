@@ -180,7 +180,10 @@ export function AIMessage({
                 statuses={webSearchStatuses}
                 isWaitingForAnswer={isLoading && contentWithoutThinking.length === 0}
             />
-            <ComputerCommandStatusBlock statuses={computerCommandStatuses} />
+            <ComputerCommandStatusBlock
+                isLoading={isLoading}
+                statuses={computerCommandStatuses}
+            />
             {retryStatus ? (
                 <RetryStatusMessage detail={retryStatus.detail} countdown={retryStatus.countdown} />
             ) : (

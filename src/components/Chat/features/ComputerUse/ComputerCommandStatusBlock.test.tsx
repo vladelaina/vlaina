@@ -23,7 +23,7 @@ describe('ComputerCommandStatusBlock', () => {
       status('two', 'completed'),
       status('three', 'failed'),
     ];
-    const view = render(<ComputerCommandStatusBlock statuses={initial} />);
+    const view = render(<ComputerCommandStatusBlock isLoading statuses={initial} />);
     const toggle = screen.getByRole('button', { name: 'Computer control' });
 
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -39,7 +39,10 @@ describe('ComputerCommandStatusBlock', () => {
     expect(screen.queryByText('Failed')).not.toBeInTheDocument();
 
     view.rerender(
-      <ComputerCommandStatusBlock statuses={[...initial, status('four', 'running')]} />,
+      <ComputerCommandStatusBlock
+        isLoading
+        statuses={[...initial, status('four', 'running')]}
+      />,
     );
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('printf four')).not.toBeInTheDocument();
@@ -50,5 +53,50 @@ describe('ComputerCommandStatusBlock', () => {
     expect(screen.getAllByText('Completed')).toHaveLength(1);
     expect(screen.getByText('Running')).toBeInTheDocument();
     expect(screen.getByText('printf four')).toBeInTheDocument();
+  });
+
+  it('collapses after every command completes and reopens for later activity', () => {
+    const first = status('one', 'completed');
+    const view = render(<ComputerCommandStatusBlock isLoading statuses={[first]} />);
+    const toggle = screen.getByRole('button', { name: 'Computer control' });
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    view.rerender(<ComputerCommandStatusBlock isLoading={false} statuses={[first]} />);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('printf one')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    const secondRunning = status('two', 'running');
+    view.rerender(
+      <ComputerCommandStatusBlock isLoading statuses={[first, secondRunning]} />,
+    );
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Running')).toBeInTheDocument();
+
+    view.rerender(
+      <ComputerCommandStatusBlock
+        isLoading={false}
+        statuses={[first, status('two', 'completed')]}
+      />,
+    );
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('printf two')).not.toBeInTheDocument();
+  });
+
+  it('keeps unsuccessful command groups expanded after the response ends', () => {
+    render(
+      <ComputerCommandStatusBlock
+        isLoading={false}
+        statuses={[status('one', 'completed'), status('two', 'failed')]}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Computer control' }))
+      .toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Failed')).toBeInTheDocument();
   });
 });

@@ -219,7 +219,9 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByText("Computer control")).toBeInTheDocument();
+    const computerControl = screen.getByRole("button", { name: "Computer control" });
+    expect(computerControl).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(computerControl);
     expect(screen.getByText("Completed")).toBeInTheDocument();
     expect(screen.getByText("printf ok")).toBeInTheDocument();
     expect(screen.getByText("AI-provided reason: Print output")).toBeInTheDocument();
@@ -248,6 +250,10 @@ describe("AIMessage", () => {
         onSwitchVersion={() => {}}
       />,
     );
+
+    const computerControl = screen.getByRole("button", { name: "Computer control" });
+    expect(computerControl).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(computerControl);
 
     const summary = screen.getByText("1 files changed");
     const changeGroup = summary.closest("details");
@@ -507,7 +513,9 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByText("Computer control")).toBeInTheDocument();
+    const computerControl = screen.getByRole("button", { name: "Computer control" });
+    expect(computerControl).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(computerControl);
     expect(screen.getByText("Completed")).toBeInTheDocument();
     expect(screen.queryByTestId("error")).not.toBeInTheDocument();
   });
