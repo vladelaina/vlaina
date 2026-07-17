@@ -94,10 +94,8 @@
   background-color: var(--vlaina-markdown-color-code-block-bg);
 }
 
-.milkdown .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),
-.milkdown .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected-contained,
-.milkdown .ProseMirror.editor-block-selection-pending .editor-block-selected .code-block-container:not(.editor-block-selected),
-.milkdown .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected-contained {
+.milkdown .ProseMirror.editor-block-selection-enabled .editor-block-selected .code-block-container:not(.editor-block-selected),
+.milkdown .ProseMirror.editor-block-selection-enabled .code-block-container.editor-block-selected-contained {
   background: transparent !important;
   background-color: transparent !important;
   border-color: var(--vlaina-color-white) !important;
@@ -169,26 +167,6 @@
 .milkdown .code-block-container.editor-block-drag-source .code-block-lazy-line-numbers {
   background: transparent !important;
   background-color: transparent !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-header,
-.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label,
-.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {
-  transition: none !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label {
-  display: inline !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  color: var(--vlaina-markdown-color-code-muted) !important;
-  -webkit-text-fill-color: currentColor !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {
-  opacity: var(--vlaina-opacity-0) !important;
-  pointer-events: none !important;
-  transform: none !important;
 }
 
 .milkdown .code-block-container .cm-scroller {
@@ -339,7 +317,7 @@
   contain: none;
 }
 
-.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   .code-block-container.editor-block-selected,
   .code-block-container.editor-block-drag-source,
   .editor-block-selected .code-block-container,
@@ -364,29 +342,7 @@
   pointer-events: none;
 }
 
-.milkdown .ProseMirror.editor-block-selection-active :is(
-  .code-block-container.editor-block-selected,
-  .code-block-container.editor-block-drag-source,
-  .editor-block-selected .code-block-container,
-  .code-block-container.editor-block-selected-contained
-) :is(
-  .code-block-chrome-header,
-  .code-block-editable,
-  .code-block-lazy-preview,
-  .code-block-lazy-line-numbers,
-  .cm-editor,
-  .cm-scroller,
-  .cm-content,
-  .cm-line,
-  .cm-activeLine,
-  .cm-activeLineGutter,
-  .cm-gutters,
-  .cm-gutter,
-  .cm-gutterElement,
-  .cm-lineNumbers,
-  .cm-gutter-filler
-),
-.milkdown .ProseMirror.editor-block-selection-pending :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   .code-block-container.editor-block-selected,
   .code-block-container.editor-block-drag-source,
   .editor-block-selected .code-block-container,
@@ -412,13 +368,13 @@
   background-color: transparent !important;
 }
 
-.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   .code-block-container.editor-block-selected,
   .code-block-container.editor-block-drag-source,
   .editor-block-selected .code-block-container,
   .code-block-container.editor-block-selected-contained
 ),
-.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   .code-block-container.editor-block-selected,
   .code-block-container.editor-block-drag-source,
   .editor-block-selected .code-block-container,

@@ -37,11 +37,6 @@ function isPrewarmedAppViewMode(viewMode: AppViewMode): viewMode is ReadyAppView
   return PREWARMED_APP_VIEW_MODES.includes(viewMode as ReadyAppViewMode);
 }
 
-function addPrewarmedAppViews(views: Set<AppViewMode>) {
-  if (PREWARMED_APP_VIEW_MODES.every((viewMode) => views.has(viewMode))) return views;
-  return new Set([...views, ...PREWARMED_APP_VIEW_MODES]);
-}
-
 function preloadActiveViewModule(viewMode: AppViewMode) {
   if (viewMode === 'notes') {
     void preloadNotesViewModule();
@@ -228,8 +223,6 @@ export function useAppContentViewLifecycle({
         });
     }
 
-    setMountedAppViews(addPrewarmedAppViews);
-    setRenderedSidebarAppViews(addPrewarmedAppViews);
   }, [activeViewReady, effectiveAppViewMode, primaryContentReady, unifiedLoaded]);
 
   return {

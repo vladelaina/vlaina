@@ -1,9 +1,11 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { createDragSelectionRect, type RectBounds } from './blockSelectionUtils';
+import { setBlockSelectionInteractionPending } from './blockSelectionInteractionState';
 
 export type BlockDragStartZone = 'outside-editor' | 'below-last-block' | 'external-sidebar-blank';
 
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
+const BLOCK_SELECTION_LARGE_CLASS = 'editor-block-selection-large';
 
 interface StartBlockDragSessionOptions {
   view: EditorView;
@@ -41,6 +43,8 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
   let activated = false;
   let stopped = false;
   let visualStateApplied = false;
+  let interactionShield: HTMLDivElement | null = null;
+  const shouldApplyPendingDomClass = !view.dom.classList.contains(BLOCK_SELECTION_LARGE_CLASS);
 
   const editorRoot = view.dom.closest('.milkdown-editor') as HTMLElement | null;
   const cursorRoot = providedCursorRoot ?? editorRoot ?? view.dom;
@@ -68,7 +72,13 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
 
   const applyVisualState = (nextCursor: string) => {
     if (!visualStateApplied) {
-      view.dom.classList.add(BLOCK_SELECTION_PENDING_CLASS);
+      if (shouldApplyPendingDomClass) {
+        view.dom.classList.add(BLOCK_SELECTION_PENDING_CLASS);
+      }
+      interactionShield = ownerDocument.createElement('div');
+      interactionShield.className = 'editor-block-selection-interaction-shield';
+      interactionShield.style.cursor = nextCursor;
+      ownerDocument.body.appendChild(interactionShield);
       visualStateApplied = true;
     }
     cursorRoot.style.cursor = nextCursor;
@@ -80,9 +90,12 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     if (stopped) return;
     stopped = true;
     cursorRoot.style.cursor = previousCursorRootCursor;
-    if (visualStateApplied) {
+    if (visualStateApplied && shouldApplyPendingDomClass) {
       view.dom.classList.remove(BLOCK_SELECTION_PENDING_CLASS);
     }
+    interactionShield?.remove();
+    interactionShield = null;
+    setBlockSelectionInteractionPending(view.dom, false);
     view.dom.style.cursor = previousViewCursor;
     if (editorRoot && editorRoot !== cursorRoot) editorRoot.style.cursor = previousEditorRootCursor;
     ownerDocument.removeEventListener('mousemove', handleMouseMove, true);
@@ -132,6 +145,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     teardown();
   };
 
+  setBlockSelectionInteractionPending(view.dom, true);
   ownerDocument.addEventListener('mousemove', handleMouseMove, true);
   ownerDocument.addEventListener('mouseup', handleMouseUp, true);
   ownerWindow.addEventListener('blur', handleWindowBlur);

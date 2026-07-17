@@ -6,6 +6,7 @@ import { VideoNodeView } from './videoNodeView';
 import { parseVideoUrl, sanitizeVideoUrlInput } from './videoUrl';
 import { markEditorUserInput } from '../shared/userInputEvents';
 import { remarkVideoImagesPlugin } from './videoMarkdown';
+import { videoMarkdownInputPlugin } from './videoMarkdownInput';
 import {
   findInsertedNodePos,
   moveSelectionAfterInsertedNode,
@@ -133,6 +134,7 @@ export const videoNodeViewPlugin = $prose(() => {
 export const videoPlugin = [
   remarkVideoImagesPlugin,
   videoSchema,
+  videoMarkdownInputPlugin,
   videoNodeViewPlugin,
   insertVideoCommand,
 ];

@@ -12,6 +12,8 @@ import {
   MAX_BLOCK_SELECTION_LINE_FILL_RANGES,
   type LineFillOverlay,
 } from './blockSelectionLineFillConstants';
+import { LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD } from './blockSelectionTypes';
+import { isBlockSelectionInteractionPending } from './blockSelectionInteractionState';
 import { collectSelectedHardBreakLineRanges } from './blockSelectionLineFillRanges';
 import { collectRangeRows } from './blockSelectionLineFillRows';
 import {
@@ -43,6 +45,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   let lastSelectedBlocks: readonly BlockRange[] | null = null;
   let lastSelectionKey: string | null = null;
   let currentView = view;
+  let selectionRafId = 0;
   let scrollRafId = 0;
   let deferredGeometryUpdateTimeoutId = 0;
   let resizeObserver: ResizeObserver | null = null;
@@ -54,7 +57,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   layer.setAttribute('aria-hidden', 'true');
   host.appendChild(layer);
 
-  const update = (updatedView: EditorView) => {
+  const render = (updatedView: EditorView) => {
     currentView = updatedView;
     const { selectedBlocks } = getBlockSelectionPluginState(updatedView.state);
     if (selectedBlocks.length === 0) {
@@ -83,20 +86,41 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     layer.replaceChildren();
     const currentHost = layer.parentElement ?? updatedView.dom;
     const hostRect = currentHost.getBoundingClientRect();
+    const editorRect = updatedView.dom.getBoundingClientRect();
     const viewportRect = resolveLineFillViewportRect(updatedView);
     const ranges = collectSelectedHardBreakLineRanges(updatedView);
+    const visibleRanges: Array<{
+      paragraph: HTMLElement;
+      paragraphRect: DOMRect;
+      range: BlockRange;
+    }> = [];
+    const paragraphRects = new WeakMap<HTMLElement, DOMRect>();
     let createdFills = 0;
 
     for (const range of ranges) {
-      if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
       const paragraph = resolveParagraphElement(updatedView, range);
       if (!paragraph) continue;
-      const paragraphRect = paragraph.getBoundingClientRect();
+      let paragraphRect = paragraphRects.get(paragraph);
+      if (!paragraphRect) {
+        paragraphRect = paragraph.getBoundingClientRect();
+        paragraphRects.set(paragraph, paragraphRect);
+      }
       if (viewportRect && paragraphRect.top > viewportRect.bottom) break;
       if (!isRectNearViewport(paragraphRect, viewportRect)) continue;
 
+      const previous = visibleRanges[visibleRanges.length - 1];
+      if (previous?.paragraph === paragraph && range.from <= previous.range.to) {
+        previous.range.to = Math.max(previous.range.to, range.to);
+        continue;
+      }
+      visibleRanges.push({ paragraph, paragraphRect, range: { ...range } });
+    }
+
+    for (const { paragraph, paragraphRect, range } of visibleRanges) {
+      if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
+
       const fillStart = resolveLineFillLeft(paragraph, paragraphRect);
-      const fillRight = resolveLineFillRight(updatedView, paragraph, paragraphRect);
+      const fillRight = resolveLineFillRight(updatedView, paragraph, paragraphRect, editorRect);
       const edges = resolveLineFillEdges(paragraph);
       const rows = collectRangeRows(updatedView, range);
       if (rows.length === 0) continue;
@@ -121,7 +145,29 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     );
   };
 
-  const isBlockSelectionDragPending = () => currentView.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
+  const update = (updatedView: EditorView) => {
+    currentView = updatedView;
+    const { selectedBlocks } = getBlockSelectionPluginState(updatedView.state);
+    if (selectedBlocks.length === 0 || selectedBlocks.length < LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD || !win) {
+      if (win && selectionRafId !== 0) {
+        win.cancelAnimationFrame(selectionRafId);
+        selectionRafId = 0;
+      }
+      render(updatedView);
+      return;
+    }
+
+    if (selectionRafId !== 0) return;
+    selectionRafId = win.requestAnimationFrame(() => {
+      selectionRafId = 0;
+      render(currentView);
+    });
+  };
+
+  const isBlockSelectionDragPending = () => (
+    currentView.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS)
+    || isBlockSelectionInteractionPending(currentView.dom)
+  );
 
   const scheduleDeferredGeometryUpdateAfterDrag = () => {
     if (!win || deferredGeometryUpdateTimeoutId !== 0) return;
@@ -148,7 +194,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       scrollRafId = 0;
       lastSelectedBlocks = null;
       lastSelectionKey = null;
-      update(currentView);
+      render(currentView);
     });
   }
 
@@ -177,6 +223,10 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       if (win && scrollRafId !== 0) {
         win.cancelAnimationFrame(scrollRafId);
         scrollRafId = 0;
+      }
+      if (win && selectionRafId !== 0) {
+        win.cancelAnimationFrame(selectionRafId);
+        selectionRafId = 0;
       }
       if (win && deferredGeometryUpdateTimeoutId !== 0) {
         win.clearTimeout(deferredGeometryUpdateTimeoutId);

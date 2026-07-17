@@ -27,7 +27,11 @@ function isImageTarget(src: string): boolean {
   return IMAGE_TARGET_PATTERN.test(getImageTargetBase(internalImagePrefix));
 }
 
-function parseObsidianImageEmbed(rawTarget: string): MarkdownAstNode | null {
+export function parseObsidianImageEmbedTarget(rawTarget: string): {
+  src: string;
+  alt: string;
+  title: null;
+} | null {
   const [rawSrc = '', rawAlias = ''] = rawTarget.split('|');
   const safeSrc = sanitizeNoteMediaSrc(rawSrc.trim());
   if (!safeSrc || !isImageTarget(safeSrc)) {
@@ -36,8 +40,7 @@ function parseObsidianImageEmbed(rawTarget: string): MarkdownAstNode | null {
 
   const alias = rawAlias.trim();
   return {
-    type: 'image',
-    url: safeSrc,
+    src: safeSrc,
     alt: alias && !SIZE_ALIAS_PATTERN.test(alias) ? alias : '',
     title: null,
   };
@@ -61,9 +64,14 @@ function splitTextNode(node: MarkdownAstNode): MarkdownAstNode[] | null {
       parts.push({ type: 'text', value: node.value.slice(lastIndex, matchIndex) });
     }
 
-    const imageNode = parseObsidianImageEmbed(target);
-    if (imageNode) {
-      parts.push(imageNode);
+    const image = parseObsidianImageEmbedTarget(target);
+    if (image) {
+      parts.push({
+        type: 'image',
+        url: image.src,
+        alt: image.alt,
+        title: image.title,
+      });
       changed = true;
     } else {
       parts.push({ type: 'text', value: matchedText });

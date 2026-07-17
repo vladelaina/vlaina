@@ -18,7 +18,7 @@ export type SidebarTagContentCache = Map<string, SidebarTagContentCacheEntry>;
 type SidebarTagDirectReadBudget = {
   contentChars: number;
   revision: number;
-  scopeKey: string;
+  scopePaths: string[];
   notesRootPath: string | null;
 };
 
@@ -30,10 +30,12 @@ export function isFreshSidebarTagContentEntry(
   return entry?.revision === revision && entry.notesRootPath === notesRootPath;
 }
 
-function getSidebarTagScopeBudgetKey(entries: readonly NotesSidebarTagScopeEntry[]): string {
-  const firstPath = entries[0]?.path ?? '';
-  const lastPath = entries[entries.length - 1]?.path ?? '';
-  return `${entries.length}\n${firstPath}\n${lastPath}`;
+function hasSameSidebarTagScope(
+  paths: readonly string[],
+  entries: readonly NotesSidebarTagScopeEntry[],
+): boolean {
+  return paths.length === entries.length
+    && entries.every((entry, index) => paths[index] === entry.path);
 }
 
 export function useNotesSidebarTagContentCache({
@@ -133,18 +135,17 @@ export function useNotesSidebarTagContentCache({
       return;
     }
 
-    const scopeBudgetKey = getSidebarTagScopeBudgetKey(scopeEntries);
     let directReadBudget = directReadBudgetRef.current;
     if (
       !directReadBudget ||
-      directReadBudget.scopeKey !== scopeBudgetKey ||
+      !hasSameSidebarTagScope(directReadBudget.scopePaths, scopeEntries) ||
       directReadBudget.revision !== noteContentsCacheRevision ||
       directReadBudget.notesRootPath !== currentNotesRootPath
     ) {
       directReadBudget = {
         contentChars: 0,
         revision: noteContentsCacheRevision,
-        scopeKey: scopeBudgetKey,
+        scopePaths: scopeEntries.map((entry) => entry.path),
         notesRootPath: currentNotesRootPath,
       };
       directReadBudgetRef.current = directReadBudget;

@@ -125,6 +125,43 @@ describe('definitionListMarkdown', () => {
     ]);
   });
 
+  it('preserves term and description paragraphs at the start of a list item', () => {
+    const term = paragraph([text('Term')]);
+    const description = paragraph([text(': Definition')]);
+    const tree: DefinitionListMdastNode = {
+      type: 'root',
+      children: [{
+        type: 'list',
+        children: [{ type: 'listItem', children: [term, description] }],
+      }],
+    };
+
+    applyDefinitionListsToTree(tree);
+
+    expect(tree.children?.[0].children?.[0].children).toEqual([term, description]);
+  });
+
+  it('converts term and description paragraphs after the start of a list item', () => {
+    const tree: DefinitionListMdastNode = {
+      type: 'root',
+      children: [{
+        type: 'list',
+        children: [{
+          type: 'listItem',
+          children: [
+            paragraph([text('Item')]),
+            paragraph([text('Term')]),
+            paragraph([text(': Definition')]),
+          ],
+        }],
+      }],
+    };
+
+    applyDefinitionListsToTree(tree);
+
+    expect(tree.children?.[0].children?.[0].children?.[1].type).toBe('definitionList');
+  });
+
   it('skips definition-list conversion when the AST growth budget is exhausted', () => {
     const term = paragraph([text('Term')]);
     const description = paragraph([text(': Definition')]);

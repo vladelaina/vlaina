@@ -174,6 +174,26 @@ function findTextStartPos(view: EditorView, text: string): number {
 }
 
 describe('hrAutoParagraphPlugin', () => {
+  it('lets the commonmark keymap create a setext heading before the thematic break shortcut', async () => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, 'Setext heading');
+    expect(pressKey(view, 'Enter')).toBe(true);
+    typeText(view, '---');
+
+    expect(pressKey(view, 'Enter')).toBe(true);
+    expect(view.state.doc.child(0).type.name).toBe('heading');
+    expect(view.state.doc.child(0).attrs.level).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('Setext heading');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(hasHorizontalRule(view)).toBe(false);
+
+    await editor.destroy();
+  });
+
   it('keeps --- as plain text until Enter is pressed', async () => {
     const editor = createEditor();
 

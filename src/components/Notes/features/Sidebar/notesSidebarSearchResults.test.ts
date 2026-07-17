@@ -3,6 +3,7 @@ import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import {
   buildNotesSidebarSearchIndex,
   countNotesSidebarSearchEntries,
+  createNotesSidebarSearchSession,
   NOTES_SIDEBAR_MAX_SEARCH_QUERY_CHARS,
   queryNotesSidebarSearch,
   shouldSearchNotesSidebarContents,
@@ -637,5 +638,28 @@ describe('notesSidebarSearchResults', () => {
     expect(results).toHaveLength(200);
     expect(results.every((result) => result.matchKind === 'name')).toBe(true);
     expect(getNoteContent).not.toHaveBeenCalled();
+  });
+
+  it('yields content search work between bounded batches', () => {
+    const index = Array.from({ length: 3 }, (_value, index) => ({
+      path: `note-${index}.md`,
+      name: `note-${index}.md`,
+      preview: '',
+    }));
+    const getNoteContent = vi.fn(() => 'body needle');
+    const session = createNotesSidebarSearchSession(index, 'needle', getNoteContent);
+
+    const first = session.runBatch(1, Number.POSITIVE_INFINITY);
+    expect(first.done).toBe(false);
+    expect(getNoteContent).toHaveBeenCalledTimes(1);
+
+    const second = session.runBatch(2, Number.POSITIVE_INFINITY);
+    expect(second.done).toBe(true);
+    expect(getNoteContent).toHaveBeenCalledTimes(3);
+    expect(second.results.map((result) => result.path)).toEqual([
+      'note-0.md',
+      'note-1.md',
+      'note-2.md',
+    ]);
   });
 });

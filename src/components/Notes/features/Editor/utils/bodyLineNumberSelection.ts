@@ -3,25 +3,17 @@ import type { BodyLineNumberLabelLayout } from './bodyLineNumberLayout';
 export const MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS = 20000;
 
 const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
+const BLOCK_SELECTION_LARGE_CLASS = 'editor-block-selection-large';
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
-const MAX_INCREMENTAL_BODY_LINE_NUMBER_SELECTION_SYNC_ELEMENTS = 64;
+const MAX_INCREMENTAL_BODY_LINE_NUMBER_SELECTION_SYNC_ELEMENTS = 512;
 const targetIndexesByLayout = new WeakMap<BodyLineNumberLabelLayout, WeakMap<HTMLElement, number>>();
 
 export function collectSelectedBlockDescendantTargets(editorRoot: HTMLElement): WeakSet<HTMLElement> {
   const selectedDescendantTargets = new WeakSet<HTMLElement>();
-  const walker = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
-  let scanned = 0;
-
-  for (
-    let node = walker.nextNode();
-    node && scanned < MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS;
-    node = walker.nextNode()
-  ) {
-    scanned += 1;
-    if (!(node instanceof HTMLElement) || !node.classList.contains('editor-block-selected')) {
-      continue;
-    }
-
+  const selectedElements = editorRoot.querySelectorAll<HTMLElement>('.editor-block-selected');
+  const scanLimit = Math.min(selectedElements.length, MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS);
+  for (let index = 0; index < scanLimit; index += 1) {
+    const node = selectedElements.item(index);
     for (
       let ancestor = node.parentElement;
       ancestor && ancestor !== editorRoot;
@@ -36,6 +28,7 @@ export function collectSelectedBlockDescendantTargets(editorRoot: HTMLElement): 
 
 export function shouldCollectSelectedBlockDescendantTargets(editorRoot: HTMLElement): boolean {
   return editorRoot.classList.contains(BLOCK_SELECTION_ACTIVE_CLASS)
+    || editorRoot.classList.contains(BLOCK_SELECTION_LARGE_CLASS)
     || editorRoot.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
 }
 

@@ -82,13 +82,11 @@ describe("editor style theme compatibility", () => {
   it('keeps external theme code block backgrounds from covering block selection paint', () => {
     const css = readThemeCompatibilityStyle();
 
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected,");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-drag-source,");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected,");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-drag-source {");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .code-block-container.editor-block-selected,");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .code-block-container.editor-block-drag-source {");
     expect(css).toContain("background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected-contained {");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .editor-block-selected .code-block-container:not(.editor-block-selected),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .code-block-container.editor-block-selected-contained {");
     expect(css).toContain("box-shadow: none !important;");
   });
 
@@ -97,7 +95,7 @@ describe("editor style theme compatibility", () => {
     const selectedCodeBorderRule = extractCssRule(
       css,
       [
-        ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(",
+        ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled :is(",
         "  .code-block-container.editor-block-selected,",
         "  .code-block-container.editor-block-drag-source,",
         "  .editor-block-selected .code-block-container,",
@@ -108,7 +106,7 @@ describe("editor style theme compatibility", () => {
     const selectedCodeForegroundRule = extractCssRule(
       css,
       [
-        ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(",
+        ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled :is(",
         "  .code-block-container.editor-block-selected,",
         "  .code-block-container.editor-block-drag-source,",
         "  .editor-block-selected .code-block-container,",
@@ -127,20 +125,16 @@ describe("editor style theme compatibility", () => {
 
     expect(css).not.toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike {\n  background-color:");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.heading-toggle-btn):not(.editor-collapse-btn):not(.ProseMirror-widget) {");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token):not(.editor-raw-markdown-link-text),");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *),");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token):not(.editor-raw-markdown-link-text),");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *) {");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(\n  .editor-block-selected,");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-tag-token :is(\n  .editor-block-selected,");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) :is(\n  .editor-block-selected,");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .editor-block-selected:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token):not(.editor-raw-markdown-link-text),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token):not(.editor-raw-markdown-link-text),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *) {");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled :is(\n  .editor-block-selected,");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled .editor-tag-token :is(\n  .editor-block-selected,");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-enabled :is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) :is(\n  .editor-block-selected,");
     expect(css).toContain("):is(a, .external-link, .internal-link, .editor-raw-markdown-link-text) {\n  color: var(--typora-link-color, var(--primary-color, var(--text-accent, var(--vlaina-accent)))) !important;");
     expect(css).toContain("-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label {");
-    expect(css).toContain("display: inline !important;");
-    expect(css).toContain("visibility: visible !important;");
-    expect(css).toContain("opacity: var(--vlaina-opacity-0) !important;");
-    expect(css).toContain("pointer-events: none !important;");
+    expect(css).not.toContain('editor-block-selection-pending');
     expect(selectedCodeBorderRule).toContain(".code-block-container.editor-block-selected,");
     expect(selectedCodeBorderRule).toContain(".code-block-container.editor-block-drag-source,");
     expect(selectedCodeBorderRule).toContain(".editor-block-selected .code-block-container,");

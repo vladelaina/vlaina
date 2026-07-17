@@ -218,6 +218,27 @@ test.describe('notes line break persistence', () => {
         await page.keyboard.type('2');
       });
       await expectCurrentNoteAndDiskContent(page, softBreak.notePath, '1\\\n2');
+
+      const typedBackslashBreak = await openMarkdownFixture(page, {
+        filename: 'line-break-typed-backslash.md',
+        content: '',
+      });
+      await typeIntoEmptyNote(page, async () => {
+        await page.keyboard.type('1');
+        await page.keyboard.insertText('\\');
+        await page.keyboard.press('Enter');
+        await page.keyboard.type('2');
+      });
+      await expect(page.locator(
+        `${EDITOR_SELECTOR} [data-vlaina-backslash-hard-break-source-text="true"]`,
+      )).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} br[data-type="hardbreak"]`)).toHaveCount(1);
+      await expectCurrentNoteAndDiskContent(page, typedBackslashBreak.notePath, '1\\\n2');
+      await openAbsoluteNote(page, typedBackslashBreak.notePath);
+      await expect(page.locator(
+        `${EDITOR_SELECTOR} [data-vlaina-backslash-hard-break-source-text="true"]`,
+      )).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} br[data-type="hardbreak"]`)).toHaveCount(1);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

@@ -354,7 +354,7 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('periodically reconciles the tree while native watch is active', async () => {
+  it('reconciles on focus without polling the full tree while native watch is active', async () => {
     vi.mocked(detectExternalTreePathChanges).mockReturnValueOnce({
       hasChanges: true,
       renames: [],
@@ -365,12 +365,12 @@ describe('useNotesExternalSync', () => {
 
     await act(async () => {
       await Promise.resolve();
-      await vi.advanceTimersByTimeAsync(4999);
+      await vi.advanceTimersByTimeAsync(5000);
     });
     expect(buildExternalTreeSnapshot).not.toHaveBeenCalled();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1);
+      window.dispatchEvent(new Event('focus'));
       await Promise.resolve();
     });
 

@@ -11,6 +11,13 @@ interface WorkspaceSnapshotInput {
   expandedFolders?: string[];
 }
 
+export const WORKSPACE_SNAPSHOT_PERSIST_DELAY_MS = 200;
+const pendingWorkspaceSnapshots = new Map<string, {
+  input: WorkspaceSnapshotInput;
+  timer: ReturnType<typeof setTimeout>;
+}>();
+const workspaceSaveChains = new Map<string, Promise<void>>();
+
 export function createWorkspaceSnapshot({
   rootFolder,
   currentNotePath,
@@ -36,7 +43,18 @@ export function persistWorkspaceSnapshot(
   notesPath: string,
   input: WorkspaceSnapshotInput
 ): void {
-  void Promise.resolve(saveWorkspaceSnapshot(notesPath, input)).catch(() => undefined);
+  if (!notesPath) return;
+
+  const pending = pendingWorkspaceSnapshots.get(notesPath);
+  if (pending) clearTimeout(pending.timer);
+
+  const timer = setTimeout(() => {
+    const latest = pendingWorkspaceSnapshots.get(notesPath);
+    if (!latest || latest.timer !== timer) return;
+    pendingWorkspaceSnapshots.delete(notesPath);
+    void saveWorkspaceSnapshot(notesPath, latest.input).catch(() => undefined);
+  }, WORKSPACE_SNAPSHOT_PERSIST_DELAY_MS);
+  pendingWorkspaceSnapshots.set(notesPath, { input, timer });
 }
 
 export async function saveWorkspaceSnapshot(
@@ -47,5 +65,24 @@ export async function saveWorkspaceSnapshot(
     return;
   }
 
-  await saveWorkspaceState(notesPath, createWorkspaceSnapshot(input));
+  const pending = pendingWorkspaceSnapshots.get(notesPath);
+  if (pending) {
+    clearTimeout(pending.timer);
+    pendingWorkspaceSnapshots.delete(notesPath);
+  }
+
+  const snapshot = createWorkspaceSnapshot(input);
+  const previousSave = workspaceSaveChains.get(notesPath) ?? Promise.resolve();
+  const save = previousSave
+    .catch(() => undefined)
+    .then(() => saveWorkspaceState(notesPath, snapshot));
+  workspaceSaveChains.set(notesPath, save);
+
+  try {
+    await save;
+  } finally {
+    if (workspaceSaveChains.get(notesPath) === save) {
+      workspaceSaveChains.delete(notesPath);
+    }
+  }
 }

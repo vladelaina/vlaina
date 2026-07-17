@@ -2,7 +2,7 @@ import type { EditorState } from '@milkdown/kit/prose/state';
 import type { MarkType } from '@milkdown/kit/prose/model';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { RAW_MARKDOWN_LINK_TEXT_CLASS } from '../links/markdown-link/markdownLinkConfig';
-import { LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD, type BlockRange } from './blockSelectionTypes';
+import { shouldUseLargeBlockSelectionRendering, type BlockRange } from './blockSelectionTypes';
 import {
   getBlockRangeKey,
   getDisplayBlockRangesForDecorations,
@@ -94,7 +94,7 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
   if (blocks.length === 0) return DecorationSet.empty;
 
   const displayRanges = getDisplayBlockRangesForDecorations(doc, blocks);
-  const useLargeSelectionRendering = displayRanges.length >= LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD;
+  const useLargeSelectionRendering = shouldUseLargeBlockSelectionRendering(doc, displayRanges.length);
   const displayRangeKeys = new Set(displayRanges.map((range) => getBlockRangeKey(range.from, range.to)));
   const hasNextDisplayRangeKeys = new Set<string>();
   const hasPreviousDisplayRangeKeys = new Set<string>();

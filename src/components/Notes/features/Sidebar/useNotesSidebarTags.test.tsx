@@ -147,17 +147,22 @@ describe('useNotesSidebarTags', () => {
   it('bounds total direct-read sidebar tag content', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
     const maxDirectReads = MAX_TAG_DIRECT_READ_CONTENT_CHARS / MAX_TAG_CONTENT_READ_BYTES;
+    const initialPaths = Array.from(
+      { length: maxDirectReads + 1 },
+      (_value, index) => `note-${index}.md`,
+    );
     mocked.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: MAX_TAG_CONTENT_READ_BYTES });
     mocked.readFile.mockResolvedValue('x'.repeat(MAX_TAG_CONTENT_READ_BYTES));
 
-    renderHook(() => useNotesSidebarTags({
-      rootFolder: createRootFolderFromPaths(
-        Array.from({ length: maxDirectReads + 1 }, (_value, index) => `note-${index}.md`),
-      ),
-      noteContentsCache: new Map(),
-      scanAllNotes,
-      currentNotesRootPath: '/notesRoot',
-    }));
+    const { rerender } = renderHook(
+      ({ paths }) => useNotesSidebarTags({
+        rootFolder: createRootFolderFromPaths(paths),
+        noteContentsCache: new Map(),
+        scanAllNotes,
+        currentNotesRootPath: '/notesRoot',
+      }),
+      { initialProps: { paths: initialPaths } },
+    );
 
     await waitFor(() => {
       expect(mocked.readFile).toHaveBeenCalledTimes(maxDirectReads);
@@ -167,6 +172,14 @@ describe('useNotesSidebarTags', () => {
     });
 
     expect(mocked.readFile).toHaveBeenCalledTimes(maxDirectReads);
+
+    const changedPaths = [...initialPaths];
+    changedPaths[Math.floor(maxDirectReads / 2)] = 'note-64-alt.md';
+    rerender({ paths: changedPaths });
+
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledWith('/notesRoot/note-64-alt.md', MAX_TAG_CONTENT_READ_BYTES);
+    });
   });
 
   it('does not read missing sidebar tag content when stat reports an invalid negative size', async () => {
@@ -429,7 +442,10 @@ describe('useNotesSidebarTags', () => {
         }),
         {
           initialProps: {
-            root: createRootFolderFromPaths(['alpha.md']),
+            root: createRootFolderFromPaths(Array.from(
+              { length: MAX_TAG_DIRECT_READ_MISSING_PATHS + 1 },
+              (_value, index) => `note-${index}.md`,
+            )),
           },
         },
       );
@@ -440,7 +456,10 @@ describe('useNotesSidebarTags', () => {
       expect(scanAllNotes).toHaveBeenCalledTimes(1);
 
       rerender({
-        root: createRootFolderFromPaths(['alpha.md', 'beta.md']),
+        root: createRootFolderFromPaths(Array.from(
+          { length: MAX_TAG_DIRECT_READ_MISSING_PATHS + 2 },
+          (_value, index) => `note-${index}.md`,
+        )),
       });
 
       await act(async () => {
@@ -457,17 +476,10 @@ describe('useNotesSidebarTags', () => {
     }
   });
 
-  it('aborts an in-flight full tag scan once direct reads make the index ready', async () => {
+  it('does not start a full tag scan while direct reads are in flight', async () => {
     vi.useFakeTimers();
-    const fullScan = createDeferredPromise();
     const directRead = createDeferredPromise();
-    const scanSignals: AbortSignal[] = [];
-    const scanAllNotes = vi.fn(({ signal }: { signal?: AbortSignal } = {}) => {
-      if (signal) {
-        scanSignals.push(signal);
-      }
-      return fullScan.promise;
-    });
+    const scanAllNotes = vi.fn(async () => undefined);
     mocked.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: 32 });
     mocked.readFile.mockImplementation(async () => {
       await directRead.promise;
@@ -489,8 +501,7 @@ describe('useNotesSidebarTags', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(251);
       });
-      expect(scanAllNotes).toHaveBeenCalledTimes(1);
-      expect(scanSignals[0]?.aborted).toBe(false);
+      expect(scanAllNotes).not.toHaveBeenCalled();
 
       await act(async () => {
         directRead.resolve();
@@ -500,12 +511,7 @@ describe('useNotesSidebarTags', () => {
       });
 
       expect(result.current.tags.map((entry) => entry.tag)).toEqual(['topic']);
-      expect(scanSignals[0]?.aborted).toBe(true);
-
-      await act(async () => {
-        fullScan.resolve();
-        await fullScan.promise;
-      });
+      expect(scanAllNotes).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }

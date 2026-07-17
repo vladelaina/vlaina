@@ -12,6 +12,8 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener } from '@milkdown/kit/plugin/listener';
 import { tableBlock } from '@milkdown/kit/component/table-block';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { redo, undo } from '@milkdown/kit/prose/history';
 import { notesRemarkStringifyOptions } from './config/stringifyOptions';
 import { customPlugins } from './config/plugins';
 import { configureTheme } from './theme';
@@ -20,6 +22,33 @@ import {
   preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
+
+function typeText(view: EditorView, input: string): void {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+    view.someProp('handleTextInput', (handleTextInput: any) => {
+      handled = handleTextInput(view, from, to, text) || handled;
+      return handled;
+    });
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+  }
+}
+
+function pressEnter(view: EditorView): boolean {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+  });
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    if (handled) return handled;
+    handled = handleKeyDown(view, event) || handled;
+    return handled;
+  });
+  return handled;
+}
 
 async function createEditor(markdown: string) {
   const defaultValue = preserveMarkdownBlankLinesForEditor(
@@ -511,6 +540,119 @@ describe('MarkdownEditor compatibility', () => {
     expect(image).toBeInstanceOf(HTMLElement);
     expect(view.state.doc.textContent).toContain('Before');
     expect(view.state.doc.textContent).toContain('after');
+    await destroyEditor(editor);
+  });
+
+  it('creates editable image nodes from typed Obsidian embeds', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+
+    await act(async () => {
+      typeText(view, 'Before ![[attachments/demo.png|Local image]] after');
+      await Promise.resolve();
+    });
+
+    const image = view.dom.querySelector(
+      '.image-block-container[data-src="attachments/demo.png"][data-alt="Local image"]',
+    );
+    expect(image).toBeInstanceOf(HTMLElement);
+    expect(editor.ctx.get(serializerCtx)(view.state.doc).trim()).toBe(
+      'Before ![Local image](attachments/demo.png) after',
+    );
+    await destroyEditor(editor);
+  });
+
+  it.each([
+    {
+      name: 'image',
+      input: '![Undo image](https://example.com/undo.png)',
+      nodeName: 'image',
+    },
+    {
+      name: 'video',
+      input: '![video](https://example.com/undo.mp4)',
+      nodeName: 'video',
+    },
+    {
+      name: 'footnote reference',
+      input: 'Undo reference [^undo-ref]',
+      nodeName: 'footnote_reference',
+    },
+  ])('keeps typed $name conversion stable through undo and redo', async ({ input, nodeName }) => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+
+    await act(async () => {
+      typeText(view, input);
+      await Promise.resolve();
+    });
+    const countNodes = () => {
+      let count = 0;
+      view.state.doc.descendants((node) => {
+        if (node.type.name === nodeName || (nodeName === 'footnote_reference' && node.type.name === 'footnote_ref')) {
+          count += 1;
+        }
+        return true;
+      });
+      return count;
+    };
+
+    expect(countNodes()).toBe(1);
+    await act(async () => {
+      expect(undo(view.state, view.dispatch)).toBe(true);
+      await Promise.resolve();
+    });
+    expect(countNodes()).toBe(0);
+    await act(async () => {
+      expect(redo(view.state, view.dispatch)).toBe(true);
+      await Promise.resolve();
+    });
+    expect(countNodes()).toBe(1);
+
+    await destroyEditor(editor);
+  });
+
+  it.each([
+    {
+      name: 'callout',
+      input: '> 💡 Undo callout',
+      nodeName: 'callout',
+    },
+    {
+      name: 'backslash hard break',
+      input: 'Undo hard break\\',
+      nodeName: 'hardbreak',
+    },
+  ])('keeps typed $name Enter conversion stable through undo and redo', async ({ input, nodeName }) => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+
+    await act(async () => {
+      typeText(view, input);
+      expect(pressEnter(view)).toBe(true);
+      await Promise.resolve();
+    });
+    const countNodes = () => {
+      let count = 0;
+      view.state.doc.descendants((node) => {
+        if (node.type.name === nodeName) count += 1;
+        return true;
+      });
+      return count;
+    };
+
+    expect(countNodes()).toBe(1);
+    await act(async () => {
+      expect(undo(view.state, view.dispatch)).toBe(true);
+      await Promise.resolve();
+    });
+    expect(countNodes()).toBe(0);
+    await act(async () => {
+      expect(redo(view.state, view.dispatch)).toBe(true);
+      await Promise.resolve();
+    });
+    expect(countNodes()).toBe(1);
+
     await destroyEditor(editor);
   });
 

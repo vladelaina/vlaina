@@ -32,17 +32,17 @@ interface MilkdownNodeType {
   schema: MilkdownSchema;
   create(
     attrs?: AnyRecord | null,
-    content?: MilkdownNode | readonly MilkdownNode[] | null,
+    content?: MilkdownNode | readonly MilkdownNode[] | MilkdownFragmentLike | null,
     marks?: readonly MilkdownMark[] | null,
   ): MilkdownNode;
   createAndFill(
     attrs?: AnyRecord | null,
-    content?: MilkdownNode | readonly MilkdownNode[] | null,
+    content?: MilkdownNode | readonly MilkdownNode[] | MilkdownFragmentLike | null,
     marks?: readonly MilkdownMark[] | null,
   ): MilkdownNode | null;
   createChecked?(
     attrs?: AnyRecord | null,
-    content?: MilkdownNode | readonly MilkdownNode[] | null,
+    content?: MilkdownNode | readonly MilkdownNode[] | MilkdownFragmentLike | null,
     marks?: readonly MilkdownMark[] | null,
   ): MilkdownNode;
 }
@@ -76,6 +76,7 @@ interface MilkdownFragmentLike {
   firstChild?: MilkdownNode | null;
   lastChild?: MilkdownNode | null;
   append?(other: MilkdownFragmentLike): MilkdownFragmentLike;
+  cut(from: number, to?: number): MilkdownFragmentLike;
   findDiffStart(other: MilkdownFragmentLike): number | null;
   findDiffEnd(other: MilkdownFragmentLike): { a: number; b: number } | null;
   forEach(
@@ -719,6 +720,7 @@ declare module '@milkdown/kit/preset/commonmark' {
   export const codeBlockSchema: any;
   export const htmlSchema: any;
   export const htmlBlockSchema: any;
+  export function createSetextHeadingFromDelimiter(headingType: any, paragraphType: any): any;
   export const wrapInHeadingCommand: CommandKeyLike;
   export const createCodeBlockCommand: CommandKeyLike;
   export const insertHrCommand: CommandKeyLike;
@@ -946,17 +948,17 @@ declare module '@milkdown/kit/prose/model' {
     schema: MilkdownSchema;
     create(
       attrs?: AnyRecord | null,
-      content?: Node | readonly Node[] | null,
+      content?: Node | readonly Node[] | Fragment | null,
       marks?: readonly MilkdownMark[] | null,
     ): Node;
     createAndFill(
       attrs?: AnyRecord | null,
-      content?: Node | readonly Node[] | null,
+      content?: Node | readonly Node[] | Fragment | null,
       marks?: readonly MilkdownMark[] | null,
     ): Node | null;
     createChecked?(
       attrs?: AnyRecord | null,
-      content?: Node | readonly Node[] | null,
+      content?: Node | readonly Node[] | Fragment | null,
       marks?: readonly MilkdownMark[] | null,
     ): Node;
     [key: string]: any;
@@ -986,6 +988,7 @@ declare module '@milkdown/kit/prose/model' {
     static fromArray(nodes: readonly Node[]): Fragment;
     static empty: Fragment;
     append(other: Fragment): Fragment;
+    cut(from: number, to?: number): Fragment;
     findDiffStart(other: Fragment): number | null;
     findDiffEnd(other: Fragment): { a: number; b: number } | null;
     forEach(callback: (node: Node, offset: number, index: number) => void): void;
@@ -1657,6 +1660,7 @@ declare module '@milkdown/kit/utils' {
     name: N,
     factory: (ctx: MilkdownCtx) => MilkdownRemarkPluginRaw<T>,
   ): $Remark<N, T>;
+  export function getMarkdown(range?: { from: number; to: number }): (ctx: MilkdownCtx) => string;
   export function $view(node: any, factory: (ctx: MilkdownCtx) => any): any;
 }
 

@@ -144,6 +144,32 @@ jobs:
       - name: Run tests
         run: pnpm exec vitest run --shard=${{ matrix.shard }}
 
+  notes-performance:
+    name: Checks / Notes performance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - name: Enable pnpm
+        run: corepack enable pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Run Notes performance tests
+        run: xvfb-run -a pnpm run test:e2e:notes:perf
+
   checks:
     name: Checks
     runs-on: ubuntu-24.04
@@ -151,6 +177,7 @@ jobs:
     needs:
       - typecheck
       - test
+      - notes-performance
     if: always()
 
     permissions:
@@ -160,9 +187,10 @@ jobs:
       - name: Require all checks to pass
         shell: bash
         run: |
-          if [[ "${{ needs.typecheck.result }}" != "success" || "${{ needs.test.result }}" != "success" ]]; then
+          if [[ "${{ needs.typecheck.result }}" != "success" || "${{ needs.test.result }}" != "success" || "${{ needs.notes-performance.result }}" != "success" ]]; then
             echo "Typecheck result: ${{ needs.typecheck.result }}" >&2
             echo "Test result: ${{ needs.test.result }}" >&2
+            echo "Notes performance result: ${{ needs.notes-performance.result }}" >&2
             exit 1
           fi
 
