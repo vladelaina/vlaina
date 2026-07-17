@@ -8,6 +8,7 @@ import {
 } from '@/stores/uiSlice';
 import { applyMarkdownFontSize } from '@/lib/markdown/markdownFontSize';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { SETTINGS_BEFORE_CLOSE_EVENT } from '../../settingsEvents';
 
 const FONT_SIZE_WHEEL_COMMIT_DELAY_MS = 180;
 
@@ -62,12 +63,24 @@ export function useAppearanceFontSizeControl(onPreviewingChange?: (previewing: b
     pendingFontSizeCommitTimerRef.current = null;
   }, []);
 
-  useEffect(() => {
-    return () => {
+  const flushPendingFontSizeChanges = useCallback(() => {
+    if (previewingFontSizeRef.current) {
+      previewingFontSizeRef.current = false;
       cancelScheduledFontSizePreview();
-      flushScheduledFontSizeCommit();
+      applyMarkdownFontSize(draftFontSizeRef.current);
+      setFontSize(draftFontSizeRef.current);
+      return;
+    }
+    flushScheduledFontSizeCommit();
+  }, [cancelScheduledFontSizePreview, flushScheduledFontSizeCommit, setFontSize]);
+
+  useEffect(() => {
+    window.addEventListener(SETTINGS_BEFORE_CLOSE_EVENT, flushPendingFontSizeChanges);
+    return () => {
+      window.removeEventListener(SETTINGS_BEFORE_CLOSE_EVENT, flushPendingFontSizeChanges);
+      flushPendingFontSizeChanges();
     };
-  }, [cancelScheduledFontSizePreview, flushScheduledFontSizeCommit]);
+  }, [flushPendingFontSizeChanges]);
 
   useEffect(() => {
     onPreviewingChange?.(isPreviewingFontSize);

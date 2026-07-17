@@ -113,6 +113,7 @@ export function ProviderQuickAdd({
       <div className="relative">
         <SettingsTextInput
           type="text"
+          data-settings-provider-action="quick-add-model"
           value={value}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}

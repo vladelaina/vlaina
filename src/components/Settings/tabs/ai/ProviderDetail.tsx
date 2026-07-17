@@ -18,7 +18,7 @@ interface ProviderDetailProps {
   provider: Provider | undefined;
   focusBaseUrlOnMount?: boolean;
   onBaseUrlAutoFocusComplete?: () => void;
-  onDraftChange?: (draft: { name?: string; apiHost?: string }) => void;
+  onDraftChange?: (draft: { name?: string; apiHost?: string; apiKey?: string }) => void;
   onDraftClear?: () => void;
 }
 

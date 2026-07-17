@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { useModalBehavior } from './hooks/useModalBehavior';
@@ -14,6 +14,7 @@ import { DialogCloseIconButton } from '@/components/common/DialogCloseIconButton
 import { SettingsSidebar } from './SettingsSidebar';
 import {
   OPEN_SETTINGS_EVENT,
+  REQUEST_CLOSE_SETTINGS_EVENT,
   SETTINGS_BEFORE_CLOSE_EVENT,
   SETTINGS_CLOSED_EVENT,
   resolveSettingsOpenTab,
@@ -26,6 +27,7 @@ import type { CommunitySettings } from './tabs/aboutCommunitySettings';
 import { themeBackdropTokens, themeMotionTokens } from '@/styles/themeTokens';
 import { useDesktopUpdateIndicatorVersion } from '@/components/desktop/DesktopUpdateIndicator';
 import { useNativeTitleBarOverlayHidden } from '@/hooks/useNativeTitleBarOverlayHidden';
+import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 
 interface SettingsModalProps {
   open: boolean;
@@ -37,14 +39,25 @@ interface SettingsModalProps {
 export function SettingsModal({ open, communitySettings, requestedTab, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('markdown');
   const [isAppearanceFontPreviewing, setIsAppearanceFontPreviewing] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const isClosingRef = useRef(false);
   const updateIndicatorVersion = useDesktopUpdateIndicatorVersion();
   const { t } = useI18n();
 
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback(async () => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
     window.dispatchEvent(new Event(SETTINGS_BEFORE_CLOSE_EVENT));
     aiActions.deleteIncompleteCustomProviders();
-    onClose();
-    window.dispatchEvent(new Event(SETTINGS_CLOSED_EVENT));
+    try {
+      await flushPendingSave();
+    } catch {
+      // The persistence queue reports save failures to the user.
+    } finally {
+      onClose();
+      window.dispatchEvent(new Event(SETTINGS_CLOSED_EVENT));
+      isClosingRef.current = false;
+    }
   }, [onClose]);
 
   useEffect(() => {
@@ -59,6 +72,11 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
   }, [])
 
   useEffect(() => {
+    window.addEventListener(REQUEST_CLOSE_SETTINGS_EVENT, handleClose);
+    return () => window.removeEventListener(REQUEST_CLOSE_SETTINGS_EVENT, handleClose);
+  }, [handleClose]);
+
+  useEffect(() => {
     if (!open) return;
     const nextTab = resolveSettingsOpenTab(requestedTab);
     if (nextTab) {
@@ -69,6 +87,7 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
   useModalBehavior({
     open,
     onClose: handleClose,
+    modalRef,
   });
   useNativeTitleBarOverlayHidden(open);
 
@@ -111,6 +130,7 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
             />
 
             <motion.div
+              ref={modalRef}
               initial={{
                 opacity: themeMotionTokens.opacityHidden,
                 scale: themeMotionTokens.settingsModalInitialScale,

@@ -132,7 +132,10 @@ export function AITab() {
       return;
     }
 
-    if (!provider.apiKey.trim()) {
+    const draft = providerDrafts[id];
+    const apiHost = draft?.apiHost ?? provider.apiHost;
+    const apiKey = draft?.apiKey ?? provider.apiKey;
+    if (!apiHost.trim() && !apiKey.trim()) {
       deleteCustomProviderById(id);
       return;
     }

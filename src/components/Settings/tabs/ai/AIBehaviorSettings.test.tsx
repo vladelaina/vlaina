@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AIBehaviorSettings } from './AIBehaviorSettings';
+import { SETTINGS_BEFORE_CLOSE_EVENT } from '../../settingsEvents';
 
 const aiStoreMock = vi.hoisted(() => ({
   customSystemPrompt: '',
@@ -53,5 +54,15 @@ describe('AIBehaviorSettings', () => {
     fireEvent.blur(textarea);
 
     expect(aiStoreMock.setCustomSystemPrompt).toHaveBeenCalledWith('你好');
+  });
+
+  it('commits the focused system prompt before settings closes', () => {
+    render(<AIBehaviorSettings />);
+    const textarea = screen.getByRole('textbox');
+
+    fireEvent.change(textarea, { target: { value: 'Keep this prompt' } });
+    window.dispatchEvent(new Event(SETTINGS_BEFORE_CLOSE_EVENT));
+
+    expect(aiStoreMock.setCustomSystemPrompt).toHaveBeenCalledWith('Keep this prompt');
   });
 });
