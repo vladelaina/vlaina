@@ -390,6 +390,7 @@ export interface ElectronAccountApi {
   getManagedModels(): Promise<Record<string, unknown>>;
   getManagedModelsVersion(): Promise<Record<string, unknown>>;
   getManagedBudget(): Promise<Record<string, unknown>>;
+  reportManagedClientDiagnostic(body: Record<string, unknown>): Promise<Record<string, unknown>>;
   managedChatCompletion(body: object, requestId?: string): Promise<Record<string, unknown>>;
   cancelManagedChatCompletion(requestId: string): Promise<void>;
   managedImageGeneration(body: object, requestId?: string): Promise<Record<string, unknown>>;

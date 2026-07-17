@@ -156,6 +156,18 @@ describe('DevMainOverlay', () => {
     vi.clearAllMocks();
   });
 
+  it('keeps additional tools inside the existing expand control', () => {
+    render(
+      <DevMainOverlay effectiveAppViewMode="notes">
+        <button type="button">Benchmark all models</button>
+      </DevMainOverlay>
+    );
+
+    expect(screen.queryByRole('button', { name: 'Benchmark all models' })).not.toBeInTheDocument();
+    expandDevelopmentTools();
+    expect(screen.getByRole('button', { name: 'Benchmark all models' })).toBeInTheDocument();
+  });
+
   it('cycles from the default markdown theme to the first imported theme', async () => {
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
     expandDevelopmentTools();

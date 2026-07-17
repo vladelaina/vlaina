@@ -9,6 +9,7 @@ const {
   managedChatCompletionStreamMock,
   managedImageGenerationMock,
   managedImageEditMock,
+  reportManagedClientDiagnosticMock,
 } = vi.hoisted(() => ({
   hasElectronDesktopBridgeMock: vi.fn(),
   clearClientSessionMock: vi.fn(),
@@ -18,6 +19,7 @@ const {
   managedChatCompletionStreamMock: vi.fn(),
   managedImageGenerationMock: vi.fn(),
   managedImageEditMock: vi.fn(),
+  reportManagedClientDiagnosticMock: vi.fn(),
 }));
 
 vi.mock('@/lib/desktop/backend', () => ({
@@ -29,6 +31,7 @@ vi.mock('@/lib/account/desktopCommands', () => ({
     getManagedModels: getManagedModelsMock,
     getManagedModelsVersion: getManagedModelsVersionMock,
     getManagedBudget: vi.fn(),
+    reportManagedClientDiagnostic: reportManagedClientDiagnosticMock,
     managedChatCompletion: managedChatCompletionMock,
     managedChatCompletionStream: managedChatCompletionStreamMock,
     managedImageGeneration: managedImageGenerationMock,
@@ -64,11 +67,22 @@ describe('managedService', () => {
     managedChatCompletionStreamMock.mockReset();
     managedImageGenerationMock.mockReset();
     managedImageEditMock.mockReset();
+    reportManagedClientDiagnosticMock.mockReset();
     vi.restoreAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
     vi.spyOn(console, 'debug').mockImplementation(() => undefined);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+
+  it('reports managed client diagnostics only through the desktop session bridge', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true);
+    reportManagedClientDiagnosticMock.mockResolvedValue({});
+    const { reportManagedDesktopClientDiagnostic } = await import('./managedService');
+
+    await reportManagedDesktopClientDiagnostic({ kind: 'chat_json', model: 'gpt-5-pro' });
+
+    expect(reportManagedClientDiagnosticMock).toHaveBeenCalledWith({ kind: 'chat_json', model: 'gpt-5-pro' });
   });
 
   it('uses credentialed web requests for managed models', async () => {

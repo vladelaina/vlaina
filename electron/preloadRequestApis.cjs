@@ -141,6 +141,9 @@ function createAccountApi(deps) {
     getManagedBudget() {
       return ipcRenderer.invoke('desktop:managed:get-budget');
     },
+    reportManagedClientDiagnostic(body) {
+      return ipcRenderer.invoke('desktop:managed:client-diagnostic', body);
+    },
     managedChatCompletion(body, requestId) {
       return invokeManagedRequest(ipcRenderer, 'desktop:managed:chat-completion', managedChatRequestId, requestId, body);
     },

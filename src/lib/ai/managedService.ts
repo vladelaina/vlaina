@@ -231,6 +231,11 @@ export async function requestManagedChatCompletion(
   })
 }
 
+export async function reportManagedDesktopClientDiagnostic(body: Record<string, unknown>): Promise<void> {
+  if (!hasElectronDesktopBridge()) return;
+  await accountCommands.reportManagedClientDiagnostic(body);
+}
+
 export async function requestManagedImageGeneration(
   body: object,
   signal?: AbortSignal

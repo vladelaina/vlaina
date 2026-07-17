@@ -4,6 +4,7 @@ import {
   MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES,
 } from '../providers/boundedResponseText';
 import type { AIModel, Provider } from '../types';
+import { MANAGED_PROVIDER_ID } from '../managed/constants';
 import { checkModelHealth } from './singleModel';
 
 const provider: Provider = {
@@ -135,8 +136,61 @@ describe('checkModelHealth', () => {
     expect(body).toMatchObject({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: 'say 6' }],
-      max_completion_tokens: 1,
+      max_completion_tokens: 128,
       stream: false,
+    });
+  });
+
+  it('uses the signed-in managed API session for managed model health checks', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content: '6' } }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    const managedProvider = {
+      ...provider,
+      id: MANAGED_PROVIDER_ID,
+      apiHost: 'https://should-not-be-used.example.test',
+      apiKey: 'unused-test-key',
+    };
+
+    const result = await checkModelHealth(
+      managedProvider,
+      createModel('managed-gpt', { providerId: MANAGED_PROVIDER_ID, apiModelId: 'gpt-5.5-pro' })
+    );
+
+    expect(result).toMatchObject({ status: 'success', endpoint: 'chat' });
+    const [url, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.vlaina.com/v1/chat/completions');
+    expect(requestInit.credentials).toBe('include');
+    expect(requestInit.headers).not.toHaveProperty('Authorization');
+    expect(JSON.parse(String(requestInit.body))).toMatchObject({
+      model: 'gpt-5.5-pro',
+      messages: [{ role: 'user', content: 'say 6' }],
+      max_completion_tokens: 128,
+      stream: false,
+    });
+  });
+
+  it('reports managed API failures as model health errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: 'model unavailable' } }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    const managedProvider = { ...provider, id: MANAGED_PROVIDER_ID };
+
+    const result = await checkModelHealth(
+      managedProvider,
+      createModel('managed-gpt', { providerId: MANAGED_PROVIDER_ID })
+    );
+
+    expect(result).toMatchObject({
+      status: 'error',
+      error: 'Managed API request failed: HTTP 502',
+      endpoint: 'chat',
     });
   });
 
@@ -156,7 +210,7 @@ describe('checkModelHealth', () => {
     expect(url).toBe('https://api.example.com/v1/responses');
     const body = JSON.parse(String(requestInit.body));
     expect(body.input).toBe('say 6');
-    expect(body.max_output_tokens).toBe(1);
+    expect(body.max_output_tokens).toBe(128);
   });
 
   it('accepts image benchmark success bodies larger than the error-body limit', async () => {
@@ -202,7 +256,7 @@ describe('checkModelHealth', () => {
     expect(body).toMatchObject({
       model: 'claude-sonnet-4-5',
       messages: [{ role: 'user', content: 'say 6' }],
-      max_tokens: 1,
+      max_tokens: 128,
     });
   });
 
@@ -507,6 +561,34 @@ describe('checkModelHealth', () => {
       });
       expect(reader.cancel).toHaveBeenCalledTimes(1);
       expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('allows slow models to run past ten seconds before the default benchmark timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+        return await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+        });
+      });
+
+      let settled = false;
+      const pending = checkModelHealth(provider, createModel('slow-thinking-model'))
+        .finally(() => {
+          settled = true;
+        });
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      await expect(pending).resolves.toMatchObject({
+        status: 'error',
+        error: 'Request timed out (70s)',
+        endpoint: 'chat',
+      });
     } finally {
       vi.useRealTimers();
     }

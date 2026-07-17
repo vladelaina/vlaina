@@ -70,6 +70,13 @@ export function registerManagedIpc({
     return await requestManagedJson('/budget', { method: 'GET' });
   });
 
+  handleIpc('desktop:managed:client-diagnostic', async (_event, body) => {
+    return await requestManagedJson('/client-diagnostics', {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    });
+  });
+
   handleIpc('desktop:managed:chat-completion', async (_event, requestIdOrBody, maybeBody) => {
     const { requestId, payload: body } = parseOptionalManagedRequestId(
       requestIdOrBody,

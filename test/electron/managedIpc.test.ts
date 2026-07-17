@@ -72,6 +72,7 @@ describe('managed ipc stream bridge', () => {
 
     await handlers.get('desktop:managed:get-models')?.();
     await handlers.get('desktop:managed:get-budget')?.();
+    await handlers.get('desktop:managed:client-diagnostic')?.({}, { kind: 'chat_json', model: 'gpt-5-pro' });
     await handlers.get('desktop:managed:chat-completion')?.({}, {});
     await handlers.get('desktop:managed:image-generation')?.({}, { model: 'gpt-image-2', prompt: 'draw' });
     await handlers.get('desktop:managed:image-edit')?.({}, {
@@ -81,6 +82,10 @@ describe('managed ipc stream bridge', () => {
 
     expect(options.requestManagedPublicJson).toHaveBeenCalledWith('/models', { method: 'GET' });
     expect(options.requestManagedJson).toHaveBeenCalledWith('/budget', { method: 'GET' });
+    expect(options.requestManagedJson).toHaveBeenCalledWith('/client-diagnostics', {
+      method: 'POST',
+      body: '{"kind":"chat_json","model":"gpt-5-pro"}',
+    });
     expect(options.requestManagedJson).toHaveBeenCalledWith('/chat/completions', {
       method: 'POST',
       body: '{}',
