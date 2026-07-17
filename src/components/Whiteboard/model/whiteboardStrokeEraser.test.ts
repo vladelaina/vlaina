@@ -39,6 +39,27 @@ describe('whiteboard stroke eraser', () => {
     expect(eraseWhiteboardStrokes(strokes, [{ point: { x: 50, y: 100 }, size: 1 }])).toBe(strokes);
   });
 
+  it('does not rebuild distant strokes while erasing a nearby stroke', () => {
+    const distant = {
+      color: '#111111',
+      id: 'distant',
+      points: [{ pressure: 0.5, x: 1000, y: 1000 }, { pressure: 0.5, x: 1100, y: 1000 }],
+      size: 1,
+      tool: 'pen' as const,
+    };
+    const nearby = {
+      color: '#111111',
+      id: 'nearby',
+      points: [{ pressure: 0.5, x: 0, y: 0 }, { pressure: 0.5, x: 100, y: 0 }],
+      size: 1,
+      tool: 'pen' as const,
+    };
+
+    const result = eraseWhiteboardStrokes([nearby, distant], [{ point: { x: 50, y: 0 }, size: 1 }]);
+
+    expect(result.find((stroke) => stroke.id === distant.id)).toBe(distant);
+  });
+
   it('keeps segment ids unique across repeated partial erases', () => {
     const initial = [{
       color: '#111111',
