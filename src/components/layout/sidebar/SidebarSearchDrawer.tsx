@@ -31,6 +31,7 @@ interface SidebarSearchDrawerProps {
   onSelectPrevious?: () => void;
   onSelectNext?: () => void;
   placeholder: string;
+  ariaLabel?: string;
   closeLabel: string;
   topActions?: ReactNode;
 }
@@ -88,6 +89,7 @@ export function SidebarSearchDrawer({
   onSelectPrevious,
   onSelectNext,
   placeholder,
+  ariaLabel,
   closeLabel,
   topActions,
 }: SidebarSearchDrawerProps) {
@@ -124,18 +126,22 @@ export function SidebarSearchDrawer({
   return (
     <>
       <div
+        data-sidebar-search-drawer="true"
+        data-state={isSearchOpen ? 'open' : 'closed'}
+        aria-hidden={!isSearchOpen}
         className={cn(
           'grid transition-[grid-template-rows,opacity] duration-[var(--vlaina-duration-200)] ease-out',
           isSearchOpen ? 'grid-rows-[1fr] opacity-[var(--vlaina-opacity-100)]' : 'grid-rows-[0fr] opacity-[var(--vlaina-opacity-0)]',
         )}
       >
-        <div className="overflow-hidden">
+        <div className="min-h-0 overflow-hidden">
           <SidebarSearchField
             ref={inputRef}
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             onKeyDown={handleKeyDown}
+            aria-label={ariaLabel}
             placeholder={placeholder}
             onClose={hideSearch}
             closeLabel={closeLabel}

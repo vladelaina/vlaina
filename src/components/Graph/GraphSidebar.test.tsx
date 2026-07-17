@@ -1,6 +1,7 @@
-import type { ChangeEvent, ReactNode } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import type { ChangeEvent, KeyboardEventHandler, ReactNode, Ref, UIEventHandler } from 'react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 import { GraphSidebar } from './GraphSidebar';
 
 const graphStore = vi.hoisted(() => ({
@@ -58,23 +59,50 @@ vi.mock('@/components/layout/sidebar/SidebarPrimitives', () => ({
   SidebarActionGroup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarCapsulePanel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarList: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SidebarScrollArea: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SidebarSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SidebarScrollArea: ({
+    children,
+    onScroll,
+    ref,
+  }: {
+    children: ReactNode;
+    onScroll?: UIEventHandler<HTMLDivElement>;
+    ref?: Ref<HTMLDivElement>;
+  }) => <div ref={ref} data-testid="graph-scroll-root" onScroll={onScroll}>{children}</div>,
+  SidebarSurface: ({
+    children,
+    ref,
+  }: {
+    children: ReactNode;
+    ref?: Ref<HTMLDivElement>;
+  }) => <div ref={ref}>{children}</div>,
   SidebarSearchField: ({
     'aria-label': ariaLabel,
     closeLabel,
     onChange,
     onClose,
+    onKeyDown,
+    placeholder,
+    ref,
     value,
   }: {
     'aria-label': string;
     closeLabel: string;
     onChange: (event: ChangeEvent<HTMLInputElement>) => void;
     onClose: () => void;
+    onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+    placeholder?: string;
+    ref?: Ref<HTMLInputElement>;
     value: string;
   }) => (
     <div>
-      <input aria-label={ariaLabel} value={value} onChange={onChange} />
+      <input
+        ref={ref}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+      />
       <button type="button" onClick={onClose}>{closeLabel}</button>
     </div>
   ),
@@ -91,6 +119,13 @@ describe('GraphSidebar', () => {
     expect(screen.queryByText('app.viewGraph')).not.toBeInTheDocument();
     expect(screen.getByText('graph.modeLocal')).toHaveAttribute('aria-pressed', 'true');
     expect(document.querySelector('[data-graph-mode-indicator="true"]')).toHaveClass('translate-x-full');
+    expect(screen.queryByRole('button', { name: 'PlanPlan.md' })).not.toBeInTheDocument();
+
+    fireEvent.wheel(screen.getByTestId('graph-scroll-root'), { deltaY: -60 });
+
+    const searchInput = screen.getByRole('textbox', { name: 'graph.searchPlaceholder' });
+    const modeSelector = screen.getByRole('group', { name: 'app.viewGraph' });
+    expect(searchInput.compareDocumentPosition(modeSelector) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const exactResult = screen.getByRole('button', { name: 'PlanPlan.md' });
     const prefixResult = screen.getByRole('button', { name: 'Planningdocs/Planning.md' });
     const wordResult = screen.getByRole('button', { name: 'Product PlanProduct Plan.md' });
@@ -110,5 +145,8 @@ describe('GraphSidebar', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'graph.clearSearch' }));
     expect(graphStore.setSearchQuery).toHaveBeenCalledWith('');
+
+    act(() => dispatchSidebarOpenSearchEvent('graph'));
+    expect(searchInput.closest('.grid')).toHaveClass('grid-rows-[1fr]');
   });
 });

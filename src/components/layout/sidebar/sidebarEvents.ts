@@ -1,7 +1,7 @@
 export const SIDEBAR_OPEN_SEARCH_EVENT = 'app-open-search';
 export const SIDEBAR_CLOSE_SEARCH_EVENT = 'app-close-search';
 
-export type SidebarSearchScope = 'notes' | 'chat';
+export type SidebarSearchScope = 'notes' | 'chat' | 'graph';
 
 export function dispatchSidebarOpenSearchEvent(scope: SidebarSearchScope) {
   window.dispatchEvent(new CustomEvent(SIDEBAR_OPEN_SEARCH_EVENT, {
