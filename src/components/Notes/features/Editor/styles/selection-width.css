@@ -69,6 +69,7 @@
   -webkit-text-fill-color: var(--vlaina-color-white) !important;
   line-height: inherit;
   padding-block: max(0px, calc((1lh - 1em) / 2));
+  pointer-events: none;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }

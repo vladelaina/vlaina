@@ -1,7 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { applyMathNodeLatex, removeMathNode } from './mathEditorEditing';
 import { mathEditorPluginKey } from './mathEditorPluginKey';
-import { createClosedMathEditorState, shouldDiscardEmptyMathNodeOnCancel } from './mathEditorState';
+import { createClosedMathEditorState, shouldDiscardNewMathNodeOnCancel } from './mathEditorState';
 import type { MathEditorState } from './types';
 
 export interface MathEditorSessionRefs {
@@ -51,9 +51,8 @@ function restoreOriginalLatex(args: MathEditorSessionActionArgs, state: MathEdit
 
 export function cancelMathEditorSession(args: MathEditorSessionActionArgs) {
   const state = args.getEditorState();
-  const draftLatex = resolveCurrentDraftLatex(args.refs);
 
-  if (state && shouldDiscardEmptyMathNodeOnCancel(state, draftLatex)) {
+  if (state && shouldDiscardNewMathNodeOnCancel(state)) {
     removeMathNode(args.editorView as never, state.nodePos);
   } else if (state) {
     restoreOriginalLatex(args, state);

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createClosedMathEditorState,
   createOpenMathEditorState,
-  shouldDiscardEmptyMathNodeOnCancel,
+  shouldDiscardNewMathNodeOnCancel,
 } from './mathEditorState';
 
 describe('mathEditorState', () => {
@@ -52,9 +52,8 @@ describe('mathEditorState', () => {
       openSource: 'existing-node',
     });
 
-    expect(shouldDiscardEmptyMathNodeOnCancel(freshState, '')).toBe(true);
-    expect(shouldDiscardEmptyMathNodeOnCancel(freshState, 'x')).toBe(false);
-    expect(shouldDiscardEmptyMathNodeOnCancel(existingState, '')).toBe(false);
-    expect(shouldDiscardEmptyMathNodeOnCancel(createClosedMathEditorState(), '')).toBe(false);
+    expect(shouldDiscardNewMathNodeOnCancel(freshState)).toBe(true);
+    expect(shouldDiscardNewMathNodeOnCancel(existingState)).toBe(false);
+    expect(shouldDiscardNewMathNodeOnCancel(createClosedMathEditorState())).toBe(false);
   });
 });
