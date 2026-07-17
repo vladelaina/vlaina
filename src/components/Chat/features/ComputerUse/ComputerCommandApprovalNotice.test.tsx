@@ -41,8 +41,11 @@ describe('ComputerCommandApprovalNotice', () => {
     });
     render(<ComputerCommandApprovalNotice />);
 
+    const alwaysRunButton = screen.getByRole('button', { name: 'chat.computerUse.alwaysRun' });
+    expect(fireEvent.mouseDown(alwaysRunButton)).toBe(false);
+
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'chat.computerUse.alwaysRun' }));
+      fireEvent.click(alwaysRunButton);
     });
 
     await waitFor(() => {
@@ -68,5 +71,41 @@ describe('ComputerCommandApprovalNotice', () => {
     expect(screen.getAllByRole('button')).toHaveLength(3);
     expect(screen.queryByText('pnpm install')).not.toBeInTheDocument();
     expect(screen.queryByText('/tmp/project')).not.toBeInTheDocument();
+  });
+
+  it('advances directly to the next queued approval', async () => {
+    act(() => {
+      publishComputerCommandApproval('approval-first', {
+        command: 'uname -a',
+        cwd: '/tmp/project',
+        purpose: 'Inspect the system',
+        timeoutSeconds: 600,
+        risk: 'standard',
+        canAlwaysAllow: true,
+      });
+      publishComputerCommandApproval('approval-second', {
+        command: 'df -h',
+        cwd: '/tmp/project',
+        purpose: 'Inspect disk usage',
+        timeoutSeconds: 600,
+        risk: 'standard',
+        canAlwaysAllow: true,
+      });
+    });
+    render(<ComputerCommandApprovalNotice />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.computerUse.runOnce' }));
+
+    await waitFor(() => {
+      expect(respondToApproval).toHaveBeenCalledWith('approval-first', 'run_once');
+      expect(screen.getByRole('button', { name: 'chat.computerUse.runOnce' })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
+
+    await waitFor(() => {
+      expect(respondToApproval).toHaveBeenLastCalledWith('approval-second', 'cancel');
+      expect(screen.queryByLabelText('chat.computerUse')).not.toBeInTheDocument();
+    });
   });
 });

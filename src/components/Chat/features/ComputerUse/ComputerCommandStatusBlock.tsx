@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import type { ComputerCommandPhase, ComputerCommandStatus } from '@/lib/ai/computerUse/types';
 import { useI18n, type MessageKey } from '@/lib/i18n';
@@ -8,6 +8,7 @@ import { themeIconTokens } from '@/styles/themeTokens';
 import { ComputerCommandChanges } from './ComputerCommandChanges';
 
 interface ComputerCommandStatusBlockProps {
+  isLoading: boolean;
   statuses: ComputerCommandStatus[];
 }
 
@@ -127,10 +128,29 @@ function CommandStatusItem({
   );
 }
 
-export function ComputerCommandStatusBlock({ statuses }: ComputerCommandStatusBlockProps) {
+export function ComputerCommandStatusBlock({ isLoading, statuses }: ComputerCommandStatusBlockProps) {
   const { t } = useI18n();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const successfulCompletionKey = !isLoading
+    && statuses.length > 0
+    && statuses.every((status) => status.phase === 'completed')
+    ? JSON.stringify(statuses.map((status) => status.id))
+    : null;
+  const [isCollapsed, setIsCollapsed] = useState(successfulCompletionKey !== null);
+  const autoCollapsedCompletionKeyRef = useRef(successfulCompletionKey);
   const contentId = useId();
+
+  useEffect(() => {
+    if (successfulCompletionKey === null) {
+      autoCollapsedCompletionKeyRef.current = null;
+      return;
+    }
+    if (autoCollapsedCompletionKeyRef.current === successfulCompletionKey) {
+      return;
+    }
+    autoCollapsedCompletionKeyRef.current = successfulCompletionKey;
+    setIsCollapsed(true);
+  }, [successfulCompletionKey]);
+
   if (statuses.length === 0) return null;
   const firstCompletedIndex = statuses.findIndex((status) => status.phase === 'completed');
   return (
