@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -51,6 +52,7 @@ describe('desktop update downloads', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     fs.rmSync(temporaryRoot, { force: true, recursive: true });
     temporaryRoot = '';
   });
@@ -83,6 +85,30 @@ describe('desktop update downloads', () => {
     expect(fs.readFileSync(result.filePath)).toEqual(Buffer.from([1, 2, 3]));
     expect(result.filePath).toContain(path.join('update-downloads', '0.1.17'));
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces asynchronous file stream errors without crashing the updater process', async () => {
+    const stream = new EventEmitter();
+    stream.write = vi.fn(() => {
+      queueMicrotask(() => stream.emit('error', new Error('disk full')));
+      return true;
+    });
+    stream.end = vi.fn();
+    stream.destroy = vi.fn();
+    vi.spyOn(fs, 'createWriteStream').mockReturnValue(stream);
+
+    await expect(downloadUpdateAsset({
+      app: createApp(),
+      updateInfo: createUpdateInfo({
+        platformAssetSha256: sha256Hex([1, 2, 3]),
+      }),
+      fetchImpl: vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { 'content-length': '3' },
+      })),
+    })).rejects.toThrow('disk full');
+
+    expect(stream.destroy).toHaveBeenCalled();
   });
 
   it('passes an abort signal to the update download request', async () => {

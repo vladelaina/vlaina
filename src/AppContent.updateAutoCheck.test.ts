@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { runDesktopUpdateAutoCheck } from './useDesktopUpdateRuntime';
+import { getDesktopUpdateAutoCheckDelay, runDesktopUpdateAutoCheck } from './useDesktopUpdateRuntime';
 
 describe('runDesktopUpdateAutoCheck', () => {
   it('notifies and records the check time when an update is available', async () => {
@@ -58,5 +58,21 @@ describe('runDesktopUpdateAutoCheck', () => {
 
     expect(notifyUpdateAvailable).not.toHaveBeenCalled();
     expect(markCheckedAt).not.toHaveBeenCalled();
+  });
+});
+
+describe('getDesktopUpdateAutoCheckDelay', () => {
+  it('checks shortly after startup when no prior check exists', () => {
+    expect(getDesktopUpdateAutoCheckDelay(0, 100_000)).toBe(2500);
+  });
+
+  it('schedules the remaining time in the twelve hour interval', () => {
+    const hour = 60 * 60 * 1000;
+    expect(getDesktopUpdateAutoCheckDelay(100_000, 100_000 + hour)).toBe(11 * hour);
+  });
+
+  it('checks shortly after startup when the interval already elapsed', () => {
+    const thirteenHours = 13 * 60 * 60 * 1000;
+    expect(getDesktopUpdateAutoCheckDelay(100_000, 100_000 + thirteenHours)).toBe(2500);
   });
 });

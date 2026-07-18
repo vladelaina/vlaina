@@ -15,6 +15,7 @@ import { useToastStore } from '@/stores/useToastStore';
 
 const UPDATE_AUTO_CHECK_DELAY_MS = 2500;
 const UPDATE_AUTO_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const UPDATE_AUTO_CHECK_RETRY_MS = 15 * 60 * 1000;
 
 interface DesktopUpdateAutoCheckInfo {
   latestVersion?: string;
@@ -48,6 +49,15 @@ export async function runDesktopUpdateAutoCheck({
   }
 
   markCheckedAt(getNow());
+}
+
+export function getDesktopUpdateAutoCheckDelay(lastCheckedAt: number, now = Date.now()) {
+  if (!Number.isFinite(lastCheckedAt) || lastCheckedAt <= 0) {
+    return UPDATE_AUTO_CHECK_DELAY_MS;
+  }
+
+  const elapsedMs = Math.max(0, now - lastCheckedAt);
+  return Math.max(UPDATE_AUTO_CHECK_DELAY_MS, UPDATE_AUTO_CHECK_INTERVAL_MS - elapsedMs);
 }
 
 export function useDesktopUpdateRuntime() {
@@ -93,40 +103,50 @@ export function useDesktopUpdateRuntime() {
 
         if (!updatePolicy.checkEnabled) return;
 
-        const lastCheckedAt = readStoredUpdateCheckTimestamp();
-        if (lastCheckedAt > 0 && Date.now() - lastCheckedAt < UPDATE_AUTO_CHECK_INTERVAL_MS) {
-          return;
-        }
+        const scheduleAutoCheck = (delayMs: number) => {
+          if (cancelled) return;
+          if (timeoutId !== undefined) {
+            window.clearTimeout(timeoutId);
+          }
+          timeoutId = window.setTimeout(() => {
+            void performAutoCheck();
+          }, delayMs);
+        };
 
-        timeoutId = window.setTimeout(() => {
-          void runDesktopUpdateAutoCheck({
-            checkForUpdates: () => bridge.update!.check(),
-            recordUpdateInfo: (updateInfo) => {
-              const normalizedInfo = normalizeDesktopUpdateInfo(updateInfo);
-              if (normalizedInfo) {
-                void clearStaleDesktopUpdateDownload(bridge.update!, normalizedInfo, APP_VERSION)
-                  .then((freshUpdateInfo) => {
-                    if (!freshUpdateInfo || cancelled) return;
-                    writeCachedDesktopUpdateInfo(freshUpdateInfo);
-                    startDesktopUpdateDownload(bridge.update!, freshUpdateInfo);
-                  });
-              }
-            },
-            notifyUpdateAvailable: (updateInfo) => {
-              useToastStore.getState().addToast(
-                translate('settings.about.updateToastAvailable', { version: updateInfo.latestVersion || APP_VERSION }),
-                'info',
-                8000,
-              );
-            },
-            markCheckedAt: (timestamp) => {
-              writeStoredUpdateCheckTimestamp(timestamp);
-            },
-            isCancelled: () => cancelled,
-          })
-            .catch(() => {
+        const performAutoCheck = async () => {
+          try {
+            await runDesktopUpdateAutoCheck({
+              checkForUpdates: () => bridge.update!.check(),
+              recordUpdateInfo: (updateInfo) => {
+                const normalizedInfo = normalizeDesktopUpdateInfo(updateInfo);
+                if (normalizedInfo) {
+                  void clearStaleDesktopUpdateDownload(bridge.update!, normalizedInfo, APP_VERSION)
+                    .then((freshUpdateInfo) => {
+                      if (!freshUpdateInfo || cancelled) return;
+                      writeCachedDesktopUpdateInfo(freshUpdateInfo);
+                      startDesktopUpdateDownload(bridge.update!, freshUpdateInfo);
+                    });
+                }
+              },
+              notifyUpdateAvailable: (updateInfo) => {
+                useToastStore.getState().addToast(
+                  translate('settings.about.updateToastAvailable', { version: updateInfo.latestVersion || APP_VERSION }),
+                  'info',
+                  8000,
+                );
+              },
+              markCheckedAt: (timestamp) => {
+                writeStoredUpdateCheckTimestamp(timestamp);
+              },
+              isCancelled: () => cancelled,
             });
-        }, UPDATE_AUTO_CHECK_DELAY_MS);
+            scheduleAutoCheck(UPDATE_AUTO_CHECK_INTERVAL_MS);
+          } catch {
+            scheduleAutoCheck(UPDATE_AUTO_CHECK_RETRY_MS);
+          }
+        };
+
+        scheduleAutoCheck(getDesktopUpdateAutoCheckDelay(readStoredUpdateCheckTimestamp()));
       })
       .catch(() => {
       });
