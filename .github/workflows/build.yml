@@ -670,10 +670,21 @@ jobs:
               fi
 
               if gh release create "$RELEASE_TAG" "${artifacts[@]}" \
+                --draft \
                 --target "$GITHUB_SHA" \
                 --title "vlaina $RELEASE_TAG" \
                 --generate-notes \
                 "${prerelease_args[@]}"; then
+                draft_id="$(
+                  gh api --paginate "repos/$GH_REPO/releases?per_page=100" |
+                    jq -r --arg tag "$RELEASE_TAG" '.[] | select(.draft and .tag_name == $tag) | .id' |
+                    head -n 1
+                )"
+                if [[ -z "$draft_id" ]]; then
+                  echo "Draft release for $RELEASE_TAG was not found after uploading assets." >&2
+                  exit 1
+                fi
+                gh api --method PATCH "repos/$GH_REPO/releases/$draft_id" -F draft=false >/dev/null
                 exit 0
               fi
             fi
