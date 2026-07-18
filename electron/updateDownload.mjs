@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { normalizeHttpUrl } from './externalUrlPolicy.mjs';
+import { writeResponseBodyToFile } from './updateDownloadStream.mjs';
 import {
   cleanupOldUpdateDownloads,
   getUpdateDownloadRoot,
@@ -14,8 +15,6 @@ import {
   requireUpdateAssetSha256,
 } from './updateDownloadPaths.mjs';
 
-const maxUpdateDownloadBytes = 1024 * 1024 * 1024;
-
 export { cleanupOldUpdateDownloads, getUpdateDownloadRoot, normalizeUpdateAssetName } from './updateDownloadPaths.mjs';
 
 function getExistingTemporaryDownloadSize(filePath) {
@@ -25,60 +24,6 @@ function getExistingTemporaryDownloadSize(filePath) {
   } catch {
     return 0;
   }
-}
-
-async function writeResponseBodyToFile(response, filePath, {
-  append = false,
-  existingBytes = 0,
-} = {}) {
-  if (!response.body || typeof response.body.getReader !== 'function') {
-    throw new Error('Update download response body is unavailable.');
-  }
-
-  const contentLength = Number.parseInt(response.headers.get('content-length') ?? '', 10);
-  if (Number.isFinite(contentLength) && existingBytes + contentLength > maxUpdateDownloadBytes) {
-    throw new Error('Update download is too large.');
-  }
-
-  const reader = response.body.getReader();
-  const stream = fs.createWriteStream(filePath, { flags: append ? 'a' : 'w' });
-  let downloadedBytes = 0;
-
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = Buffer.from(value);
-      downloadedBytes += chunk.byteLength;
-      if (existingBytes + downloadedBytes > maxUpdateDownloadBytes) {
-        throw new Error('Update download is too large.');
-      }
-      if (!stream.write(chunk)) {
-        await new Promise((resolve, reject) => {
-          stream.once('drain', resolve);
-          stream.once('error', reject);
-        });
-      }
-    }
-  } catch (error) {
-    stream.destroy();
-    throw error;
-  } finally {
-    reader.releaseLock();
-  }
-
-  await new Promise((resolve, reject) => {
-    stream.end((error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
-
-  if (existingBytes + downloadedBytes <= 0) {
-    throw new Error('Update download is empty.');
-  }
-
-  return existingBytes + downloadedBytes;
 }
 
 function createUpdateDownloadRequestOptions(app, resumeFromBytes = 0, signal) {

@@ -631,17 +631,22 @@ jobs:
             prerelease_args+=(--prerelease)
           fi
 
+          uploaded=false
           for attempt in 1 2 3; do
             if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-              if gh release upload "$RELEASE_TAG" "${artifacts[@]}" --clobber; then
-                exit 0
-              fi
-            elif gh release create "$RELEASE_TAG" "${artifacts[@]}" \
-              --target "$GITHUB_SHA" \
-              --title "vlaina $RELEASE_TAG" \
-              --generate-notes \
-              "${prerelease_args[@]}"; then
-              exit 0
+              gh release edit "$RELEASE_TAG" --draft
+            else
+              gh release create "$RELEASE_TAG" \
+                --draft \
+                --target "$GITHUB_SHA" \
+                --title "vlaina $RELEASE_TAG" \
+                --generate-notes \
+                "${prerelease_args[@]}"
+            fi
+
+            if gh release upload "$RELEASE_TAG" "${artifacts[@]}" --clobber; then
+              uploaded=true
+              break
             fi
 
             if [[ "$attempt" == "3" ]]; then
@@ -651,3 +656,53 @@ jobs:
             echo "Release publish failed on attempt $attempt; retrying."
             sleep $(( attempt * 20 ))
           done
+
+          if [[ "$uploaded" != "true" ]]; then
+            echo "Release assets were not uploaded." >&2
+            exit 1
+          fi
+
+          expected_names="$(mktemp)"
+          remote_names="$(mktemp)"
+          for artifact in "${artifacts[@]}"; do
+            basename "$artifact" >> "$expected_names"
+          done
+          sort -u -o "$expected_names" "$expected_names"
+
+          verified=false
+          for attempt in 1 2 3 4 5 6; do
+            release_json="$(gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG")"
+            jq -r '.assets[].name' <<< "$release_json" | sort -u > "$remote_names"
+
+            assets_match=true
+            if ! diff -u "$expected_names" "$remote_names"; then
+              assets_match=false
+            fi
+
+            digests_match=true
+            for artifact in "${artifacts[@]}"; do
+              asset_name="$(basename "$artifact")"
+              expected_digest="sha256:$(sha256sum "$artifact" | awk '{print $1}')"
+              remote_digest="$(jq -r --arg name "$asset_name" '.assets[] | select(.name == $name) | .digest // empty' <<< "$release_json")"
+              if [[ "$remote_digest" != "$expected_digest" ]]; then
+                echo "Digest is not ready or does not match for $asset_name." >&2
+                digests_match=false
+              fi
+            done
+
+            if [[ "$assets_match" == "true" && "$digests_match" == "true" ]]; then
+              verified=true
+              break
+            fi
+
+            if [[ "$attempt" != "6" ]]; then
+              sleep 10
+            fi
+          done
+
+          if [[ "$verified" != "true" ]]; then
+            echo "Release asset verification failed; the release remains a draft." >&2
+            exit 1
+          fi
+
+          gh release edit "$RELEASE_TAG" --draft=false
