@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type {
   ChangeEvent,
   ClipboardEvent,
@@ -141,6 +142,23 @@ export function ChatInputComposerFrame({
   const hasComputerCommandApproval = showComputerCommandApproval &&
     pendingComputerCommandApprovals.length > 0;
   const hasComposerNotice = isQuotaSendBlocked || hasComputerCommandApproval;
+  const previousApprovalCountRef = useRef(pendingComputerCommandApprovals.length);
+
+  useEffect(() => {
+    const previousApprovalCount = previousApprovalCountRef.current;
+    previousApprovalCountRef.current = pendingComputerCommandApprovals.length;
+    if (
+      showComputerCommandApproval &&
+      previousApprovalCount > 0 &&
+      pendingComputerCommandApprovals.length === 0
+    ) {
+      onRequestComposerFocus();
+    }
+  }, [
+    onRequestComposerFocus,
+    pendingComputerCommandApprovals.length,
+    showComputerCommandApproval,
+  ]);
 
   return (
     <>

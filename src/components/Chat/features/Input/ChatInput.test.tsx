@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatInput } from './ChatInput';
 import { FILE_TREE_CHAT_DROP_EVENT } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
 import { getDroppedExternalPaths } from '@/components/Notes/hooks/externalDropPayload';
@@ -12,6 +12,7 @@ import {
   publishComputerCommandApproval,
   resetComputerCommandApprovalsForTests,
 } from '@/lib/ai/computerUse/approvalState';
+import type { DesktopApi } from '@/lib/electron/bridge';
 
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -62,6 +63,31 @@ function renderChatInput(overrides: Partial<ChatInputProps> = {}) {
   };
 }
 
+function openComputerUseEnableDialog(): HTMLTextAreaElement {
+  (window as Window & { vlainaDesktop?: DesktopApi }).vlainaDesktop = {
+    platform: 'electron',
+  } as DesktopApi;
+  renderChatInput();
+  const textarea = screen.getByPlaceholderText('chat.composerPlaceholder') as HTMLTextAreaElement;
+  vi.spyOn(textarea, 'getClientRects').mockReturnValue([
+    { width: 1, height: 1 },
+  ] as unknown as DOMRectList);
+  textarea.focus();
+  fireEvent.click(screen.getByRole('button', { name: 'chat.openActions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'chat.computerUse' }));
+  return textarea;
+}
+
+async function expectComposerFocusAfterDialogCloses(textarea: HTMLTextAreaElement) {
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  });
+  expect(textarea).toHaveFocus();
+}
+
 describe('ChatInput', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,9 +109,33 @@ describe('ChatInput', () => {
           models: [],
           selectedModelId: null,
           webSearchEnabled: false,
+          computerUseEnabled: false,
         },
       },
     }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete (window as Window & { vlainaDesktop?: DesktopApi }).vlainaDesktop;
+  });
+
+  it('restores composer focus after cancelling computer control enablement', async () => {
+    const textarea = openComputerUseEnableDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
+
+    await expectComposerFocusAfterDialogCloses(textarea);
+  });
+
+  it('restores composer focus after confirming computer control enablement', async () => {
+    const setComputerUseEnabled = vi.spyOn(aiActions, 'setComputerUseEnabled').mockImplementation(() => {});
+    const textarea = openComputerUseEnableDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.computerUse.enableConfirm' }));
+
+    expect(setComputerUseEnabled).toHaveBeenCalledWith(true);
+    await expectComposerFocusAfterDialogCloses(textarea);
   });
 
   it('does not clear persisted web search while the selected model is unresolved', () => {
@@ -263,6 +313,36 @@ describe('ChatInput', () => {
     ].includes(item.textContent || ''))) {
       expect(button).toHaveClass('!rounded-[var(--vlaina-radius-pill)]');
     }
+  });
+
+  it('restores composer focus after approving a computer command', async () => {
+    const respondToApproval = vi.fn(async () => true);
+    (window as Window & { vlainaDesktop?: DesktopApi }).vlainaDesktop = {
+      platform: 'electron',
+      computer: { respondToApproval },
+    } as unknown as DesktopApi;
+    publishComputerCommandApproval('approval-1', {
+      command: 'uname -a',
+      cwd: '/tmp/project',
+      purpose: 'Inspect the system',
+      timeoutSeconds: 600,
+      risk: 'standard',
+      canAlwaysAllow: true,
+    });
+    renderChatInput();
+
+    const textarea = screen.getByPlaceholderText('chat.composerPlaceholder') as HTMLTextAreaElement;
+    vi.spyOn(textarea, 'getClientRects').mockReturnValue([
+      { width: 1, height: 1 },
+    ] as unknown as DOMRectList);
+    textarea.blur();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'chat.computerUse.runOnce' }));
+    });
+
+    expect(respondToApproval).toHaveBeenCalledWith('approval-1', 'run_once');
+    await waitFor(() => expect(textarea).toHaveFocus());
   });
 
   it('keeps the approval overlay outside the quota frame clipping boundary', () => {

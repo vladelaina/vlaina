@@ -37,7 +37,10 @@ describe('desktop command ipc', () => {
     const handlers = new Map<string, (...args: any[]) => unknown>();
     const approvalStore = {
       isApproved: vi.fn(async () => options.persistentApproved === true),
+      list: vi.fn(async () => []),
       remember: vi.fn(async () => undefined),
+      revoke: vi.fn(async () => true),
+      clear: vi.fn(async () => true),
     };
     const runProcess = vi.fn(options.runProcess ?? (async (_request, runtimeOptions) => {
       runtimeOptions.onOutput({ stream: 'stdout', text: 'done\n' });
@@ -103,9 +106,32 @@ describe('desktop command ipc', () => {
         command: 'echo safe',
         cwd: tempDir,
         purpose: 'Check output',
-        canAlwaysAllow: false,
+        canAlwaysAllow: true,
       }),
     );
+  });
+
+  it('lists and revokes saved approvals through bounded IPC operations', async () => {
+    const { approvalStore, handlers } = registerHarness();
+    const approval = {
+      id: 'a'.repeat(64),
+      command: 'git status --short',
+      cwd: tempDir,
+      createdAt: 1,
+    };
+    approvalStore.list.mockResolvedValueOnce([approval]);
+
+    await expect(handlers.get('desktop:computer-command:approvals:list')?.({}))
+      .resolves.toEqual([approval]);
+    await expect(handlers.get('desktop:computer-command:approvals:revoke')?.({}, approval.id))
+      .resolves.toBe(true);
+    await expect(handlers.get('desktop:computer-command:approvals:clear')?.({}))
+      .resolves.toBe(true);
+
+    expect(approvalStore.revoke).toHaveBeenCalledWith(approval.id);
+    expect(approvalStore.clear).toHaveBeenCalledTimes(1);
+    await expect(handlers.get('desktop:computer-command:approvals:revoke')?.({}, '../unsafe'))
+      .rejects.toThrow('unsafe id');
   });
 
   it('runs the frozen approved command and streams bounded events to its sender', async () => {
@@ -133,18 +159,18 @@ describe('desktop command ipc', () => {
     );
   });
 
-  it('persists only eligible exact-command approvals', async () => {
+  it('persists an exact project-install approval', async () => {
     const { approvalStore, createSender, handlers, runProcess } = registerHarness({ decision: 'always' });
     const activeSender = createSender();
 
     await expect(handlers.get('desktop:computer-command:start')?.(
       { sender: activeSender },
       'request-always',
-      { command: 'uname -a', cwd: tempDir, purpose: 'Inspect the system' },
+      { command: 'pnpm install', cwd: tempDir, purpose: 'Install project dependencies' },
     )).resolves.toMatchObject({ status: 'completed' });
 
     expect(approvalStore.remember).toHaveBeenCalledWith(expect.objectContaining({
-      command: 'uname -a',
+      command: 'pnpm install',
       cwd: tempDir,
     }));
     expect(runProcess).toHaveBeenCalledTimes(1);
@@ -154,13 +180,13 @@ describe('desktop command ipc', () => {
     );
   });
 
-  it('denies forged persistent approval for ineligible commands', async () => {
+  it('denies forged persistent approval for critical commands', async () => {
     const { approvalStore, createSender, handlers, runProcess } = registerHarness({ decision: 'always' });
 
     await expect(handlers.get('desktop:computer-command:start')?.(
       { sender: createSender() },
       'request-unsafe-always',
-      { command: 'pnpm install', cwd: tempDir, purpose: 'Install dependencies' },
+      { command: 'rm -rf ./cache', cwd: tempDir, purpose: 'Clear generated files' },
     )).resolves.toMatchObject({ status: 'denied' });
 
     expect(approvalStore.remember).not.toHaveBeenCalled();
@@ -210,7 +236,7 @@ describe('desktop command ipc', () => {
     await expect(handlers.get('desktop:computer-command:start')?.(
       { sender: unsafeSender },
       'request-stored-unsafe',
-      { command: 'pnpm install', cwd: tempDir, purpose: 'Install dependencies' },
+      { command: 'rm -rf ./cache', cwd: tempDir, purpose: 'Clear generated files' },
     )).resolves.toMatchObject({ status: 'denied' });
 
     expect(safeSender.send).not.toHaveBeenCalledWith(

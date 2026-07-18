@@ -291,6 +291,13 @@ export interface ElectronComputerCommandResult {
   fileChangesTruncated?: boolean;
 }
 
+export interface ElectronComputerCommandApproval {
+  id: string;
+  command: string;
+  cwd: string;
+  createdAt: number;
+}
+
 export interface ElectronComputerApi {
   startCommand(requestId: string, request: {
     command: string;
@@ -304,6 +311,9 @@ export interface ElectronComputerApi {
     requestId: string,
     decision: 'run_once' | 'always' | 'cancel',
   ): Promise<boolean>;
+  listApprovals(): Promise<ElectronComputerCommandApproval[]>;
+  revokeApproval(approvalId: string): Promise<boolean>;
+  clearApprovals(): Promise<boolean>;
   onCommandEvent(
     requestId: string,
     callback: (event: {
