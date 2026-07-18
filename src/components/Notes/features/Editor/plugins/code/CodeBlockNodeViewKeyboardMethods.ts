@@ -4,9 +4,6 @@ import {
 } from '@codemirror/view';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
-import {
-  moveOrExtendToTrimmedCodeBoundary
-} from './codemirror';
 
 type CodeMirrorSelectionArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
 
@@ -100,44 +97,9 @@ class CodeBlockNodeViewKeyboardMethods {
       if (toolbarState?.isVisible) {
         this.view.dispatch(this.view.state.tr.setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE }));
       }
-      return false;
     }
 
-    if (
-      event.defaultPrevented ||
-      event.altKey ||
-      event.isComposing ||
-      (!event.ctrlKey && !event.metaKey)
-    ) {
-      return false;
-    }
-
-    const direction = event.key === 'ArrowUp'
-      ? -1
-      : event.key === 'ArrowDown'
-        ? 1
-        : null;
-    if (direction === null) {
-      return false;
-    }
-
-    if (cm.state.doc.toString().trim().length === 0) {
-      return false;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    const handled = moveOrExtendToTrimmedCodeBoundary(() => cm, direction, true);
-    if (!handled) {
-      return false;
-    }
-
-    const scheduledAnchor = cm.state.selection.main.anchor;
-    const scheduledHead = cm.state.selection.main.head;
-    this.restoreCodeMirrorSelectionAfterNativeKeyHandling(cm, scheduledAnchor, scheduledHead);
-
-    return true;
+    return false;
   }
 
 }

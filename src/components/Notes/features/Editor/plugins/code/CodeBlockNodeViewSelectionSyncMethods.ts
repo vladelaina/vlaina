@@ -1,44 +1,10 @@
 import { Transaction } from '@codemirror/state';
-import {
-  EditorView as CodeMirror,
-  type ViewUpdate
-} from '@codemirror/view';
+import type { ViewUpdate } from '@codemirror/view';
 import {
   forwardCodeBlockUpdate
 } from './codeBlockNodeViewUtils';
 
 class CodeBlockNodeViewSelectionSyncMethods {
-  restoreCodeMirrorSelectionAfterNativeKeyHandling(this: any,
-    cm: CodeMirror,
-    anchor: number,
-    head: number
-  ) {
-    const restore = () => {
-      if (this.destroyed || this.cm !== cm) {
-        return;
-      }
-
-      const selection = cm.state.selection.main;
-      if (selection.anchor !== anchor || selection.head !== head) {
-        cm.dispatch({ selection: { anchor, head } });
-      }
-      cm.focus();
-      this.syncE2ECodeMirrorSelection();
-    };
-
-    const ownerWindow = this.getOwnerWindow();
-    if (!ownerWindow) {
-      restore();
-      return;
-    }
-
-    ownerWindow.setTimeout(restore, 0);
-    ownerWindow.requestAnimationFrame(() => {
-      restore();
-      ownerWindow.requestAnimationFrame(restore);
-    });
-  }
-
   syncE2ECodeMirrorSelection(this: any) {
     if (!this.cm) {
       return;

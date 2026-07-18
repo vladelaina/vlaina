@@ -1,6 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import type { Node as ProseNode, ResolvedPos } from '@milkdown/kit/prose/model';
-import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
+import { Plugin, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
 type ShiftSelectionDirection = 'up' | 'down';
@@ -20,6 +20,122 @@ function getShiftSelectionDirection(event: KeyboardEvent): ShiftSelectionDirecti
   if (event.key === 'ArrowUp') return 'up';
   if (event.key === 'ArrowDown') return 'down';
   return null;
+}
+
+function getModifiedShiftSelectionDirection(event: KeyboardEvent): ShiftSelectionDirection | null {
+  if (
+    event.defaultPrevented ||
+    !event.shiftKey ||
+    (!event.ctrlKey && !event.metaKey) ||
+    event.altKey ||
+    event.isComposing
+  ) {
+    return null;
+  }
+
+  if (event.key === 'ArrowUp') return 'up';
+  if (event.key === 'ArrowDown') return 'down';
+  return null;
+}
+
+function startsInsideNestedEditor(event: KeyboardEvent): boolean {
+  const target = event.target;
+  return target instanceof Element && Boolean(target.closest('.cm-editor, input, textarea, select'));
+}
+
+function findAncestorDepth($pos: ResolvedPos, nodeName: string): number | null {
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    if ($pos.node(depth).type.name === nodeName) return depth;
+  }
+  return null;
+}
+
+function findTextSelectionOutsideTable(
+  $pos: ResolvedPos,
+  tableDepth: number,
+  direction: ShiftSelectionDirection,
+): TextSelection | null {
+  const tableBoundary = direction === 'up'
+    ? $pos.before(tableDepth)
+    : $pos.after(tableDepth);
+  const selection = Selection.findFrom(
+    $pos.doc.resolve(tableBoundary),
+    direction === 'up' ? -1 : 1,
+    true,
+  );
+  return selection instanceof TextSelection ? selection : null;
+}
+
+function resolveModifiedSelectionHead(
+  selection: TextSelection,
+  direction: ShiftSelectionDirection,
+): number {
+  const { $head, head } = selection;
+  if (!$head.parent.isTextblock || $head.depth === 0) return head;
+
+  const currentStart = $head.start();
+  const currentEnd = $head.end();
+  if (direction === 'up' && head > currentStart) return currentStart;
+  if (direction === 'down' && head < currentEnd) return currentEnd;
+
+  const currentTableDepth = findAncestorDepth($head, 'table');
+  if (currentTableDepth !== null) {
+    return head;
+  }
+
+  const searchPos = direction === 'up' ? $head.before() : $head.after();
+  const adjacent = Selection.findFrom(
+    $head.doc.resolve(searchPos),
+    direction === 'up' ? -1 : 1,
+    true,
+  );
+  if (!(adjacent instanceof TextSelection)) return head;
+
+  const adjacentTableDepth = findAncestorDepth(adjacent.$head, 'table');
+  if (adjacentTableDepth !== null) {
+    const outside = findTextSelectionOutsideTable(adjacent.$head, adjacentTableDepth, direction);
+    if (!outside) return head;
+    return direction === 'up' ? outside.$head.end() : outside.$head.start();
+  }
+
+  return direction === 'up' ? adjacent.$head.start() : adjacent.$head.end();
+}
+
+function clampSelectionHeadToAnchor(
+  anchor: number,
+  head: number,
+  target: number,
+  direction: ShiftSelectionDirection,
+): number {
+  if (direction === 'up' && head > anchor && target < anchor) return anchor;
+  if (direction === 'down' && head < anchor && target > anchor) return anchor;
+  return target;
+}
+
+export function handleModifiedVerticalShiftSelection(view: EditorView, event: KeyboardEvent): boolean {
+  const direction = getModifiedShiftSelectionDirection(event);
+  if (!direction || startsInsideNestedEditor(event)) return false;
+
+  const { selection } = view.state;
+  if (!(selection instanceof TextSelection)) return false;
+
+  const resolvedHead = resolveModifiedSelectionHead(selection, direction);
+  const nextHead = clampSelectionHeadToAnchor(
+    selection.anchor,
+    selection.head,
+    resolvedHead,
+    direction,
+  );
+
+  event.preventDefault();
+  if (nextHead === selection.head) return true;
+
+  view.dispatch(
+    view.state.tr
+      .setSelection(TextSelection.create(view.state.doc, selection.anchor, nextHead))
+      .scrollIntoView(),
+  );
+  return true;
 }
 
 function getTopLevelTextblockBoundary(view: EditorView, pos: number): TextblockBoundary | null {
@@ -117,7 +233,8 @@ export const containerBoundaryShiftSelectionPlugin = $prose(() => {
   return new Plugin({
     props: {
       handleKeyDown(view, event) {
-        return handleContainerBoundaryShiftSelection(view, event);
+        return handleModifiedVerticalShiftSelection(view, event)
+          || handleContainerBoundaryShiftSelection(view, event);
       },
     },
   });
