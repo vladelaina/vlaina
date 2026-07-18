@@ -43,11 +43,24 @@ export function createManualInputSegments(markdown: string, options: {
     maxTableSegmentLines = 3,
   } = options;
   const rawBlocks = splitManualMarkdownBlocks(markdown);
+  const authoredBlocks = rawBlocks.filter((block) => !/^```/.test(block));
+  const taskListBlock = authoredBlocks
+    .find((block) => /^-\s+\[[ xX]\]\s+/m.test(block))
+    ?.split('\n')
+    .filter((line) => /^-\s+\[[ xX]\]\s+/.test(line))
+    .slice(0, 3)
+    .join('\n');
   const requiredBlocks = [
-    rawBlocks.find((block) => block.startsWith('# Markdown 编辑器测试手册')),
-    rawBlocks.find((block) => /^##\s+/.test(block)),
-    rawBlocks.find((block) => /^-\s+/m.test(block)),
-    rawBlocks.find((block) => isManualTableBlock(block)),
+    authoredBlocks.find((block) => block.startsWith('# Markdown 编辑器测试手册')),
+    authoredBlocks.find((block) => /^##\s+/.test(block)),
+    authoredBlocks.find((block) => /^[^\n]+\n(?:=+|-+)$/.test(block)),
+    authoredBlocks.find((block) => /^-\s+/.test(block)),
+    authoredBlocks.find((block) => /^\d+[.)]\s+/.test(block)),
+    taskListBlock,
+    authoredBlocks.find((block) => /^>\s+/.test(block)),
+    authoredBlocks.find((block) => /^(?:\*\s*){3,}$/.test(block)),
+    authoredBlocks.find((block) => /^\[\^[^\]]+\]:/.test(block)),
+    authoredBlocks.find((block) => isManualTableBlock(block)),
     rawBlocks.find((block) => /^```\s*\w*/m.test(block)),
   ].filter((block): block is string => Boolean(block));
   const stride = Math.max(1, Math.floor(rawBlocks.length / maxSegments));

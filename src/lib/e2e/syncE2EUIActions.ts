@@ -1,6 +1,7 @@
 import { useUIStore } from '@/stores/uiSlice';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import { managedProviderSync } from '@/stores/ai/providerActions';
 import type { E2EBridge } from './syncE2EBridgeTypes';
 
 type UIBridgeActions = Pick<
@@ -66,6 +67,7 @@ export function createSyncE2EUIActions(): UIBridgeActions {
       return { budget, lastBudgetSyncAt, budgetError, isRefreshingBudget };
     },
     applyManagedBudgetSnapshot: async (budget) => {
+      await managedProviderSync.syncFromStartup({ refreshBudget: false });
       useManagedAIStore.getState().applyBudgetSnapshot(budget);
     },
     clearManagedBudget: async () => {

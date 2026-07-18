@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { AppearanceTab } from './AppearanceTab';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
+import { SETTINGS_BEFORE_CLOSE_EVENT } from '../settingsEvents';
 
 const mocks = vi.hoisted(() => ({
   uiState: {
@@ -299,5 +300,21 @@ describe('AppearanceTab theme entry', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('commits a pending font size change before settings closes', async () => {
+    const { container } = render(<AppearanceTab />);
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'vlook-fancy' })).toBeInTheDocument();
+    });
+    const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
+    expect(slider).not.toBeNull();
+
+    fireEvent.wheel(slider!, { deltaY: -100 });
+    act(() => {
+      window.dispatchEvent(new Event(SETTINGS_BEFORE_CLOSE_EVENT));
+    });
+
+    expect(mocks.uiState.setFontSize).toHaveBeenCalledWith(18);
   });
 });

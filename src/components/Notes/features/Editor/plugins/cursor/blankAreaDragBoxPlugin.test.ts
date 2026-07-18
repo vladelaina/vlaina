@@ -516,6 +516,14 @@ describe('shouldClearBlockSelectionForTransaction', () => {
 });
 
 describe('blankAreaDragBoxPlugin document routing', () => {
+  it('keeps the stable block selection capability class for the plugin lifetime', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha');
+
+    expect(view.dom.classList.contains('editor-block-selection-enabled')).toBe(true);
+    await editor.destroy();
+    expect(view.dom.classList.contains('editor-block-selection-enabled')).toBe(false);
+  });
+
   it('claims inside-editor blank-area drags before view capture listeners can turn them into native text selection', async () => {
     const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
     const viewCaptureListener = vi.fn((event: MouseEvent) => {

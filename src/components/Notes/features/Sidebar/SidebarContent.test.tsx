@@ -265,6 +265,12 @@ vi.mock('./SidebarSearchResultsList', () => ({
 vi.mock('./notesSidebarSearchResults', () => ({
   buildNotesSidebarSearchIndex: hoisted.buildNotesSidebarSearchIndex,
   countNotesSidebarSearchEntries: hoisted.countNotesSidebarSearchEntries,
+  createNotesSidebarSearchSession: (...args: Parameters<typeof hoisted.queryNotesSidebarSearch>) => ({
+    runBatch: () => ({
+      done: true,
+      results: hoisted.queryNotesSidebarSearch(...args),
+    }),
+  }),
   NOTES_SIDEBAR_MAX_SEARCH_RESULTS: 200,
   queryNotesSidebarSearch: hoisted.queryNotesSidebarSearch,
   queryNotesSidebarStructuralSearch: hoisted.queryNotesSidebarStructuralSearch,

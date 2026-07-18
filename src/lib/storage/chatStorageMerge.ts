@@ -148,6 +148,35 @@ function areApiTranscriptToolCallsEquivalent(
   return true;
 }
 
+function areSanitizedValuesEquivalent(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') {
+    return false;
+  }
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((value, index) => areSanitizedValuesEquivalent(value, right[index]));
+  }
+
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord);
+  const rightKeys = Object.keys(rightRecord);
+  return leftKeys.length === rightKeys.length && leftKeys.every(
+    (key) => Object.hasOwn(rightRecord, key) && areSanitizedValuesEquivalent(leftRecord[key], rightRecord[key]),
+  );
+}
+
+export function areWebSearchStatusesEquivalent(
+  left: ChatMessage['versions'][number]['webSearchStatuses'],
+  right: ChatMessage['versions'][number]['webSearchStatuses'],
+): boolean {
+  return areSanitizedValuesEquivalent(
+    sanitizeWebSearchStatuses(left),
+    sanitizeWebSearchStatuses(right),
+  );
+}
+
 function isSameMessageVersion(
   left: ChatMessage['versions'][number],
   right: ChatMessage['versions'][number],
@@ -158,9 +187,8 @@ function isSameMessageVersion(
     left.kind === right.kind &&
     (!Array.isArray(left.subsequentMessages) || left.subsequentMessages.length === 0) &&
     (!Array.isArray(right.subsequentMessages) || right.subsequentMessages.length === 0) &&
-    areApiTranscriptsEquivalent(left.apiTranscript, right.apiTranscript)
-    && JSON.stringify(sanitizeWebSearchStatuses(left.webSearchStatuses))
-      === JSON.stringify(sanitizeWebSearchStatuses(right.webSearchStatuses))
+    areApiTranscriptsEquivalent(left.apiTranscript, right.apiTranscript) &&
+    areWebSearchStatusesEquivalent(left.webSearchStatuses, right.webSearchStatuses)
   );
 }
 

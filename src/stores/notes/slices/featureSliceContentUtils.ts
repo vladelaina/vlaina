@@ -148,6 +148,10 @@ export function canReuseScannedNoteCacheEntry(
     return false;
   }
 
+  if (cachedEntry.content === '' && size !== null && size > 0) {
+    return false;
+  }
+
   if (cachedEntry.size !== undefined) {
     return cachedEntry.size === size;
   }

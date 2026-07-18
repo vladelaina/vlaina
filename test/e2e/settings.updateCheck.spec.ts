@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import * as http from 'node:http';
 import type { IncomingMessage } from 'node:http';
 import {
@@ -8,8 +9,11 @@ import {
 } from './notesE2E';
 
 const SETTINGS_MODAL_SELECTOR = '[data-settings-modal="true"]';
-const CURRENT_VERSION = '0.1.16';
-const LATEST_VERSION = '0.1.17';
+const CURRENT_VERSION = String(JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+).version);
+const [CURRENT_MAJOR, CURRENT_MINOR, CURRENT_PATCH] = CURRENT_VERSION.split('.').map(Number);
+const LATEST_VERSION = `${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH + 1}`;
 const LATEST_RELEASE_TAG = `v${LATEST_VERSION}`;
 const LATEST_RELEASE_BASE_URL = `https://github.com/vladelaina/vlaina/releases/download/${LATEST_RELEASE_TAG}`;
 const UPDATE_ASSETS = [
@@ -127,7 +131,11 @@ test.describe('settings update checks', () => {
       await expect(page.locator('[data-settings-tab-panel="about"]')).toContainText(`v${LATEST_VERSION} available`, {
         timeout: 15_000,
       });
-      await expect(page.getByRole('button', { name: 'Update' })).toHaveAttribute('title', expectedAsset.name);
+      await expect(page.getByRole('button', { name: 'Update', exact: true })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => {
+        const raw = localStorage.getItem('vlaina:update:lastResult');
+        return raw ? JSON.parse(raw).platformAssetName : null;
+      })).toBe(expectedAsset.name);
       expect(manifestServer.requests).toEqual([
         {
           url: '/latest',

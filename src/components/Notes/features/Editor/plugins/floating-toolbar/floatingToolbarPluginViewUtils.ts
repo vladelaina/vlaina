@@ -26,6 +26,22 @@ export function isDocumentFormatShortcut(event: KeyboardEvent): boolean {
   return (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && !event.isComposing;
 }
 
+export function resolveDocumentHistoryShortcut(event: KeyboardEvent): 'undo' | 'redo' | null {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey || event.isComposing) {
+    return null;
+  }
+
+  const key = event.key.toLowerCase();
+  if (key === 'y' && !event.shiftKey) {
+    return 'redo';
+  }
+  if (key !== 'z') {
+    return null;
+  }
+
+  return event.shiftKey ? 'redo' : 'undo';
+}
+
 export function shouldLockPreviewToolbarPosition(args: {
   subMenu: FloatingToolbarState['subMenu'];
   hasActivePreview: boolean;
@@ -38,4 +54,3 @@ export interface FloatingToolbarInteractionState {
   pendingShow: boolean;
   isPointerInsideToolbar: boolean;
 }
-

@@ -39,6 +39,7 @@ export function remarkVideoImages() {
           && Array.isArray(child.children)
           && child.children.length === 1
           && isVideoImageNode(child.children[0])
+          && (node.type !== 'listItem' || index > 0)
         ) {
           const image = child.children[0];
           children[index] = {

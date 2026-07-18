@@ -2,19 +2,25 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import {
   resolveBodyLineNumberLabelLayout,
   syncBodyLineNumberLabelSelection,
+  type BodyLineNumberLabel,
   type BodyLineNumberLabelLayout,
 } from '../utils/bodyLineNumberLayout';
+import {
+  resolveBodyLineNumberWindow,
+  type BodyLineNumberWindow,
+} from '../utils/bodyLineNumberWindow';
+import { observeBodyLineNumberGutterLayout } from '../utils/bodyLineNumberGutterObservers';
 
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 const BLOCK_DRAG_ACTIVE_CLASS = 'editor-block-drag-active';
 const DEFERRED_BLOCK_INTERACTION_REFRESH_RETRY_MS = 80;
 const POINTER_INTERACTION_REFRESH_FALLBACK_MS = 10_000;
-const MAX_OBSERVED_EDITOR_CHILD_RESIZE_TARGETS = 5000;
-const MAX_INCREMENTAL_SELECTION_SYNC_MUTATION_RECORDS = 64;
+const MAX_INCREMENTAL_SELECTION_SYNC_MUTATION_RECORDS = 512;
 const EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT: BodyLineNumberLabelLayout = {
   labels: [],
   targets: [],
 };
+type RenderedBodyLineNumber = { index: number; label: BodyLineNumberLabel };
 
 interface BodyLineNumberGutterProps {
   markdown: string;
@@ -23,7 +29,10 @@ interface BodyLineNumberGutterProps {
 }
 
 export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineNumberGutterProps) {
-  const [layout, setLayout] = useState<BodyLineNumberLabelLayout>(EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT);
+  const [renderedLabels, setRenderedLabels] = useState<RenderedBodyLineNumber[]>([]);
+  const gutterRef = useRef<HTMLDivElement | null>(null);
+  const layoutRef = useRef<BodyLineNumberLabelLayout>(EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT);
+  const renderedWindowRef = useRef<BodyLineNumberWindow | null>(null);
   const markdownRef = useRef(markdown);
   const refreshRef = useRef<(() => void) | null>(null);
   markdownRef.current = markdown;
@@ -31,19 +40,53 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) {
-      setLayout(EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT);
+      layoutRef.current = EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT;
+      renderedWindowRef.current = null;
+      setRenderedLabels([]);
       return;
     }
 
     const resolvedShell: HTMLDivElement = shell;
     let frameId: number | null = null;
+    let renderedWindowFrameId: number | null = null;
     let deferredBlockInteractionRefreshTimerId: number | null = null;
     let pointerInteractionFallbackTimerId: number | null = null;
     let needsRefreshAfterDeferredBlockInteraction = false;
     let pointerInteractionActive = false;
     let pendingDeferredSelectionSyncElements: Element[] | null = [];
     const editorRoot = resolvedShell.querySelector<HTMLElement>('.ProseMirror');
-    const observedResizeTargets = new Set<Element>();
+    const scrollRoot = resolvedShell.closest<HTMLElement>('[data-note-scroll-root="true"]');
+
+    function syncRenderedLabels(nextLayout: BodyLineNumberLabelLayout, force = false) {
+      const shellRect = resolvedShell.getBoundingClientRect();
+      const viewportRect = scrollRoot?.getBoundingClientRect() ?? shellRect;
+      const nextWindow = resolveBodyLineNumberWindow(
+        nextLayout.labels,
+        viewportRect.top - shellRect.top,
+        viewportRect.bottom - shellRect.top,
+        renderedWindowRef.current,
+      );
+      if (
+        !force &&
+        nextWindow.start === renderedWindowRef.current?.start &&
+        nextWindow.end === renderedWindowRef.current?.end
+      ) {
+        return;
+      }
+      renderedWindowRef.current = nextWindow;
+      setRenderedLabels(nextLayout.labels.slice(nextWindow.start, nextWindow.end).map((label, offset) => ({
+        index: nextWindow.start + offset,
+        label,
+      })));
+    }
+
+    function scheduleRenderedLabelWindowSync() {
+      if (renderedWindowFrameId !== null) return;
+      renderedWindowFrameId = requestAnimationFrame(() => {
+        renderedWindowFrameId = null;
+        syncRenderedLabels(layoutRef.current);
+      });
+    }
 
     function shouldDeferRefreshForBlockInteraction() {
       return editorRoot?.classList.contains(BLOCK_SELECTION_PENDING_CLASS) === true
@@ -52,7 +95,23 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
     }
 
     function syncDeferredBlockSelectionState(changedElements?: readonly Element[]) {
-      setLayout((currentLayout) => syncBodyLineNumberLabelSelection(editorRoot, currentLayout, { changedElements }));
+      const currentLayout = layoutRef.current;
+      const nextLayout = syncBodyLineNumberLabelSelection(editorRoot, currentLayout, { changedElements });
+      if (nextLayout === currentLayout) return;
+
+      layoutRef.current = nextLayout;
+      const gutter = gutterRef.current;
+      if (!gutter) return;
+      for (const child of gutter.children) {
+        if (!(child instanceof HTMLElement)) continue;
+        const index = Number.parseInt(child.dataset.bodyLineNumberIndex ?? '', 10);
+        if (!Number.isFinite(index)) continue;
+        if (currentLayout.labels[index]?.selected === nextLayout.labels[index]?.selected) continue;
+        child.classList.toggle(
+          'body-line-number-selected',
+          nextLayout.labels[index]?.selected === true,
+        );
+      }
     }
 
     function queueDeferredSelectionSyncElements(changedElements?: readonly Element[]) {
@@ -153,7 +212,9 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
         pendingDeferredSelectionSyncElements = [];
         needsRefreshAfterDeferredBlockInteraction = false;
         clearDeferredBlockInteractionRefresh();
-        setLayout(resolveBodyLineNumberLabelLayout(resolvedShell, markdownRef.current));
+        const nextLayout = resolveBodyLineNumberLabelLayout(resolvedShell, markdownRef.current);
+        layoutRef.current = nextLayout;
+        syncRenderedLabels(nextLayout, true);
       });
     }
 
@@ -163,103 +224,14 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       refresh();
     }
 
-    const resizeObserver = new ResizeObserver(() => {
-      syncObservedResizeTargets();
-      refresh();
+    const disconnectLayoutObservers = observeBodyLineNumberGutterLayout({
+      shell: resolvedShell,
+      editorRoot,
+      onRefresh: refresh,
     });
-
-    function shouldRefreshForMutation(records: MutationRecord[]) {
-      for (const record of records) {
-        if (!(record.target instanceof Element)) {
-          return true;
-        }
-
-        const atomicEditorBlock = record.target.closest('.code-block-container, .frontmatter-block-container');
-        if (atomicEditorBlock && atomicEditorBlock !== record.target) {
-          continue;
-        }
-
-        return true;
-      }
-
-      return false;
-    }
-
-    function collectIncrementalSelectionSyncMutationElements(records: MutationRecord[]) {
-      if (records.length === 0 || records.length > MAX_INCREMENTAL_SELECTION_SYNC_MUTATION_RECORDS) {
-        return undefined;
-      }
-
-      const elements: Element[] = [];
-      for (const record of records) {
-        if (
-          record.type !== 'attributes'
-          || record.attributeName !== 'class'
-          || !(record.target instanceof Element)
-        ) {
-          return undefined;
-        }
-        elements.push(record.target);
-      }
-
-      return elements;
-    }
-
-    function mutationsMayChangeObservedResizeTargets(records: MutationRecord[]) {
-      return records.some((record) => record.type === 'childList' && record.target === editorRoot);
-    }
-
-    function syncObservedResizeTargets() {
-      const nextTargets = new Set<Element>([resolvedShell]);
-      if (editorRoot) {
-        nextTargets.add(editorRoot);
-        for (
-          let index = 0;
-          index < editorRoot.children.length && index < MAX_OBSERVED_EDITOR_CHILD_RESIZE_TARGETS;
-          index += 1
-        ) {
-          const child = editorRoot.children.item(index);
-          if (child) nextTargets.add(child);
-        }
-      }
-
-      for (const target of observedResizeTargets) {
-        if (!nextTargets.has(target)) {
-          resizeObserver.unobserve(target);
-          observedResizeTargets.delete(target);
-        }
-      }
-
-      for (const target of nextTargets) {
-        if (!observedResizeTargets.has(target)) {
-          resizeObserver.observe(target);
-          observedResizeTargets.add(target);
-        }
-      }
-    }
-
-    syncObservedResizeTargets();
-    refresh();
-
-    const mutationObserver = new MutationObserver((records) => {
-      if (!shouldRefreshForMutation(records)) {
-        return;
-      }
-      if (mutationsMayChangeObservedResizeTargets(records)) {
-        syncObservedResizeTargets();
-      }
-      refresh(collectIncrementalSelectionSyncMutationElements(records));
-    });
-    if (editorRoot) {
-      mutationObserver.observe(editorRoot, {
-        attributes: true,
-        attributeFilter: ['class', 'data-type', 'data-value', 'style'],
-        childList: true,
-        subtree: true,
-      });
-    }
 
     window.addEventListener('resize', handleWindowResize);
+    scrollRoot?.addEventListener('scroll', scheduleRenderedLabelWindowSync, { passive: true });
     window.addEventListener('pointerdown', handlePointerInteractionStart, true);
     window.addEventListener('pointerup', handlePointerInteractionEnd, true);
     window.addEventListener('pointercancel', handlePointerInteractionEnd, true);
@@ -274,11 +246,14 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
       }
+      if (renderedWindowFrameId !== null) {
+        cancelAnimationFrame(renderedWindowFrameId);
+      }
       clearDeferredBlockInteractionRefresh();
       clearPointerInteractionFallback();
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
+      disconnectLayoutObservers();
       window.removeEventListener('resize', handleWindowResize);
+      scrollRoot?.removeEventListener('scroll', scheduleRenderedLabelWindowSync);
       window.removeEventListener('pointerdown', handlePointerInteractionStart, true);
       window.removeEventListener('pointerup', handlePointerInteractionEnd, true);
       window.removeEventListener('pointercancel', handlePointerInteractionEnd, true);
@@ -293,10 +268,11 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
   }, [markdown]);
 
   return (
-    <div className="body-line-number-gutter" aria-hidden="true">
-      {layout.labels.map((label, index) => (
+    <div ref={gutterRef} className="body-line-number-gutter" aria-hidden="true">
+      {renderedLabels.map(({ index, label }) => (
         <span
           key={`${label.lineNumber}-${index}`}
+          data-body-line-number-index={index}
           className={
             label.selected
               ? 'body-line-number body-line-number-selected'

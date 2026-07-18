@@ -97,3 +97,21 @@ it('does not run a pending composition commit after the editor is destroyed', as
 
   expect(() => callbacks.shift()?.(0)).not.toThrow()
 })
+
+it('leaves an empty composition commit to the native editor', async () => {
+  const editor = createEditor()
+  await editor.create()
+
+  try {
+    const view = editor.ctx.get(editorViewCtx)
+    setCursorAfterImage(view)
+
+    handleDomEvent(view, 'compositionstart', new CompositionEvent('compositionstart'))
+    const event = new CompositionEvent('compositionend', { data: '' })
+
+    expect(handleDomEvent(view, 'compositionend', event)).toBe(false)
+    expect(event.defaultPrevented).toBe(false)
+  } finally {
+    await editor.destroy()
+  }
+})

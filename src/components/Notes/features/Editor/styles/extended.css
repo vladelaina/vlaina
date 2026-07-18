@@ -15,7 +15,7 @@
   background-color: var(--vlaina-editor-inline-background-fill) !important;
 }
 
-.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+.milkdown .ProseMirror.editor-block-selection-enabled :is(
   .editor-block-selected,
   .editor-block-selected-textlike,
   .editor-block-drag-source,
@@ -449,8 +449,6 @@
   background: var(--vlaina-color-media-overlay-bg-hover);
 }
 
-.milkdown .ProseMirror.editor-block-selection-pending .video-block iframe,
-.milkdown .ProseMirror.editor-block-selection-pending .video-block video,
 body.editor-block-drag-active .milkdown .video-block iframe,
 body.editor-block-drag-active .milkdown .video-block video {
   pointer-events: none;

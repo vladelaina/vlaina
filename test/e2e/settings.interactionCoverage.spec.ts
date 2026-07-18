@@ -3,6 +3,7 @@ import {
   cleanupIsolatedElectron,
   getOpenBridgePages,
   launchIsolatedElectron,
+  waitForE2EBridge,
 } from './notesE2E';
 
 const SETTINGS_MODAL_SELECTOR = '[data-settings-modal="true"]';
@@ -138,6 +139,85 @@ async function dragRangeInput(page: Page, selector: string, fromRatio: number, t
 test.describe('settings modal interaction coverage', () => {
   test.setTimeout(120_000);
 
+  test('opens and safely closes settings with the keyboard shortcut', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('settings-keyboard-shortcut');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await page.keyboard.press('Control+,');
+      await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toBeVisible({ timeout: 30_000 });
+      await openSettingsTab(page, 'markdown');
+      await clickAndExpectMarkdownSetting(
+        page,
+        '[data-settings-control="markdown-typewriter-mode"]',
+        (data) => data.settings.markdown.typewriterMode === true,
+      );
+      await openSettingsTab(page, 'ai');
+      await page.locator('[data-settings-control="ai-system-prompt"]').fill('E2E shortcut prompt');
+
+      await page.keyboard.press('Control+,');
+      await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toHaveCount(0, { timeout: 10_000 });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await waitForE2EBridge(page);
+      await expect.poll(async () => {
+        const data = await getUnifiedData(page);
+        return {
+          typewriterMode: data.settings.markdown.typewriterMode,
+          systemPrompt: data.ai.customSystemPrompt,
+        };
+      }, { timeout: 10_000 }).toEqual({
+        typewriterMode: true,
+        systemPrompt: 'E2E shortcut prompt',
+      });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('traps keyboard focus and restores the previous focused control on close', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('settings-focus-lifecycle');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.evaluate(() => {
+        const opener = document.createElement('button');
+        opener.id = 'settings-focus-opener';
+        opener.textContent = 'Open settings focus fixture';
+        document.body.appendChild(opener);
+        opener.focus();
+        window.dispatchEvent(new CustomEvent('open-settings'));
+      });
+
+      const modal = page.locator(SETTINGS_MODAL_SELECTOR);
+      await expect(modal).toBeVisible({ timeout: 30_000 });
+      await expect.poll(() => page.evaluate(() =>
+        document.activeElement?.getAttribute('data-settings-modal')
+      )).toBe('true');
+
+      await page.keyboard.press('Shift+Tab');
+      await expect.poll(() => page.evaluate(() =>
+        document.activeElement?.closest('[data-settings-modal="true"]') !== null
+      )).toBe(true);
+
+      for (let index = 0; index < 12; index += 1) {
+        await page.keyboard.press('Tab');
+        expect(await page.evaluate(() =>
+          document.activeElement?.closest('[data-settings-modal="true"]') !== null
+        )).toBe(true);
+      }
+
+      await page.keyboard.press('Escape');
+      await expect(modal).toHaveCount(0, { timeout: 10_000 });
+      await expect.poll(() => page.evaluate(() => document.activeElement?.id ?? null))
+        .toBe('settings-focus-opener');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('drives core settings tabs through the real modal UI', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('settings-interaction-coverage');
 
@@ -249,6 +329,16 @@ test.describe('settings modal interaction coverage', () => {
         enabled: true,
       });
 
+      const quickAddModelInput = page.locator('[data-settings-provider-action="quick-add-model"]');
+      await quickAddModelInput.fill('e2e-manual-model');
+      await quickAddModelInput.press('Enter');
+      await expect.poll(async () => {
+        const data = await getUnifiedData(page);
+        return data.ai.models.some((model: { apiModelId: string }) =>
+          model.apiModelId === 'e2e-manual-model'
+        );
+      }, { timeout: 10_000 }).toBe(true);
+
       const channelEnabledSwitch = page.locator('[data-settings-control="ai-channel-enabled"]').first();
       await channelEnabledSwitch.click();
       await expect.poll(async () => {
@@ -258,11 +348,56 @@ test.describe('settings modal interaction coverage', () => {
         )?.enabled;
       }, { timeout: 10_000 }).toBe(false);
 
+      await page.locator('[data-settings-action="close"]').click();
+      await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toHaveCount(0, { timeout: 10_000 });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await waitForE2EBridge(page);
+
+      await expect.poll(() => getUIState(page), { timeout: 10_000 }).toMatchObject({
+        imageStorageMode: 'notesRootSubfolder',
+        imageNotesRootSubfolderName: 'e2e-notes-root-assets',
+        imageFilenameFormat: 'sequence',
+        languagePreference: 'zh-CN',
+      });
+      await expect.poll(async () => {
+        const data = await getUnifiedData(page);
+        return {
+          colorMode: data.settings.ui?.colorMode,
+          codeLineNumbers: data.settings.markdown.codeBlock?.showLineNumbers,
+          bodyLineNumbers: data.settings.markdown.body?.showLineNumbers,
+          typewriterMode: data.settings.markdown.typewriterMode,
+          provider: data.ai.providers.find((provider: { name: string }) =>
+            provider.name === 'E2E Settings Channel'
+          ),
+          hasModel: data.ai.models.some((model: { apiModelId: string }) =>
+            model.apiModelId === 'e2e-manual-model'
+          ),
+        };
+      }, { timeout: 10_000 }).toMatchObject({
+        colorMode: 'dark',
+        codeLineNumbers: true,
+        bodyLineNumbers: true,
+        typewriterMode: true,
+        provider: {
+          apiHost: 'https://e2e-settings.invalid/v1',
+          apiKey: 'sk-e2e-settings-key',
+          enabled: false,
+        },
+        hasModel: true,
+      });
+      await expect.poll(async () => getUIState(page).then((state) => state.fontSize), { timeout: 10_000 })
+        .toBeGreaterThan(initialFontSize);
+
+      await openSettings(page);
+      await openSettingsTab(page, 'ai');
+
       const channelCard = page.locator('[data-settings-ai-channel-card]').filter({ hasText: 'E2E Settings Channel' });
       await channelCard.hover();
       await channelCard.locator('[data-settings-ai-action="delete-channel"]').click();
       await expect(page.locator('[data-dialog-action="cancel"]')).toBeVisible({ timeout: 10_000 });
-      await page.locator('[data-dialog-action="cancel"]').click();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('[data-dialog-action="cancel"]')).toHaveCount(0);
+      await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toBeVisible();
       await expect.poll(async () => {
         const data = await getUnifiedData(page);
         return data.ai.providers.some((provider: { id: string; name: string }) =>
@@ -280,8 +415,42 @@ test.describe('settings modal interaction coverage', () => {
         );
       }, { timeout: 10_000 }).toBe(false);
 
-      await page.locator('[data-settings-action="close"]').click();
+      await page.locator('[data-settings-ai-action="new-channel"]').first().click();
+      await page.locator('[data-settings-provider-field="api-host"]').fill('http://127.0.0.1:11434/v1');
+      const keylessChannelCard = page.locator('[data-settings-ai-channel-card][data-active="true"]');
+      await keylessChannelCard.hover();
+      await keylessChannelCard.locator('[data-settings-ai-action="delete-channel"]').click();
+      await expect(page.locator('[data-dialog-action="cancel"]')).toBeVisible({ timeout: 10_000 });
+      await page.locator('[data-dialog-action="cancel"]').click();
+      await expect.poll(async () => {
+        const data = await getUnifiedData(page);
+        return data.ai.providers.some((provider: { apiHost: string }) =>
+          provider.apiHost === 'http://127.0.0.1:11434/v1'
+        );
+      }, { timeout: 10_000 }).toBe(true);
+      await keylessChannelCard.hover();
+      await keylessChannelCard.locator('[data-settings-ai-action="delete-channel"]').click();
+      await page.locator('[data-dialog-action="confirm"]').click();
+
+      await page.locator('[data-settings-ai-action="new-channel"]').first().click();
+      await page.locator('[data-settings-provider-field="api-key"]').fill('sk-draft-only-key');
+      const draftKeyChannelCard = page.locator('[data-settings-ai-channel-card][data-active="true"]');
+      await draftKeyChannelCard.hover();
+      await draftKeyChannelCard.locator('[data-settings-ai-action="delete-channel"]').click();
+      await expect(page.locator('[data-dialog-action="confirm"]')).toBeVisible({ timeout: 10_000 });
+      await page.locator('[data-dialog-action="confirm"]').click();
+
+      await page.locator('[data-settings-ai-action="new-channel"]').first().click();
+      await expect.poll(async () => {
+        const data = await getUnifiedData(page);
+        return data.ai.providers.filter((provider: { id: string }) => provider.id !== 'vlaina-managed').length;
+      }, { timeout: 10_000 }).toBe(1);
+      await page.keyboard.press('Escape');
       await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toHaveCount(0, { timeout: 10_000 });
+      await expect.poll(async () => {
+        const data = await getUnifiedData(page);
+        return data.ai.providers.filter((provider: { id: string }) => provider.id !== 'vlaina-managed').length;
+      }, { timeout: 10_000 }).toBe(0);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

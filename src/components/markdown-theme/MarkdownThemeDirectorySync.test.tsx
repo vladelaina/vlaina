@@ -69,8 +69,15 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
 });
 
 function setImportedThemeId(importedThemeId: string | null) {
-  mocks.store.data.settings.markdown.theme = {
-    importedThemeId,
+  mocks.store.data = {
+    ...mocks.store.data,
+    settings: {
+      ...mocks.store.data.settings,
+      markdown: {
+        ...mocks.store.data.settings.markdown,
+        theme: { importedThemeId },
+      },
+    },
   };
 }
 

@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, useCallback, type ReactNode } from 'react';
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { TitleBarCenterRegion, TitleBarInteractiveRegion } from '@/components/layout/shell/TitleBarCenterRegion';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
@@ -11,6 +11,8 @@ import {
   ChatSidebar,
   ChatView,
   DevMainOverlay,
+  GraphSidebar,
+  GraphView,
   LabView,
   ModelSelector,
   NotesSidebarWrapper,
@@ -23,7 +25,7 @@ import {
   WhiteboardView,
 } from './AppContentModules';
 
-type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard'>;
+type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard' | 'graph'>;
 
 interface AppContentShellProps {
   communitySettings: CommunitySettings;
@@ -69,7 +71,9 @@ function ConnectedAppShell({
     <AppShell
       sidebarWidth={sidebarWidth}
       sidebarCollapsed={sidebarCollapsed}
-      sidebarHoverPeekEnabled={effectiveAppViewMode !== 'whiteboard'}
+      sidebarHoverPeekEnabled={
+        effectiveAppViewMode !== 'whiteboard' && effectiveAppViewMode !== 'graph'
+      }
       onSidebarWidthChange={setSidebarWidth}
       onSidebarToggle={toggleSidebar}
       sidebarContent={sidebarContent}
@@ -117,19 +121,31 @@ export function AppContentShell({
   shouldRenderDeferredChrome,
   shouldWaitForInitialUnifiedView,
 }: AppContentShellProps) {
+  const reportNotesStartupReady = useCallback(() => onActiveViewReady('notes'), [onActiveViewReady]);
+  const reportNotesPrimaryReady = useCallback(() => onPrimaryContentReady('notes'), [onPrimaryContentReady]);
+  const reportChatStartupReady = useCallback(() => onActiveViewReady('chat'), [onActiveViewReady]);
+  const reportChatPrimaryReady = useCallback(() => onPrimaryContentReady('chat'), [onPrimaryContentReady]);
+  const reportWhiteboardStartupReady = useCallback(() => onActiveViewReady('whiteboard'), [onActiveViewReady]);
+  const reportWhiteboardPrimaryReady = useCallback(() => onPrimaryContentReady('whiteboard'), [onPrimaryContentReady]);
+  const reportGraphStartupReady = useCallback(() => onActiveViewReady('graph'), [onActiveViewReady]);
+  const reportGraphPrimaryReady = useCallback(() => onPrimaryContentReady('graph'), [onPrimaryContentReady]);
   const shouldRenderSidebar =
     effectiveAppViewMode === 'chat' ||
     effectiveAppViewMode === 'notes' ||
-    effectiveAppViewMode === 'whiteboard';
+    effectiveAppViewMode === 'whiteboard' ||
+    effectiveAppViewMode === 'graph';
   const shouldMountNotes = mountedAppViews.has('notes');
   const shouldMountChat = mountedAppViews.has('chat');
   const shouldMountWhiteboard = mountedAppViews.has('whiteboard');
+  const shouldMountGraph = mountedAppViews.has('graph');
   const shouldRenderNotesSidebar = renderedSidebarAppViews.has('notes');
   const shouldRenderChatSidebar = renderedSidebarAppViews.has('chat');
   const shouldRenderWhiteboardSidebar = renderedSidebarAppViews.has('whiteboard');
+  const shouldRenderGraphSidebar = renderedSidebarAppViews.has('graph');
   const shouldShowNotesSidebar = effectiveAppViewMode === 'notes';
   const shouldShowChatSidebar = effectiveAppViewMode === 'chat';
   const shouldShowWhiteboardSidebar = effectiveAppViewMode === 'whiteboard';
+  const shouldShowGraphSidebar = effectiveAppViewMode === 'graph';
 
   const renderSidebarContent = (isPeeking: boolean) => shouldRenderSidebar ? (
     <div className="grid h-full min-h-0 min-w-0 overflow-hidden">
@@ -151,6 +167,13 @@ export function AppContentShell({
         <SidebarPane visible={shouldShowWhiteboardSidebar}>
           <Suspense fallback={null}>
             <WhiteboardSidebar />
+          </Suspense>
+        </SidebarPane>
+      ) : null}
+      {shouldRenderGraphSidebar ? (
+        <SidebarPane visible={shouldShowGraphSidebar}>
+          <Suspense fallback={null}>
+            <GraphSidebar active={shouldShowGraphSidebar} />
           </Suspense>
         </SidebarPane>
       ) : null}
@@ -192,8 +215,8 @@ export function AppContentShell({
           <Suspense fallback={<StartupViewFallback onReady={onStartupFallbackReady} />}>
             <NotesView
               active={effectiveAppViewMode === 'notes'}
-              onStartupReady={() => onActiveViewReady('notes')}
-              onPrimaryContentReady={() => onPrimaryContentReady('notes')}
+              onStartupReady={reportNotesStartupReady}
+              onPrimaryContentReady={reportNotesPrimaryReady}
             />
           </Suspense>
         </div>
@@ -203,8 +226,8 @@ export function AppContentShell({
           <Suspense fallback={<StartupViewFallback onReady={onStartupFallbackReady} />}>
             <ChatView
               active={effectiveAppViewMode === 'chat'}
-              onStartupReady={() => onActiveViewReady('chat')}
-              onPrimaryContentReady={() => onPrimaryContentReady('chat')}
+              onStartupReady={reportChatStartupReady}
+              onPrimaryContentReady={reportChatPrimaryReady}
             />
           </Suspense>
         </div>
@@ -214,8 +237,19 @@ export function AppContentShell({
           <Suspense fallback={<StartupViewFallback onReady={onStartupFallbackReady} />}>
             <WhiteboardView
               active={effectiveAppViewMode === 'whiteboard'}
-              onStartupReady={() => onActiveViewReady('whiteboard')}
-              onPrimaryContentReady={() => onPrimaryContentReady('whiteboard')}
+              onStartupReady={reportWhiteboardStartupReady}
+              onPrimaryContentReady={reportWhiteboardPrimaryReady}
+            />
+          </Suspense>
+        </div>
+      ) : null}
+      {shouldMountGraph ? (
+        <div className={cn('h-full', effectiveAppViewMode !== 'graph' && 'hidden')} aria-hidden={effectiveAppViewMode !== 'graph'}>
+          <Suspense fallback={<StartupViewFallback onReady={onStartupFallbackReady} />}>
+            <GraphView
+              active={effectiveAppViewMode === 'graph'}
+              onStartupReady={reportGraphStartupReady}
+              onPrimaryContentReady={reportGraphPrimaryReady}
             />
           </Suspense>
         </div>

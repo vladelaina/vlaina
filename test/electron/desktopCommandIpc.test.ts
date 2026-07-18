@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -17,7 +17,7 @@ describe('desktop command ipc', () => {
   let tempDir = '';
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(path.join(os.tmpdir(), 'vlaina-command-ipc-'));
+    tempDir = await realpath(await mkdtemp(path.join(os.tmpdir(), 'vlaina-command-ipc-')));
     resetDesktopCommandsForTests();
   });
 

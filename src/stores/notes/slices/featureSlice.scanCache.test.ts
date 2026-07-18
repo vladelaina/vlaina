@@ -213,6 +213,93 @@ describe('featureSlice scan cache validation', () => {
     expect(store.getState().noteContentsCache.get(notePath)?.size).toBeNull();
   });
 
+  it('rereads a nonempty file when its cached scan content is empty', async () => {
+    mocks.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 7 });
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{
+          id: notePath,
+          name: 'alpha.md',
+          path: notePath,
+          isFolder: false,
+        }],
+      },
+      noteContentsCache: new Map([
+        [notePath, createCachedNoteContentEntry('', 2, { size: 7 })],
+      ]),
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(store.getState().noteContentsCache.get(notePath)?.content).toBe('# Disk!');
+  });
+
+  it('reads priority paths before ordinary paths', async () => {
+    const paths = Array.from({ length: 12 }, (_, index) => `note-${index}.md`);
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: paths.map((path) => ({
+          id: path,
+          name: path,
+          path,
+          isFolder: false as const,
+        })),
+      },
+    });
+
+    await store.getState().scanAllNotes({ priorityPaths: ['note-11.md', 'note-10.md'] });
+
+    expect(mocks.readFile.mock.calls.slice(0, 2).map(([path]) => path)).toEqual([
+      '/notesRoot/note-10.md',
+      '/notesRoot/note-11.md',
+    ]);
+  });
+
+  it('publishes priority content before the remaining scan finishes', async () => {
+    const paths = Array.from({ length: 40 }, (_, index) => `note-${index}.md`);
+    const priorityPaths = paths.slice(0, 32);
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: paths.map((path) => ({
+          id: path,
+          name: path,
+          path,
+          isFolder: false as const,
+        })),
+      },
+    });
+    let cacheAtPriorityReady!: NotesStore['noteContentsCache'];
+
+    await store.getState().scanAllNotes({
+      priorityPaths,
+      onPriorityPathsScanned: () => {
+        cacheAtPriorityReady = new Map(store.getState().noteContentsCache);
+      },
+    });
+
+    expect(cacheAtPriorityReady?.size).toBe(32);
+    expect(cacheAtPriorityReady?.has('note-0.md')).toBe(true);
+    expect(cacheAtPriorityReady?.has('note-39.md')).toBe(false);
+    expect(store.getState().noteContentsCache.size).toBe(40);
+  });
+
   it('does not spend full-notesRoot scan traversal priority on non-markdown siblings before markdown notes', async () => {
     const store = createNotesStore({
       rootFolder: {

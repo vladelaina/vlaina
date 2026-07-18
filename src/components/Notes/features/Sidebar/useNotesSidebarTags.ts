@@ -17,6 +17,7 @@ import {
 } from './useNotesSidebarTagContentCache';
 
 const TAG_SCAN_IDLE_DELAY_MS = 250;
+const EMPTY_STARRED_ENTRIES: StarredEntry[] = [];
 export const MAX_TAG_AUTO_SCAN_SCOPE_ENTRIES = 500;
 
 export {
@@ -30,7 +31,7 @@ export function useNotesSidebarTags({
   noteContentsCacheRevision = 0,
   liveNoteContent,
   scanAllNotes,
-  starredEntries = [],
+  starredEntries = EMPTY_STARRED_ENTRIES,
   currentNotesRootPath = null,
   active = true,
 }: {
@@ -76,6 +77,16 @@ export function useNotesSidebarTags({
     ),
     [liveNoteContent?.path, noteContentsCache, scopeEntries],
   );
+  const missingIndexedContentCount = useMemo(
+    () => scopeEntries.filter(
+      (entry) =>
+        liveNoteContent?.path !== entry.path &&
+        !noteContentsCache.has(entry.path),
+    ).length,
+    [liveNoteContent?.path, noteContentsCache, scopeEntries],
+  );
+  const shouldUseDirectReads = missingIndexedContentCount > 0
+    && missingIndexedContentCount <= MAX_TAG_DIRECT_READ_MISSING_PATHS;
   const sidebarTagContentCache = useNotesSidebarTagContentCache({
     active,
     currentNotesRootPath,
@@ -168,6 +179,7 @@ export function useNotesSidebarTags({
       !active ||
       scopeEntries.length === 0 ||
       scopeEntries.length > MAX_TAG_AUTO_SCAN_SCOPE_ENTRIES ||
+      shouldUseDirectReads ||
       isTagIndexReady
     ) {
       setIsTagScanPending(false);
@@ -219,7 +231,7 @@ export function useNotesSidebarTags({
     return () => {
       clearPendingScanTimer();
     };
-  }, [active, isTagIndexReady, scanAllNotes, scanCompletionRevision, scopeEntries]);
+  }, [active, isTagIndexReady, scanAllNotes, scanCompletionRevision, scopeEntries, shouldUseDirectReads]);
 
   useEffect(() => {
     return () => {

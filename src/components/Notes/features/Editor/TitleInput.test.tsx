@@ -206,6 +206,22 @@ describe('TitleInput', () => {
     expect(notesState.renameAbsoluteNote).not.toHaveBeenCalled();
   });
 
+  it('does not move focus when the composition session is active but keydown is not marked composing', () => {
+    const onEnter = vi.fn();
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" onEnter={onEnter} />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+    fireEvent.compositionStart(input);
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: false });
+
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(onEnter).not.toHaveBeenCalled();
+    expect(focusEditorMock.focusEditorToFirstLineEnd).not.toHaveBeenCalled();
+  });
+
   it('does not leave the title input on ArrowDown during IME composition', () => {
     render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 

@@ -26,13 +26,17 @@ import { codePlugin } from '../plugins/code/codePlugin';
 import { codeBlockPlugins } from '../plugins/code/codeKeymap';
 import { frontmatterPlugin } from '../plugins/frontmatter/frontmatterPlugin';
 import { videoPlugin } from '../plugins/video/videoPlugin';
-import { obsidianImageEmbedPlugin } from '../theme-compatibility/obsidian/imageEmbedPlugin';
+import {
+  obsidianImageEmbedInputPlugin,
+  obsidianImageEmbedPlugin,
+} from '../theme-compatibility/obsidian/imageEmbedPlugin';
 import { abbrPlugin } from '../plugins/abbr/abbrPlugin';
 import { taskListClickPlugin } from '../plugins/task-list/taskListClickPlugin';
 import { taskListCursorPlugin } from '../plugins/task-list/taskListCursorPlugin';
 import { listTabIndentPlugin } from '../plugins/task-list/listTabIndentPlugin';
 import { listCollapsePlugin } from '../plugins/collapse/listCollapse';
 import { markdownLinkPlugin } from '../plugins/links/markdown-link/markdownLinkPlugin';
+import { wikiLinkPlugin } from '../plugins/links/wiki-link';
 import { imageBlockPlugin } from '../plugins/image-block';
 import { imageUploadPlugin } from '../plugins/image-upload/imageUploadPlugin';
 import { textSelectionOverlayPlugin } from '../plugins/selection/textSelectionOverlayPlugin';
@@ -100,6 +104,7 @@ export const customPluginGroups = [
       autolinkPlugin,
       linkTooltipPlugin,
       markdownLinkPlugin,
+      ...wikiLinkPlugin,
     ],
   },
   {
@@ -115,6 +120,7 @@ export const customPluginGroups = [
       ...codePlugin,
       ...codeBlockPlugins,
       obsidianImageEmbedPlugin,
+      obsidianImageEmbedInputPlugin,
       ...videoPlugin,
       ...abbrPlugin,
     ],

@@ -118,6 +118,38 @@ describe('tocMarkdown', () => {
     expect(tree.children?.[0]).toBe(oversizedShortcut);
   });
 
+  it('preserves a TOC shortcut in the required first paragraph of a list item', () => {
+    const shortcut = textParagraph('[TOC]');
+    const tree: TocMdastNode = {
+      type: 'root',
+      children: [{
+        type: 'list',
+        children: [{ type: 'listItem', children: [shortcut] }],
+      }],
+    };
+
+    applyTocShortcutsToTree(tree);
+
+    expect(tree.children?.[0].children?.[0].children?.[0]).toBe(shortcut);
+  });
+
+  it('converts a TOC shortcut after the required first paragraph of a list item', () => {
+    const tree: TocMdastNode = {
+      type: 'root',
+      children: [{
+        type: 'list',
+        children: [{
+          type: 'listItem',
+          children: [textParagraph('Item'), textParagraph('[TOC]')],
+        }],
+      }],
+    };
+
+    applyTocShortcutsToTree(tree);
+
+    expect(tree.children?.[0].children?.[0].children?.[1].data?.hProperties?.dataType).toBe('toc');
+  });
+
   it('bounds TOC heading text copied into links', () => {
     const longHeading = 'A'.repeat(260);
     const tree: TocMdastNode = {

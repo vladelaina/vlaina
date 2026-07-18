@@ -5,6 +5,8 @@ import {
 import { $node, $prose } from '@milkdown/kit/utils';
 import {
   footnoteRefInputRule,
+  handleFootnoteDefinitionShortcutEnter,
+  handleFootnoteReferenceTextInput,
   hasNonBlankFootnoteRefInputPrefix,
   MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS,
 } from './footnoteInputRule';
@@ -111,12 +113,28 @@ export const footnoteInteractionPlugin = $prose(() => {
       };
     },
     props: {
+      handleTextInput(view, from, to, text) {
+        return handleFootnoteReferenceTextInput(view, from, to, text);
+      },
       handleKeyDown(view, event) {
         if (handleEmptyFootnoteDefinitionDelete(view, event)) {
           return true;
         }
 
         if (handleFootnoteArrowNavigation(view, event)) {
+          return true;
+        }
+
+        if (
+          event.key === 'Enter'
+          && !event.ctrlKey
+          && !event.metaKey
+          && !event.altKey
+          && !event.shiftKey
+          && !event.isComposing
+          && handleFootnoteDefinitionShortcutEnter(view)
+        ) {
+          event.preventDefault();
           return true;
         }
 

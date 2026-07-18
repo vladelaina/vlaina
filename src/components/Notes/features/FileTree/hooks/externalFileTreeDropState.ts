@@ -64,9 +64,10 @@ export function clearExternalFileTreeDropTarget() {
 export function useExternalFileTreeDropState<T>(
   selector: (state: ExternalFileTreeDropSnapshot) => T,
 ) {
-  return useSyncExternalStore(
+  const currentSnapshot = useSyncExternalStore(
     subscribe,
-    () => selector(getSnapshot()),
-    () => selector(getSnapshot()),
+    getSnapshot,
+    getSnapshot,
   );
+  return selector(currentSnapshot);
 }

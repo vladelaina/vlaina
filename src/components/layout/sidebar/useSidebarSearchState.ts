@@ -1,7 +1,5 @@
 import { useCallback, useState } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
-import type { SidebarSearchScope } from './sidebarEvents';
-
 export interface SidebarSearchState {
   isSearchOpen: boolean;
   searchQuery: string;
@@ -11,7 +9,7 @@ export interface SidebarSearchState {
   toggleSearch: () => void;
 }
 
-export function useSidebarSearchState(scope: SidebarSearchScope): SidebarSearchState {
+export function useSidebarSearchState(scope: 'notes' | 'chat'): SidebarSearchState {
   const isSearchOpen = useUIStore((state) =>
     scope === 'chat' ? state.chatSidebarSearchOpen : state.sidebarSearchOpen
   );

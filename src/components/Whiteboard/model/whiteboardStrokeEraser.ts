@@ -6,6 +6,7 @@ import {
   type WhiteboardStroke,
 } from './whiteboardModel';
 import type { WhiteboardEraserSample } from './whiteboardEraser';
+import { getStrokeBounds } from './whiteboardSelectionTransform';
 import { splitWhiteboardStrokeSegments } from './whiteboardStrokeSegments';
 
 interface StrokeEraserSweep {
@@ -22,12 +23,27 @@ export function eraseWhiteboardStrokes(
   if (sweeps.length === 0) return strokes;
   let changed = false;
   const next = strokes.flatMap((stroke) => {
+    if (!strokeMayIntersectSweep(stroke, sweeps)) return [stroke];
     const erased = eraseStroke(stroke, sweeps);
     if (erased === stroke) return [stroke];
     changed = true;
     return erased.points.length > 0 ? [erased] : [];
   });
   return changed ? splitWhiteboardStrokeSegments(next) : strokes;
+}
+
+function strokeMayIntersectSweep(stroke: WhiteboardStroke, sweeps: StrokeEraserSweep[]): boolean {
+  const bounds = getStrokeBounds(stroke);
+  if (!bounds) return false;
+  return sweeps.some((sweep) => {
+    const radius = sweep.radius;
+    const minX = Math.min(sweep.start.point.x, sweep.end.point.x) - radius;
+    const maxX = Math.max(sweep.start.point.x, sweep.end.point.x) + radius;
+    const minY = Math.min(sweep.start.point.y, sweep.end.point.y) - radius;
+    const maxY = Math.max(sweep.start.point.y, sweep.end.point.y) + radius;
+    return bounds.x <= maxX && bounds.x + bounds.width >= minX &&
+      bounds.y <= maxY && bounds.y + bounds.height >= minY;
+  });
 }
 
 function eraseStroke(stroke: WhiteboardStroke, sweeps: StrokeEraserSweep[]): WhiteboardStroke {

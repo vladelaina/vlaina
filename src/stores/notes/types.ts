@@ -115,6 +115,13 @@ export interface NoteContentCacheEntry {
   freshUntil?: number;
 }
 
+export interface ScanAllNotesOptions {
+  background?: boolean;
+  signal?: AbortSignal;
+  priorityPaths?: readonly string[];
+  onPriorityPathsScanned?: () => void;
+}
+
 export interface NotesState {
   rootFolder: FolderNode | null;
   rootFolderPath: string | null;
@@ -191,7 +198,7 @@ export interface NotesActions {
   navigateForwardInNoteHistory: () => Promise<void>;
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
-  scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<void>;
+  scanAllNotes: (options?: ScanAllNotesOptions) => Promise<void>;
   cancelNoteContentScan: () => void;
   pruneNoteContentsCacheToOpenNotes: () => void;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];

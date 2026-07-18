@@ -1,7 +1,51 @@
 import { describe, expect, it, vi } from 'vitest';
-import { saveMathEditorSession } from './mathEditorSessionActions';
+import { cancelMathEditorSession, saveMathEditorSession } from './mathEditorSessionActions';
 
 describe('mathEditorSessionActions', () => {
+  it('removes a new math block when cancelling after editing its draft', () => {
+    const transaction = {
+      delete: vi.fn(() => transaction),
+      setMeta: vi.fn(() => 'closed-transaction'),
+      setNodeMarkup: vi.fn(() => transaction),
+    };
+    const editorView = {
+      state: {
+        doc: {
+          nodeAt: vi.fn(() => ({
+            type: { name: 'math_block' },
+            attrs: { latex: '' },
+          })),
+        },
+        tr: transaction,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+
+    cancelMathEditorSession({
+      editorView: editorView as never,
+      refs: {
+        textareaElement: {
+          value: 'x + y',
+        } as HTMLTextAreaElement,
+        draftLatex: '',
+        initialLatex: '',
+      },
+      getEditorState: () => ({
+        isOpen: true,
+        nodePos: 4,
+        latex: '',
+        displayMode: true,
+        position: { x: 0, y: 0 },
+        openSource: 'new-empty-block',
+      }),
+      resetSessionDom: vi.fn(),
+    });
+
+    expect(transaction.delete).toHaveBeenCalledWith(4, 5);
+    expect(transaction.setNodeMarkup).not.toHaveBeenCalled();
+  });
+
   it('saves edited inline math latex back to the math node attrs', () => {
     const setNodeMarkup = vi.fn();
     const transaction = {

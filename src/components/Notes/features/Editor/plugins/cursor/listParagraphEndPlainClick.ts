@@ -25,7 +25,7 @@ export function resolveListParagraphEndPlainClick(
     const $pos = view.state.doc.resolve(pos);
     if (!$pos.parent.isTextblock) return null;
     if ($pos.parentOffset !== $pos.parent.content.size) return null;
-    const endCoords = view.coordsAtPos(pos, -1);
+    const endCoords = view.coordsAtPos(pos);
     if (event.clientX < endCoords.right + MIN_END_GAP_PX) return null;
 
     return {

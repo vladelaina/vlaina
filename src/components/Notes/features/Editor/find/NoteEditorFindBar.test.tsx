@@ -45,6 +45,10 @@ function createController(
     replaceAll: vi.fn(),
     handleQueryKeyDown: vi.fn(),
     handleReplaceKeyDown: vi.fn(),
+    handleQueryCompositionStart: vi.fn(),
+    handleQueryCompositionEnd: vi.fn(),
+    handleReplaceCompositionStart: vi.fn(),
+    handleReplaceCompositionEnd: vi.fn(),
     ...overrides,
   };
 }

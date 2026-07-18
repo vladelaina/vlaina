@@ -3,9 +3,11 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearCachedDesktopUpdateInfo, writeCachedDesktopUpdateInfo } from '@/lib/desktop/updateStatus';
 import { SettingsModal } from './SettingsModal';
+import { REQUEST_CLOSE_SETTINGS_EVENT } from './settingsEvents';
 
 const mocks = vi.hoisted(() => ({
   setTitleBarOverlayVisible: vi.fn().mockResolvedValue(false),
+  flushPendingSave: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('framer-motion', () => ({
@@ -80,6 +82,10 @@ vi.mock('@/lib/desktop/window', () => ({
   desktopWindow: {
     setTitleBarOverlayVisible: mocks.setTitleBarOverlayVisible,
   },
+}));
+
+vi.mock('@/lib/storage/unifiedStorage', () => ({
+  flushPendingSave: mocks.flushPendingSave,
 }));
 
 vi.mock('@/lib/i18n', () => ({
@@ -228,5 +234,44 @@ describe('SettingsModal', () => {
     fireEvent.wheel(scrollRoot!, { deltaY: 80 });
 
     expect(scrollRoot!.scrollTop).toBe(10);
+  });
+
+  it('flushes pending settings before closing', async () => {
+    let finishFlush: (() => void) | undefined;
+    mocks.flushPendingSave.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishFlush = resolve;
+    }));
+    const onClose = vi.fn();
+    render(
+      <SettingsModal
+        open
+        communitySettings={communitySettings}
+        onClose={onClose}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+
+    finishFlush?.();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it('routes shortcut close requests through the pending settings flush', async () => {
+    const onClose = vi.fn();
+    render(
+      <SettingsModal
+        open
+        communitySettings={communitySettings}
+        onClose={onClose}
+      />,
+    );
+
+    window.dispatchEvent(new Event(REQUEST_CLOSE_SETTINGS_EVENT));
+
+    await waitFor(() => expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

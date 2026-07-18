@@ -7,20 +7,20 @@ function readProjectFile(path: string) {
 }
 
 const syntaxVariables = [
-  '--vlaina-code-syntax-foreground',
-  '--vlaina-code-syntax-muted',
-  '--vlaina-code-syntax-keyword',
-  '--vlaina-code-syntax-name',
-  '--vlaina-code-syntax-function',
-  '--vlaina-code-syntax-constant',
-  '--vlaina-code-syntax-type',
-  '--vlaina-code-syntax-operator',
-  '--vlaina-code-syntax-string',
-  '--vlaina-code-syntax-variable',
-  '--vlaina-code-syntax-tag',
-  '--vlaina-code-syntax-markup',
-  '--vlaina-code-syntax-list',
-  '--vlaina-code-syntax-invalid',
+  '--vlaina-markdown-color-code-text',
+  '--vlaina-markdown-color-code-muted',
+  '--vlaina-markdown-color-code-keyword',
+  '--vlaina-markdown-color-code-name',
+  '--vlaina-markdown-color-code-function',
+  '--vlaina-markdown-color-code-constant',
+  '--vlaina-markdown-color-code-type',
+  '--vlaina-markdown-color-code-operator',
+  '--vlaina-markdown-color-code-string',
+  '--vlaina-markdown-color-code-variable',
+  '--vlaina-markdown-color-code-tag',
+  '--vlaina-markdown-color-code-markup',
+  '--vlaina-markdown-color-code-list',
+  '--vlaina-markdown-color-code-invalid',
 ];
 
 describe('shared code block theme', () => {
@@ -30,7 +30,7 @@ describe('shared code block theme', () => {
 
     expect(chatCodeBlock).not.toContain('highlight.js/styles');
     expect(chatCodeBlock).toContain('@/components/common/code-block');
-    expect(sharedChrome).toContain('--vlaina-code-block-background');
+    expect(sharedChrome).toContain('--vlaina-markdown-color-code-block-bg');
     expect(sharedChrome).toContain('.code-block-chrome-copy-button {');
     expect(sharedChrome).toContain('opacity: var(--vlaina-opacity-0);');
     expect(sharedChrome).toContain('pointer-events: none;');

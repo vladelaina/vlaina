@@ -123,6 +123,27 @@ function setScrollMetrics(
 }
 
 describe('ProviderModelsPanel', () => {
+  it('allows a model id to be added before a provider model catalog is fetched', () => {
+    const onAddAllVisible = vi.fn();
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          providerModels: [],
+          filteredProviderModels: [],
+          sortedFetchedModels: [],
+          filteredFetchedModels: [],
+          providerModelIdSet: new Set(),
+          quickAddModelId: 'manual-model',
+          onAddAllVisible,
+        })}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByPlaceholderText('Add a model ID'), { key: 'Enter' });
+
+    expect(onAddAllVisible).toHaveBeenCalledWith(['manual-model']);
+  });
+
   it('shows empty states when an active query matches nothing', () => {
     render(
       <ProviderModelsPanel

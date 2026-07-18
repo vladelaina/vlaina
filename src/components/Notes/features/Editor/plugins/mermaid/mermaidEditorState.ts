@@ -29,15 +29,12 @@ export function createOpenMermaidEditorState(args: {
   };
 }
 
-export function shouldDiscardEmptyMermaidNodeOnCancel(
-  state: MermaidEditorState | null | undefined,
-  draftCode: string
+export function shouldDiscardNewMermaidNodeOnCancel(
+  state: MermaidEditorState | null | undefined
 ) {
-  if (!state?.isOpen || state.openSource !== 'new-empty-block' || state.nodePos < 0) {
-    return false;
-  }
-
-  return !draftCode.trim() || draftCode.trim() === state.code.trim();
+  return Boolean(
+    state?.isOpen && state.openSource === 'new-empty-block' && state.nodePos >= 0
+  );
 }
 
 export function shouldRemoveMermaidNodeOnSave(

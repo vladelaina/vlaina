@@ -60,25 +60,8 @@ describe("editor rich block selection styles", () => {
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .code-block-editable,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .code-block-lazy-preview,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source .code-block-lazy-preview,');
-    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-header,');
-    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label,');
-    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {');
-    expect(css).toContain([
-      '.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label {',
-      '  display: inline !important;',
-      '  visibility: visible !important;',
-      '  opacity: 1 !important;',
-      '  color: var(--vlaina-markdown-color-code-muted) !important;',
-      '  -webkit-text-fill-color: currentColor !important;',
-      '}',
-    ].join('\n'));
-    expect(css).toContain([
-      '.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {',
-      '  opacity: var(--vlaina-opacity-0) !important;',
-      '  pointer-events: none !important;',
-      '  transform: none !important;',
-      '}',
-    ].join('\n'));
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-enabled :is(');
+    expect(css).not.toContain('editor-block-selection-pending');
     expect(css).not.toContain(".milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-line-numbers");
     expect(extractCssRule(
       css,
@@ -273,11 +256,20 @@ describe("editor rich block selection styles", () => {
     const codeCss = readStyleFile('code-block.css');
     const rule = extractCssRule(
       codeCss,
-      '.milkdown .ProseMirror.editor-block-selection-active :is('
+      [
+        '.milkdown .ProseMirror.editor-block-selection-enabled :is(',
+        '  .code-block-container.editor-block-selected,',
+        '  .code-block-container.editor-block-drag-source,',
+        '  .editor-block-selected .code-block-container,',
+        '  .code-block-container.editor-block-selected-contained',
+        ') :is(',
+        '  .code-block-chrome-header,',
+        '  .code-block-editable,',
+      ].join('\n')
     );
     const containedRule = extractCssRule(
       codeCss,
-      '.milkdown .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),'
+      '.milkdown .ProseMirror.editor-block-selection-enabled .editor-block-selected .code-block-container:not(.editor-block-selected),'
     );
     const largeCodeRule = extractCssRule(
       codeCss,
@@ -289,17 +281,19 @@ describe("editor rich block selection styles", () => {
     );
     const borderRule = extractCssRule(
       codeCss,
-      '.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is('
+      '.milkdown .ProseMirror.editor-block-selection-enabled :is('
     );
     const foregroundRule = extractCssRule(
       codeCss,
       [
-        '.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(',
+        '.milkdown .ProseMirror.editor-block-selection-enabled :is(',
         '  .code-block-container.editor-block-selected,',
         '  .code-block-container.editor-block-drag-source,',
         '  .editor-block-selected .code-block-container,',
         '  .code-block-container.editor-block-selected-contained',
         ') :is(',
+        '  .code-block-chrome-header,',
+        '  .code-block-chrome-language,',
       ].join('\n')
     );
 
@@ -318,7 +312,7 @@ describe("editor rich block selection styles", () => {
     expect(rule).toContain('.cm-gutters,');
     expect(rule).toContain('background: transparent !important;');
     expect(rule).toContain('background-color: transparent !important;');
-    expect(codeCss).toContain('.milkdown .ProseMirror.editor-block-selection-pending :is(');
+    expect(codeCss).not.toContain('editor-block-selection-pending');
     expect(containedRule).toContain('.code-block-container.editor-block-selected-contained');
     expect(containedRule).toContain('background: transparent !important;');
     expect(containedRule).toContain('background-color: transparent !important;');
@@ -387,8 +381,14 @@ describe("editor rich block selection styles", () => {
       ".milkdown [data-type='html-block'].md-htmlblock-container.md-htmlblock-literal-text:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-rendered-html-boundary-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
     );
     const atomicBlockFrameRule = extractCssRule(blockSelectionCss, atomicBlockSelectorMarker);
-    const atomicBlockFillRule = extractCssRule(
+    const atomicTransparentFrameRule = extractCssRule(
       blockSelectionCss.slice(blockSelectionCss.indexOf(atomicBlockFrameRule) + atomicBlockFrameRule.length),
+      atomicBlockSelectorMarker
+    );
+    const atomicBlockFillRule = extractCssRule(
+      blockSelectionCss.slice(
+        blockSelectionCss.indexOf(atomicTransparentFrameRule) + atomicTransparentFrameRule.length
+      ),
       atomicBlockSelectorMarker
     );
     const atomicBlockNextGapRule = extractCssRule(
@@ -419,7 +419,7 @@ describe("editor rich block selection styles", () => {
     );
     const atomicMermaidBackgroundRule = extractCssRule(
       blockSelectionCss,
-      ".milkdown .ProseMirror .mermaid-block[data-type='mermaid'].mermaid-block.mermaid-block.mermaid-block:is(\n  .editor-block-selected,"
+      ".milkdown .ProseMirror .mermaid-block[data-type='mermaid']:is(\n  .editor-block-selected,"
     );
     const atomicMermaidOverflowRule = extractCssRule(
       blockSelectionCss,
@@ -437,6 +437,9 @@ describe("editor rich block selection styles", () => {
     expect(indexCss.indexOf("@import './math-editor.css';")).toBeGreaterThanOrEqual(0);
     expect(indexCss.indexOf("@import './block-selection-atomic-rich.css';")).toBeGreaterThan(
       indexCss.indexOf("@import './math-editor.css';")
+    );
+    expect(indexCss.indexOf("@import './block-selection-atomic-rich.css';")).toBeGreaterThan(
+      indexCss.indexOf("@import './theme-compatibility.css';")
     );
     expect(htmlBlockRule).toContain('overflow-x: auto;');
     expect(htmlBlockRule).toContain('white-space: normal;');
@@ -474,8 +477,10 @@ describe("editor rich block selection styles", () => {
     expect(atomicBlockFrameRule).toContain('isolation: isolate;');
     expect(atomicBlockFrameRule).toContain('position: relative;');
     expect(atomicBlockFrameRule).toContain('z-index: var(--vlaina-z-1);');
-    expect(atomicBlockFrameRule).toContain('background: transparent !important;');
-    expect(atomicBlockFrameRule).toContain('background-color: transparent !important;');
+    expect(atomicBlockFrameRule).not.toContain('background: transparent !important;');
+    expect(atomicTransparentFrameRule).not.toContain('.mermaid-block');
+    expect(atomicTransparentFrameRule).toContain('background: transparent !important;');
+    expect(atomicTransparentFrameRule).toContain('background-color: transparent !important;');
     expect(atomicBlockFrameRule).toContain('overflow: visible;');
     expect(atomicBlockFrameRule).toContain('overflow-x: visible;');
     expect(atomicBlockFrameRule).toContain('overflow-y: visible;');
@@ -590,9 +595,8 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
     expect(blockSelectionCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *):not(a):not(a *):not(.external-link):not(.external-link *):not(.internal-link):not(.internal-link *):not(.editor-raw-markdown-link-text):not(.editor-raw-markdown-link-text *) {');
     expect(blockSelectionCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected * {');
-    expect(mathCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected,\n.milkdown .ProseMirror.editor-block-selection-pending');
-    expect(mathCss).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {');
-    expect(mathCss).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
+    expect(mathCss).not.toContain('editor-block-selection-pending');
+    expect(mathCss).toContain('.milkdown .ProseMirror.editor-block-selection-enabled :is(');
     expect(richChildLists).toHaveLength(4);
     for (const list of richChildLists) {
       expect(list).toEqual(expectedRichChildList);

@@ -1,4 +1,4 @@
-import type { KeyboardEventHandler, RefObject } from 'react';
+import type { CompositionEventHandler, KeyboardEventHandler, RefObject } from 'react';
 
 export interface NoteEditorFindController {
   isOpen: boolean;
@@ -22,4 +22,8 @@ export interface NoteEditorFindController {
   replaceAll: () => void;
   handleQueryKeyDown: KeyboardEventHandler<HTMLInputElement>;
   handleReplaceKeyDown: KeyboardEventHandler<HTMLInputElement>;
+  handleQueryCompositionStart: CompositionEventHandler<HTMLInputElement>;
+  handleQueryCompositionEnd: CompositionEventHandler<HTMLInputElement>;
+  handleReplaceCompositionStart: CompositionEventHandler<HTMLInputElement>;
+  handleReplaceCompositionEnd: CompositionEventHandler<HTMLInputElement>;
 }

@@ -1,4 +1,4 @@
-export type WindowLaunchViewMode = 'notes' | 'chat' | 'whiteboard' | 'lab';
+export type WindowLaunchViewMode = 'notes' | 'chat' | 'whiteboard' | 'graph' | 'lab';
 
 export interface WindowLaunchContext {
   isNewWindow: boolean;
@@ -27,7 +27,7 @@ function normalizeLaunchViewMode(value: string | null | undefined): WindowLaunch
     return value;
   }
 
-  if (value === 'whiteboard' || (import.meta.env.DEV && value === 'lab')) {
+  if (value === 'whiteboard' || value === 'graph' || (import.meta.env.DEV && value === 'lab')) {
     return value;
   }
 

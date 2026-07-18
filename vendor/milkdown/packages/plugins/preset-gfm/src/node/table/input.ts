@@ -1,8 +1,7 @@
 import { commandsCtx } from '@milkdown/core'
-import { paragraphSchema } from '@milkdown/preset-commonmark'
 import { InputRule } from '@milkdown/prose/inputrules'
 import { Fragment, Slice } from '@milkdown/prose/model'
-import { TextSelection, type Command } from '@milkdown/prose/state'
+import { TextSelection } from '@milkdown/prose/state'
 import { $inputRule, $pasteRule, $useKeymap } from '@milkdown/utils'
 
 import { withMeta } from '../../__internal__'
@@ -12,10 +11,11 @@ import {
   goToPrevTableCellCommand,
 } from './command'
 import {
-  tableCellSchema,
-  tableHeaderRowSchema,
+  createTableFromMarkdownDelimiter,
+  createTableFromPipeShortcut,
+} from './pipe-table-input'
+import {
   tableHeaderSchema,
-  tableRowSchema,
   tableSchema,
 } from './schema'
 import { createTable, MAX_CREATED_TABLE_COLS } from './utils'
@@ -24,107 +24,6 @@ const normalizeTableShortcutNumber = (value: string) =>
   value.replace(/[０-９]/g, (char) =>
     String.fromCharCode(char.charCodeAt(0) - 0xfee0)
   )
-
-const tablePipeCellPattern = /[|｜]/
-const MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS = 1024
-
-function getPipeShortcutCells(text: string): string[] | null {
-  if (text.length > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return null
-
-  const trimmed = text.trim()
-  if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return null
-  if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return null
-
-  const cells = trimmed
-    .split(tablePipeCellPattern)
-    .slice(1, -1)
-    .map((cell) => cell.trim())
-
-  if (cells.length > MAX_CREATED_TABLE_COLS) return null
-
-  return cells.length >= 2 ? cells : null
-}
-
-function getPipeShortcutColumnCount(text: string): number | null {
-  const cells = getPipeShortcutCells(text)?.filter((cell) => cell.length > 0)
-
-  return cells && cells.length >= 2 ? cells.length : null
-}
-
-function shouldCreateTableFromPipeShortcut(text: string): boolean {
-  const trimmed = text.trim()
-  if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return false
-  if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return false
-
-  const rawCells = trimmed.split(tablePipeCellPattern).slice(1, -1)
-  const nonEmptyCells = rawCells.filter((cell) => cell.trim().length > 0)
-  if (nonEmptyCells.length < 2) return false
-
-  return nonEmptyCells.every((cell) => cell === cell.trim())
-}
-
-function createTableFromPipeCells(
-  ctx: Parameters<typeof createTable>[0],
-  state: Parameters<Command>[0],
-  cells: string[]
-) {
-  const paragraph = paragraphSchema.type(ctx)
-  const headerCells = cells.map((cell) =>
-    tableHeaderSchema.type(ctx).create(
-      null,
-      paragraph.create(null, cell.length > 0 ? state.schema.text(cell) : undefined)
-    )
-  )
-  const bodyCells = Array(cells.length)
-    .fill(0)
-    .map(() => tableCellSchema.type(ctx).createAndFill()!)
-
-  return tableSchema.type(ctx).create(null, [
-    tableHeaderRowSchema.type(ctx).create(null, headerCells),
-    tableRowSchema.type(ctx).create(null, bodyCells),
-  ])
-}
-
-function createTableFromPipeShortcut(ctx: Parameters<typeof createTable>[0]): Command {
-  return (state, dispatch) => {
-    const { selection } = state
-    if (!(selection instanceof TextSelection) || !selection.empty) return false
-
-    const { $from } = selection
-    if ($from.parent.type !== paragraphSchema.type(ctx)) return false
-    if ($from.parentOffset !== $from.parent.content.size) return false
-    if ($from.depth < 1) return false
-    if ($from.parent.content.size > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return false
-
-    const text = $from.parent.textBetween(0, $from.parent.content.size, '', '')
-    if (!shouldCreateTableFromPipeShortcut(text)) return false
-
-    const cells = getPipeShortcutCells(text)
-    if (!cells || cells.filter((cell) => cell.length > 0).length < 2) return false
-
-    const parent = $from.node($from.depth - 1)
-    if (
-      !parent.canReplaceWith(
-        $from.index($from.depth - 1),
-        $from.indexAfter($from.depth - 1),
-        tableSchema.type(ctx)
-      )
-    ) {
-      return false
-    }
-
-    const tableNode = createTableFromPipeCells(ctx, state, cells)
-    const from = $from.before($from.depth)
-    const to = $from.after($from.depth)
-    const tr = state.tr.replaceRangeWith(from, to, tableNode)
-
-    dispatch?.(
-      tr.setSelection(TextSelection.create(tr.doc, from + 3)).scrollIntoView()
-    )
-
-    return true
-  }
-}
 
 /// A input rule for creating table.
 /// For example, `|2x2|` will create a 2x2 table.
@@ -236,6 +135,11 @@ withMeta(tablePasteRule, {
 /// - `<Mod-[>`/`<Shift-Tab>`: Move to the previous cell.
 /// - `<Mod-Enter>`: Exit the table, and break it if possible.
 export const tableKeymap = $useKeymap('tableKeymap', {
+  CreateTableFromMarkdownDelimiter: {
+    priority: 1100,
+    shortcuts: 'Enter',
+    command: (ctx) => createTableFromMarkdownDelimiter(ctx),
+  },
   CreateTableFromPipeShortcut: {
     priority: 1000,
     shortcuts: 'Enter',

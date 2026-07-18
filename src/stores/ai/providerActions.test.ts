@@ -778,6 +778,31 @@ describe('refreshManagedProviderInBackground', () => {
     expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['startup-model']);
   });
 
+  it('shares an in-flight startup catalog refresh with concurrent callers', async () => {
+    vi.setSystemTime(managedRefreshTestNow + 10 * 60 * 1000);
+    let resolveCatalog!: (catalog: ReturnType<typeof buildCatalog>) => void;
+    fetchManagedModelsMock.mockReturnValue(new Promise((resolve) => {
+      resolveCatalog = resolve;
+    }));
+
+    const firstSync = managedProviderSync.syncFromStartup();
+    const secondSync = managedProviderSync.syncFromStartup();
+
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+    resolveCatalog(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::shared-startup-model',
+        apiModelId: 'shared-startup-model',
+        name: 'Shared Startup Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+    await Promise.all([firstSync, secondSync]);
+
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId))
+      .toEqual(['shared-startup-model']);
+  });
+
   it('reapplies the managed catalog when a later store reload removes it', async () => {
     vi.setSystemTime(managedRefreshTestNow + 10 * 60 * 1000);
     fetchManagedModelsMock.mockResolvedValue(buildCatalog([

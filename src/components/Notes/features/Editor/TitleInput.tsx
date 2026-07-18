@@ -208,7 +208,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
   }, []);
 
   const handleKeyDown = useCallback(async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.nativeEvent.isComposing) {
+    if (e.nativeEvent.isComposing || isComposingRef.current) {
       return;
     }
 

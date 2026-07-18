@@ -3,8 +3,54 @@ import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { isBackslashHardBreakSourceTextNode, isNonInlineHardBreakNode } from './backslashHardBreakNodes';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 export const backslashHardBreakCursorPluginKey = new PluginKey('backslashHardBreakCursor');
+const MAX_TYPED_BACKSLASH_RUN_CHARS = 256;
+
+export function handleTypedBackslashHardBreakEnter(view: EditorView, event: KeyboardEvent): boolean {
+  if (
+    event.key !== 'Enter'
+    || event.shiftKey
+    || event.altKey
+    || event.metaKey
+    || event.ctrlKey
+    || event.isComposing
+    || !view.state.selection.empty
+  ) {
+    return false;
+  }
+
+  const { state } = view;
+  const { selection } = state;
+  const parent = selection.$from.parent;
+  if (!parent.inlineContent || parent.type.spec.code || selection.$from.parentOffset === 0) {
+    return false;
+  }
+
+  const scanFrom = Math.max(0, selection.$from.parentOffset - MAX_TYPED_BACKSLASH_RUN_CHARS);
+  const textBefore = parent.textBetween(scanFrom, selection.$from.parentOffset, '', '');
+  const slashRun = /\\+$/.exec(textBefore)?.[0];
+  if (!slashRun || slashRun.length % 2 === 0) return false;
+  if (scanFrom > 0 && slashRun.length === MAX_TYPED_BACKSLASH_RUN_CHARS) return false;
+  if (textBefore.slice(0, -slashRun.length).trim() === '') return false;
+
+  const sourceMark = state.schema.marks.backslash_hard_break_source_text;
+  const hardbreakType = state.schema.nodes.hardbreak;
+  if (!sourceMark || !hardbreakType) return false;
+
+  const slashPos = selection.from - 1;
+  let tr = state.tr
+    .addMark(slashPos, selection.from, sourceMark.create())
+    .insert(selection.from, hardbreakType.create({ isInline: false }));
+  tr = tr
+    .setSelection(TextSelection.create(tr.doc, selection.from + 1))
+    .scrollIntoView();
+  markEditorUserInput(view);
+  view.dispatch(tr);
+  event.preventDefault();
+  return true;
+}
 
 const TEXT_BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6';
 
@@ -213,6 +259,7 @@ export const backslashHardBreakCursorPlugin = $prose(() => new Plugin({
       },
     },
     handleKeyDown(view, event) {
+      if (handleTypedBackslashHardBreakEnter(view, event)) return true;
       return handleBackslashHardBreakArrowLeft(view, event);
     },
   },

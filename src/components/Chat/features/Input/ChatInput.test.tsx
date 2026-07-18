@@ -227,7 +227,7 @@ describe('ChatInput', () => {
     expect(banner).not.toHaveClass('absolute');
   });
 
-  it('renders computer command approval above the composer', () => {
+  it('anchors computer command approval above the composer without changing its flow height', () => {
     publishComputerCommandApproval('approval-1', {
       command: 'uname -a',
       cwd: '/tmp/project',
@@ -238,14 +238,21 @@ describe('ChatInput', () => {
     });
     const { container } = renderChatInput();
 
-    const approval = container.querySelector('[data-computer-command-approval="true"]');
-    const composer = container.querySelector('[data-chat-input="true"]');
+    const approval = container.querySelector<HTMLElement>('[data-computer-command-approval="true"]');
+    const approvalFrame = container.querySelector<HTMLElement>('[data-computer-command-approval-frame="true"]');
+    const composer = container.querySelector<HTMLElement>('[data-chat-input="true"]');
     expect(approval).not.toBeNull();
+    expect(approvalFrame).not.toBeNull();
     expect(composer).not.toBeNull();
-    if (!approval || !composer) throw new Error('Expected approval and composer elements.');
-    expect(approval.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(composer.parentElement).toHaveClass('bg-[var(--vlaina-color-accent-soft)]');
-    expect(composer.parentElement).toHaveClass('overflow-hidden');
+    if (!approval || !approvalFrame || !composer) {
+      throw new Error('Expected approval frame, approval controls, and composer elements.');
+    }
+    expect(approvalFrame).toContainElement(approval);
+    expect(approvalFrame.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(approvalFrame).toHaveClass('absolute');
+    expect(approvalFrame).toHaveClass('bottom-[var(--vlaina-offset-computer-command-approval)]');
+    expect(approvalFrame).toHaveClass('bg-[var(--vlaina-color-accent-soft)]');
+    expect(composer).toHaveClass('!shadow-none');
     expect(screen.getByRole('button', { name: 'chat.computerUse.runOnce' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'chat.computerUse.alwaysRun' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'common.cancel' })).toBeInTheDocument();
@@ -256,6 +263,43 @@ describe('ChatInput', () => {
     ].includes(item.textContent || ''))) {
       expect(button).toHaveClass('!rounded-[var(--vlaina-radius-pill)]');
     }
+  });
+
+  it('keeps the approval overlay outside the quota frame clipping boundary', () => {
+    publishComputerCommandApproval('approval-1', {
+      command: 'uname -a',
+      cwd: '/tmp/project',
+      purpose: 'Inspect the system',
+      timeoutSeconds: 600,
+      risk: 'standard',
+      canAlwaysAllow: true,
+    });
+    const { container } = renderChatInput({ isManagedQuotaExhausted: true });
+
+    const approvalFrame = container.querySelector<HTMLElement>('[data-computer-command-approval-frame="true"]');
+    const composer = container.querySelector<HTMLElement>('[data-chat-input="true"]');
+    if (!approvalFrame || !composer?.parentElement) {
+      throw new Error('Expected approval and quota frames.');
+    }
+
+    const quotaFrame = composer.parentElement;
+    expect(quotaFrame).toHaveClass('overflow-hidden');
+    expect(quotaFrame).not.toContainElement(approvalFrame);
+    expect(approvalFrame.parentElement).toContainElement(quotaFrame);
+  });
+
+  it('does not show pending approval controls in an inactive chat input', () => {
+    publishComputerCommandApproval('approval-1', {
+      command: 'uname -a',
+      cwd: '/tmp/project',
+      purpose: 'Inspect the system',
+      timeoutSeconds: 600,
+      risk: 'standard',
+      canAlwaysAllow: true,
+    });
+    const { container } = renderChatInput({ active: false });
+
+    expect(container.querySelector('[data-computer-command-approval-frame="true"]')).toBeNull();
   });
 
   it('adds a note mention when a file tree item is dropped into chat', async () => {

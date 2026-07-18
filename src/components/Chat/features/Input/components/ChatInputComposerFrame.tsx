@@ -154,26 +154,37 @@ export function ChatInputComposerFrame({
         onChange={handleHiddenFileInputChange}
       />
 
-      <div className={cn('relative z-[var(--vlaina-z-10)]', hasComposerNotice && managedQuotaNoticeFrameClass)}>
-        {hasComputerCommandApproval ? <ComputerCommandApprovalNotice /> : null}
-        <div
-          data-chat-input="true"
-          ref={composerRootRef}
-          className={cn(
-            'relative z-[var(--vlaina-z-10)]',
-            chatComposerFrameClass,
-            chatComposerSurfaceClass,
-            hasComposerNotice && [
-              '!shadow-none',
-              'hover:!shadow-none',
-            ]
-          )}
-          onDragEnter={onDragEnter}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDropCapture={onComposerDropCapture}
-          onDrop={onComposerDrop}
-        >
+      <div className="relative z-[var(--vlaina-z-10)]">
+        {hasComputerCommandApproval ? (
+          <div
+            data-computer-command-approval-frame="true"
+            className={cn(
+              managedQuotaNoticeFrameClass,
+              'pointer-events-auto absolute inset-x-0 bottom-[var(--vlaina-offset-computer-command-approval)] z-[var(--vlaina-z-0)] pb-[var(--vlaina-space-12px)]',
+            )}
+          >
+            <ComputerCommandApprovalNotice />
+          </div>
+        ) : null}
+        <div className={cn(isQuotaSendBlocked && managedQuotaNoticeFrameClass)}>
+          <div
+            data-chat-input="true"
+            ref={composerRootRef}
+            className={cn(
+              'relative z-[var(--vlaina-z-10)]',
+              chatComposerFrameClass,
+              chatComposerSurfaceClass,
+              hasComposerNotice && [
+                '!shadow-none',
+                'hover:!shadow-none',
+              ]
+            )}
+            onDragEnter={onDragEnter}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDropCapture={onComposerDropCapture}
+            onDrop={onComposerDrop}
+          >
           {(isDragging || isBlockDropActive || isFileTreeDropActive) && (
             <div
               className={cn(
@@ -255,8 +266,9 @@ export function ChatInputComposerFrame({
               onSend={onSend}
             />
           </div>
+          </div>
+          {isQuotaSendBlocked && <ManagedQuotaNotice />}
         </div>
-        {isQuotaSendBlocked && <ManagedQuotaNotice />}
       </div>
     </>
   );

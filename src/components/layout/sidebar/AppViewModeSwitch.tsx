@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { themeIconTokens, themeMotionTokens } from '@/styles/themeTokens';
 
-type SwitchableAppViewMode = 'notes' | 'chat' | 'whiteboard';
+type SwitchableAppViewMode = 'notes' | 'chat' | 'whiteboard' | 'graph';
 
 export function AppViewModeSwitch() {
   const { t } = useI18n();
@@ -34,14 +34,19 @@ export function AppViewModeSwitch() {
       icon: <Icon name="file.text" size={themeIconTokens.sizeCompact} />,
     },
     {
-      key: 'chat' as const,
-      label: t('app.viewChat'),
-      icon: <Icon name="common.shootingStar" size={themeIconTokens.sizeCompact} />,
+      key: 'graph' as const,
+      label: t('app.viewGraph'),
+      icon: <Icon name="graph.network" size={themeIconTokens.sizeCompact} />,
     },
     {
       key: 'whiteboard' as const,
       label: t('app.viewWhiteboard'),
       icon: <Icon name="editor.diagram" size={themeIconTokens.sizeCompact} />,
+    },
+    {
+      key: 'chat' as const,
+      label: t('app.viewChat'),
+      icon: <Icon name="common.shootingStar" size={themeIconTokens.sizeCompact} />,
     },
   ];
   if (!options.some((option) => option.key === appViewMode)) return null;

@@ -392,6 +392,109 @@ async function expectFullMarkdownSyntaxFixtureCoverage(page: Page) {
 test.describe('notes markdown syntax rendering', () => {
   test.setTimeout(120_000);
 
+  test('creates supported custom syntax from real keyboard input', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-markdown-typed-syntax');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      const openEmptyFixture = async (filename: string) => {
+        await openMarkdownFixture(page, { filename, content: '' });
+        await page.locator(EDITOR_SELECTOR).click({ position: { x: 24, y: 24 } });
+      };
+
+      await openEmptyFixture('typed-frontmatter.md');
+      await page.keyboard.type('---');
+      await page.keyboard.press('Enter');
+      await expect(page.locator(`${EDITOR_SELECTOR} .frontmatter-block-container`)).toHaveCount(1);
+
+      await openEmptyFixture('typed-toc.md');
+      await page.keyboard.type('[TOC]');
+      await page.keyboard.press('Enter');
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="toc"]`)).toHaveCount(1);
+
+      await openEmptyFixture('typed-math-block.md');
+      await page.keyboard.type('$$');
+      await page.keyboard.press('Enter');
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="math-block"]`)).toHaveCount(1);
+
+      await openEmptyFixture('typed-mermaid.md');
+      await page.keyboard.type('```mermaid');
+      await page.keyboard.press('Enter');
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`)).toHaveCount(1);
+
+      await openEmptyFixture('typed-callout.md');
+      await page.keyboard.type('> ');
+      await page.keyboard.type('💡 Typed callout sentinel');
+      await page.keyboard.press('Enter');
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="callout"]`, {
+        hasText: 'Typed callout sentinel',
+      })).toHaveCount(1);
+
+      await openEmptyFixture('typed-video.md');
+      await page.keyboard.type('![video](https://example.com/typed-video.mp4)');
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="video"]`)).toHaveCount(1);
+
+      await openEmptyFixture('typed-images.md');
+      await page.keyboard.type('![Typed image](https://example.com/typed-image.png)');
+      await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Typed image"]`)).toHaveCount(1);
+      await page.keyboard.type(' and ![[attachments/typed.png|Typed Obsidian image]]');
+      await expect(page.locator(
+        `${EDITOR_SELECTOR} .image-block-container[data-alt="Typed Obsidian image"]`,
+      )).toHaveCount(1);
+
+      await openEmptyFixture('typed-footnotes.md');
+      await page.keyboard.type('Reference [^typed-ref]');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('[^typed-ref]: Typed footnote body');
+      await page.keyboard.press('Enter');
+      await expect(page.locator(`${EDITOR_SELECTOR} sup.footnote-ref`)).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} div.footnote-def`, {
+        hasText: 'Typed footnote body',
+      })).toHaveCount(1);
+
+      await openEmptyFixture('typed-inline-syntax.md');
+      await page.keyboard.type([
+        '**Typed strong**',
+        '*Typed emphasis*',
+        '~~Typed strike~~',
+        '`typed-code`',
+        '==Typed highlight==',
+        '++Typed underline++',
+        'X^typed-sup^',
+        'H~typed-sub~O',
+        '$typed_math$',
+        '[Typed link](https://example.com/typed-link)',
+        'https://www.example.com ',
+        '#typed/tag',
+      ].join(' '));
+      await expect(page.locator(`${EDITOR_SELECTOR} strong`, { hasText: 'Typed strong' })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} em`, { hasText: 'Typed emphasis' })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} s, ${EDITOR_SELECTOR} del`, {
+        hasText: 'Typed strike',
+      })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} code`, { hasText: 'typed-code' })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} mark`, { hasText: 'Typed highlight' })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} u`, { hasText: 'Typed underline' })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} sup`, { hasText: 'typed-sup' })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} sub`, { hasText: 'typed-sub' })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} span[data-type="math-inline"]`)).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} a[href="https://example.com/typed-link"]`, {
+        hasText: 'Typed link',
+      })).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="https://www.example.com"]`)).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-editor-tag-token="true"]`, {
+        hasText: '#typed/tag',
+      })).toHaveCount(1);
+
+      const metrics = await collectEditorDomMetrics(page);
+      expect(metrics.countsBySelector.sourceFallback).toBe(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('renders supported markdown syntax as Milkdown blocks and keeps block selection usable', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-markdown-syntax');
 

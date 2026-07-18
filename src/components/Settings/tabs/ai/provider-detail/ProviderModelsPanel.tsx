@@ -197,17 +197,15 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
             />
           ) : null}
 
-          {hasFetchedModels ? (
-            <ProviderQuickAdd
-              value={props.quickAddModelId}
-              error={props.quickAddError}
-              sortedFetchedModels={props.sortedFetchedModels}
-              providerModelIdSet={props.providerModelIdSet}
-              onValueChange={props.onQuickAddModelIdChange}
-              onAddAllVisible={props.onAddAllVisible}
-              onSetError={props.onSetQuickAddError}
-            />
-          ) : null}
+          <ProviderQuickAdd
+            value={props.quickAddModelId}
+            error={props.quickAddError}
+            sortedFetchedModels={props.sortedFetchedModels}
+            providerModelIdSet={props.providerModelIdSet}
+            onValueChange={props.onQuickAddModelIdChange}
+            onAddAllVisible={props.onAddAllVisible}
+            onSetError={props.onSetQuickAddError}
+          />
 
           {props.quickAddError ? (
             <div className="text-[var(--vlaina-font-xs)] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.quickAddError}</div>

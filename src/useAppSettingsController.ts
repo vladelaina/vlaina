@@ -6,6 +6,7 @@ import {
 } from '@/components/Settings/tabs/aboutCommunitySettings';
 import {
   OPEN_SETTINGS_EVENT,
+  REQUEST_CLOSE_SETTINGS_EVENT,
   resolveSettingsOpenTab,
   type OpenSettingsDetail,
   type SettingsOpenTab,
@@ -34,14 +35,20 @@ export function useAppSettingsController() {
       }
       setSettingsOpen(true);
     };
-    const handleToggleSettings = () => setSettingsOpen((open) => !open);
+    const handleToggleSettings = () => {
+      if (settingsOpen) {
+        window.dispatchEvent(new Event(REQUEST_CLOSE_SETTINGS_EVENT));
+        return;
+      }
+      setSettingsOpen(true);
+    };
     window.addEventListener(OPEN_SETTINGS_EVENT, handleOpenSettings);
     window.addEventListener('toggle-settings', handleToggleSettings);
     return () => {
       window.removeEventListener(OPEN_SETTINGS_EVENT, handleOpenSettings);
       window.removeEventListener('toggle-settings', handleToggleSettings);
     };
-  }, []);
+  }, [settingsOpen]);
 
   const closeSettings = useCallback(() => {
     setSettingsOpen(false);

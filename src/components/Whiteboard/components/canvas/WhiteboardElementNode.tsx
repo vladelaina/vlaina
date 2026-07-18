@@ -7,6 +7,7 @@ interface WhiteboardElementNodeProps {
   element: WhiteboardElement;
   erasing?: boolean;
   selected: boolean;
+  showSelectionBorder: boolean;
   tool: WhiteboardTool;
   onPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
 }
@@ -15,6 +16,7 @@ export const WhiteboardElementNode = memo(function WhiteboardElementNode({
   element,
   erasing = false,
   selected,
+  showSelectionBorder,
   tool,
   onPointerDown,
 }: WhiteboardElementNodeProps) {
@@ -28,7 +30,7 @@ export const WhiteboardElementNode = memo(function WhiteboardElementNode({
       )}
       onPointerDown={(event) => onPointerDown(event, element)}
       style={{
-        borderColor: selected
+        borderColor: showSelectionBorder
           ? 'var(--vlaina-color-whiteboard-selected)'
           : 'var(--vlaina-color-whiteboard-element-border)',
         height: element.height,

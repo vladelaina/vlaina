@@ -7,7 +7,10 @@ import {
 } from '@/stores/notes/pendingEditorMarkdown';
 import { hasCommittedCompositionText } from '../utils/compositionMarkdown';
 import { serializeEditorMarkdownSnapshot } from '../utils/pendingMarkdownUpdate';
-import type { PendingMarkdownSnapshot } from './pendingMarkdownAutosaveTypes';
+import type {
+  CompositionStartSelection,
+  PendingMarkdownSnapshot,
+} from './pendingMarkdownAutosaveTypes';
 
 interface MilkdownToken<T> {
   readonly __milkdownType?: T;
@@ -33,7 +36,9 @@ interface PendingMarkdownFlusherOptions {
   isCompositionActiveRef: RefObject<boolean>;
   deferredCompositionMarkdownRef: RefObject<string | null>;
   latestCompositionDataRef: RefObject<string | null>;
+  latestCompositionResidueDataRef: RefObject<string | null>;
   hasCompositionEndedRef: RefObject<boolean>;
+  compositionStartSelectionRef: RefObject<CompositionStartSelection | null>;
   allowDeferredCompositionMarkdownWithoutCommitRef: RefObject<boolean>;
   hasEditorUserInputRef: RefObject<boolean>;
   currentNoteContentRef: RefObject<string>;
@@ -50,7 +55,9 @@ export function usePendingMarkdownFlusher({
   isCompositionActiveRef,
   deferredCompositionMarkdownRef,
   latestCompositionDataRef,
+  latestCompositionResidueDataRef,
   hasCompositionEndedRef,
+  compositionStartSelectionRef,
   allowDeferredCompositionMarkdownWithoutCommitRef,
   hasEditorUserInputRef,
   currentNoteContentRef,
@@ -92,7 +99,13 @@ export function usePendingMarkdownFlusher({
           deferredCompositionMarkdown !== null &&
           (
             allowDeferredCompositionMarkdownWithoutCommitRef.current ||
-            hasCommittedCompositionText(deferredCompositionMarkdown, latestCompositionData)
+            hasCommittedCompositionText(
+              deferredCompositionMarkdown,
+              latestCompositionData,
+              currentContent,
+              compositionStartSelectionRef.current?.text ?? null,
+              latestCompositionResidueDataRef.current,
+            )
           )
         ) {
           pendingMarkdown = serializeEditorMarkdownSnapshot(deferredCompositionMarkdown, currentContent);
@@ -158,7 +171,9 @@ export function usePendingMarkdownFlusher({
     isCompositionActiveRef,
     deferredCompositionMarkdownRef,
     latestCompositionDataRef,
+    latestCompositionResidueDataRef,
     hasCompositionEndedRef,
+    compositionStartSelectionRef,
     allowDeferredCompositionMarkdownWithoutCommitRef,
     editorUserInputBaseContentRef,
     pendingMarkdownRef,

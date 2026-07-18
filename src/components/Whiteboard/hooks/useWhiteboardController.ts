@@ -70,7 +70,10 @@ export function useWhiteboardController({
     setSelectedElementIds, setSelectedStrokeIds, setStrokes, setViewport, strokeIdRef,
   });
   useWhiteboardReady(onStartupReady, onPrimaryContentReady);
-  useWhiteboardPersistence({ elements, paper: paperStyle, strokes, viewport }, dragState !== null);
+  useWhiteboardPersistence(
+    { elements, paper: paperStyle, strokes, viewport },
+    !active || dragState !== null,
+  );
   useWhiteboardSelectionDeletion({
     active, pushHistory, selectedElementIds, selectedStrokeIds, setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes,
   });
@@ -102,7 +105,7 @@ export function useWhiteboardController({
     active, elements, importImage, pushHistory, selectedElementIds, selectedStrokeIds,
     setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes, setTool, strokes,
   });
-  const startStrokeSelection = useWhiteboardStrokeSelection({ pushHistory, selectedStrokeIds, setDragState, setSelectedElementId, setSelectedStrokeIds, strokes, zoom: viewport.zoom });
+  const startStrokeSelection = useWhiteboardStrokeSelection({ elements, pushHistory, selectedElementIds, selectedStrokeIds, setDragState, setSelectedElementId, setSelectedStrokeIds, strokes, zoom: viewport.zoom });
   useWhiteboardKeyboardShortcuts({ active, elements, pushHistory, resizeBrush, selectedBrushTool: isBrushTool(tool) ? tool : null, selectedElementIds, selectedStrokeIds, setElements, setSelectedElementIds, setSelectedStrokeIds, setStrokes, setTool, strokes, viewportZoom: viewport.zoom });
   const pointerActions = useWhiteboardPointerActions({
     activePenPointerRef, appendDraftPoints, brushColors, brushSizes, clearDraftStroke,

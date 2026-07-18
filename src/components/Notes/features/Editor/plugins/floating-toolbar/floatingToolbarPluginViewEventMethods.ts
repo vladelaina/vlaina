@@ -1,4 +1,5 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
+import { redo, undo } from '@milkdown/kit/prose/history';
 import { TOOLBAR_ACTIONS } from './types';
 import { getLinkUrl } from './selectionHelpers';
 import { hideToolbar, isFloatingToolbarSuppressed } from './floatingToolbarDom';
@@ -12,9 +13,36 @@ import {
   hasVisibleNativeRange,
   isDocumentFormatShortcut,
   isEditableShortcutTarget,
+  resolveDocumentHistoryShortcut,
 } from './floatingToolbarPluginViewUtils';
 
 export function installFloatingToolbarPluginViewEventMethods(ctx: FloatingToolbarPluginViewContext): void {
+  ctx.handleDocumentHistoryShortcut = (event: KeyboardEvent) => {
+    const action = resolveDocumentHistoryShortcut(event);
+    if (
+      !action ||
+      isEditableShortcutTarget(event.target) ||
+      !hasActiveAppliedPreview(ctx.editorView)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    clearFormatPreview(ctx.editorView);
+    const command = action === 'undo' ? undo : redo;
+    const didRun = command(ctx.editorView.state, ctx.editorView.dispatch);
+    clearFormatPreview(ctx.editorView);
+    if (didRun) {
+      ctx.editorView.dispatch(
+        ctx.editorView.state.tr
+          .setMeta(ctx.toolbarKey, { type: TOOLBAR_ACTIONS.HIDE })
+          .setMeta('addToHistory', false)
+      );
+    }
+    ctx.editorView.focus();
+  };
+
   ctx.handleDocumentFormatShortcut = (event: KeyboardEvent) => {
     if (!isDocumentFormatShortcut(event) || isEditableShortcutTarget(event.target)) {
       return;
@@ -85,6 +113,7 @@ export function installFloatingToolbarPluginViewEventMethods(ctx: FloatingToolba
     document.addEventListener('mouseup', ctx.handleMouseUp, true);
     document.addEventListener('mousedown', ctx.handleClickOutside);
     document.addEventListener('keydown', ctx.handleEscape);
+    document.addEventListener('keydown', ctx.handleDocumentHistoryShortcut);
     document.addEventListener('keydown', ctx.handleDocumentFormatShortcut);
     document.addEventListener('mousemove', ctx.handleDocumentToolbarPointerMove, true);
     document.addEventListener('mouseover', ctx.handleDocumentToolbarPointerMove, true);
@@ -109,6 +138,7 @@ export function installFloatingToolbarPluginViewEventMethods(ctx: FloatingToolba
     document.removeEventListener('mouseup', ctx.handleMouseUp, true);
     document.removeEventListener('mousedown', ctx.handleClickOutside);
     document.removeEventListener('keydown', ctx.handleEscape);
+    document.removeEventListener('keydown', ctx.handleDocumentHistoryShortcut);
     document.removeEventListener('keydown', ctx.handleDocumentFormatShortcut);
     document.removeEventListener('mousemove', ctx.handleDocumentToolbarPointerMove, true);
     document.removeEventListener('mouseover', ctx.handleDocumentToolbarPointerMove, true);

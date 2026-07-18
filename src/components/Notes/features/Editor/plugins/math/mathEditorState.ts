@@ -32,13 +32,10 @@ export function createOpenMathEditorState(args: {
   };
 }
 
-export function shouldDiscardEmptyMathNodeOnCancel(
-  state: MathEditorState | null | undefined,
-  draftLatex: string
+export function shouldDiscardNewMathNodeOnCancel(
+  state: MathEditorState | null | undefined
 ): boolean {
-  if (!state?.isOpen || state.openSource !== 'new-empty-block' || state.nodePos < 0) {
-    return false;
-  }
-
-  return !state.latex.trim() && !draftLatex.trim();
+  return Boolean(
+    state?.isOpen && state.openSource === 'new-empty-block' && state.nodePos >= 0
+  );
 }

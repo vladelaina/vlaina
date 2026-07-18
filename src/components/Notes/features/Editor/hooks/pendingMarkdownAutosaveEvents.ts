@@ -101,7 +101,11 @@ export function hasNonAsciiText(text: string | null): text is string {
 export function isCompositionInputEvent(event: Event): boolean {
   return event.type === 'compositionstart' ||
     event.type === 'compositionend' ||
-    (isInputEvent(event) && (event.inputType === 'insertCompositionText' || event.isComposing)) ||
+    (isInputEvent(event) && (
+      event.inputType === 'insertCompositionText' ||
+      event.inputType === 'insertFromComposition' ||
+      event.isComposing
+    )) ||
     (event instanceof KeyboardEvent && event.isComposing);
 }
 
@@ -117,7 +121,11 @@ export function shouldClearCompositionAppendGuard(event: Event): boolean {
   }
 
   if (isInputEvent(event)) {
-    if (event.isComposing || event.inputType === 'insertCompositionText') {
+    if (
+      event.isComposing ||
+      event.inputType === 'insertCompositionText' ||
+      event.inputType === 'insertFromComposition'
+    ) {
       return false;
     }
     return event.inputType !== 'insertText';

@@ -12,66 +12,11 @@ import {
   resolveHorizontalRuleNodePos,
   selectHorizontalRuleBlock,
 } from './hrBlockSelection';
-import { shouldConvertParagraphToThematicBreak } from './hrAutoParagraphUtils';
+import { handleMarkdownBlockShortcutEnter } from './hrShortcutEnter';
+
+export { handleHorizontalRuleShortcutEnter } from './hrShortcutEnter';
 
 export const hrAutoParagraphPluginKey = new PluginKey('hrAutoParagraph');
-const MAX_HR_SHORTCUT_TEXT_CHARS = 256;
-
-function shouldPreserveLeadingFrontmatterShortcut(view: EditorView): boolean {
-  const { selection } = view.state;
-  const parentDepth = selection.$from.depth - 1;
-  if (parentDepth !== 0) {
-    return false;
-  }
-
-  if (selection.$from.index(parentDepth) !== 0) {
-    return false;
-  }
-
-  if (selection.$from.parent.content.size !== 3) {
-    return false;
-  }
-
-  return selection.$from.parent.textBetween(0, selection.$from.parent.content.size, '', '') === '---';
-}
-
-export function handleHorizontalRuleShortcutEnter(view: EditorView): boolean {
-  const { state } = view;
-  const { selection } = state;
-  if (!selection.empty) return false;
-  if (shouldPreserveLeadingFrontmatterShortcut(view)) return false;
-
-  const paragraphType = state.schema.nodes.paragraph;
-  if (!paragraphType || selection.$from.parent.type !== paragraphType) return false;
-
-  const parent = selection.$from.parent;
-  const offset = selection.$from.parentOffset;
-  if (parent.content.size > MAX_HR_SHORTCUT_TEXT_CHARS) return false;
-  const text = parent.textBetween(0, parent.content.size, '', '');
-  if (!shouldConvertParagraphToThematicBreak(text, offset)) return false;
-
-  return insertHorizontalRuleWithTrailingParagraph(view);
-}
-
-function insertHorizontalRuleWithTrailingParagraph(view: EditorView): boolean {
-  const { state } = view;
-  const hrType = state.schema.nodes.hr;
-  const paragraphType = state.schema.nodes.paragraph;
-  if (!hrType || !paragraphType) return false;
-
-  const { $from } = state.selection;
-  const paragraphPos = $from.before();
-  const paragraphNodeSize = $from.parent.nodeSize;
-
-  const hrNode = hrType.create();
-  let tr = state.tr.replaceWith(paragraphPos, paragraphPos + paragraphNodeSize, hrNode);
-  const afterHrPos = paragraphPos + hrNode.nodeSize;
-
-  tr = tr.insert(afterHrPos, paragraphType.create());
-  tr = tr.setSelection(TextSelection.create(tr.doc, afterHrPos + 1)).scrollIntoView();
-  view.dispatch(tr);
-  return true;
-}
 
 function isArrowUpSkipHrScenario(view: EditorView): boolean {
   const { state } = view;
@@ -259,7 +204,7 @@ export const hrAutoParagraphPlugin = $prose(() => {
         }
 
         if (event.key === 'Enter') {
-          if (!handleHorizontalRuleShortcutEnter(view)) return false;
+          if (!handleMarkdownBlockShortcutEnter(view)) return false;
           event.preventDefault();
           return true;
         }

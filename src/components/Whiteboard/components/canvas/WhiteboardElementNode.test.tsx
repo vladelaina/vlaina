@@ -16,19 +16,19 @@ const image = {
 
 describe('WhiteboardElementNode', () => {
   it('renders an imported image without a bottom-right resize control', () => {
-    render(<WhiteboardElementNode element={image} selected tool="select" onPointerDown={vi.fn()} />);
+    render(<WhiteboardElementNode element={image} selected showSelectionBorder tool="select" onPointerDown={vi.fn()} />);
     expect(screen.getByRole('img', { name: 'demo.png' })).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.getByLabelText('demo.png')).toHaveClass('cursor-grab');
   });
 
   it('dims an image selected by an active erase gesture', () => {
-    render(<WhiteboardElementNode element={image} erasing selected tool="select" onPointerDown={vi.fn()} />);
+    render(<WhiteboardElementNode element={image} erasing selected showSelectionBorder tool="select" onPointerDown={vi.fn()} />);
     expect(screen.getByLabelText('demo.png')).toHaveStyle({ opacity: themeWhiteboardTokens.eraserTargetPreviewOpacity });
   });
 
   it('does not intercept drawing input above an image', () => {
-    render(<WhiteboardElementNode element={image} selected={false} tool="pen" onPointerDown={vi.fn()} />);
+    render(<WhiteboardElementNode element={image} selected={false} showSelectionBorder={false} tool="pen" onPointerDown={vi.fn()} />);
 
     expect(screen.getByLabelText('demo.png')).toHaveClass('pointer-events-none');
   });

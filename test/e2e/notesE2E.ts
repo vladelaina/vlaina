@@ -16,6 +16,7 @@ export const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-ro
 export const FILE_TREE_PRIMARY_SELECTOR = '[data-file-tree-primary="true"]';
 export const FILE_TREE_FILE_SELECTOR = '[data-file-tree-kind="file"]';
 export const CHAT_VIEW_SELECTOR = '[data-chat-view-mode="full"]';
+export const GRAPH_VIEW_SELECTOR = '[data-graph-view-mode="true"]';
 export const CHAT_SCROLLABLE_SELECTOR = '[data-chat-scrollable="true"]';
 export const CHAT_SESSION_ROW_SELECTOR = '[data-chat-sidebar-session-row="true"]';
 export const CHAT_MESSAGE_SELECTOR = '[data-message-item="true"]';
@@ -295,12 +296,14 @@ export async function openAbsoluteNote(
   throw lastError;
 }
 
-export async function setAppViewMode(page: Page, mode: 'notes' | 'chat'): Promise<void> {
+export async function setAppViewMode(page: Page, mode: 'notes' | 'chat' | 'graph'): Promise<void> {
   await page.evaluate((nextMode) => (window as any).__vlainaE2E.setAppViewMode(nextMode), mode);
   if (mode === 'notes') {
     await expect(page.locator(NOTES_VIEW_SELECTOR)).toBeVisible({ timeout: 30_000 });
-  } else {
+  } else if (mode === 'chat') {
     await expect(page.locator(CHAT_VIEW_SELECTOR)).toBeVisible({ timeout: 30_000 });
+  } else {
+    await expect(page.locator(GRAPH_VIEW_SELECTOR)).toBeVisible({ timeout: 30_000 });
   }
 }
 

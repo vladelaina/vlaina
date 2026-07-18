@@ -6,7 +6,7 @@ export const UI_FONT_SIZE_DEFAULT = 17;
 export const UI_FONT_SIZE_MIN = 14;
 export const UI_FONT_SIZE_MAX = 120;
 
-export type AppViewMode = 'notes' | 'chat' | 'whiteboard' | 'lab';
+export type AppViewMode = 'notes' | 'chat' | 'whiteboard' | 'graph' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
 
 export type ImageStorageMode = 'notesRoot' | 'notesRootSubfolder' | 'currentFolder' | 'subfolder';

@@ -115,6 +115,33 @@ describe('useShortcuts', () => {
     }
   });
 
+  it('dispatches graph sidebar search in graph mode', () => {
+    const sidebarListener = vi.fn();
+    window.addEventListener(SIDEBAR_OPEN_SEARCH_EVENT, sidebarListener);
+
+    try {
+      useUIStore.setState({ appViewMode: 'graph' });
+      renderHook(() => useShortcuts());
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'F',
+        code: 'KeyF',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      window.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(sidebarListener).toHaveBeenCalledTimes(1);
+      expect((sidebarListener.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({ scope: 'graph' });
+    } finally {
+      window.removeEventListener(SIDEBAR_OPEN_SEARCH_EVENT, sidebarListener);
+    }
+  });
+
 
   it('does not dispatch find shortcuts from inside a dialog', () => {
     const editorFindListener = vi.fn();

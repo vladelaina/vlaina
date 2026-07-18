@@ -215,7 +215,7 @@ export class EmojiShortcutMenuView {
 
   private handleDocumentKeyDown = (event: KeyboardEvent) => {
     if (!emojiShortcutPluginKey.getState(this.editorView.state)?.isOpen) return;
-    if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.isComposing || this.editorView.composing || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.key !== ' ' && event.key !== 'Spacebar') return;
 
     const target = event.target;

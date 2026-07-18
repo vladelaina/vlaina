@@ -140,6 +140,22 @@ describe('useNoteEditorFind', () => {
     expect(result.current.isOpen).toBe(true);
   });
 
+  it('does not navigate when the query composition session is active but keydown is unmarked', () => {
+    const { result } = renderHook(() => useNoteEditorFind('note-a'));
+
+    act(() => {
+      result.current.handleQueryCompositionStart({} as never);
+      result.current.handleQueryKeyDown({
+        key: 'Enter',
+        shiftKey: false,
+        nativeEvent: { isComposing: false },
+        preventDefault: vi.fn(),
+      } as never);
+    });
+
+    expect(mocks.stepEditorFindMatchMock).not.toHaveBeenCalled();
+  });
+
   it('closes the panel with Escape, clears find state, and restores editor focus', () => {
     const { result } = renderHook(() => useNoteEditorFind('note-a'));
     const preventDefault = vi.fn();
@@ -200,6 +216,21 @@ describe('useNoteEditorFind', () => {
     });
 
     expect(preventDefault).not.toHaveBeenCalled();
+    expect(mocks.replaceCurrentEditorFindMatchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not replace when the replacement composition session is active but keydown is unmarked', () => {
+    const { result } = renderHook(() => useNoteEditorFind('note-a'));
+
+    act(() => {
+      result.current.handleReplaceCompositionStart({} as never);
+      result.current.handleReplaceKeyDown({
+        key: 'Enter',
+        nativeEvent: { isComposing: false },
+        preventDefault: vi.fn(),
+      } as never);
+    });
+
     expect(mocks.replaceCurrentEditorFindMatchMock).not.toHaveBeenCalled();
   });
 });
