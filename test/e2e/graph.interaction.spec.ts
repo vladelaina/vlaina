@@ -102,12 +102,7 @@ test.describe('graph interactions', () => {
       expect(entryAnimation.dotAnimationName).toContain('vlaina-graph-node-dot-enter');
       expect(entryAnimation.minDelay).toBe(0);
       expect(entryAnimation.maxDelay).toBeGreaterThan(entryAnimation.minDelay);
-      const topControls = graphView.locator('[data-graph-top-controls="true"]');
-      await expect(topControls).toHaveAttribute('data-graph-node-count', String(noteCount));
-      await expect(topControls).toHaveAttribute(
-        'data-graph-link-count',
-        String(noteCount * linksPerNote),
-      );
+      await expect(graphView.locator('[data-graph-top-controls="true"]')).toHaveCount(0);
       expect(Date.now() - graphOpenedAt).toBeLessThan(5_000);
       const edgeAppearance = await renderedEdges.first().evaluate((element) => {
         const style = getComputedStyle(element);

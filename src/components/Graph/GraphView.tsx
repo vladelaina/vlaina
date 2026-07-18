@@ -4,7 +4,6 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { GraphCanvas } from './GraphCanvas';
-import { GraphTopControls } from './GraphTopControls';
 import { layoutNoteGraph } from './model/graphLayout';
 import { useGraphUIStore, type GraphNodePositions } from './store/useGraphUIStore';
 import { useNoteGraphModel } from './hooks/useNoteGraphModel';
@@ -88,22 +87,16 @@ export function GraphView({
           {t('graph.empty')}
         </div>
       ) : (
-        <>
-          <GraphCanvas
-            active={active}
-            graph={layout}
-            positionOverrides={positionOverrides}
-            selectedPath={focusPath}
-            onSelectPath={setSelectedPath}
-            onOpenPath={(path) => void handleOpenNode(path)}
-            onPositionCommit={handlePositionCommit}
-            onPositionsCommit={handlePositionsCommit}
-          />
-          <GraphTopControls
-            linkCount={visibleGraph.edges.length}
-            nodeCount={visibleGraph.nodes.length}
-          />
-        </>
+        <GraphCanvas
+          active={active}
+          graph={layout}
+          positionOverrides={positionOverrides}
+          selectedPath={focusPath}
+          onSelectPath={setSelectedPath}
+          onOpenPath={(path) => void handleOpenNode(path)}
+          onPositionCommit={handlePositionCommit}
+          onPositionsCommit={handlePositionsCommit}
+        />
       )}
     </section>
   );
