@@ -1,5 +1,6 @@
 const MAX_CACHE_SIZE = 50;
 export const MAX_PENDING_COVER_DIMENSION_LOADS = 50;
+const COVER_DIMENSION_LOAD_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 20 : 15_000;
 const dimensionCache = new Map<string, { width: number; height: number }>();
 const dimensionLoadPromises = new Map<string, Promise<{ width: number; height: number } | null>>();
 
@@ -24,6 +25,15 @@ export async function loadImageWithDimensions(src: string): Promise<{ width: num
 
   const loadPromise = new Promise<{ width: number; height: number } | null>((resolve) => {
     const img = new Image();
+    let settled = false;
+    const finish = (dimensions: { width: number; height: number } | null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      img.onload = null;
+      img.onerror = null;
+      resolve(dimensions);
+    };
     img.onload = () => {
       const dims = { width: img.naturalWidth, height: img.naturalHeight };
 
@@ -33,9 +43,13 @@ export async function loadImageWithDimensions(src: string): Promise<{ width: num
       }
 
       dimensionCache.set(src, dims);
-      resolve(dims);
+      finish(dims);
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => finish(null);
+    const timeoutId = window.setTimeout(() => {
+      finish(null);
+      img.src = '';
+    }, COVER_DIMENSION_LOAD_TIMEOUT_MS);
     img.src = src;
   });
 

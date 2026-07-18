@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import electron from 'electron';
@@ -17,7 +17,8 @@ const MAX_CLIPBOARD_IMAGE_DATA_URL_BYTES = 10 * 1024 * 1024;
 const hoisted = vi.hoisted(() => {
   const windows: any[] = [];
   const tempRoot = process.env.RUNNER_TEMP ?? process.env.TEMP ?? process.env.TMPDIR ?? '/tmp';
-  let nextPrintToPDFResult: { byteLength: number } | Uint8Array = new Uint8Array([1, 2, 3]);
+  let nextLoadFileResult: Promise<void> | void;
+  let nextPrintToPDFResult: Promise<Uint8Array> | { byteLength: number } | Uint8Array = new Uint8Array([1, 2, 3]);
   const spawn = vi.fn(() => ({
     once: vi.fn(),
     unref: vi.fn(),
@@ -31,7 +32,7 @@ const hoisted = vi.hoisted(() => {
       session: { webRequest: { onBeforeRequest: ReturnType<typeof vi.fn> } };
       setWindowOpenHandler: ReturnType<typeof vi.fn>;
     };
-    loadFile = vi.fn(async () => undefined);
+    loadFile = vi.fn(async () => nextLoadFileResult);
     loadURL = vi.fn(async () => undefined);
     destroy = vi.fn(() => {
       this.destroyed = true;
@@ -60,10 +61,16 @@ const hoisted = vi.hoisted(() => {
 
   return {
     MockBrowserWindow,
+    resetLoadFileResult: () => {
+      nextLoadFileResult = undefined;
+    },
     resetPrintToPDFResult: () => {
       nextPrintToPDFResult = new Uint8Array([1, 2, 3]);
     },
-    setPrintToPDFResult: (value: { byteLength: number } | Uint8Array) => {
+    setLoadFileResult: (value: Promise<void>) => {
+      nextLoadFileResult = value;
+    },
+    setPrintToPDFResult: (value: Promise<Uint8Array> | { byteLength: number } | Uint8Array) => {
       nextPrintToPDFResult = value;
     },
     spawn,
@@ -131,6 +138,11 @@ function createOversizedClipboardImageDataUrl() {
 }
 
 describe('desktop export ipc', () => {
+  afterEach(() => {
+    hoisted.resetLoadFileResult();
+    hoisted.resetPrintToPDFResult();
+  });
+
   it.each(['darwin', 'win32'] as const)(
     'uses the native shell reveal behavior on %s',
     async (platform) => {
@@ -1223,6 +1235,30 @@ describe('desktop export ipc', () => {
       },
     });
     expect(win.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('times out and destroys the hidden PDF window when document loading stalls', async () => {
+    hoisted.windows.length = 0;
+    hoisted.setLoadFileResult(new Promise<void>(() => {}));
+    const { handlers } = registerHarness();
+
+    await expect(
+      handlers.get('desktop:export:html-to-pdf')?.({}, '<!doctype html><html><body>Export</body></html>', {}),
+    ).rejects.toThrow('Timed out loading PDF export HTML');
+
+    expect(hoisted.windows[0].destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('times out and destroys the hidden PDF window when PDF generation stalls', async () => {
+    hoisted.windows.length = 0;
+    hoisted.setPrintToPDFResult(new Promise<Uint8Array>(() => {}));
+    const { handlers } = registerHarness();
+
+    await expect(
+      handlers.get('desktop:export:html-to-pdf')?.({}, '<!doctype html><html><body>Export</body></html>', {}),
+    ).rejects.toThrow('Timed out generating PDF export');
+
+    expect(hoisted.windows[0].destroy).toHaveBeenCalledTimes(1);
   });
 
   it('blocks PDF export windows from loading local files or remote resources', async () => {

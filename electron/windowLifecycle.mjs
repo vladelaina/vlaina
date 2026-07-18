@@ -6,6 +6,8 @@ import {
 
 const DEV_RENDERER_RELOAD_DELAY_MS = 1000;
 const DEV_RENDERER_RELOAD_MAX_DELAY_MS = 8000;
+const STARTUP_REVEAL_FALLBACK_DELAY_MS = 3000;
+const STARTUP_REVEAL_HARD_DEADLINE_MS = 10_000;
 
 export function attachWindowLifecycle({
   window,
@@ -32,6 +34,8 @@ export function attachWindowLifecycle({
   let didRendererReportStartupReady = false;
   let devRendererReloadTimer = null;
   let devRendererReloadDelay = DEV_RENDERER_RELOAD_DELAY_MS;
+  let startupRevealFallbackTimer = null;
+  let startupRevealHardDeadlineTimer = null;
   let windowStateWriteTimer = null;
 
   const clearDevRendererReloadTimer = () => {
@@ -44,6 +48,17 @@ export function attachWindowLifecycle({
     if (windowStateWriteTimer === null) return;
     clearTimeout(windowStateWriteTimer);
     windowStateWriteTimer = null;
+  };
+
+  const clearStartupRevealTimers = () => {
+    if (startupRevealFallbackTimer !== null) {
+      clearTimeout(startupRevealFallbackTimer);
+      startupRevealFallbackTimer = null;
+    }
+    if (startupRevealHardDeadlineTimer !== null) {
+      clearTimeout(startupRevealHardDeadlineTimer);
+      startupRevealHardDeadlineTimer = null;
+    }
   };
 
   const persistWindowState = () => {
@@ -90,6 +105,7 @@ export function attachWindowLifecycle({
     if (didRevealWindow || window.isDestroyed()) return;
 
     didRevealWindow = true;
+    clearStartupRevealTimers();
     readyToRevealWebContents.add(webContentsId);
     window.show();
 
@@ -104,12 +120,20 @@ export function attachWindowLifecycle({
     revealWindow();
   };
 
+  startupRevealHardDeadlineTimer = setTimeout(() => {
+    startupRevealHardDeadlineTimer = null;
+    revealWindow();
+  }, STARTUP_REVEAL_HARD_DEADLINE_MS);
+
   window.once('ready-to-show', () => {
     didBrowserWindowReportReadyToShow = true;
     revealWindowWhenReady();
   });
   window.webContents.once('did-finish-load', () => {
-    setTimeout(() => revealWindowWhenReady({ allowWithoutReadyToShow: true }), 3000);
+    startupRevealFallbackTimer = setTimeout(() => {
+      startupRevealFallbackTimer = null;
+      revealWindow();
+    }, STARTUP_REVEAL_FALLBACK_DELAY_MS);
   });
 
   window.webContents.on('did-finish-load', () => {
@@ -163,6 +187,7 @@ export function attachWindowLifecycle({
 
   window.on('closed', () => {
     clearDevRendererReloadTimer();
+    clearStartupRevealTimers();
     clearWindowStateWriteTimer();
     closeApprovedWebContents.delete(webContentsId);
     readyToRevealWebContents.delete(webContentsId);

@@ -1,3 +1,5 @@
+const IMAGE_LOAD_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 20 : 15_000;
+
 export async function getCroppedImg(
   imageSrc: string,
   pixelCrop: { x: number; y: number; width: number; height: number },
@@ -43,6 +45,7 @@ function createImage(url: string): Promise<HTMLImageElement> {
     const image = new Image();
 
     const cleanup = () => {
+      window.clearTimeout(timeoutId);
       image.removeEventListener('load', handleLoad);
       image.removeEventListener('error', handleError);
     };
@@ -54,6 +57,11 @@ function createImage(url: string): Promise<HTMLImageElement> {
       cleanup();
       reject(error);
     };
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      image.src = '';
+      reject(new Error('Image load timed out.'));
+    }, IMAGE_LOAD_TIMEOUT_MS);
 
     image.addEventListener('load', handleLoad);
     image.addEventListener('error', handleError);

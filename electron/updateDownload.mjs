@@ -15,8 +15,28 @@ import {
 } from './updateDownloadPaths.mjs';
 
 const maxUpdateDownloadBytes = 1024 * 1024 * 1024;
+const updateDownloadIdleTimeoutMs = process.env.NODE_ENV === 'test' ? 20 : 30_000;
 
 export { cleanupOldUpdateDownloads, getUpdateDownloadRoot, normalizeUpdateAssetName } from './updateDownloadPaths.mjs';
+
+function withUpdateDownloadIdleTimeout(task, message, onTimeout = () => {}) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      try {
+        onTimeout();
+      } catch {
+      }
+      reject(new Error(message));
+    }, updateDownloadIdleTimeoutMs);
+  });
+
+  return Promise.race([task, timeout]).finally(() => {
+    if (timer !== null) {
+      clearTimeout(timer);
+    }
+  });
+}
 
 function getExistingTemporaryDownloadSize(filePath) {
   try {
@@ -46,7 +66,13 @@ async function writeResponseBodyToFile(response, filePath, {
 
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      const { done, value } = await withUpdateDownloadIdleTimeout(
+        reader.read(),
+        'Update download stalled while waiting for data.',
+        () => {
+          void Promise.resolve(reader.cancel()).catch(() => {});
+        },
+      );
       if (done) break;
       const chunk = Buffer.from(value);
       downloadedBytes += chunk.byteLength;
@@ -105,7 +131,15 @@ async function fetchUpdateDownloadResponse({
   resumeFromBytes = 0,
   signal,
 }) {
-  return await fetchImpl(downloadUrl, createUpdateDownloadRequestOptions(app, resumeFromBytes, signal));
+  const timeoutController = new AbortController();
+  const requestSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
+  return await withUpdateDownloadIdleTimeout(
+    fetchImpl(downloadUrl, createUpdateDownloadRequestOptions(app, resumeFromBytes, requestSignal)),
+    'Update download timed out waiting for the server.',
+    () => timeoutController.abort(),
+  );
 }
 
 function getContentRangeStart(response) {

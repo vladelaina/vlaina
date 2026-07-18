@@ -25,6 +25,7 @@ function clearProxyEnvironment() {
 
 describe('Electron proxy configuration', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
   });
 
@@ -115,5 +116,28 @@ describe('Electron proxy configuration', () => {
       proxyRules: 'http=proxy.example.test:8443;https=proxy.example.test:8443',
       proxyBypassRules: '127.0.0.1;localhost;[::1];<local>;.example.test;10.0.0.0/8',
     });
+  });
+
+  it('does not block application startup when Electron proxy application stalls', async () => {
+    vi.useFakeTimers();
+    clearProxyEnvironment();
+    vi.stubEnv('HTTPS_PROXY', 'https://proxy.example.test:8443');
+    const setProxy = vi.fn(() => new Promise<void>(() => {}));
+    const configuration = createProxyConfiguration({
+      canConnectToProxy: vi.fn(),
+      normalizeProxyConfig,
+      session: { defaultSession: { setProxy } },
+    });
+    let settled = false;
+
+    void configuration.configureProxySafely().then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(settled).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(settled).toBe(true);
   });
 });

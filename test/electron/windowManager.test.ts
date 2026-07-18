@@ -230,6 +230,31 @@ describe('window manager reveal timing', () => {
     expect(window.show).toHaveBeenCalledTimes(1);
   });
 
+  it('reveals the window after a bounded fallback when startup ready never arrives', () => {
+    const window = createHarness();
+
+    window.webContents.emit('did-finish-load');
+    vi.advanceTimersByTime(2999);
+    expect(window.show).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+
+    expect(window.show).toHaveBeenCalledTimes(1);
+    expect(window.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('reveals the window after a hard deadline when the renderer never finishes loading', () => {
+    const window = createHarness();
+
+    vi.advanceTimersByTime(9999);
+    expect(window.show).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+
+    expect(window.show).toHaveBeenCalledTimes(1);
+    expect(window.focus).toHaveBeenCalledTimes(1);
+  });
+
   it('reveals user-created new windows immediately while renderer content loads', () => {
     const { handlers } = createIpcHarness();
 

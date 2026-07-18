@@ -4,11 +4,29 @@ import {
   prepareImageBytes,
 } from './readerImageShared';
 
+const THUMBNAIL_OPERATION_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 20 : 15_000;
+
 function loadImageElement(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Failed to decode image'));
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      image.onload = null;
+      image.onerror = null;
+    };
+    image.onload = () => {
+      cleanup();
+      resolve(image);
+    };
+    image.onerror = () => {
+      cleanup();
+      reject(new Error('Failed to decode image'));
+    };
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      image.src = '';
+      reject(new Error('Image thumbnail decode timed out'));
+    }, THUMBNAIL_OPERATION_TIMEOUT_MS);
     image.src = src;
   });
 }
@@ -33,7 +51,11 @@ function createThumbnailBlobInWorker(
   }
 
   return new Promise((resolve, reject) => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const cleanup = () => {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
       worker.terminate();
     };
     worker.onmessage = (event: MessageEvent<{ ok: boolean; blob?: Blob; message?: string }>) => {
@@ -48,6 +70,10 @@ function createThumbnailBlobInWorker(
       cleanup();
       reject(new Error(event.message || 'Thumbnail worker failed'));
     };
+    timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('Thumbnail worker timed out'));
+    }, THUMBNAIL_OPERATION_TIMEOUT_MS);
     const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     worker.postMessage({ buffer, mimeType, maxEdgePx }, [buffer]);
   });
@@ -101,7 +127,11 @@ export async function createThumbnailBlobUrl(
     context.drawImage(image, 0, 0, width, height);
 
     const thumbnailBlob = await new Promise<Blob>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        reject(new Error('Image thumbnail encode timed out'));
+      }, THUMBNAIL_OPERATION_TIMEOUT_MS);
       canvas.toBlob((blob) => {
+        window.clearTimeout(timeoutId);
         if (blob) {
           resolve(blob);
         } else {

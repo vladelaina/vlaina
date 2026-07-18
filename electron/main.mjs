@@ -292,6 +292,8 @@ app.whenReady().then(async () => {
   });
 }).catch((error) => {
   errorLogService.logMainError(error, 'app.whenReady');
+  console.error('[vlaina] Application startup failed:', error);
+  app.exit(1);
 });
 
 app.on('window-all-closed', () => {

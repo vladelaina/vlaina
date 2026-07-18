@@ -8,6 +8,7 @@ import {
 } from '@/lib/storage/attachmentUrl';
 import { MAX_ATTACHMENT_IMAGE_BYTES } from '@/lib/storage/attachmentStorage';
 import { getPrimaryAttachmentPath } from '@/lib/storage/attachmentPaths';
+import { createBoundedAsyncQueue } from '@/lib/boundedAsyncQueue';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 import {
     isSvgDataUrl,
@@ -26,13 +27,7 @@ interface LocalImageProps {
 }
 
 export const MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS = 4;
-
-interface ScheduledLocalImageAttachmentRead {
-    run: () => Promise<void>;
-}
-
-const pendingLocalImageAttachmentReads: ScheduledLocalImageAttachmentRead[] = [];
-let activeLocalImageAttachmentReadCount = 0;
+const LOCAL_IMAGE_ATTACHMENT_READ_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 1000 : 15_000;
 
 function createAbortError(): Error {
     const error = new Error('Local image attachment read aborted.');
@@ -40,69 +35,12 @@ function createAbortError(): Error {
     return error;
 }
 
-function drainLocalImageAttachmentReadQueue(): void {
-    while (
-        activeLocalImageAttachmentReadCount < MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS &&
-        pendingLocalImageAttachmentReads.length > 0
-    ) {
-        const scheduled = pendingLocalImageAttachmentReads.shift();
-        if (!scheduled) {
-            return;
-        }
-
-        activeLocalImageAttachmentReadCount += 1;
-        void scheduled.run().finally(() => {
-            activeLocalImageAttachmentReadCount -= 1;
-            drainLocalImageAttachmentReadQueue();
-        });
-    }
-}
-
-function scheduleLocalImageAttachmentRead<T>(
-    task: () => Promise<T>,
-    signal?: AbortSignal,
-): Promise<T> {
-    if (signal?.aborted) {
-        return Promise.reject(createAbortError());
-    }
-
-    return new Promise<T>((resolve, reject) => {
-        let scheduled: ScheduledLocalImageAttachmentRead | null = null;
-        const abortPendingRead = () => {
-            if (!scheduled) {
-                return;
-            }
-
-            const pendingIndex = pendingLocalImageAttachmentReads.indexOf(scheduled);
-            if (pendingIndex === -1) {
-                return;
-            }
-
-            pendingLocalImageAttachmentReads.splice(pendingIndex, 1);
-            reject(createAbortError());
-        };
-
-        scheduled = {
-            run: async () => {
-                signal?.removeEventListener('abort', abortPendingRead);
-                if (signal?.aborted) {
-                    reject(createAbortError());
-                    return;
-                }
-
-                try {
-                    resolve(await task());
-                } catch (error) {
-                    reject(error);
-                }
-            },
-        };
-
-        signal?.addEventListener('abort', abortPendingRead, { once: true });
-        pendingLocalImageAttachmentReads.push(scheduled);
-        drainLocalImageAttachmentReadQueue();
-    });
-}
+const localImageAttachmentReadQueue = createBoundedAsyncQueue({
+    concurrency: MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS,
+    createAbortError,
+    createTimeoutError: () => new Error('Local image attachment read timed out.'),
+    timeoutMs: LOCAL_IMAGE_ATTACHMENT_READ_TIMEOUT_MS,
+});
 
 function uint8ArrayToBase64(data: Uint8Array): string {
     const CHUNK_SIZE = 0x8000;
@@ -187,7 +125,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                     return;
                 }
 
-                const base64 = await scheduleLocalImageAttachmentRead(async () => {
+                const base64 = await localImageAttachmentReadQueue.run(async () => {
                     const storage = getStorageAdapter();
                     const basePath = await storage.getBasePath();
                     const nextAttachmentPath = await getPrimaryAttachmentPath(basePath, filename);

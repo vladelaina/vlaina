@@ -2,6 +2,20 @@ import net from 'node:net';
 
 const defaultProxyBypassRules = ['127.0.0.1', 'localhost', '[::1]', '<local>'];
 const maxProxyBypassEnvironmentChars = 4096;
+const proxyApplicationTimeoutMs = 2000;
+
+function waitAtMost(promise, timeoutMs) {
+  let timer = null;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(resolve, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== null) {
+      clearTimeout(timer);
+    }
+  });
+}
 
 function getProxyBypassRules() {
   const rawValue = process.env.NO_PROXY?.trim() || process.env.no_proxy?.trim() || '';
@@ -88,10 +102,13 @@ export function createProxyConfiguration({
       const proxyConfig = await resolveProxyConfig(normalizeProxyConfig, canConnectToProxy);
       if (!proxyConfig) return;
 
-      await session.defaultSession.setProxy({
-        proxyRules: proxyConfig.proxyRules,
-        proxyBypassRules: proxyConfig.proxyBypassRules,
-      });
+      await waitAtMost(
+        session.defaultSession.setProxy({
+          proxyRules: proxyConfig.proxyRules,
+          proxyBypassRules: proxyConfig.proxyBypassRules,
+        }),
+        proxyApplicationTimeoutMs,
+      );
     } catch (error) {
     }
   }

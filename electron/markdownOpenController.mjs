@@ -1,5 +1,7 @@
 import path from 'node:path';
 
+const RENDERER_WAIT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 20 : 10_000;
+
 export function createMarkdownOpenController({
   BrowserWindow,
   authorizeFsPath,
@@ -50,6 +52,38 @@ export function createMarkdownOpenController({
     return null;
   }
 
+  function sendAfterRendererLoad(window, send) {
+    if (!window.webContents.isLoading()) {
+      send();
+      return;
+    }
+
+    let completed = false;
+    let timeoutId = null;
+    const cleanup = () => {
+      window.webContents.off?.('did-finish-load', complete);
+      window.off?.('closed', handleWindowClosed);
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+    const complete = () => {
+      if (completed) return;
+      completed = true;
+      cleanup();
+      send();
+    };
+    const handleWindowClosed = () => {
+      completed = true;
+      cleanup();
+    };
+
+    window.webContents.once('did-finish-load', complete);
+    window.once?.('closed', handleWindowClosed);
+    timeoutId = setTimeout(complete, RENDERER_WAIT_TIMEOUT_MS);
+  }
+
   function sendOpenMarkdownShortcut(window, { waitForStartupReady = false } = {}) {
     if (!window || window.isDestroyed()) {
       return false;
@@ -61,23 +95,40 @@ export function createMarkdownOpenController({
     };
 
     if (waitForStartupReady && !isReadyToReveal(window)) {
+      let completed = false;
+      let timeoutId = null;
+      const cleanup = () => {
+        window.webContents.off?.('ipc-message', handleStartupReady);
+        window.off?.('closed', handleWindowClosed);
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      };
+      const complete = () => {
+        if (completed) return;
+        completed = true;
+        cleanup();
+        send();
+      };
       const handleStartupReady = (_event, channel) => {
         if (channel !== 'desktop:startup-ready') {
           return;
         }
 
-        window.webContents.off?.('ipc-message', handleStartupReady);
-        send();
+        complete();
+      };
+      const handleWindowClosed = () => {
+        completed = true;
+        cleanup();
       };
       window.webContents.on('ipc-message', handleStartupReady);
+      window.once?.('closed', handleWindowClosed);
+      timeoutId = setTimeout(complete, RENDERER_WAIT_TIMEOUT_MS);
       return true;
     }
 
-    if (window.webContents.isLoading()) {
-      window.webContents.once('did-finish-load', send);
-    } else {
-      send();
-    }
+    sendAfterRendererLoad(window, send);
 
     return true;
   }
@@ -106,11 +157,7 @@ export function createMarkdownOpenController({
       window.webContents.send('desktop:app:open-markdown-file', normalizedPath);
     };
 
-    if (window.webContents.isLoading()) {
-      window.webContents.once('did-finish-load', send);
-    } else {
-      send();
-    }
+    sendAfterRendererLoad(window, send);
 
     return true;
   }

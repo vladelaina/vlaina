@@ -103,8 +103,50 @@ describe('desktop update downloads', () => {
     });
 
     expect(fetchImpl).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-      signal: abortController.signal,
+      signal: expect.any(AbortSignal),
     }));
+    const requestSignal = fetchImpl.mock.calls[0][1].signal;
+    abortController.abort();
+    expect(requestSignal.aborted).toBe(true);
+  });
+
+  it('times out when the update server never returns response headers', async () => {
+    const fetchImpl = vi.fn(() => new Promise(() => {}));
+
+    await expect(downloadUpdateAsset({
+      app: createApp(),
+      updateInfo: createUpdateInfo({
+        platformAssetSha256: sha256Hex([1]),
+      }),
+      fetchImpl,
+    })).rejects.toThrow('Update download timed out waiting for the server');
+  });
+
+  it('times out and cancels the response reader when download data stalls', async () => {
+    const cancel = vi.fn(async () => undefined);
+    const releaseLock = vi.fn();
+    const reader = {
+      cancel,
+      read: vi.fn(() => new Promise(() => {})),
+      releaseLock,
+    };
+    const fetchImpl = vi.fn().mockResolvedValue({
+      body: { getReader: () => reader },
+      headers: new Headers(),
+      ok: true,
+      status: 200,
+    });
+
+    await expect(downloadUpdateAsset({
+      app: createApp(),
+      updateInfo: createUpdateInfo({
+        platformAssetSha256: sha256Hex([1]),
+      }),
+      fetchImpl,
+    })).rejects.toThrow('Update download stalled');
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(releaseLock).toHaveBeenCalledTimes(1);
   });
 
   it('reuses an existing downloaded update asset', async () => {
