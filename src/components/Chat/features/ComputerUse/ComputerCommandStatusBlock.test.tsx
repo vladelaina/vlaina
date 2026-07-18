@@ -24,7 +24,7 @@ describe('ComputerCommandStatusBlock', () => {
       status('three', 'failed'),
     ];
     const view = render(<ComputerCommandStatusBlock isLoading statuses={initial} />);
-    const toggle = screen.getByRole('button', { name: 'Computer control' });
+    const toggle = screen.getByRole('button', { name: 'Execution mode' });
 
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getAllByText('Completed')).toHaveLength(1);
@@ -58,7 +58,7 @@ describe('ComputerCommandStatusBlock', () => {
   it('collapses after every command completes and reopens for later activity', () => {
     const first = status('one', 'completed');
     const view = render(<ComputerCommandStatusBlock isLoading statuses={[first]} />);
-    const toggle = screen.getByRole('button', { name: 'Computer control' });
+    const toggle = screen.getByRole('button', { name: 'Execution mode' });
 
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
@@ -95,7 +95,7 @@ describe('ComputerCommandStatusBlock', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Computer control' }))
+    expect(screen.getByRole('button', { name: 'Execution mode' }))
       .toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Failed')).toBeInTheDocument();
   });

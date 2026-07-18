@@ -219,7 +219,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    const computerControl = screen.getByRole("button", { name: "Computer control" });
+    const computerControl = screen.getByRole("button", { name: "Execution mode" });
     expect(computerControl).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(computerControl);
     expect(screen.getByText("Completed")).toBeInTheDocument();
@@ -251,7 +251,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    const computerControl = screen.getByRole("button", { name: "Computer control" });
+    const computerControl = screen.getByRole("button", { name: "Execution mode" });
     expect(computerControl).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(computerControl);
 
@@ -339,7 +339,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.queryByText("Computer control")).not.toBeInTheDocument();
+    expect(screen.queryByText("Execution mode")).not.toBeInTheDocument();
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Command response");
   });
 
@@ -513,7 +513,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    const computerControl = screen.getByRole("button", { name: "Computer control" });
+    const computerControl = screen.getByRole("button", { name: "Execution mode" });
     expect(computerControl).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(computerControl);
     expect(screen.getByText("Completed")).toBeInTheDocument();
