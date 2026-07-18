@@ -324,6 +324,7 @@ export const ChatInput = memo(function ChatInput({
           aiActions.setComputerUseEnabled(true);
           setShowComputerUseEnableDialog(false);
         }}
+        onRequestComposerFocus={scheduleComposerFocus}
       />
     </>
   );

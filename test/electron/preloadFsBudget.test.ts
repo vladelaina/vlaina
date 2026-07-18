@@ -28,6 +28,9 @@ interface PreloadApi {
     startCommand(requestId: string, request: Record<string, unknown>): Promise<unknown>;
     cancelCommand(requestId: string): Promise<unknown>;
     respondToApproval(requestId: string, decision: string): Promise<unknown>;
+    listApprovals(): Promise<unknown>;
+    revokeApproval(approvalId: string): Promise<unknown>;
+    clearApprovals(): Promise<unknown>;
     onCommandEvent(requestId: string, callback: (payload: unknown) => void | Promise<void>): () => void;
   };
   account: {
@@ -301,6 +304,19 @@ describe('preload filesystem budgets', () => {
       'desktop:computer-command:approve',
       'command-1',
       'run_once',
+    );
+    await api.computer.listApprovals();
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'desktop:computer-command:approvals:list',
+    );
+    await api.computer.revokeApproval('a'.repeat(64));
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'desktop:computer-command:approvals:revoke',
+      'a'.repeat(64),
+    );
+    await api.computer.clearApprovals();
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'desktop:computer-command:approvals:clear',
     );
     expect(handler({}, { type: 'started' })).toBeUndefined();
     await Promise.resolve();

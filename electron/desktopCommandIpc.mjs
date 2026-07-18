@@ -90,6 +90,15 @@ export function registerDesktopCommandIpc({
   const approvalStore = approvalStoreOverride ?? createDesktopCommandApprovalStore({ app });
   app.on?.('before-quit', () => abortActiveDesktopCommands('app_quit'));
 
+  handleIpc('desktop:computer-command:approvals:list', async () => approvalStore.list());
+
+  handleIpc('desktop:computer-command:approvals:revoke', async (_event, rawApprovalId) => {
+    const approvalId = requireSafeIpcRequestId(rawApprovalId, 'Computer command approval id');
+    return approvalStore.revoke(approvalId);
+  });
+
+  handleIpc('desktop:computer-command:approvals:clear', async () => approvalStore.clear());
+
   handleIpc('desktop:computer-command:approve', async (event, rawRequestId, decision) => {
     const requestId = requireSafeIpcRequestId(rawRequestId, 'Computer command request id');
     if (!['run_once', 'always', 'cancel'].includes(decision)) {

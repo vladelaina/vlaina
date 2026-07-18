@@ -504,6 +504,16 @@
           const id = requireSafeIpcRequestId(requestId, 'Computer command request id');
           return ipcRenderer.invoke('desktop:computer-command:approve', id, decision);
         },
+        listApprovals() {
+          return ipcRenderer.invoke('desktop:computer-command:approvals:list');
+        },
+        revokeApproval(approvalId) {
+          const id = requireSafeIpcRequestId(approvalId, 'Computer command approval id');
+          return ipcRenderer.invoke('desktop:computer-command:approvals:revoke', id);
+        },
+        clearApprovals() {
+          return ipcRenderer.invoke('desktop:computer-command:approvals:clear');
+        },
         onCommandEvent(requestId, callback) {
           const id = requireSafeIpcRequestId(requestId, 'Computer command request id');
           const channel = `desktop:computer-command:${id}:event`;

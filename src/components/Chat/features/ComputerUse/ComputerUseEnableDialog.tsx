@@ -5,10 +5,17 @@ interface ComputerUseEnableDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onRequestComposerFocus: () => void;
 }
 
-export function ComputerUseEnableDialog({ isOpen, onClose, onConfirm }: ComputerUseEnableDialogProps) {
+export function ComputerUseEnableDialog({
+  isOpen,
+  onClose,
+  onConfirm,
+  onRequestComposerFocus,
+}: ComputerUseEnableDialogProps) {
   const { t } = useI18n();
+
   return (
     <ConfirmDialog
       isOpen={isOpen}
@@ -19,6 +26,10 @@ export function ComputerUseEnableDialog({ isOpen, onClose, onConfirm }: Computer
       confirmText={t('chat.computerUse.enableConfirm')}
       cancelText={t('common.cancel')}
       initialFocus="cancel"
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        onRequestComposerFocus();
+      }}
     />
   );
 }

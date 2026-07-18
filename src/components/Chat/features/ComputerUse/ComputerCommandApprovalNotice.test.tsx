@@ -57,9 +57,9 @@ describe('ComputerCommandApprovalNotice', () => {
   it('disables persistent approval for commands rejected by the main-process policy', () => {
     act(() => {
       publishComputerCommandApproval('approval-2', {
-        command: 'pnpm install',
+        command: 'rm -rf ./cache',
         cwd: '/tmp/project',
-        purpose: 'Install dependencies',
+        purpose: 'Clear generated files',
         timeoutSeconds: 600,
         risk: 'elevated',
         canAlwaysAllow: false,
@@ -69,7 +69,7 @@ describe('ComputerCommandApprovalNotice', () => {
 
     expect(screen.getByRole('button', { name: 'chat.computerUse.alwaysRun' })).toBeDisabled();
     expect(screen.getAllByRole('button')).toHaveLength(3);
-    expect(screen.queryByText('pnpm install')).not.toBeInTheDocument();
+    expect(screen.queryByText('rm -rf ./cache')).not.toBeInTheDocument();
     expect(screen.queryByText('/tmp/project')).not.toBeInTheDocument();
   });
 

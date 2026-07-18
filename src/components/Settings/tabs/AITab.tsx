@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { ProviderDetail } from './ai/ProviderDetail';
 import { AIBehaviorSettings } from './ai/AIBehaviorSettings';
+import { ComputerCommandApprovalSettings } from './ai/ComputerCommandApprovalSettings';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useI18n } from '@/lib/i18n';
@@ -196,6 +197,7 @@ export function AITab() {
         data-settings-scroll-root="ai"
       >
         <AIBehaviorSettings />
+        <ComputerCommandApprovalSettings />
 
         <section className="mx-auto max-w-5xl">
           <AIChannelsSection

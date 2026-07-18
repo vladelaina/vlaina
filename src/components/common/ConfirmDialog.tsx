@@ -24,6 +24,7 @@ interface ConfirmDialogProps {
   variant?: 'danger' | 'default';
   auxActionVariant?: 'success' | 'default';
   initialFocus?: 'confirm' | 'cancel';
+  onCloseAutoFocus?: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>['onCloseAutoFocus'];
 }
 
 export function ConfirmDialog({
@@ -40,6 +41,7 @@ export function ConfirmDialog({
   variant = 'default',
   auxActionVariant = 'default',
   initialFocus = 'confirm',
+  onCloseAutoFocus,
 }: ConfirmDialogProps) {
   const descriptionId = useId();
   const auxActionRef = useRef<HTMLButtonElement>(null);
@@ -103,6 +105,7 @@ export function ConfirmDialog({
               }
               confirmRef.current?.focus();
             }}
+            onCloseAutoFocus={onCloseAutoFocus}
             onKeyDown={handleKeyDown}
             className="w-full max-w-[var(--vlaina-size-360px)] rounded-[var(--vlaina-radius-34px)] border border-transparent bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-raised-soft)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-[var(--vlaina-duration-75)]"
           >
