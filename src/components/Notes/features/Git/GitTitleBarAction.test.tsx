@@ -204,7 +204,7 @@ describe('GitTitleBarAction', () => {
 
     expect(mocks.git.status).toHaveBeenCalledWith('/repo');
     expect(document.body).toHaveAttribute('data-git-selection-active', 'true');
-    expect(screen.getByText('main')).toBeInTheDocument();
+    expect(await screen.findByText('main')).toBeInTheDocument();
     expect(screen.queryByText(/git\.branch/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText('git.refresh')).not.toBeInTheDocument();
     const headerControls = screen.getByTestId('git-branch').parentElement!;
