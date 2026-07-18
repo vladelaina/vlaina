@@ -238,9 +238,9 @@ describe('ChatInput', () => {
     });
     const { container } = renderChatInput();
 
-    const approval = container.querySelector('[data-computer-command-approval="true"]');
-    const approvalFrame = container.querySelector('[data-computer-command-approval-frame="true"]');
-    const composer = container.querySelector('[data-chat-input="true"]');
+    const approval = container.querySelector<HTMLElement>('[data-computer-command-approval="true"]');
+    const approvalFrame = container.querySelector<HTMLElement>('[data-computer-command-approval-frame="true"]');
+    const composer = container.querySelector<HTMLElement>('[data-chat-input="true"]');
     expect(approval).not.toBeNull();
     expect(approvalFrame).not.toBeNull();
     expect(composer).not.toBeNull();
@@ -276,8 +276,8 @@ describe('ChatInput', () => {
     });
     const { container } = renderChatInput({ isManagedQuotaExhausted: true });
 
-    const approvalFrame = container.querySelector('[data-computer-command-approval-frame="true"]');
-    const composer = container.querySelector('[data-chat-input="true"]');
+    const approvalFrame = container.querySelector<HTMLElement>('[data-computer-command-approval-frame="true"]');
+    const composer = container.querySelector<HTMLElement>('[data-chat-input="true"]');
     if (!approvalFrame || !composer?.parentElement) {
       throw new Error('Expected approval and quota frames.');
     }

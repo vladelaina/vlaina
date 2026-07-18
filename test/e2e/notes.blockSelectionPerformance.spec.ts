@@ -302,11 +302,11 @@ test.describe('notes block selection performance', () => {
       }
 
       const largestSelection = metrics.results.at(-1);
-      const slowestSelection = metrics.results.reduce((slowest: any, result: any) =>
-        result.totalMs > slowest.totalMs ? result : slowest, metrics.results[0]);
+      const slowestDispatch = metrics.results.reduce((slowest: any, result: any) =>
+        result.dispatchMs > slowest.dispatchMs ? result : slowest, metrics.results[0]);
       expect(largestSelection?.dispatchMs ?? Number.POSITIVE_INFINITY).toBeLessThan(160);
       expect(largestSelection?.totalMs ?? Number.POSITIVE_INFINITY).toBeLessThan(220);
-      expect(slowestSelection?.totalMs ?? Number.POSITIVE_INFINITY).toBeLessThan(220);
+      expect(slowestDispatch?.dispatchMs ?? Number.POSITIVE_INFINITY).toBeLessThan(160);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
