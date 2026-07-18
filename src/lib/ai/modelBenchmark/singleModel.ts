@@ -3,6 +3,11 @@ import { buildAnthropicBaseUrl, buildOpenAIBaseUrl, resolveApiModelId } from '..
 import { providerFetch } from '../providerHttp';
 import type { AIModel, Provider } from '../types';
 import {
+  isManagedProviderId,
+  reportManagedDesktopClientDiagnostic,
+  requestManagedChatCompletion,
+} from '../managedService';
+import {
   getAlternateEndpointType,
   getVerifiedModelEndpointType,
   isLikelyAnthropicModel,
@@ -19,7 +24,7 @@ import {
 } from './singleModelPayload';
 
 const BENCHMARK_TEXT_PROMPT = 'say 6';
-const BENCHMARK_TEXT_MAX_OUTPUT_TOKENS = 1;
+const BENCHMARK_TEXT_MAX_OUTPUT_TOKENS = 128;
 
 function buildBenchmarkUrl(provider: Provider, endpoint: BenchmarkEndpoint, endpointType?: Provider['endpointType']): string {
   if (endpointType === 'anthropic') {
@@ -175,6 +180,54 @@ export async function checkModelHealth(
       endpoint: resultEndpoint,
     };
   };
+
+  if (isManagedProviderId(provider.id)) {
+    try {
+      const payload = await requestManagedChatCompletion({
+        model: apiModelId,
+        messages: [{ role: 'user', content: BENCHMARK_TEXT_PROMPT }],
+        stream: false,
+        max_completion_tokens: BENCHMARK_TEXT_MAX_OUTPUT_TOKENS,
+      }, controller.signal);
+      throwIfAborted(controller.signal);
+      if (readErrorMessage(payload) || !isExpectedSuccessPayload(payload, 'chat')) {
+        throw new Error(readErrorMessage(payload) || 'Unexpected benchmark response');
+      }
+      return {
+        status: 'success',
+        latency: Math.round(performance.now() - start),
+        endpoint: 'chat',
+      };
+    } catch (error: unknown) {
+      const result = toErrorResult(error, 'chat');
+      const errorRecord = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+      const diagnosticCode = didTimeout
+        ? 'model_benchmark_timeout'
+        : result.error === 'Unexpected benchmark response'
+          ? 'unexpected_benchmark_response'
+          : typeof errorRecord.errorCode === 'string'
+            ? errorRecord.errorCode
+            : 'model_benchmark_failed';
+      if (!didAbortExternally) {
+        void reportManagedDesktopClientDiagnostic({
+          kind: 'chat_json',
+          source: 'managed_desktop_json',
+          phase: 'json_response',
+          model: apiModelId,
+          isStream: false,
+          errorCode: diagnosticCode,
+          message: result.error,
+          ...(typeof errorRecord.statusCode === 'number' ? { statusCode: errorRecord.statusCode } : {}),
+        }).catch(() => undefined);
+      }
+      return result;
+    } finally {
+      detachExternalAbort?.();
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
 
   const runBenchmarkAttempt = async (attemptEndpointType: Provider['endpointType'] | undefined): Promise<HealthCheckResult> => {
     const attemptEndpoint = attemptEndpointType === 'anthropic' ? 'chat' : inferBenchmarkEndpoint(apiModelId);

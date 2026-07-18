@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/shell/AppShell';
 import { TitleBarCenterRegion, TitleBarInteractiveRegion } from '@/components/layout/shell/TitleBarCenterRegion';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { cn } from '@/lib/utils';
+import { ModelHealthCheckWidget } from '@/components/desktop/ModelHealthCheckWidget';
 import { useUIStore, type AppViewMode } from '@/stores/uiSlice';
 import type { CommunitySettings } from '@/components/Settings/tabs/aboutCommunitySettings';
 import type { SettingsOpenTab } from '@/components/Settings/settingsEvents';
@@ -263,11 +264,17 @@ export function AppContentShell({
     </>
   );
 
-  const mainOverlay = import.meta.env.DEV && DevMainOverlay ? (
-    <Suspense fallback={null}>
-      <DevMainOverlay effectiveAppViewMode={effectiveAppViewMode} />
-    </Suspense>
-  ) : null;
+  const mainOverlay = (
+    <>
+      {import.meta.env.DEV && DevMainOverlay ? (
+        <Suspense fallback={null}>
+          <DevMainOverlay effectiveAppViewMode={effectiveAppViewMode}>
+            <ModelHealthCheckWidget />
+          </DevMainOverlay>
+        </Suspense>
+      ) : null}
+    </>
+  );
 
   return (
     <>

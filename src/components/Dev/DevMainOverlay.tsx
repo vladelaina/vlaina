@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useUIStore, type AppViewMode } from '@/stores/uiSlice';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -45,8 +45,10 @@ function getNextDevMarkdownThemeId(currentThemeId: string | null, themeIds: stri
 }
 
 export function DevMainOverlay({
+  children,
   effectiveAppViewMode,
 }: {
+  children?: ReactNode;
   effectiveAppViewMode: AppViewMode;
 }) {
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
@@ -179,6 +181,7 @@ export function DevMainOverlay({
     >
       {isExpanded ? (
         <>
+          {children}
           <DevOverlayButton
             iconName={isRetrySimulationEnabled ? 'common.checkCircle' : 'common.refresh'}
             label={isRetrySimulationEnabled ? 'Test retry enabled' : 'Test retry'}

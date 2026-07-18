@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => {
     getManagedModels: vi.fn().mockResolvedValue({ data: [] }),
     getManagedModelsVersion: vi.fn().mockResolvedValue({ success: true, model_catalog_version: '0' }),
     getManagedBudget: vi.fn().mockResolvedValue({ active: true }),
+    reportManagedClientDiagnostic: vi.fn().mockResolvedValue({}),
     managedChatCompletion: vi.fn().mockResolvedValue({ id: 'resp-1' }),
     cancelManagedChatCompletion: vi.fn().mockResolvedValue(undefined),
     managedImageGeneration: vi.fn().mockResolvedValue({ data: [] }),
@@ -66,10 +67,12 @@ describe('desktop account commands', () => {
     await accountCommands.accountAuth('google');
     await accountCommands.requestEmailAuthCode('vla@example.com', 'zh-CN');
     await accountCommands.verifyEmailAuthCode('vla@example.com', '123456');
+    await accountCommands.reportManagedClientDiagnostic({ kind: 'chat_json' });
 
     expect(mocks.account.startAuth).toHaveBeenCalledWith('google');
     expect(mocks.account.requestEmailCode).toHaveBeenCalledWith('vla@example.com', 'zh-CN');
     expect(mocks.account.verifyEmailCode).toHaveBeenCalledWith('vla@example.com', '123456');
+    expect(mocks.account.reportManagedClientDiagnostic).toHaveBeenCalledWith({ kind: 'chat_json' });
   });
 
   it('does not dispatch auth invalidation when managed calls fail with sign-in required', async () => {

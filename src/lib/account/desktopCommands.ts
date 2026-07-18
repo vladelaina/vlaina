@@ -97,6 +97,10 @@ export const accountCommands = {
     return await getDesktopAccountBridge().getManagedBudget();
   },
 
+  async reportManagedClientDiagnostic(body: Record<string, unknown>) {
+    return await getDesktopAccountBridge().reportManagedClientDiagnostic(body);
+  },
+
   async managedChatCompletion(body: object, signal?: AbortSignal) {
     const bridge = getDesktopAccountBridge();
     return await runCancellableManagedJsonRequest({
