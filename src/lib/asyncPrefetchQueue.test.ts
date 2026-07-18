@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAsyncPrefetchQueue } from './asyncPrefetchQueue';
 
 function createDeferred() {
@@ -10,6 +10,10 @@ function createDeferred() {
 }
 
 describe('createAsyncPrefetchQueue', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('limits concurrent prefetch tasks', async () => {
     const queue = createAsyncPrefetchQueue(2);
     const gates = [createDeferred(), createDeferred(), createDeferred()];
@@ -43,5 +47,22 @@ describe('createAsyncPrefetchQueue', () => {
     const queue = createAsyncPrefetchQueue(0);
 
     await expect(queue.run(async () => 'ok')).resolves.toBe('ok');
+  });
+
+  it('releases queue slots when a prefetch task stalls', async () => {
+    vi.useFakeTimers();
+    const queue = createAsyncPrefetchQueue(1);
+    const stalled = queue.run(() => new Promise<void>(() => {}));
+    let secondStarted = false;
+    const second = queue.run(async () => {
+      secondStarted = true;
+    });
+    const rejection = expect(stalled).rejects.toThrow('Prefetch task timed out');
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await rejection;
+    await second;
+    expect(secondStarted).toBe(true);
   });
 });

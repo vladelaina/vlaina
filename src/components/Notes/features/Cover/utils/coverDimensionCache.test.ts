@@ -9,6 +9,7 @@ describe('coverDimensionCache', () => {
   const originalImage = globalThis.Image;
 
   afterEach(() => {
+    vi.useRealTimers();
     clearCoverDimensionCache();
     globalThis.Image = originalImage;
     vi.restoreAllMocks();
@@ -84,5 +85,35 @@ describe('coverDimensionCache', () => {
         height: 800,
       }))
     );
+  });
+
+  it('releases stalled dimension loads after a bounded wait', async () => {
+    vi.useFakeTimers();
+    const instances: Array<{ onload: (() => void) | null; onerror: (() => void) | null; src: string }> = [];
+
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 0;
+      naturalHeight = 0;
+      src = '';
+
+      constructor() {
+        instances.push(this);
+      }
+    }
+
+    globalThis.Image = MockImage as unknown as typeof Image;
+    const loads = Array.from({ length: MAX_PENDING_COVER_DIMENSION_LOADS }, (_value, index) =>
+      loadImageWithDimensions(`blob:stalled-cover-${index}`)
+    );
+
+    await vi.advanceTimersByTimeAsync(20);
+
+    await expect(Promise.all(loads)).resolves.toEqual(
+      Array.from({ length: MAX_PENDING_COVER_DIMENSION_LOADS }, () => null)
+    );
+    void loadImageWithDimensions('blob:replacement-cover');
+    expect(instances).toHaveLength(MAX_PENDING_COVER_DIMENSION_LOADS + 1);
   });
 });

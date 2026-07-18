@@ -1,39 +1,24 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
+import { createBoundedAsyncQueue } from '@/lib/boundedAsyncQueue';
 import { resolveNotesRootRelativeFullPath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { themeFileTreeTokens } from '@/styles/themeTokens';
 
 const MAX_CONCURRENT_FILE_TREE_BACKGROUNDS = 4;
+const FILE_TREE_BACKGROUND_LOAD_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 1000 : 15_000;
 
-interface BackgroundLoadJob {
-  cancelled: boolean;
-  run: () => Promise<void>;
+function createAbortError() {
+  const error = new Error('File tree image background load aborted');
+  error.name = 'AbortError';
+  return error;
 }
 
-const backgroundLoadQueue: BackgroundLoadJob[] = [];
-let activeBackgroundLoads = 0;
-
-function drainBackgroundLoadQueue() {
-  while (activeBackgroundLoads < MAX_CONCURRENT_FILE_TREE_BACKGROUNDS) {
-    const job = backgroundLoadQueue.shift();
-    if (!job) return;
-    if (job.cancelled) continue;
-    activeBackgroundLoads += 1;
-    void job.run().finally(() => {
-      activeBackgroundLoads -= 1;
-      drainBackgroundLoadQueue();
-    });
-  }
-}
-
-function enqueueBackgroundLoad(run: () => Promise<void>) {
-  const job: BackgroundLoadJob = { cancelled: false, run };
-  backgroundLoadQueue.push(job);
-  drainBackgroundLoadQueue();
-  return () => {
-    job.cancelled = true;
-  };
-}
+const backgroundLoadQueue = createBoundedAsyncQueue({
+  concurrency: MAX_CONCURRENT_FILE_TREE_BACKGROUNDS,
+  createAbortError,
+  createTimeoutError: () => new Error('File tree image background load timed out'),
+  timeoutMs: FILE_TREE_BACKGROUND_LOAD_TIMEOUT_MS,
+});
 
 export const ImageFileNameBackground = memo(function ImageFileNameBackground({
   notesPath,
@@ -47,7 +32,7 @@ export const ImageFileNameBackground = memo(function ImageFileNameBackground({
 
   useEffect(() => {
     let active = true;
-    let cancelQueued: (() => void) | null = null;
+    const abortController = new AbortController();
     const load = async () => {
       try {
         const { fullPath } = await resolveNotesRootRelativeFullPath(notesPath, imagePath);
@@ -59,7 +44,7 @@ export const ImageFileNameBackground = memo(function ImageFileNameBackground({
       }
     };
     const queueLoad = () => {
-      cancelQueued = enqueueBackgroundLoad(load);
+      void backgroundLoadQueue.run(load, abortController.signal).catch(() => undefined);
     };
 
     if (typeof IntersectionObserver === 'undefined' || !rootRef.current) {
@@ -74,14 +59,14 @@ export const ImageFileNameBackground = memo(function ImageFileNameBackground({
       observer.observe(rootRef.current);
       return () => {
         active = false;
-        cancelQueued?.();
+        abortController.abort();
         observer.disconnect();
       };
     }
 
     return () => {
       active = false;
-      cancelQueued?.();
+      abortController.abort();
     };
   }, [imagePath, notesPath]);
 

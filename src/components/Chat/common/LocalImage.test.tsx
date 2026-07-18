@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalImage, MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS } from './LocalImage';
 
 const MAX_ATTACHMENT_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -27,6 +27,10 @@ vi.mock('./svgRasterize', () => ({
 }));
 
 describe('LocalImage', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     mocks.getBasePath.mockClear();
     mocks.joinPath.mockReset();
@@ -229,5 +233,26 @@ describe('LocalImage', () => {
     });
 
     expect(mocks.readBinaryFile).toHaveBeenCalledTimes(MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS);
+  });
+
+  it('releases active read slots when stored attachment reads stall', async () => {
+    vi.useFakeTimers();
+    mocks.readBinaryFile.mockImplementation(() => new Promise(() => {}));
+
+    Array.from({ length: MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS + 1 }, (_value, index) => render(
+      <LocalImage src={`attachment://stalled-${index}.png`} alt={`stalled-${index}`} />,
+    ));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocks.readBinaryFile).toHaveBeenCalledTimes(MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+      await Promise.resolve();
+    });
+
+    expect(mocks.readBinaryFile).toHaveBeenCalledTimes(MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS + 1);
   });
 });

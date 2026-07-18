@@ -1,5 +1,5 @@
 import { act, render, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssetThumbnail } from './AssetThumbnail';
 
 const hoisted = vi.hoisted(() => ({
@@ -37,6 +37,10 @@ function renderThumbnail(filename: string, loadPriority: number) {
 }
 
 describe('AssetThumbnail', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.resolveNotesRootAssetPath.mockImplementation(
@@ -78,5 +82,30 @@ describe('AssetThumbnail', () => {
       pendingLoads.slice(1).forEach((load, index) => load.resolve(`blob:cover-${index + 1}`));
       await Promise.resolve();
     });
+  });
+
+  it('releases thumbnail queue slots when a load stalls', async () => {
+    vi.useFakeTimers();
+    hoisted.loadImageThumbnailAsBlob.mockImplementation(() => new Promise(() => {}));
+
+    render(
+      <>
+        {Array.from({ length: 5 }, (_value, index) =>
+          renderThumbnail(`stalled-${index}.png`, index)
+        )}
+      </>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(4);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+      await Promise.resolve();
+    });
+
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(5);
   });
 });

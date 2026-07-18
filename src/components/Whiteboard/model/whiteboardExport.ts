@@ -9,6 +9,7 @@ import { getStrokeBounds } from './whiteboardSelection';
 import { renderWhiteboardStrokeSvg } from './whiteboardStrokeExport';
 
 export type WhiteboardExportFormat = 'jpeg' | 'png' | 'svg' | 'webp';
+const WHITEBOARD_EXPORT_IMAGE_LOAD_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 20 : 15_000;
 
 interface WhiteboardExportOptions {
   elements: WhiteboardElement[];
@@ -153,13 +154,31 @@ async function loadSvgImage(svg: string): Promise<HTMLImageElement> {
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const image = new Image();
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error('Whiteboard export failed'));
-    image.src = url;
-  });
-  URL.revokeObjectURL(url);
-  return image;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        window.clearTimeout(timeoutId);
+        image.onload = null;
+        image.onerror = null;
+      };
+      image.onload = () => {
+        cleanup();
+        resolve();
+      };
+      image.onerror = () => {
+        cleanup();
+        reject(new Error('Whiteboard export failed'));
+      };
+      const timeoutId = window.setTimeout(() => {
+        cleanup();
+        reject(new Error('Whiteboard export image load timed out'));
+      }, WHITEBOARD_EXPORT_IMAGE_LOAD_TIMEOUT_MS);
+      image.src = url;
+    });
+    return image;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function css(styles: CSSStyleDeclaration, name: string): string {

@@ -352,6 +352,17 @@ jobs:
             sleep 10
           done
 
+      - name: Smoke test Windows installer launch
+        if: success() && matrix.platform == 'windows' && matrix.arch == 'x64'
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $installer = Get-ChildItem -Path 'release/*-windows-x64-setup.exe' -File | Select-Object -First 1
+          if ($null -eq $installer) {
+            throw 'Windows x64 installer was not found.'
+          }
+          ./scripts/windows-installer-smoke.ps1 -InstallerPath $installer.FullName
+
       - name: Upload Windows NSIS installer
         if: success() && matrix.platform == 'windows'
         uses: actions/upload-artifact@v7
@@ -532,6 +543,17 @@ jobs:
             rm -rf release
             sleep 10
           done
+
+      - name: Smoke test Windows installer launch
+        if: success() && matrix.platform == 'windows' && matrix.arch == 'x64'
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $installer = Get-ChildItem -Path 'release/*-windows-x64-setup.exe' -File | Select-Object -First 1
+          if ($null -eq $installer) {
+            throw 'Windows x64 installer was not found.'
+          }
+          ./scripts/windows-installer-smoke.ps1 -InstallerPath $installer.FullName
 
       - name: Upload Windows NSIS installer
         if: success() && matrix.platform == 'windows'

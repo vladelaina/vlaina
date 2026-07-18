@@ -1,4 +1,5 @@
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
+import { createBoundedAsyncQueue } from '@/lib/boundedAsyncQueue';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
@@ -11,6 +12,7 @@ import {
 const MAX_TAG_NOTE_ICON_CACHE_ENTRIES = 300;
 const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
 export const MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS = 4;
+const TAG_NOTE_ICON_READ_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 1000 : 15_000;
 const tagNoteIconUtf8Encoder = new TextEncoder();
 
 interface TagNoteIconCacheEntry {
@@ -20,12 +22,6 @@ interface TagNoteIconCacheEntry {
 }
 
 const tagNoteIconCache = new Map<string, TagNoteIconCacheEntry>();
-const pendingTagNoteIconMetadataReads: ScheduledTagNoteIconRead[] = [];
-let activeTagNoteIconMetadataReads = 0;
-
-interface ScheduledTagNoteIconRead {
-  run: () => Promise<void>;
-}
 
 function createAbortError() {
   const error = new Error('Tag note icon metadata read aborted');
@@ -33,69 +29,12 @@ function createAbortError() {
   return error;
 }
 
-function drainTagNoteIconMetadataReadQueue() {
-  while (
-    activeTagNoteIconMetadataReads < MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS &&
-    pendingTagNoteIconMetadataReads.length > 0
-  ) {
-    const scheduled = pendingTagNoteIconMetadataReads.shift();
-    if (!scheduled) {
-      return;
-    }
-
-    activeTagNoteIconMetadataReads += 1;
-    void scheduled.run().finally(() => {
-      activeTagNoteIconMetadataReads -= 1;
-      drainTagNoteIconMetadataReadQueue();
-    });
-  }
-}
-
-function scheduleTagNoteIconMetadataRead(
-  task: () => Promise<TagNoteIconCacheEntry>,
-  signal?: AbortSignal,
-): Promise<TagNoteIconCacheEntry> {
-  if (signal?.aborted) {
-    return Promise.reject(createAbortError());
-  }
-
-  return new Promise((resolve, reject) => {
-    let scheduled: ScheduledTagNoteIconRead | null = null;
-    const abortPendingRead = () => {
-      if (!scheduled) {
-        return;
-      }
-
-      const pendingIndex = pendingTagNoteIconMetadataReads.indexOf(scheduled);
-      if (pendingIndex === -1) {
-        return;
-      }
-
-      pendingTagNoteIconMetadataReads.splice(pendingIndex, 1);
-      reject(createAbortError());
-    };
-
-    scheduled = {
-      run: async () => {
-        signal?.removeEventListener('abort', abortPendingRead);
-        if (signal?.aborted) {
-          reject(createAbortError());
-          return;
-        }
-
-        try {
-          resolve(await task());
-        } catch (error) {
-          reject(error);
-        }
-      },
-    };
-
-    signal?.addEventListener('abort', abortPendingRead, { once: true });
-    pendingTagNoteIconMetadataReads.push(scheduled);
-    drainTagNoteIconMetadataReadQueue();
-  });
-}
+const tagNoteIconReadQueue = createBoundedAsyncQueue({
+  concurrency: MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS,
+  createAbortError,
+  createTimeoutError: () => new Error('Tag note icon metadata read timed out'),
+  timeoutMs: TAG_NOTE_ICON_READ_TIMEOUT_MS,
+});
 
 export function setTagNoteIconCacheEntry(cacheKey: string, entry: TagNoteIconCacheEntry) {
   tagNoteIconCache.delete(cacheKey);
@@ -231,7 +170,7 @@ export async function readTagNoteIcon(
   cacheKey: string,
   signal?: AbortSignal,
 ): Promise<TagNoteIconCacheEntry> {
-  return scheduleTagNoteIconMetadataRead(
+  return tagNoteIconReadQueue.run(
     () => readTagNoteIconFromStorage(path, notesRootPath, cacheKey),
     signal,
   );

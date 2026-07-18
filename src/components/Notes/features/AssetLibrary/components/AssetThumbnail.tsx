@@ -6,6 +6,7 @@ import { resolveNotesRootAssetPath } from '@/lib/assets/core/paths';
 import { themeDomStyleTokens, themeLazyLoadTokens } from '@/styles/themeTokens';
 
 const MAX_CONCURRENT_THUMBNAIL_LOADS = 4;
+const THUMBNAIL_LOAD_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 1000 : 15_000;
 
 interface ThumbnailLoadJob {
   cancelled: boolean;
@@ -18,6 +19,19 @@ const thumbnailLoadQueue: ThumbnailLoadJob[] = [];
 let activeThumbnailLoads = 0;
 let thumbnailLoadSequence = 0;
 
+function runThumbnailLoadWithTimeout(run: () => Promise<void>) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Asset thumbnail load timed out')), THUMBNAIL_LOAD_TIMEOUT_MS);
+  });
+
+  return Promise.race([run(), timeout]).finally(() => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  });
+}
+
 function drainThumbnailLoadQueue() {
   thumbnailLoadQueue.sort((a, b) => a.priority - b.priority || a.sequence - b.sequence);
 
@@ -27,7 +41,7 @@ function drainThumbnailLoadQueue() {
     if (job.cancelled) continue;
 
     activeThumbnailLoads += 1;
-    void job.run()
+    void runThumbnailLoadWithTimeout(job.run)
       .catch(() => undefined)
       .finally(() => {
         activeThumbnailLoads = Math.max(0, activeThumbnailLoads - 1);

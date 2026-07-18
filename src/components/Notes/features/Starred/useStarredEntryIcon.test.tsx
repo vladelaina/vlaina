@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
 
 const MAX_STARRED_ICON_METADATA_BYTES = 512 * 1024;
@@ -20,6 +20,10 @@ vi.mock('@/lib/storage/adapter', () => ({
 }));
 
 describe('useStarredEntryIcon', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     mocked.readFile.mockReset();
     mocked.stat.mockReset();
@@ -434,5 +438,36 @@ describe('useStarredEntryIcon', () => {
     await Promise.resolve();
 
     expect(mocked.readFile).toHaveBeenCalledTimes(4);
+  });
+
+  it('releases active metadata read slots when storage stalls', async () => {
+    vi.useFakeTimers();
+    mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 32 });
+    mocked.readFile.mockImplementation(() => new Promise(() => {}));
+
+    const hooks = Array.from({ length: 5 }, (_, index) =>
+      renderHook(() =>
+        useStarredEntryIcon({
+          id: `starred-stalled-${index}`,
+          kind: 'note',
+          notesRootPath: '/notes-root-b',
+          relativePath: `docs/stalled-${index}.md`,
+          addedAt: 1,
+        }, true),
+      )
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocked.readFile).toHaveBeenCalledTimes(4);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+      await Promise.resolve();
+    });
+
+    expect(mocked.readFile).toHaveBeenCalledTimes(5);
+    hooks.forEach((hook) => hook.unmount());
   });
 });

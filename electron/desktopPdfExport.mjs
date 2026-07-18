@@ -6,7 +6,23 @@ import { pathToFileURL } from 'node:url';
 const { app, BrowserWindow } = electron;
 const MAX_DESKTOP_EXPORT_HTML_BYTES = 64 * 1024 * 1024;
 const MAX_DESKTOP_EXPORT_PDF_BYTES = 64 * 1024 * 1024;
+const DESKTOP_EXPORT_OPERATION_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 20 : 30_000;
 let exportSessionCounter = 0;
+
+function withDesktopExportTimeout(task, label) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`Timed out ${label}.`));
+    }, DESKTOP_EXPORT_OPERATION_TIMEOUT_MS);
+  });
+
+  return Promise.race([task, timeout]).finally(() => {
+    if (timer !== null) {
+      clearTimeout(timer);
+    }
+  });
+}
 
 function assertDesktopExportHtmlBytes(html) {
   if (Buffer.byteLength(html, 'utf8') > MAX_DESKTOP_EXPORT_HTML_BYTES) {
@@ -96,9 +112,12 @@ export async function renderHtmlToPdf(html, options) {
   try {
     await writeFile(tempHtmlPath, html, 'utf8');
     installExportWindowGuards(win, tempHtmlPath);
-    await win.loadFile(tempHtmlPath);
+    await withDesktopExportTimeout(win.loadFile(tempHtmlPath), 'loading PDF export HTML');
     await new Promise((resolve) => setTimeout(resolve, 80));
-    const pdfBytes = await win.webContents.printToPDF(normalizeExportPdfOptions(options));
+    const pdfBytes = await withDesktopExportTimeout(
+      win.webContents.printToPDF(normalizeExportPdfOptions(options)),
+      'generating PDF export',
+    );
     assertDesktopExportPdfBytes(pdfBytes?.byteLength);
     return pdfBytes;
   } finally {

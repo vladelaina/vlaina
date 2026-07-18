@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWhiteboardExportBlob } from './whiteboardExport';
 
 describe('whiteboard export appearance', () => {
+  const originalImage = globalThis.Image;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    globalThis.Image = originalImage;
+  });
+
   it('exports images on the selected paper background', async () => {
     const root = document.createElement('div');
     root.style.setProperty('--vlaina-bg-primary', '#ffffff');
@@ -79,6 +87,31 @@ describe('whiteboard export appearance', () => {
     } finally {
       root.remove();
     }
+  });
+
+  it('times out stalled raster image loading and releases the Blob URL', async () => {
+    vi.useFakeTimers();
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      src = '';
+    }
+    globalThis.Image = MockImage as unknown as typeof Image;
+    const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:whiteboard-export');
+    const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const exportPromise = createWhiteboardExportBlob({
+      elements: [],
+      paper: 'blank',
+      root: null,
+      strokes: [],
+    }, 'png');
+    const rejection = expect(exportPromise).rejects.toThrow('Whiteboard export image load timed out');
+
+    await vi.advanceTimersByTimeAsync(20);
+
+    await rejection;
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:whiteboard-export');
   });
 
 });

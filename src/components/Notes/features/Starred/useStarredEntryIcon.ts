@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createBoundedAsyncQueue } from '@/lib/boundedAsyncQueue';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import {
@@ -12,6 +13,7 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 const MAX_STARRED_ICON_CACHE_ENTRIES = 300;
 const MAX_STARRED_ICON_METADATA_BYTES = 512 * 1024;
 const MAX_CONCURRENT_STARRED_ICON_READS = 4;
+const STARRED_ICON_READ_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 1000 : 15_000;
 const starredIconUtf8Encoder = new TextEncoder();
 
 interface StarredIconCacheEntry {
@@ -21,12 +23,6 @@ interface StarredIconCacheEntry {
 }
 
 const starredIconCache = new Map<string, StarredIconCacheEntry>();
-const pendingStarredIconTasks: ScheduledStarredIconTask[] = [];
-let activeStarredIconTaskCount = 0;
-
-interface ScheduledStarredIconTask {
-  run: () => Promise<void>;
-}
 
 function createAbortError() {
   const error = new Error('Starred icon metadata read aborted');
@@ -34,66 +30,12 @@ function createAbortError() {
   return error;
 }
 
-function runQueuedStarredIconTask() {
-  while (
-    activeStarredIconTaskCount < MAX_CONCURRENT_STARRED_ICON_READS &&
-    pendingStarredIconTasks.length > 0
-  ) {
-    const scheduled = pendingStarredIconTasks.shift();
-    if (!scheduled) {
-      return;
-    }
-
-    activeStarredIconTaskCount += 1;
-    void scheduled.run().finally(() => {
-      activeStarredIconTaskCount -= 1;
-      runQueuedStarredIconTask();
-    });
-  }
-}
-
-function scheduleStarredIconTask<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-  if (signal?.aborted) {
-    return Promise.reject(createAbortError());
-  }
-
-  return new Promise<T>((resolve, reject) => {
-    let scheduled: ScheduledStarredIconTask | null = null;
-    const abortPendingTask = () => {
-      if (!scheduled) {
-        return;
-      }
-
-      const pendingIndex = pendingStarredIconTasks.indexOf(scheduled);
-      if (pendingIndex === -1) {
-        return;
-      }
-
-      pendingStarredIconTasks.splice(pendingIndex, 1);
-      reject(createAbortError());
-    };
-
-    scheduled = {
-      run: async () => {
-        signal?.removeEventListener('abort', abortPendingTask);
-        if (signal?.aborted) {
-          reject(createAbortError());
-          return;
-        }
-
-        try {
-          resolve(await task());
-        } catch (error) {
-          reject(error);
-        }
-      },
-    };
-
-    signal?.addEventListener('abort', abortPendingTask, { once: true });
-    pendingStarredIconTasks.push(scheduled);
-    runQueuedStarredIconTask();
-  });
-}
+const starredIconReadQueue = createBoundedAsyncQueue({
+  concurrency: MAX_CONCURRENT_STARRED_ICON_READS,
+  createAbortError,
+  createTimeoutError: () => new Error('Starred icon metadata read timed out'),
+  timeoutMs: STARRED_ICON_READ_TIMEOUT_MS,
+});
 
 function getStarredIconPathContext(entry: StarredEntry) {
   const relativePath = normalizeStarredRelativePath(entry.relativePath);
@@ -213,7 +155,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
     const abortController = new AbortController();
     void (async () => {
       try {
-        await scheduleStarredIconTask(async () => {
+        await starredIconReadQueue.run(async () => {
           const fullPath = await joinPath(pathContext.notesRootPath, pathContext.relativePath);
           const storage = getStorageAdapter();
           const fileInfo = await storage.stat(fullPath).catch(() => null);
