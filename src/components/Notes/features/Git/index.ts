@@ -1,0 +1,1 @@
+export { GitTitleBarAction } from './GitTitleBarAction';

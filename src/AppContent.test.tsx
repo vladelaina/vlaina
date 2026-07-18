@@ -21,10 +21,12 @@ const mocks = vi.hoisted(() => ({
   listImportedMarkdownThemesFromDirectory: vi.fn(),
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
+  refreshManagedProviderInBackground: vi.fn(),
   prewarmManagedStartupDataInBackground: vi.fn(),
   unifiedLoaded: true,
   settingsModuleImports: 0,
   temporaryChatToggleModuleImports: 0,
+  gitTitleBarActionModuleImports: 0,
   fontSize: 17,
   notesSidebarMounts: 0,
   notesSidebarUnmounts: 0,
@@ -199,6 +201,13 @@ vi.mock('@/components/Chat/features/Temporary/TitleBarTemporaryChatToggle', () =
   };
 });
 
+vi.mock('@/components/Notes/features/Git', () => {
+  mocks.gitTitleBarActionModuleImports += 1;
+  return {
+    GitTitleBarAction: () => <div data-testid="git-titlebar-action" />,
+  };
+});
+
 vi.mock('@/components/Settings', () => {
   mocks.settingsModuleImports += 1;
   return {
@@ -356,6 +365,7 @@ vi.mock('@/lib/appVersion', () => ({
 vi.mock('@/stores/useAIStore', () => ({
   startAIStoreRuntimeEffects: mocks.startAIStoreRuntimeEffects,
   actions: {
+    refreshManagedProviderInBackground: mocks.refreshManagedProviderInBackground,
     prewarmManagedStartupDataInBackground: mocks.prewarmManagedStartupDataInBackground,
   },
 }));
@@ -389,6 +399,7 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.fontSize = 17;
     mocks.settingsModuleImports = 0;
     mocks.temporaryChatToggleModuleImports = 0;
+    mocks.gitTitleBarActionModuleImports = 0;
     mocks.notesSidebarMounts = 0;
     mocks.notesSidebarUnmounts = 0;
     mocks.whiteboardMounts = 0;
@@ -419,14 +430,17 @@ describe('AppContent view switching chrome readiness', () => {
     });
     await waitFor(() => {
       expect(mocks.temporaryChatToggleModuleImports).toBeGreaterThanOrEqual(1);
-    }, { timeout: 3000 });
+    });
+    await waitFor(() => {
+      expect(mocks.gitTitleBarActionModuleImports).toBeGreaterThanOrEqual(1);
+    });
   });
 
   it('prewarms managed models and account entitlements after the initial notes view is ready', async () => {
     render(<AppContent />);
 
     expect(await screen.findByTestId('notes-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
-    expect(screen.queryByTestId('chat-view')).toBeNull();
+    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
     await waitFor(() => {
       expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledWith();
     });
@@ -443,7 +457,7 @@ describe('AppContent view switching chrome readiness', () => {
     rerender(<AppContent />);
 
     expect(await screen.findByTestId('notes-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
-    expect(screen.queryByTestId('chat-view')).toBeNull();
+    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
     await waitFor(() => {
       expect(mocks.prewarmManagedStartupDataInBackground).toHaveBeenCalledTimes(1);
     });
@@ -505,10 +519,10 @@ describe('AppContent view switching chrome readiness', () => {
     const { rerender } = render(<AppContent />);
 
     expect(await screen.findByTestId('notes-view', undefined, { timeout: 3000 })).toBeInTheDocument();
-    expect(screen.queryByTestId('whiteboard-view')).toBeNull();
-    expect(screen.queryByTestId('whiteboard-sidebar')).toBeNull();
-    expect(mocks.whiteboardMounts).toBe(0);
-    expect(mocks.whiteboardSidebarMounts).toBe(0);
+    expect(await screen.findByTestId('whiteboard-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('whiteboard-sidebar')).toBeInTheDocument();
+    expect(mocks.whiteboardMounts).toBe(1);
+    expect(mocks.whiteboardSidebarMounts).toBe(1);
 
     mocks.appViewMode = 'whiteboard';
     rerender(<AppContent />);

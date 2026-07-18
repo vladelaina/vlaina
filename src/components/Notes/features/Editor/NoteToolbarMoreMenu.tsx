@@ -1,5 +1,7 @@
 import { useCallback, type ReactNode, type RefObject } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { ShortcutKeys, SOFT_SHORTCUT_KEY_CLASSNAME } from '@/components/ui/shortcut-keys';
 import {
   DropdownMenu,
@@ -17,6 +19,7 @@ import type { AppLanguage } from '@/lib/i18n/languages';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useDeferredTextStats } from './hooks/useDeferredTextStats';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 type NoteMetadata =
   | {
@@ -80,20 +83,35 @@ export function NoteToolbarMoreMenu({
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <button
-          ref={moreButtonRef}
-          type="button"
-          aria-label={t('notes.moreActions')}
-          onClick={(event) => event.stopPropagation()}
+      <Tooltip>
+        <DropdownMenuTrigger asChild>
+          <TooltipTrigger asChild>
+            <button
+              ref={moreButtonRef}
+              type="button"
+              aria-label={t('notes.moreActions')}
+              onClick={(event) => event.stopPropagation()}
+              className={cn(
+                buttonClassName,
+                'hover:text-[var(--vlaina-sidebar-row-selected-text)]',
+              )}
+            >
+              <Icon size="md" name="common.more" />
+            </button>
+          </TooltipTrigger>
+        </DropdownMenuTrigger>
+        <TooltipContent
+          side="bottom"
+          sideOffset={themeDomStyleTokens.toolbarTooltipOffsetPx}
+          showArrow={false}
           className={cn(
-            buttonClassName,
-            'hover:text-[var(--vlaina-sidebar-row-selected-text)]',
+            'rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+            chatComposerPillSurfaceClass,
           )}
         >
-          <Icon size="md" name="common.more" />
-        </button>
-      </DropdownMenuTrigger>
+          {t('notes.moreActions')}
+        </TooltipContent>
+      </Tooltip>
 
       <DropdownMenuContent
         align="end"

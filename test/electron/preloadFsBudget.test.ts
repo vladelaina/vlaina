@@ -111,6 +111,47 @@ async function loadPreloadApi(): Promise<{
 }
 
 describe('preload filesystem budgets', () => {
+  it('forwards the fixed Git API through dedicated IPC channels', async () => {
+    const { api, ipcRenderer } = await loadPreloadApi();
+    const commitOptions = {
+      message: 'Update notes',
+      paths: ['docs/note.md'],
+    };
+
+    await api.git.status('/repo');
+    await api.git.fetch('/repo');
+    await api.git.workingDiff('/repo', 'docs/note.md');
+    await api.git.history('/repo', 25);
+    await api.git.commitDiff('/repo', '0123456789abcdef');
+    await api.git.commit('/repo', commitOptions);
+    await api.git.pull('/repo');
+    await api.git.push('/repo');
+
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(1, 'desktop:git:status', '/repo');
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(2, 'desktop:git:fetch', '/repo');
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(
+      3,
+      'desktop:git:working-diff',
+      '/repo',
+      'docs/note.md',
+    );
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(4, 'desktop:git:history', '/repo', 25);
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(
+      5,
+      'desktop:git:commit-diff',
+      '/repo',
+      '0123456789abcdef',
+    );
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(
+      6,
+      'desktop:git:commit',
+      '/repo',
+      commitOptions,
+    );
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(7, 'desktop:git:pull', '/repo');
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(8, 'desktop:git:push', '/repo');
+  });
+
   it('bounds pending open markdown events before listeners register', async () => {
     const { api, ipcRenderer } = await loadPreloadApi();
     const openHandler = ipcRenderer.on.mock.calls.find(

@@ -204,6 +204,8 @@ export async function saveDraftNote({
         ? null
         : latestState.pendingDraftDiscardPath,
     error: null,
+    saveError: null,
+    saveErrorPath: null,
   });
 
   persistWorkspaceSnapshot(notesPath, {

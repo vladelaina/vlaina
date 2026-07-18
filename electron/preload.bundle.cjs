@@ -291,6 +291,32 @@
             return ipcRenderer.invoke('desktop:app:report-renderer-error', createRendererErrorReport(details));
           },
         },
+        git: {
+          status(rootPath) {
+            return ipcRenderer.invoke('desktop:git:status', rootPath);
+          },
+          fetch(rootPath) {
+            return ipcRenderer.invoke('desktop:git:fetch', rootPath);
+          },
+          workingDiff(rootPath, filePath) {
+            return ipcRenderer.invoke('desktop:git:working-diff', rootPath, filePath);
+          },
+          history(rootPath, limit) {
+            return ipcRenderer.invoke('desktop:git:history', rootPath, limit);
+          },
+          commitDiff(rootPath, hash) {
+            return ipcRenderer.invoke('desktop:git:commit-diff', rootPath, hash);
+          },
+          commit(rootPath, options) {
+            return ipcRenderer.invoke('desktop:git:commit', rootPath, options);
+          },
+          pull(rootPath) {
+            return ipcRenderer.invoke('desktop:git:pull', rootPath);
+          },
+          push(rootPath) {
+            return ipcRenderer.invoke('desktop:git:push', rootPath);
+          },
+        },
         update: {
           check() {
             return ipcRenderer.invoke('desktop:update:check');

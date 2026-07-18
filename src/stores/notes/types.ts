@@ -133,6 +133,8 @@ export interface NotesState {
   isDirty: boolean;
   isLoading: boolean;
   error: string | null;
+  saveError: string | null;
+  saveErrorPath: string | null;
   recentNotes: string[];
   openTabs: NoteTabState[];
   recentlyClosedTabs: RecentlyClosedTabState[];
@@ -167,7 +169,11 @@ export interface NotesActions {
   prefetchNote: (path: string) => Promise<void>;
   cancelPrefetchNote: (path: string) => void;
   adoptAbsoluteNoteIntoNotesRoot: (absolutePath: string, nextPath: string) => boolean;
-  saveNote: (options?: { explicit?: boolean; suppressOpenTarget?: boolean }) => Promise<void>;
+  saveNote: (options?: {
+    explicit?: boolean;
+    suppressOpenTarget?: boolean;
+    throwOnError?: boolean;
+  }) => Promise<void>;
   syncCurrentNoteFromDisk: (options?: { force?: boolean; expectedExternalChange?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
   invalidateNoteCache: (path: string, options?: { includeDescendants?: boolean }) => void;
   applyExternalPathRename: (oldPath: string, newPath: string) => Promise<void>;

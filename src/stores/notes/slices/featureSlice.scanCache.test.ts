@@ -110,6 +110,28 @@ describe('featureSlice scan cache validation', () => {
     expect(store.getState().noteContentsCache.get(notePath)?.size).toBe(7);
   });
 
+  it('preserves the raw disk baseline while scanning normalized markdown', async () => {
+    mocks.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 9 });
+    mocks.readFile.mockResolvedValue('# Disk!\r\n');
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{ id: notePath, name: 'alpha.md', path: notePath, isFolder: false }],
+      },
+    });
+
+    await store.getState().scanAllNotes();
+
+    const entry = store.getState().noteContentsCache.get(notePath);
+    expect(entry?.content).toBe('# Disk!\n');
+    expect(entry?.savedContent).toBe('# Disk!\r\n');
+  });
+
   it('does not reuse scanned note content when stat has an invalid modified time', async () => {
     mocks.stat.mockResolvedValue({ isFile: true, modifiedAt: Number.POSITIVE_INFINITY, size: 7 });
     const notePath = 'docs/alpha.md';
@@ -206,11 +228,7 @@ describe('featureSlice scan cache validation', () => {
     await store.getState().scanAllNotes();
 
     expect(mocks.readFile).not.toHaveBeenCalled();
-    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
-      content: '',
-      modifiedAt: 2,
-    });
-    expect(store.getState().noteContentsCache.get(notePath)?.size).toBeNull();
+    expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
   });
 
   it('rereads a nonempty file when its cached scan content is empty', async () => {

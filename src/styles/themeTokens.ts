@@ -804,6 +804,7 @@ export const themeUiFeedbackTokens = {
   editorPendingMarkdownTestCommitThrottleMs: 0,
   editorCompositionSettleMs: 220,
   editorInitNoiseWindowMs: 500,
+  editorSavedStatusDurationMs: 1400,
   notesSidebarSearchDebounceMs: 120,
   markdownFontSizePreviewStepPx: 32,
   imageToolbarCopyFeedbackDurationMs: 2000,

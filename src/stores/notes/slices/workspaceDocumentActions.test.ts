@@ -142,8 +142,8 @@ describe('workspace document actions', () => {
     store.getState().updateContent('# Edited alpha');
 
     expect(store.getState().currentNote?.content).toBe('# Edited alpha');
-    expect(store.getState().noteContentsCache).toBe(noteContentsCache);
-    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('# Saved alpha');
+    expect(store.getState().noteContentsCache).not.toBe(noteContentsCache);
+    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('# Edited alpha');
     expect(store.getState().openTabs[0]?.isDirty).toBe(true);
   });
 
@@ -327,6 +327,106 @@ describe('workspace document actions', () => {
       },
     }));
     expect(store.getState().isDirty).toBe(false);
+  });
+
+  it('reports an autosave write failure and clears it after a successful retry', async () => {
+    const savedNote = {
+      content: 'Unsaved alpha',
+      metadata: { updatedAt: 2 },
+      modifiedAt: 2,
+      size: 'Unsaved alpha'.length,
+      nextCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 2 }]]),
+    };
+    mocks.saveNoteDocument
+      .mockRejectedValueOnce(new Error('disk busy'))
+      .mockResolvedValueOnce(savedNote);
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }]]),
+    });
+    const autosaveOptions = { explicit: false, throwOnError: true };
+
+    await expect(store.getState().saveNote(autosaveOptions)).rejects.toThrow('disk busy');
+    expect(store.getState().error).toBe('disk busy');
+    expect(store.getState().saveError).toBe('disk busy');
+    expect(store.getState().isDirty).toBe(true);
+
+    await expect(store.getState().saveNote(autosaveOptions)).resolves.toBeUndefined();
+    expect(store.getState().error).toBeNull();
+    expect(store.getState().saveError).toBeNull();
+    expect(store.getState().isDirty).toBe(false);
+  });
+
+  it('lets a regular save recover after an in-flight autosave fails', async () => {
+    let rejectAutosave: (error: Error) => void = () => undefined;
+    mocks.saveNoteDocument
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => {
+        rejectAutosave = reject;
+      }))
+      .mockResolvedValueOnce({
+        content: 'Unsaved alpha',
+        metadata: { updatedAt: 2 },
+        modifiedAt: 2,
+        size: 'Unsaved alpha'.length,
+        nextCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 2 }]]),
+      });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }]]),
+    });
+
+    const autosave = store.getState().saveNote({ explicit: false, throwOnError: true });
+    await vi.waitFor(() => expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(1));
+    const regularSave = store.getState().saveNote({ explicit: false });
+    rejectAutosave(new Error('disk busy'));
+
+    await expect(autosave).rejects.toThrow('disk busy');
+    await expect(regularSave).resolves.toBeUndefined();
+    expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(2);
+    expect(store.getState().error).toBeNull();
+    expect(store.getState().isDirty).toBe(false);
+  });
+
+  it('does not mark the next active note dirty when the previous autosave fails', async () => {
+    let rejectAutosave: (error: Error) => void = () => undefined;
+    mocks.saveNoteDocument.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      rejectAutosave = reject;
+    }));
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 1 }],
+      ]),
+    });
+
+    const autosave = store.getState().saveNote({ explicit: false, throwOnError: true });
+    await vi.waitFor(() => expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(1));
+    store.setState((state) => ({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: false,
+    }));
+    rejectAutosave(new Error('disk busy'));
+
+    await expect(autosave).rejects.toThrow('disk busy');
+    expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+    expect(store.getState().saveError).toBe('disk busy');
+    expect(store.getState().saveErrorPath).toBe('alpha.md');
   });
 
   it('keeps the file tree reference stable when saving mtime metadata under name sorting', async () => {

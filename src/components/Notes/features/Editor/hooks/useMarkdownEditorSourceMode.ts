@@ -3,6 +3,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdown';
 import { themeEditorLayoutTokens } from '@/styles/themeTokens';
 import { getCurrentEditorView } from '../utils/editorViewRegistry';
+import { flushCurrentEditorSave } from '../utils/editorSaveRegistry';
 import { NOTE_SOURCE_MODE_TOGGLE_EVENT } from '../sourceMode/sourceModeEvents';
 
 export function useMarkdownEditorSourceMode({
@@ -47,6 +48,7 @@ export function useMarkdownEditorSourceMode({
 
   const handleToggleSourceMode = useCallback(() => {
     flushCurrentPendingEditorMarkdown();
+    void flushCurrentEditorSave();
     setIsSourceMode((nextSourceMode) => !nextSourceMode);
   }, []);
 

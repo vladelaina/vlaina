@@ -294,7 +294,61 @@ describe('MarkdownEditor source fallback', () => {
 
     fireEvent.blur(sourceEditor);
     await waitFor(() => {
-      expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ explicit: false });
+      expect(mocks.notesState.saveNote).toHaveBeenCalledWith({
+        explicit: false,
+        throwOnError: true,
+      });
+    });
+  });
+
+  it('retries a transient source editor autosave failure', async () => {
+    vi.useFakeTimers();
+    mocks.notesState.saveNote
+      .mockRejectedValueOnce(new Error('disk busy'))
+      .mockResolvedValueOnce(undefined);
+    render(
+      <MarkdownSourceEditor
+        currentNotePath="alpha.md"
+        showBodyLineNumbers={false}
+        saveNote={mocks.notesState.saveNote}
+        mode="fallback"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Markdown source editor'), {
+      target: { value: '# Alpha\n\nEdited body' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+    expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+    expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(2);
+  });
+
+  it('resumes autosave when a source editor mounts for a dirty note', async () => {
+    vi.useFakeTimers();
+    mocks.notesState.isDirty = true;
+    render(
+      <MarkdownSourceEditor
+        currentNotePath="alpha.md"
+        showBodyLineNumbers={false}
+        saveNote={mocks.notesState.saveNote}
+        mode="fallback"
+      />,
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    expect(mocks.notesState.saveNote).toHaveBeenCalledWith({
+      explicit: false,
+      throwOnError: true,
     });
   });
 
@@ -419,6 +473,7 @@ describe('MarkdownEditor source fallback', () => {
 
     mocks.notesState.currentNote = { path: 'beta.md', content: '# Beta\n\nInitial body' };
     mocks.notesState.openTabs = [{ path: 'beta.md', name: 'beta.md', isDirty: false }];
+    mocks.notesState.isDirty = false;
     rerender(<MarkdownEditor />);
 
     act(() => {

@@ -73,6 +73,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
+  const currentNoteIsDirty = useNotesStore(s => s.isDirty);
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
   const currentDraftName = useNotesStore(
     useCallback((state) => (
@@ -109,6 +110,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   } | null>(null);
   const [activatedRevision, setActivatedRevision] = useState(0);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
+  useEffect(() => {
+    if (currentNotePath && currentNoteIsDirty) debouncedSave();
+  }, [currentNoteIsDirty, currentNotePath, debouncedSave]);
   const markLocalMarkdownCommitted = useCallback((content: string) => {
     hasLocalMarkdownCommitRef.current = true;
     lastAppliedNoteRef.current = {

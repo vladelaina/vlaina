@@ -10,6 +10,7 @@ import {
   ChatSidebar,
   ChatView,
   DevMainOverlay,
+  GitTitleBarAction,
   GraphSidebar,
   GraphView,
   LabView,
@@ -195,10 +196,16 @@ export function AppContentShell({
     <TitleBarCenterRegion data-whiteboard-titlebar-slot="true" />
   ) : null;
 
-  const rightSlot = shouldRenderDeferredChrome && effectiveAppViewMode === 'chat' ? (
-    <Suspense fallback={null}>
-      <TemporaryChatToggle />
-    </Suspense>
+  const rightSlot = shouldRenderDeferredChrome ? (
+    effectiveAppViewMode === 'notes' ? (
+      <Suspense fallback={null}>
+        <GitTitleBarAction />
+      </Suspense>
+    ) : effectiveAppViewMode === 'chat' ? (
+      <Suspense fallback={null}>
+        <TemporaryChatToggle />
+      </Suspense>
+    ) : null
   ) : null;
 
   const mainContent = shouldWaitForInitialUnifiedView ? (

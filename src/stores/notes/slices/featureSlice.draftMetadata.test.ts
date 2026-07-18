@@ -948,10 +948,7 @@ describe('featureSlice draft metadata', () => {
     await store.getState().scanAllNotes();
 
     expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
-    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
-      content: '',
-      modifiedAt: 2,
-    });
+    expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
   });
 
   it('scans deeply nested full-notesRoot notes without recursive traversal', async () => {

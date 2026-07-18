@@ -5,6 +5,7 @@ import {
   preloadChatSidebarModule,
   preloadChatViewModule,
   preloadGraphViewModule,
+  preloadGitTitleBarActionModule,
   preloadAIStoreModule,
   preloadModelSelectorModule,
   preloadNotesSidebarModule,
@@ -92,6 +93,7 @@ export function useAppContentViewLifecycle({
   const didReportStartupReadyRef = useRef(false);
   const didEnableCenterChromeRef = useRef(false);
   const didEnableDeferredChromeRef = useRef(false);
+  const didPrewarmManagedModelsRef = useRef(false);
   const didPrewarmManagedStartupDataRef = useRef(false);
   const centerChromeTimerRef = useRef<number | null>(null);
   const deferredChromeTimerRef = useRef<number | null>(null);
@@ -216,7 +218,7 @@ export function useAppContentViewLifecycle({
   }, [effectiveAppViewMode, shouldRenderDeferredChrome]);
 
   useEffect(() => {
-    if (!activeViewReady || !shouldRenderDeferredChrome) return;
+    if (!activeViewReady || (!primaryContentReady && !shouldRenderDeferredChrome)) return;
     if (!isPrewarmedAppViewMode(effectiveAppViewMode)) return;
 
     preloadPrewarmedViewModules();
@@ -225,10 +227,20 @@ export function useAppContentViewLifecycle({
     void preloadNotesTabRowModule();
     void preloadModelSelectorModule();
     void preloadTemporaryChatToggleModule();
+    void preloadGitTitleBarActionModule();
+    if (!didPrewarmManagedModelsRef.current) {
+      didPrewarmManagedModelsRef.current = true;
+      void preloadAIStoreModule()
+        .then((mod) => {
+          mod.actions.refreshManagedProviderInBackground();
+        })
+        .catch(() => {
+        });
+    }
 
     setMountedAppViews(addPrewarmedAppViews);
     setRenderedSidebarAppViews(addPrewarmedAppViews);
-  }, [activeViewReady, effectiveAppViewMode, shouldRenderDeferredChrome]);
+  }, [activeViewReady, effectiveAppViewMode, primaryContentReady, shouldRenderDeferredChrome]);
 
   useEffect(() => {
     if (!activeViewReady || !primaryContentReady || !unifiedLoaded) return;

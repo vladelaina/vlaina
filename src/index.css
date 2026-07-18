@@ -21,6 +21,15 @@ body {
   -webkit-app-region: no-drag;
 }
 
+body[data-git-selection-active="true"] * {
+  user-select: none !important;
+}
+
+body[data-git-selection-active="true"] [data-git-selectable="true"],
+body[data-git-selection-active="true"] [data-git-selectable="true"] * {
+  user-select: text !important;
+}
+
 .app-drag-region button,
 .app-drag-region a,
 .app-drag-region input,

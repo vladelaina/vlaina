@@ -66,7 +66,12 @@ describe('markdownOpenPath', () => {
   it('uses the nearest ancestor with a .git directory as the open root', () => {
     const fsImpl = {
       statSync: vi.fn((candidatePath) => {
-        if (candidatePath === '/projects/app/.git') return {};
+        if (candidatePath === '/projects/app/.git') {
+          return { isDirectory: () => true, isFile: () => false };
+        }
+        if (candidatePath === '/projects/app/.git/HEAD') {
+          return { isFile: () => true };
+        }
         throw new Error('not found');
       }),
     };
@@ -78,10 +83,17 @@ describe('markdownOpenPath', () => {
     const fsImpl = {
       statSync: vi.fn((candidatePath) => {
         if (candidatePath === '/projects/worktree/.git') {
+          return { isDirectory: () => false, isFile: () => true, size: 48 };
+        }
+        if (candidatePath === '/git/worktrees/project') {
+          return { isDirectory: () => true };
+        }
+        if (candidatePath === '/git/worktrees/project/HEAD') {
           return { isFile: () => true };
         }
         throw new Error('not found');
       }),
+      readFileSync: vi.fn(() => 'gitdir: /git/worktrees/project\n'),
     };
 
     expect(findMarkdownGitRoot('/projects/worktree/docs/setup.md', { fsImpl, pathImpl: path.posix })).toBe('/projects/worktree');
@@ -95,5 +107,18 @@ describe('markdownOpenPath', () => {
     };
 
     expect(findMarkdownGitRoot('/notes/docs/setup.md', { fsImpl, pathImpl: path.posix })).toBeNull();
+  });
+
+  it('ignores .git directories that do not contain repository metadata', () => {
+    const fsImpl = {
+      statSync: vi.fn((candidatePath) => {
+        if (candidatePath === '/tmp/.git') {
+          return { isDirectory: () => true, isFile: () => false };
+        }
+        throw new Error('not found');
+      }),
+    };
+
+    expect(findMarkdownGitRoot('/tmp/project/docs/setup.md', { fsImpl })).toBeNull();
   });
 });

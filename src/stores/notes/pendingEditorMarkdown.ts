@@ -47,6 +47,7 @@ function applyPendingEditorMarkdown(
   const modifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, notePath);
   useNotesStore.setState((latest) => {
     const isCurrentNote = latest.currentNote?.path === notePath;
+    const clearsTargetSaveError = options.markDirty && latest.saveErrorPath === notePath;
     const nextCurrentNote = isCurrentNote && latest.currentNote
       ? { path: latest.currentNote.path, content: normalizedMarkdown }
       : latest.currentNote;
@@ -67,6 +68,8 @@ function applyPendingEditorMarkdown(
                 ]
           )
         : latest.openTabs,
+      saveError: clearsTargetSaveError ? null : latest.saveError,
+      saveErrorPath: clearsTargetSaveError ? null : latest.saveErrorPath,
       noteContentsCache: setCachedNoteContent(
         latest.noteContentsCache,
         notePath,
@@ -134,6 +137,7 @@ export async function savePendingEditorMarkdown(
         ? latest.currentNote?.content
         : latest.noteContentsCache.get(notePath)?.content;
     const hasNewerEdit = latestContent !== undefined && latestContent !== content;
+    const clearsTargetSaveError = latest.saveErrorPath === notePath;
     const nextContent = hasNewerEdit ? latestContent : saved.content;
     const metadataBase = latest.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile();
     const nextMetadata = setNoteEntry(
@@ -177,7 +181,9 @@ export async function savePendingEditorMarkdown(
           : { updateBaseline: true, size: saved.size },
       ),
       openTabs: setNoteTabDirtyState(latest.openTabs, notePath, hasNewerEdit),
-      error: null,
+      error: clearsTargetSaveError ? null : latest.error,
+      saveError: clearsTargetSaveError ? null : latest.saveError,
+      saveErrorPath: clearsTargetSaveError ? null : latest.saveErrorPath,
     });
 
     return !hasNewerEdit;
@@ -185,6 +191,8 @@ export async function savePendingEditorMarkdown(
     const latest = useNotesStore.getState();
     useNotesStore.setState({
       error: error instanceof Error ? error.message : 'Failed to save note',
+      saveError: error instanceof Error ? error.message : 'Failed to save note',
+      saveErrorPath: notePath,
       openTabs: setNoteTabDirtyState(latest.openTabs, notePath, true),
       isDirty: latest.currentNote?.path === notePath ? true : latest.isDirty,
     });

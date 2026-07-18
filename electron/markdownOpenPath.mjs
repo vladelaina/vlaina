@@ -6,6 +6,36 @@ export const maxOpenMarkdownFilePathChars = 8192;
 
 const unsafeOpenMarkdownFilePathPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const markdownFileExtensions = new Set(['.md', '.markdown', '.mdown', '.mkd']);
+const maxGitFileMarkerBytes = 8192;
+
+function hasGitHead(gitDirectoryPath, { fsImpl, pathImpl }) {
+  try {
+    return fsImpl.statSync(pathImpl.join(gitDirectoryPath, 'HEAD')).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function isGitRepositoryMarker(directoryPath, { fsImpl, pathImpl }) {
+  const markerPath = pathImpl.join(directoryPath, '.git');
+  try {
+    const markerInfo = fsImpl.statSync(markerPath);
+    if (markerInfo.isDirectory()) {
+      return hasGitHead(markerPath, { fsImpl, pathImpl });
+    }
+    if (!markerInfo.isFile() || markerInfo.size > maxGitFileMarkerBytes) {
+      return false;
+    }
+
+    const match = /^gitdir:\s*(.+?)\s*$/im.exec(fsImpl.readFileSync(markerPath, 'utf8'));
+    if (!match) return false;
+    const gitDirectoryPath = pathImpl.resolve(directoryPath, match[1]);
+    return fsImpl.statSync(gitDirectoryPath).isDirectory()
+      && hasGitHead(gitDirectoryPath, { fsImpl, pathImpl });
+  } catch {
+    return false;
+  }
+}
 
 export function isSafeOpenMarkdownPathString(filePath) {
   return (
@@ -74,15 +104,14 @@ export function findMarkdownGitRoot(filePath, {
   let directoryPath = pathImpl.dirname(filePath);
 
   while (true) {
-    try {
-      fsImpl.statSync(pathImpl.join(directoryPath, '.git'));
+    if (isGitRepositoryMarker(directoryPath, { fsImpl, pathImpl })) {
       return directoryPath;
-    } catch {
-      const parentPath = pathImpl.dirname(directoryPath);
-      if (parentPath === directoryPath) {
-        return null;
-      }
-      directoryPath = parentPath;
     }
+
+    const parentPath = pathImpl.dirname(directoryPath);
+    if (parentPath === directoryPath) {
+      return null;
+    }
+    directoryPath = parentPath;
   }
 }

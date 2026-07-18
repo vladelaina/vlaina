@@ -26,7 +26,9 @@ export function NoteTabContent({
 }: NoteTabContentProps) {
   const notesPath = useNotesStore((s) => s.notesPath);
   const draftNote = useNotesStore((s) => s.draftNotes[tab.path]);
-  const hasSaveError = useNotesStore((s) => Boolean(s.error));
+  const hasSaveError = useNotesStore((s) => (
+    Boolean(s.saveError) && s.saveErrorPath === tab.path
+  ));
   const showDirtyIndicator = shouldShowDirtyTabIndicator({
     path: tab.path,
     isDirty: tab.isDirty,

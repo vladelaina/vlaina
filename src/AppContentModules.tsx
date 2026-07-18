@@ -26,6 +26,7 @@ export const preloadChatSidebarModule = once(() => import('@/components/Chat/fea
 export const preloadTemporaryChatToggleModule = once(() => import('@/components/Chat/features/Temporary/TitleBarTemporaryChatToggle'));
 export const preloadModelSelectorModule = once(() => import('@/components/Chat/features/Input/ModelSelector'));
 export const preloadNotesTabRowModule = once(() => import('@/components/Notes/features/Tabs/NotesTabRow'));
+export const preloadGitTitleBarActionModule = once(() => import('@/components/Notes/features/Git'));
 export const preloadAIStoreModule = once(() => import('@/stores/useAIStore'));
 
 export const SettingsModal = lazy(async () => {
@@ -100,6 +101,11 @@ export const ModelSelector = lazy(async () => {
 export const NotesTabRow = lazy(async () => {
   const mod = await preloadNotesTabRowModule();
   return { default: mod.NotesTabRow };
+});
+
+export const GitTitleBarAction = lazy(async () => {
+  const mod = await preloadGitTitleBarActionModule();
+  return { default: mod.GitTitleBarAction };
 });
 
 export function StartupViewFallback({ onReady }: { onReady: () => void }) {

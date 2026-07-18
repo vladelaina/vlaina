@@ -148,7 +148,7 @@ export function canReuseScannedNoteCacheEntry(
     return false;
   }
 
-  if (cachedEntry.content === '' && size !== null && size > 0) {
+  if (cachedEntry.content === '' && cachedEntry.savedContent === undefined && (size ?? 0) > 0) {
     return false;
   }
 

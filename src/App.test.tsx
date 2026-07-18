@@ -56,6 +56,7 @@ const mocks = vi.hoisted(() => {
     flushStarredRegistry: vi.fn().mockResolvedValue(undefined),
     flushWhiteboardStorage: vi.fn().mockResolvedValue(undefined),
     flushCurrentPendingEditorMarkdown: vi.fn(() => false),
+    flushCurrentTitleCommit: vi.fn().mockResolvedValue(undefined),
     openStoredNotePath: vi.fn().mockResolvedValue(undefined),
     saveWorkspaceSnapshot: vi.fn().mockResolvedValue(undefined),
     addToast: vi.fn(),
@@ -144,6 +145,10 @@ vi.mock('@/stores/notes/starred', () => ({
 
 vi.mock('@/components/Whiteboard/storage', () => ({
   flushWhiteboardStorage: mocks.flushWhiteboardStorage,
+}));
+
+vi.mock('@/components/Notes/features/Editor/utils/titleCommitRegistry', () => ({
+  flushCurrentTitleCommit: mocks.flushCurrentTitleCommit,
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -330,6 +335,7 @@ vi.mock('@dnd-kit/core', () => ({
 vi.mock('@/lib/utils', () => ({
   cn: (...values: Array<string | false | null | undefined>) => values.filter(Boolean).join(' '),
   iconButtonStyles: '',
+  ghostIconButtonStyles: '',
 }));
 
 describe('App close flow', () => {
@@ -355,6 +361,8 @@ describe('App close flow', () => {
     mocks.notesState.saveNote.mockClear();
     mocks.flushCurrentPendingEditorMarkdown.mockClear();
     mocks.flushCurrentPendingEditorMarkdown.mockImplementation(() => false);
+    mocks.flushCurrentTitleCommit.mockReset();
+    mocks.flushCurrentTitleCommit.mockResolvedValue(undefined);
     mocks.openStoredNotePath.mockReset();
     mocks.openStoredNotePath.mockImplementation(async (path: string) => {
       const tab = mocks.notesState.openTabs.find((item) => item.path === path);
@@ -724,6 +732,26 @@ describe('App close flow', () => {
       expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('waits for the active title commit before confirming window close', async () => {
+    let resolveTitleCommit: () => void = () => undefined;
+    mocks.flushCurrentTitleCommit.mockReturnValue(new Promise<void>((resolve) => {
+      resolveTitleCommit = resolve;
+    }));
+    render(<App />);
+    await waitFor(() => expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      mocks.closeRequestedHandler?.();
+      await Promise.resolve();
+    });
+
+    expect(mocks.flushCurrentTitleCommit).toHaveBeenCalledTimes(1);
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+
+    resolveTitleCommit();
+    await waitFor(() => expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1));
   });
 
   it('flushes auto-saveable drafts when the app is hidden', async () => {

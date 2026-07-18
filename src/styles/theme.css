@@ -653,6 +653,8 @@
   --vlaina-gradient-appearance-font-size-slider: linear-gradient(to right, var(--vlaina-sidebar-row-selected-text) 0%, var(--vlaina-sidebar-row-selected-text) var(--vlaina-appearance-font-size-progress), var(--vlaina-bg-tertiary) var(--vlaina-appearance-font-size-progress), var(--vlaina-bg-tertiary) 100%);
   --vlaina-width-toolbar-caption-max: min(var(--vlaina-size-280px), calc(100vw - var(--vlaina-size-48px)));
   --vlaina-width-toolbar-ai-panel-max: min(calc(100vw - var(--vlaina-size-32px)), var(--vlaina-size-520px));
+  --vlaina-width-git-popover: min(var(--vlaina-width-editor-content-max), calc(100vw - var(--vlaina-size-24px)));
+  --vlaina-width-git-tab-active: calc(50% - var(--vlaina-size-6px));
   --vlaina-width-toolbar-ai-panel-mobile: min(var(--vlaina-toolbar-ai-review-width, calc(100vw - var(--vlaina-size-24px))), calc(100vw - var(--vlaina-size-24px)));
   --vlaina-width-toolbar-ai-children-max: min(100%, var(--vlaina-size-324px));
   --vlaina-scrollbar-thumb-offset: var(--vlaina-size-2px);
@@ -670,6 +672,7 @@
   --vlaina-settings-select-arrow-position: right var(--vlaina-size-5px) center;
   --vlaina-width-slash-video-prompt: min(var(--vlaina-size-360px), calc(100vw - var(--vlaina-size-24px)));
   --vlaina-height-context-menu-max: calc(100vh - var(--vlaina-size-16px));
+  --vlaina-height-git-popover: min(var(--vlaina-size-600px), calc(100vh - var(--vlaina-size-64px)));
   --vlaina-offset-dropdown-below-input: calc(100% + var(--vlaina-size-8px));
   --vlaina-offset-account-menu-anchor-x: calc(100% - var(--vlaina-size-10px));
   --vlaina-offset-computer-command-approval: calc(100% - var(--vlaina-space-12px));

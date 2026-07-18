@@ -1,6 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import {
+  chatComposerGhostIconButtonClass,
+  chatComposerPillSurfaceClass,
+} from '@/components/Chat/features/Input/composerStyles';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getShortcutKeys } from '@/lib/shortcuts';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
@@ -11,7 +15,11 @@ import { useI18n } from '@/lib/i18n';
 import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { canStarNotePath } from '@/stores/notes/notePathState';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
-import { themeStyleResetTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
+import {
+  themeDomStyleTokens,
+  themeStyleResetTokens,
+  themeUiFeedbackTokens,
+} from '@/styles/themeTokens';
 import { NoteToolbarMoreMenu } from './NoteToolbarMoreMenu';
 
 export interface NoteToolbarActionsProps {
@@ -40,9 +48,28 @@ export interface NoteToolbarActionsProps {
 
 export const noteToolbarIconButtonClassName = cn(
   'app-no-drag flex h-8 w-8 items-center justify-center',
-  'cursor-pointer text-[var(--vlaina-text-tertiary)] disabled:cursor-default',
+  'cursor-pointer text-[var(--vlaina-color-titlebar-button)] disabled:cursor-default',
   chatComposerGhostIconButtonClass,
 );
+
+function NoteToolbarTooltip({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent
+        side="bottom"
+        sideOffset={themeDomStyleTokens.toolbarTooltipOffsetPx}
+        showArrow={false}
+        className={cn(
+          'rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+          chatComposerPillSurfaceClass,
+        )}
+      >
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function NoteToolbarActions({
   currentNotePath,
@@ -117,58 +144,62 @@ export function NoteToolbarActions({
   return (
     <div className={cn('flex items-center gap-1', className)}>
       {showStarButton ? (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            if (currentNotePath && (starred || canStarNotePath(currentNotePath, notesPath))) {
-              toggleStarred(currentNotePath);
-            }
-          }}
-          aria-label={starButtonLabel}
-          className={cn(
-            toolbarButtonClassName,
-            starred
-              ? 'text-[var(--vlaina-color-favorite-fg)] hover:text-[var(--vlaina-color-favorite-fg)]'
-              : 'hover:text-[var(--vlaina-color-favorite-fg)]',
-          )}
-        >
-          <Icon
-            size="md"
-            name="misc.star"
-            style={{ fill: starred ? themeStyleResetTokens.currentColor : themeStyleResetTokens.fillNone }}
-          />
-        </button>
+        <NoteToolbarTooltip label={starButtonLabel}>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (currentNotePath && (starred || canStarNotePath(currentNotePath, notesPath))) {
+                toggleStarred(currentNotePath);
+              }
+            }}
+            aria-label={starButtonLabel}
+            className={cn(
+              toolbarButtonClassName,
+              starred
+                ? 'text-[var(--vlaina-color-favorite-fg)] hover:text-[var(--vlaina-color-favorite-fg)]'
+                : 'hover:text-[var(--vlaina-color-favorite-fg)]',
+            )}
+          >
+            <Icon
+              size="md"
+              name="misc.star"
+              style={{ fill: starred ? themeStyleResetTokens.currentColor : themeStyleResetTokens.fillNone }}
+            />
+          </button>
+        </NoteToolbarTooltip>
       ) : null}
 
       {showChatButton ? (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            const openFloatingChat = () => {
-              if (chatPanelCollapsed) {
-                setNotesChatFloatingOpen(true);
+        <NoteToolbarTooltip label={t('notes.rightChat')}>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              const openFloatingChat = () => {
+                if (chatPanelCollapsed) {
+                  setNotesChatFloatingOpen(true);
+                }
+              };
+              if (!onOpenChat) {
+                openFloatingChat();
+                return;
               }
-            };
-            if (!onOpenChat) {
-              openFloatingChat();
-              return;
-            }
-            void Promise.resolve(onOpenChat?.())
-              .then(
-                openFloatingChat,
-                openFloatingChat,
-              );
-          }}
-          aria-label={t('notes.rightChat')}
-          className={cn(
-            toolbarButtonClassName,
-            'hover:text-[var(--vlaina-accent)]',
-          )}
-        >
-          <Icon size="md" name="common.shootingStar" />
-        </button>
+              void Promise.resolve(onOpenChat?.())
+                .then(
+                  openFloatingChat,
+                  openFloatingChat,
+                );
+            }}
+            aria-label={t('notes.rightChat')}
+            className={cn(
+              toolbarButtonClassName,
+              'hover:text-[var(--vlaina-accent)]',
+            )}
+          >
+            <Icon size="md" name="common.shootingStar" />
+          </button>
+        </NoteToolbarTooltip>
       ) : null}
 
       {showMore ? (

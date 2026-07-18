@@ -11,6 +11,7 @@ import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorM
 import { flushStarredRegistry } from '@/stores/notes/starred';
 import { saveWorkspaceSnapshot } from '@/stores/notes/workspacePersistence';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { flushCurrentTitleCommit } from '@/components/Notes/features/Editor/utils/titleCommitRegistry';
 import { useCloseDraftPersistence } from './useCloseDraftPersistence';
 
 const CLOSE_FLUSH_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 20 : 5000;
@@ -133,6 +134,7 @@ export function useElectronCloseGuard() {
       if (activeFlush) return withCloseFlushTimeout(activeFlush);
 
       activeFlush = (async () => {
+        await flushCurrentTitleCommit();
         flushCurrentPendingEditorMarkdown();
 
         const tasks: Array<{ name: string; task: Promise<unknown> }> = [

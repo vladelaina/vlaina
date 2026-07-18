@@ -234,6 +234,7 @@ describe('desktop filesystem ipc', () => {
     const docsPath = path.join(projectPath, 'docs', 'guides');
     const filePath = path.join(docsPath, 'setup.md');
     await mkdir(path.join(projectPath, '.git'), { recursive: true });
+    await writeFile(path.join(projectPath, '.git', 'HEAD'), 'ref: refs/heads/main\n', 'utf8');
     await mkdir(docsPath, { recursive: true });
     await writeFile(filePath, '# Setup', 'utf8');
     await authorizeFsPath(filePath, 'file');
