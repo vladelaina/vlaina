@@ -8,15 +8,17 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
 import { calloutPlugin } from '../callout';
 import { containerBoundaryShiftSelectionPlugin } from './containerBoundaryShiftSelectionPlugin';
 
-function createEditor() {
+function createEditor(markdown = '') {
   return Editor.make()
     .config((ctx) => {
-      ctx.set(defaultValueCtx, '');
+      ctx.set(defaultValueCtx, markdown);
     })
     .use(commonmark)
+    .use(gfm)
     .use(calloutPlugin)
     .use(containerBoundaryShiftSelectionPlugin);
 }
@@ -45,11 +47,28 @@ function findTopLevelNodePos(view: EditorView, typeName: string, occurrence = 0)
   return foundPos;
 }
 
-function pressKey(view: EditorView, key: string, options?: { shiftKey?: boolean }): KeyboardEvent {
+function findTextStart(view: EditorView, text: string): number {
+  let found: number | null = null;
+  view.state.doc.descendants((node, pos) => {
+    if (found !== null || !node.isText || node.text !== text) return undefined;
+    found = pos;
+    return false;
+  });
+  if (found === null) throw new Error(`Expected text: ${text}`);
+  return found;
+}
+
+function pressKey(
+  view: EditorView,
+  key: string,
+  options?: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean },
+): KeyboardEvent {
   const event = new KeyboardEvent('keydown', {
     key,
     bubbles: true,
     cancelable: true,
+    ctrlKey: options?.ctrlKey,
+    metaKey: options?.metaKey,
     shiftKey: options?.shiftKey,
   });
 
@@ -134,6 +153,117 @@ describe('containerBoundaryShiftSelectionPlugin', () => {
     expect(view.state.selection.to).toBe(paragraphEnd);
 
     endOfTextblock.mockRestore();
+    await editor.destroy();
+  });
+
+  it('preserves the anchor while extending through table cells', async () => {
+    const editor = createEditor([
+      'Before table',
+      '',
+      '| Key | Value |',
+      '| --- | --- |',
+      '| Table cell | Covered |',
+      '',
+      'After table',
+    ].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const anchor = findTextStart(view, 'Before table') + 'Before table'.length;
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor)));
+
+    const acrossTable = pressKey(view, 'ArrowDown', { ctrlKey: true, shiftKey: true });
+    expect(acrossTable.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.anchor).toBe(anchor);
+    const tableHead = view.state.selection.head;
+    expect(tableHead).toBeGreaterThan(anchor);
+    const tableText = view.state.doc.textBetween(
+      view.state.selection.from,
+      view.state.selection.to,
+      '\n',
+    );
+    expect(tableText).toContain('Table cell');
+    expect(tableText).not.toContain('After table');
+
+    const intoAfterParagraph = pressKey(view, 'ArrowDown', { ctrlKey: true, shiftKey: true });
+    expect(intoAfterParagraph.defaultPrevented).toBe(true);
+    expect(view.state.selection.anchor).toBe(anchor);
+    expect(view.state.selection.head).toBeGreaterThan(tableHead);
+    expect(view.state.doc.textBetween(view.state.selection.from, view.state.selection.to, '\n'))
+      .toContain('After table');
+    await editor.destroy();
+  });
+
+  it('extends upward through an isolating code block without stalling', async () => {
+    const editor = createEditor([
+      'Before code',
+      '',
+      '```ts',
+      'const mixed = true;',
+      '```',
+      '',
+      'After code',
+    ].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const anchor = findTextStart(view, 'After code');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor)));
+
+    const intoCode = pressKey(view, 'ArrowUp', { ctrlKey: true, shiftKey: true });
+    expect(intoCode.defaultPrevented).toBe(true);
+    expect(view.state.selection.anchor).toBe(anchor);
+    expect(view.state.selection.head).toBeLessThan(anchor);
+    expect(view.state.doc.textBetween(view.state.selection.from, view.state.selection.to, '\n'))
+      .toContain('const mixed = true;');
+
+    const pastCode = pressKey(view, 'ArrowUp', { ctrlKey: true, shiftKey: true });
+    expect(pastCode.defaultPrevented).toBe(true);
+    expect(view.state.selection.anchor).toBe(anchor);
+    expect(view.state.selection.head).toBe(findTextStart(view, 'Before code'));
+    await editor.destroy();
+  });
+
+  it('keeps modified vertical selection inside the active table cell', async () => {
+    const editor = createEditor([
+      '| Key | Value |',
+      '| --- | --- |',
+      '| Table cell | Covered |',
+    ].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const cellStart = findTextStart(view, 'Table cell');
+    const anchor = cellStart + 4;
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor)));
+
+    pressKey(view, 'ArrowDown', { ctrlKey: true, shiftKey: true });
+    const cellEnd = cellStart + 'Table cell'.length;
+    expect(view.state.selection.anchor).toBe(anchor);
+    expect(view.state.selection.head).toBe(cellEnd);
+
+    pressKey(view, 'ArrowDown', { ctrlKey: true, shiftKey: true });
+    expect(view.state.selection.anchor).toBe(anchor);
+    expect(view.state.selection.head).toBe(cellEnd);
+    await editor.destroy();
+  });
+
+  it('shrinks toward the anchor before reversing direction', async () => {
+    const editor = createEditor('Alpha\n\nBeta\n\nGamma');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const anchor = findTextStart(view, 'Alpha') + 'Alpha'.length;
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor)));
+
+    pressKey(view, 'ArrowDown', { ctrlKey: true, shiftKey: true });
+    pressKey(view, 'ArrowDown', { ctrlKey: true, shiftKey: true });
+    const grownHead = view.state.selection.head;
+    pressKey(view, 'ArrowUp', { ctrlKey: true, shiftKey: true });
+
+    expect(view.state.selection.anchor).toBe(anchor);
+    expect(view.state.selection.head).toBeLessThan(grownHead);
     await editor.destroy();
   });
 });

@@ -17,7 +17,6 @@ import {
   cutCodeMirrorSelection,
 } from './codeBlockEditorClipboard';
 import type { CreateCodeBlockKeymapOptions } from './codeBlockEditorKeymapTypes';
-import { moveOrExtendToTrimmedCodeBoundary } from './codeBlockEditorSelectionNavigation';
 
 const { TextSelection } = proseState;
 const AllSelection = (
@@ -28,7 +27,7 @@ const AllSelection = (
   }
 ).AllSelection;
 
-export { createCodeBlockEditorClipboardHandlers, moveOrExtendToTrimmedCodeBoundary };
+export { createCodeBlockEditorClipboardHandlers };
 
 function createAllSelection(doc: unknown) {
   if (typeof AllSelection.create === 'function') {
@@ -179,14 +178,6 @@ export function createCodeBlockEditorKeymap({
     { key: 'ArrowLeft', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'char', -1) },
     { key: 'ArrowDown', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'line', 1) },
     { key: 'ArrowRight', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'char', 1) },
-    { key: 'Mod-ArrowUp', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, -1, true) },
-    { key: 'Mod-ArrowDown', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, 1, true) },
-    { key: 'Ctrl-ArrowUp', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, -1, true) },
-    { key: 'Ctrl-ArrowDown', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, 1, true) },
-    { key: 'Ctrl-Shift-ArrowUp', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, -1, true) },
-    { key: 'Ctrl-Shift-ArrowDown', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, 1, true) },
-    { key: 'Shift-Ctrl-ArrowUp', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, -1, true) },
-    { key: 'Shift-Ctrl-ArrowDown', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, 1, true) },
     {
       key: 'Mod-Enter',
       run: () => {
