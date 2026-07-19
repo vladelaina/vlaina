@@ -92,13 +92,14 @@ describe('GraphCanvas', () => {
     expect(edge).toHaveAttribute('stroke', 'var(--vlaina-color-graph-edge)');
     expect(Number(edge.getAttribute('stroke-opacity'))).toBeGreaterThan(0);
     expect(edge).toHaveAttribute('vector-effect', 'non-scaling-stroke');
-    expect(screen.getByText('Gamma')).toBeInTheDocument();
+    expect(screen.queryByText('Gamma')).not.toBeInTheDocument();
     fireEvent.pointerDown(hitTarget, { button: 0, clientX: 100, clientY: 100, pointerId: 1 });
     expect(visibleNode).toHaveClass('fill-[var(--vlaina-color-graph-node-active)]');
     expect(activeEdge).toHaveAttribute('opacity', '1');
     expect(activeEdge.getAttribute('d')).not.toBe('');
     fireEvent.pointerMove(canvas, { clientX: 140, clientY: 120, pointerId: 1 });
     fireEvent.pointerUp(canvas, { clientX: 140, clientY: 120, pointerId: 1 });
+    expect(edge.getAttribute('d')).toContain('M140,120');
 
     expect(onPositionCommit).toHaveBeenCalledWith('Alpha.md', expect.objectContaining({
       x: expect.any(Number),
@@ -216,8 +217,10 @@ describe('GraphCanvas', () => {
           dragPositionId={null}
           edges={graph.edges}
           hoveredPath="Alpha.md"
+          labelsReady
           nodes={graph.nodes}
           onHoverChange={vi.fn()}
+          onFocusChange={vi.fn()}
           onOpen={vi.fn()}
           onPositionCommit={vi.fn()}
           onSelect={vi.fn()}
@@ -427,4 +430,77 @@ describe('GraphCanvas', () => {
 
     expect(onSelectPath).toHaveBeenCalledWith(null);
   });
+
+  it('clears temporary hover focus when a drag is released', () => {
+    render(
+      <GraphCanvas
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath={null}
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    const node = screen.getByRole('button', { name: 'Alpha, 1' });
+    const hitTarget = node.querySelector('[data-graph-node-hit-target="Alpha.md"]')!;
+    const canvas = screen.getByRole('img', { name: 'app.viewGraph' });
+    const baseEdge = canvas.querySelector('[data-graph-edge-layer="base"]')!;
+    fireEvent.mouseEnter(node);
+    fireEvent.pointerDown(hitTarget, { button: 0, clientX: 100, clientY: 100, pointerId: 9 });
+    fireEvent.pointerMove(canvas, { clientX: 140, clientY: 120, pointerId: 9 });
+    fireEvent.pointerUp(canvas, { clientX: 140, clientY: 120, pointerId: 9 });
+
+    expect(node.querySelectorAll('circle')[1]).toHaveStyle({ opacity: '1' });
+    expect(node.querySelectorAll('circle')[1]).not.toHaveClass('fill-[var(--vlaina-color-graph-node-active)]');
+    expect(baseEdge).toHaveAttribute('stroke-opacity', '0.82');
+  });
+
+  it('does not carry hover focus into a replacement graph', () => {
+    const view = render(
+      <GraphCanvas
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath={null}
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Alpha, 1' }));
+
+    const replacementGraph: PositionedNoteGraph = {
+      focusNodeId: 'Delta.md',
+      nodes: [
+        { id: 'Delta.md', label: 'Delta', degree: 1, x: 120, y: 120 },
+        { id: 'Epsilon.md', label: 'Epsilon', degree: 1, x: 320, y: 120 },
+      ],
+      edges: [],
+    };
+    replacementGraph.edges = [{
+      source: replacementGraph.nodes[0]!,
+      target: replacementGraph.nodes[1]!,
+    }];
+    view.rerender(
+      <GraphCanvas
+        graph={replacementGraph}
+        positionOverrides={{}}
+        selectedPath={null}
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    const dots = screen.getByRole('img', { name: 'app.viewGraph' })
+      .querySelectorAll('.vlaina-graph-node-dot');
+    expect(dots).toHaveLength(2);
+    expect(dots[0]).toHaveStyle({ opacity: '1' });
+    expect(dots[1]).toHaveStyle({ opacity: '1' });
+  });
+
 });

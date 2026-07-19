@@ -173,6 +173,7 @@ export function useGraphPointerInteractions(options: GraphPointerInteractionOpti
 
   return {
     finishDrag,
+    getDraggedNodeId: () => dragRef.current?.kind === 'node' ? dragRef.current.id : null,
     handlePointerMove,
     startNodeDrag,
     startPan,

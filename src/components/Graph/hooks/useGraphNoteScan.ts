@@ -13,6 +13,12 @@ export function useGraphNoteScan(args: {
   const scanAllNotes = useNotesStore((state) => state.scanAllNotes);
   const currentNotesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? null);
   const [loading, setLoading] = useState(false);
+  const [completedScan, setCompletedScan] = useState<{
+    currentNotesRootPath: string | null;
+    notesPath: string;
+    rootFolder: typeof rootFolder;
+    rootFolderPath: string | null;
+  } | null>(null);
   const readyReportedRef = useRef(false);
   const primaryContentReadyRef = useRef(args.onPrimaryContentReady);
   primaryContentReadyRef.current = args.onPrimaryContentReady;
@@ -35,6 +41,7 @@ export function useGraphNoteScan(args: {
     const reportPrimaryContentReady = () => {
       if (abortController.signal.aborted || primaryContentReported) return;
       primaryContentReported = true;
+      setCompletedScan({ currentNotesRootPath, notesPath, rootFolder, rootFolderPath });
       setLoading(false);
       primaryContentReadyRef.current?.();
     };
@@ -53,5 +60,17 @@ export function useGraphNoteScan(args: {
     return () => abortController.abort();
   }, [currentNotesRootPath, notesPath, rootFolder, rootFolderPath, scanAllNotes]);
 
-  return loading;
+  const scanPending = Boolean(
+    rootFolder
+    && notesPath
+    && rootFolderPath === notesPath
+    && (
+      completedScan?.currentNotesRootPath !== currentNotesRootPath
+      || completedScan?.notesPath !== notesPath
+      || completedScan?.rootFolder !== rootFolder
+      || completedScan?.rootFolderPath !== rootFolderPath
+    )
+  );
+
+  return loading || scanPending;
 }

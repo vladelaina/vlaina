@@ -497,6 +497,7 @@ export const themeGraphTokens = {
   nodeActiveTransform: 'scale(1.6)',
   edgeFill: 'none',
   edgeHighlightFadeDurationMs: 140,
+  nodeHoverLeaveDelayMs: 90,
   defaultZoom: 1,
   minZoom: 0.25,
   maxZoom: 3,

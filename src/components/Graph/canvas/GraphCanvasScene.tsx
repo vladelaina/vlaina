@@ -11,8 +11,10 @@ export function GraphCanvasScene(props: {
   dragPositionId: string | null;
   edges: PositionedGraphEdge[];
   hoveredPath: string | null;
+  labelsReady: boolean;
   nodes: PositionedGraphNode[];
   onHoverChange: (path: string | null) => void;
+  onFocusChange: (path: string) => void;
   onOpen: (path: string) => void;
   onPositionCommit: (path: string, position: GraphNodePosition) => void;
   onSelect: (path: string) => void;
@@ -20,7 +22,8 @@ export function GraphCanvasScene(props: {
   selectedPath: string | null;
   viewport: GraphViewport;
 }) {
-  const showLabels = props.viewport.zoom >= themeGraphTokens.labelVisibilityZoom;
+  const showLabels = props.labelsReady
+    && props.viewport.zoom >= themeGraphTokens.labelVisibilityZoom;
   return (
     <g
       transform={`translate(${props.viewport.x} ${props.viewport.y}) scale(${props.viewport.zoom})`}
@@ -35,6 +38,7 @@ export function GraphCanvasScene(props: {
         hoveredPath={props.hoveredPath}
         nodes={props.nodes}
         onHoverChange={props.onHoverChange}
+        onFocusChange={props.onFocusChange}
         onOpen={props.onOpen}
         onPositionCommit={props.onPositionCommit}
         onSelect={props.onSelect}
@@ -53,6 +57,7 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
   hoveredPath: string | null;
   nodes: PositionedGraphNode[];
   onHoverChange: (path: string | null) => void;
+  onFocusChange: (path: string) => void;
   onOpen: (path: string) => void;
   onPositionCommit: (path: string, position: GraphNodePosition) => void;
   onSelect: (path: string) => void;
@@ -103,6 +108,7 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
           hovered={activePath === node.id}
           node={node}
           onHoverChange={props.onHoverChange}
+          onFocusChange={props.onFocusChange}
           onOpen={props.onOpen}
           onPositionCommit={props.onPositionCommit}
           onSelect={props.onSelect}

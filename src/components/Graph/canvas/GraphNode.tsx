@@ -10,6 +10,7 @@ export const GraphNode = memo(function GraphNode(props: {
   hovered: boolean;
   node: PositionedGraphNode;
   onHoverChange: (path: string | null) => void;
+  onFocusChange: (path: string) => void;
   onOpen: (path: string) => void;
   onPositionCommit: (path: string, position: GraphNodePosition) => void;
   onSelect: (path: string) => void;
@@ -49,7 +50,7 @@ export const GraphNode = memo(function GraphNode(props: {
       }}
       onMouseEnter={() => props.onHoverChange(node.id)}
       onMouseLeave={() => props.onHoverChange(null)}
-      onFocus={() => props.onHoverChange(node.id)}
+      onFocus={() => props.onFocusChange(node.id)}
       onBlur={() => props.onHoverChange(null)}
     >
       <circle
