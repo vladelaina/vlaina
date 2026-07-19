@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { getElectronBridge } from '@/lib/electron/bridge';
+import type { ElectronUpdatePolicy } from '@/lib/electron/bridge';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { cn } from '@/lib/utils';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
@@ -9,6 +10,7 @@ import { APP_VERSION } from '@/lib/appVersion';
 import {
   canOpenDesktopUpdateExternalDownload,
   canOpenDesktopUpdateLocalInstaller,
+  clearCachedDesktopUpdateInfo,
   type DesktopUpdateInfo,
   isDesktopUpdateNewerThanCurrent,
   readCachedDesktopUpdateInfo,
@@ -24,7 +26,7 @@ import type { CommunitySettings } from './aboutCommunitySettings';
 import { AboutHero } from './AboutHero';
 import { CommunityPills } from './AboutCommunityPills';
 import { DeveloperNotePanel } from './AboutDeveloperNotePanel';
-import { privacyPolicyUrl, termsOfServiceUrl } from './aboutTabShared';
+import { microsoftStoreUrl, privacyPolicyUrl, termsOfServiceUrl } from './aboutTabShared';
 
 type UpdateStatus = 'idle' | 'checking' | 'current' | 'available' | 'error';
 type UpdateInfo = DesktopUpdateInfo;
@@ -47,12 +49,26 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
   const [status, setStatus] = useState<UpdateStatus>(() => readInitialUpdateState().status);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(() => readInitialUpdateState().updateInfo);
   const [currentVersion, setCurrentVersion] = useState('');
+  const [updatePolicy, setUpdatePolicy] = useState<ElectronUpdatePolicy | null>(null);
 
   useEffect(() => {
     const bridge = getElectronBridge();
     if (!bridge?.app) {
       return;
     }
+
+    void bridge.update?.getPolicy?.().then((policy) => {
+      setUpdatePolicy(policy);
+      if (policy.distribution !== 'microsoft-store') return;
+
+      const cachedUpdateInfo = readCachedDesktopUpdateInfo();
+      if (cachedUpdateInfo) {
+        void bridge.update?.deleteDownloaded?.(cachedUpdateInfo).catch(() => undefined);
+      }
+      clearCachedDesktopUpdateInfo();
+      setUpdateInfo(null);
+      setStatus('idle');
+    }).catch(() => undefined);
 
     void bridge.app.getVersion().then((version) => {
       setCurrentVersion(version);
@@ -93,6 +109,15 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
     setStatus('checking');
 
     try {
+      const policy = updatePolicy ?? await bridge.update.getPolicy?.();
+      if (policy?.distribution === 'microsoft-store') {
+        clearCachedDesktopUpdateInfo();
+        setUpdateInfo(null);
+        setStatus('idle');
+        await openExternalHref(microsoftStoreUrl);
+        return;
+      }
+
       const nextInfo = await bridge.update.check();
       const freshUpdateInfo = await clearStaleDesktopUpdateDownload(
         bridge.update,
@@ -111,7 +136,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
     } catch (error) {
       setStatus((previousStatus) => previousStatus === 'available' && updateInfo ? 'available' : 'error');
     }
-  }, [currentVersion, updateInfo]);
+  }, [currentVersion, updateInfo, updatePolicy]);
 
   const hasUpdate = status === 'available' && Boolean(updateInfo);
 

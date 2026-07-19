@@ -26,6 +26,7 @@ import { createProxyConfiguration } from './proxyConfiguration.mjs';
 import { createTrustedIpc } from './trustedIpc.mjs';
 import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.mjs';
 import { normalizeMarkdownOpenPath } from './markdownOpenPath.mjs';
+import { getWindowsAppUserModelId } from './microsoftStoreIdentity.mjs';
 import {
   normalizeExternalUrl,
   normalizeProxyConfig,
@@ -273,7 +274,7 @@ registerManagedIpc({
 app.whenReady().then(async () => {
   try {
     if (process.platform === 'win32') {
-      app.setAppUserModelId('com.vlaina.desktop');
+      app.setAppUserModelId(getWindowsAppUserModelId());
     }
   } catch (error) {
   }

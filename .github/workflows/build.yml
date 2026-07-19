@@ -326,6 +326,21 @@ jobs:
           ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
 
+      - name: Package Microsoft Store MSIX
+        if: success() && matrix.platform == 'windows' && matrix.arch == 'x64'
+        env:
+          ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+        run: pnpm exec electron-builder --config electron-builder.yml --win appx --x64 --publish never
+
+      - name: Sign Microsoft Store MSIX
+        if: success() && matrix.platform == 'windows' && matrix.arch == 'x64'
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem -Path 'release/*.msix' -File | Select-Object -First 1
+          if ($null -eq $package) { throw 'Microsoft Store MSIX was not found.' }
+          ./scripts/sign-microsoft-store-package.ps1 -PackagePath $package.FullName
+
       - name: Package Electron app
         if: runner.os == 'macOS'
         env:
@@ -378,6 +393,16 @@ jobs:
           name: vlaina-windows-portable-${{ matrix.arch }}-run-${{ github.run_number }}
           path: release/*-windows-${{ matrix.arch }}-portable.exe
           if-no-files-found: error
+
+      - name: Upload Microsoft Store MSIX
+        if: success() && matrix.platform == 'windows' && matrix.arch == 'x64'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-microsoft-store-msix-run-${{ github.run_number }}
+          path: release/*.msix
+          if-no-files-found: error
+          retention-days: 90
+          archive: false
 
       - name: Upload macOS DMG
         if: success() && matrix.platform == 'macos'
@@ -518,6 +543,21 @@ jobs:
           ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
 
+      - name: Package Microsoft Store MSIX
+        if: success() && matrix.platform == 'windows' && matrix.arch == 'x64'
+        env:
+          ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+        run: pnpm exec electron-builder --config electron-builder.yml --win appx --x64 --publish never
+
+      - name: Sign Microsoft Store MSIX
+        if: success() && matrix.platform == 'windows' && matrix.arch == 'x64'
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem -Path 'release/*.msix' -File | Select-Object -First 1
+          if ($null -eq $package) { throw 'Microsoft Store MSIX was not found.' }
+          ./scripts/sign-microsoft-store-package.ps1 -PackagePath $package.FullName
+
       - name: Package Electron app
         if: runner.os == 'macOS'
         env:
@@ -570,6 +610,16 @@ jobs:
           name: vlaina-windows-portable-${{ matrix.arch }}-run-${{ github.run_number }}
           path: release/*-windows-${{ matrix.arch }}-portable.exe
           if-no-files-found: error
+
+      - name: Upload Microsoft Store MSIX
+        if: success() && matrix.platform == 'windows' && matrix.arch == 'x64'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-microsoft-store-msix-${{ needs.release-context.outputs.tag }}
+          path: release/*.msix
+          if-no-files-found: error
+          retention-days: 90
+          archive: false
 
       - name: Upload macOS DMG
         if: success() && matrix.platform == 'macos'
@@ -640,6 +690,7 @@ jobs:
           RELEASE_TAG: ${{ needs.release-context.outputs.tag }}
         shell: bash
         run: |
+          find release-artifacts -type f -name '*.msix' -delete
           shopt -s nullglob
           artifacts=(release-artifacts/*)
 

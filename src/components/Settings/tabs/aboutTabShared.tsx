@@ -5,6 +5,7 @@ import type { AppLanguage, MessageKey, MessageValues } from '@/lib/i18n';
 export const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
 export const termsOfServiceUrl = 'https://github.com/vladelaina/vlaina/blob/main/TERMS.md';
 export const officialWebsiteUrl = 'https://vlaina.com';
+export const microsoftStoreUrl = 'https://apps.microsoft.com/detail/9NLX8NHXQ49X';
 export const officialWebsiteLabel = 'vlaina.com';
 export const githubRepositoryUrl = 'https://github.com/vladelaina/vlaina';
 export const discordInviteUrl = 'https://vlaina.com/r/discord';

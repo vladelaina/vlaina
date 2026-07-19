@@ -203,6 +203,58 @@ describe('AboutTab community QR pills', () => {
     });
   });
 
+  it('opens Microsoft Store instead of checking direct-distribution updates for Store builds', async () => {
+    const check = vi.fn();
+    const deleteDownloaded = vi.fn().mockResolvedValue(undefined);
+    writeCachedDesktopUpdateInfo({
+      currentVersion: '1.0.0',
+      latestVersion: '1.1.0',
+      updateAvailable: true,
+      downloadUrl: 'https://downloads.example.test/vlaina-1.1.0.exe',
+      releaseUrl: 'https://releases.example.test/v1.1.0',
+      platformAssetName: 'vlaina-1.1.0.exe',
+      hasPlatformAsset: true,
+      releaseNotes: '',
+      publishedAt: '2026-07-19T00:00:00.000Z',
+    });
+    electronBridgeMock.current = {
+      app: {
+        getVersion: vi.fn().mockResolvedValue('1.0.0'),
+      },
+      update: {
+        check,
+        deleteDownloaded,
+        getPolicy: vi.fn().mockResolvedValue({
+          distribution: 'microsoft-store',
+          checkEnabled: false,
+          backgroundDownloadEnabled: false,
+          localInstallerEnabled: false,
+          externalDownloadEnabled: false,
+          cleanupDownloadedUpdatesEnabled: true,
+        }),
+      },
+    };
+
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(readCachedDesktopUpdateInfo()).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+
+    await waitFor(() => {
+      expect(openExternalHrefMock).toHaveBeenCalledWith('https://apps.microsoft.com/detail/9NLX8NHXQ49X');
+    });
+    expect(check).not.toHaveBeenCalled();
+    expect(deleteDownloaded).toHaveBeenCalled();
+  });
+
   it('restores an available update from the cached desktop updater result', async () => {
     const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v99.99.99/vlaina-99.99.99-linux-x86_64.AppImage';
     writeCachedDesktopUpdateInfo({

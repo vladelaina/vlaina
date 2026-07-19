@@ -23,4 +23,13 @@ describe('desktop update policy', () => {
       cleanupDownloadedUpdatesEnabled: true,
     });
   });
+
+  it('detects Microsoft Store distribution from the Electron runtime', () => {
+    expect(resolveDesktopUpdatePolicy({}, { windowsStore: true })).toMatchObject({
+      distribution: 'microsoft-store',
+      checkEnabled: false,
+      backgroundDownloadEnabled: false,
+      localInstallerEnabled: false,
+    });
+  });
 });

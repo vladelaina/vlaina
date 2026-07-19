@@ -80,6 +80,22 @@ win:
   target:
     - nsis
     - portable
+appx:
+  artifactName: ${productName}_${version}_${arch}.msix
+  identityName: vladelaina.vlaina
+  applicationId: vlaina
+  publisher: CN=5503A135-7FA4-466B-815C-DBE627F4065F
+  publisherDisplayName: vladelaina
+  displayName: vlaina
+  backgroundColor: '#101114'
+  languages:
+    - en-US
+    - zh-CN
+    - zh-TW
+    - ja-JP
+    - ko-KR
+  capabilities:
+    - runFullTrust
 nsis:
   artifactName: ${productName}-${version}-windows-${arch}-setup.${ext}
   oneClick: false

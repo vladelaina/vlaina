@@ -62,6 +62,41 @@ describe('Electron userData path safety', () => {
     expect(fs.existsSync(overrideUserData)).toBe(false);
   });
 
+  it('uses the Microsoft Store package private data root for packaged Store builds', () => {
+    const appDataPath = path.join(tempRoot, 'AppData', 'Roaming');
+    const app = createApp({
+      isPackaged: true,
+      userDataPath: path.join(tempRoot, 'package-install'),
+      appDataPath,
+    });
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: path.join(tempRoot, 'repo'),
+      runtime: {
+        windowsStore: true,
+        env: {
+          USERPROFILE: tempRoot,
+          LOCALAPPDATA: path.join(tempRoot, 'AppData', 'Local'),
+        },
+      },
+    });
+
+    const expectedUserData = path.join(
+      tempRoot,
+      'AppData',
+      'Local',
+      'Packages',
+      'vladelaina.vlaina_hnew8t3b8e0t6',
+      'LocalCache',
+      'Roaming',
+      'vlaina',
+    );
+    expect(result).toEqual({ changed: true, userDataPath: expectedUserData });
+    expect(app.setPath).toHaveBeenCalledWith('userData', expectedUserData);
+    expect(fs.existsSync(expectedUserData)).toBe(true);
+  });
+
   it('moves packaged userData away from the Windows install directory without migrating misplaced config', async () => {
     const installDir = path.join(tempRoot, 'AppData', 'Local', 'Programs', 'vlaina');
     const packagedUserData = installDir;

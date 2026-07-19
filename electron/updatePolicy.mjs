@@ -1,3 +1,5 @@
+import { isMicrosoftStoreRuntime } from './microsoftStoreIdentity.mjs';
+
 const directUpdatePolicy = {
   distribution: 'direct',
   checkEnabled: true,
@@ -31,9 +33,9 @@ function normalizeDistributionChannel(value) {
   return 'direct';
 }
 
-export function resolveDesktopUpdatePolicy(env = process.env) {
+export function resolveDesktopUpdatePolicy(env = process.env, runtime = process) {
   const distribution = normalizeDistributionChannel(env.APP_DISTRIBUTION_CHANNEL);
-  if (distribution === 'microsoft-store') {
+  if (distribution === 'microsoft-store' || isMicrosoftStoreRuntime(runtime)) {
     return { ...microsoftStoreUpdatePolicy };
   }
   return { ...directUpdatePolicy };

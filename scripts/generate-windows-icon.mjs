@@ -11,6 +11,7 @@ const buildDir = path.join(projectRoot, 'build');
 const targetPngPath = path.join(buildDir, 'icon.png');
 const targetIcoPath = path.join(buildDir, 'icon.ico');
 const targetIcnsPath = path.join(buildDir, 'icon.icns');
+const appxAssetsDir = path.join(buildDir, 'appx');
 
 function runImageMagick(args) {
   const missingCommandErrors = [];
@@ -92,6 +93,33 @@ function createIcnsFromPng(pngBytes) {
   return output;
 }
 
+async function createAppxAssets(sourcePath) {
+  await mkdir(appxAssetsDir, { recursive: true });
+  const assets = [
+    ['StoreLogo.png', 50],
+    ['Square44x44Logo.png', 44],
+    ['Square150x150Logo.png', 150],
+  ];
+
+  try {
+    for (const [filename, size] of assets) {
+      const destination = path.join(appxAssetsDir, filename);
+      runImageMagick([
+        sourcePath,
+        '-background',
+        'none',
+        '-resize',
+        `${size}x${size}`,
+        destination,
+      ]);
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT' && error?.code !== 'EPERM') throw error;
+    await rm(appxAssetsDir, { recursive: true, force: true });
+    console.warn('ImageMagick was unavailable; electron-builder will use its default AppX assets.');
+  }
+}
+
 async function createMacIcon(sourcePath, targetPath, pngBytes) {
   if (process.platform !== 'darwin') {
     const resizedPngPath = path.join(buildDir, 'icon-1024.png');
@@ -166,8 +194,9 @@ async function main() {
   await writeFile(targetPngPath, pngBytes);
   await createWindowsIcon(sourcePngPath, targetIcoPath, pngBytes);
   await createMacIcon(sourcePngPath, targetIcnsPath, pngBytes);
+  await createAppxAssets(sourcePngPath);
   console.log(
-    `Generated ${path.relative(projectRoot, targetPngPath)}, ${path.relative(projectRoot, targetIcoPath)}, and ${path.relative(projectRoot, targetIcnsPath)} from ${path.relative(projectRoot, sourcePngPath)}`,
+    `Generated desktop and AppX assets from ${path.relative(projectRoot, sourcePngPath)}`,
   );
 }
 
