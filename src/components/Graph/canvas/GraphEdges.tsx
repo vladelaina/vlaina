@@ -18,6 +18,7 @@ function getEdgeDefinitions(edges: readonly PositionedGraphEdge[]) {
 
 export const GraphEdges = memo(function GraphEdges(props: {
   edges: PositionedGraphEdge[];
+  focused?: boolean;
   hoveredPath: string | null;
 }) {
   const [lastHoveredPath, setLastHoveredPath] = useState(props.hoveredPath);
@@ -33,6 +34,7 @@ export const GraphEdges = memo(function GraphEdges(props: {
     () => getEdgeDefinitions(highlightedEdges),
     [highlightedEdges],
   );
+  const hasActiveEdges = activeDefinitions.length > 0;
   const activePath = useMemo(() => createEdgePath(highlightedEdges), [highlightedEdges]);
   const registerBaseLayer = useCallback((element: SVGPathElement | null) => {
     registerGraphEdgeLayer(element, 'base', baseDefinitions);
@@ -64,10 +66,11 @@ export const GraphEdges = memo(function GraphEdges(props: {
         ref={registerBaseLayer}
         data-graph-edge-count={props.edges.length}
         data-graph-edge-layer="base"
+        className="vlaina-graph-edge-base"
         d={basePath}
         fill={themeGraphTokens.edgeFill}
         stroke="var(--vlaina-color-graph-edge)"
-        strokeOpacity={themeGraphTokens.edgeOpacity}
+        strokeOpacity={props.focused ? themeGraphTokens.focusedEdgeOpacity : themeGraphTokens.edgeOpacity}
         strokeWidth={themeGraphTokens.edgeWidthPx}
         vectorEffect="non-scaling-stroke"
       />
@@ -77,7 +80,7 @@ export const GraphEdges = memo(function GraphEdges(props: {
         className="vlaina-graph-edge-active"
         d={activePath}
         fill={themeGraphTokens.edgeFill}
-        opacity={props.hoveredPath ? 1 : 0}
+        opacity={props.hoveredPath && hasActiveEdges ? 1 : 0}
         stroke="var(--vlaina-color-graph-edge-active)"
         strokeOpacity={themeGraphTokens.activeEdgeOpacity}
         strokeWidth={themeGraphTokens.activeEdgeWidthPx}

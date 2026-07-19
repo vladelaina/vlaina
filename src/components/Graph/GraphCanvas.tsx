@@ -49,6 +49,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
     setForceLayoutVersion((current) => current + 1);
   }, []);
   const forceSimulation = useGraphForceSimulation({
+    active: props.active !== false,
     dragPosition,
     graph: props.graph,
     onDraggedPositionFrame: (id, position) => {

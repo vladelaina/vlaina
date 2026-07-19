@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearDiagnosticsLog, getDiagnosticsLogText } from '@/lib/diagnostics/diagnosticsLog';
 import { GraphCanvas } from './GraphCanvas';
+import { GraphCanvasScene } from './canvas/GraphCanvasScene';
 import type { PositionedNoteGraph } from './model/graphLayout';
 
 vi.mock('@/components/ui/icons', () => ({
@@ -24,7 +25,7 @@ const graph: PositionedNoteGraph = {
 graph.edges = [{ source: graph.nodes[0]!, target: graph.nodes[1]! }];
 
 function readNodePosition(element: Element) {
-  const match = element.parentElement?.getAttribute('transform')
+  const match = element.closest('[data-graph-node-position]')?.getAttribute('transform')
     ?.match(/^translate\(([-+\d.e]+)[ ,]([-+\d.e]+)\)$/i);
   return {
     x: Number(match?.[1]),
@@ -34,6 +35,7 @@ function readNodePosition(element: Element) {
 
 describe('GraphCanvas', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     clearDiagnosticsLog();
     Object.defineProperty(SVGSVGElement.prototype, 'setPointerCapture', {
       configurable: true,
@@ -200,7 +202,63 @@ describe('GraphCanvas', () => {
     fireEvent.mouseEnter(alpha);
 
     expect(visibleNode).toHaveClass('fill-[var(--vlaina-color-graph-node-active)]');
+    expect(screen.getByRole('button', { name: 'Beta, 1' }).querySelectorAll('circle')[1]).toHaveStyle({ opacity: '1' });
     expect(activeEdge).toHaveAttribute('stroke', 'var(--vlaina-color-graph-edge-active)');
+    expect(activeEdge.getAttribute('d')).not.toBe('');
+    expect(activeEdge).toHaveAttribute('opacity', '1');
+  });
+
+  it('shows hovered and directly connected labels below the global label zoom', () => {
+    render(
+      <svg>
+        <GraphCanvasScene
+          connectedToSelected={new Set()}
+          dragPositionId={null}
+          edges={graph.edges}
+          hoveredPath="Alpha.md"
+          nodes={graph.nodes}
+          onHoverChange={vi.fn()}
+          onOpen={vi.fn()}
+          onPositionCommit={vi.fn()}
+          onSelect={vi.fn()}
+          onStartDrag={vi.fn()}
+          selectedPath={null}
+          viewport={{ x: 0, y: 0, zoom: 0.5 }}
+        />
+      </svg>,
+    );
+
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(screen.queryByText('Gamma')).not.toBeInTheDocument();
+  });
+
+  it('focuses the selected node and its direct connections', () => {
+    render(
+      <GraphCanvas
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath="Alpha.md"
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    const canvas = screen.getByRole('img', { name: 'app.viewGraph' });
+    const alphaDot = screen.getByRole('button', { name: 'Alpha, 1' }).querySelectorAll('circle')[1]!;
+    const betaDot = screen.getByRole('button', { name: 'Beta, 1' }).querySelectorAll('circle')[1]!;
+    const gammaDot = screen.getByRole('button', { name: 'Gamma, 0' }).querySelectorAll('circle')[1]!;
+    const baseEdge = canvas.querySelector('[data-graph-edge-layer="base"]')!;
+    const activeEdge = canvas.querySelector('[data-graph-edge-layer="active"]')!;
+
+    expect(Number(alphaDot.getAttribute('r'))).toBeGreaterThan(Number(gammaDot.getAttribute('r')));
+    expect(alphaDot).toHaveClass('fill-[var(--vlaina-color-graph-node-active)]');
+    expect(alphaDot).toHaveStyle({ opacity: '1' });
+    expect(betaDot).toHaveStyle({ opacity: '1' });
+    expect(gammaDot).toHaveStyle({ opacity: '0.16' });
+    expect(baseEdge).toHaveAttribute('stroke-opacity', '0.14');
     expect(activeEdge.getAttribute('d')).not.toBe('');
     expect(activeEdge).toHaveAttribute('opacity', '1');
   });
@@ -221,6 +279,97 @@ describe('GraphCanvas', () => {
     const node = screen.getByRole('button', { name: 'Alpha, 1' });
     const position = node.querySelector('[data-graph-node-hit-target="Alpha.md"]')!;
     expect(readNodePosition(position)).toEqual({ x: 180, y: 160 });
+  });
+
+  it('holds the clustered force layout until the graph becomes active', async () => {
+    const view = render(
+      <GraphCanvas
+        active={false}
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath={null}
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    const node = screen.getByRole('button', { name: 'Alpha, 1' });
+    const hitTarget = node.querySelector('[data-graph-node-hit-target="Alpha.md"]')!;
+    const clusteredPosition = readNodePosition(hitTarget);
+    expect(clusteredPosition).not.toEqual({ x: 100, y: 100 });
+
+    view.rerender(
+      <GraphCanvas
+        active
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath={null}
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(readNodePosition(hitTarget)).not.toEqual(clusteredPosition));
+  });
+
+  it('moves saved nodes and their edges outward in the same animation frames', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const view = render(
+      <GraphCanvas
+        active={false}
+        graph={graph}
+        positionOverrides={{
+          'Alpha.md': { x: 100, y: 100 },
+          'Beta.md': { x: 300, y: 100 },
+          'Gamma.md': { x: 500, y: 100 },
+        }}
+        selectedPath={null}
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    const alpha = screen.getByRole('button', { name: 'Alpha, 1' });
+    const hitTarget = alpha.querySelector('[data-graph-node-hit-target="Alpha.md"]')!;
+    const edge = screen.getByRole('img', { name: 'app.viewGraph' })
+      .querySelector('[data-graph-edge-layer="base"]')!;
+    const clusteredPosition = readNodePosition(hitTarget);
+    const clusteredEdge = edge.getAttribute('d');
+    expect(clusteredPosition).not.toEqual({ x: 100, y: 100 });
+
+    view.rerender(
+      <GraphCanvas
+        active
+        graph={graph}
+        positionOverrides={{
+          'Alpha.md': { x: 100, y: 100 },
+          'Beta.md': { x: 300, y: 100 },
+          'Gamma.md': { x: 500, y: 100 },
+        }}
+        selectedPath={null}
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    act(() => {
+      const now = performance.now() + 100;
+      frames.splice(0).forEach((callback) => callback(now));
+    });
+    expect(readNodePosition(hitTarget)).not.toEqual(clusteredPosition);
+    expect(edge.getAttribute('d')).not.toBe(clusteredEdge);
   });
 
   it('pans the canvas and zooms around the pointer', () => {
@@ -256,5 +405,26 @@ describe('GraphCanvas', () => {
     expect(requestFrame).toHaveBeenCalledTimes(framesAfterFirstWheel);
     act(() => zoomFrames.forEach((callback) => callback(performance.now())));
     expect(content.getAttribute('transform')).not.toBe(afterPan);
+  });
+
+  it('clears the selection when the canvas is clicked', () => {
+    const onSelectPath = vi.fn();
+    render(
+      <GraphCanvas
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath="Alpha.md"
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={onSelectPath}
+      />,
+    );
+
+    const canvas = screen.getByRole('img', { name: 'app.viewGraph' });
+    fireEvent.pointerDown(canvas, { button: 0, clientX: 20, clientY: 20, pointerId: 8 });
+    fireEvent.pointerUp(canvas, { clientX: 20, clientY: 20, pointerId: 8 });
+
+    expect(onSelectPath).toHaveBeenCalledWith(null);
   });
 });

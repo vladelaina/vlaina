@@ -16,9 +16,14 @@ export const GraphNode = memo(function GraphNode(props: {
   onStartDrag: (event: PointerEvent<SVGGElement>, path: string, position: GraphNodePosition) => void;
   related: boolean;
   selected: boolean;
+  dimmed: boolean;
   showLabel: boolean;
 }) {
   const { node } = props;
+  const nodeRadius = themeGraphTokens.nodeRadiusPx + Math.min(
+    themeGraphTokens.nodeDegreeRadiusMaxBonusPx,
+    Math.sqrt(node.degree) * themeGraphTokens.nodeDegreeRadiusScalePx,
+  );
   return (
     <g
       data-graph-node-position={node.id}
@@ -61,17 +66,18 @@ export const GraphNode = memo(function GraphNode(props: {
       <circle
         cx={0}
         cy={0}
-        r={themeGraphTokens.nodeRadiusPx}
+        r={nodeRadius}
         style={{
-          [themeGraphTokens.nodeEnterRadiusProperty]: `calc(${themeGraphTokens.nodeRadiusPx}px * var(--vlaina-graph-inverse-zoom))`,
-          r: `calc(${themeGraphTokens.nodeRadiusPx}px * var(--vlaina-graph-inverse-zoom))`,
+          [themeGraphTokens.nodeEnterRadiusProperty]: `calc(${nodeRadius}px * var(--vlaina-graph-inverse-zoom))`,
+          r: `calc(${nodeRadius}px * var(--vlaina-graph-inverse-zoom))`,
           transform: props.selected || props.hovered
             ? themeGraphTokens.nodeActiveTransform
             : themeGraphTokens.nodeDefaultTransform,
+          opacity: props.dimmed ? themeGraphTokens.dimmedNodeOpacity : 1,
         } as CSSProperties}
         className={cn(
           'vlaina-graph-node-dot vlaina-graph-node-dot-enter',
-          props.hovered
+          props.selected || props.hovered
             ? 'fill-[var(--vlaina-color-graph-node-active)] stroke-[var(--vlaina-color-graph-node-ring-active)]'
             : props.related
               ? 'fill-[var(--vlaina-color-graph-node-related)] stroke-[var(--vlaina-color-graph-node-ring)]'
@@ -85,7 +91,10 @@ export const GraphNode = memo(function GraphNode(props: {
           data-graph-node-label="true"
           className="vlaina-graph-label-enter pointer-events-none"
         >
-          <g style={{ transform: themeGraphTokens.inverseZoomTransform }}>
+          <g style={{
+            opacity: props.dimmed ? themeGraphTokens.dimmedNodeOpacity : 1,
+            transform: themeGraphTokens.inverseZoomTransform,
+          }}>
             <text
               x={0}
               y={themeGraphTokens.labelOffsetYPx}

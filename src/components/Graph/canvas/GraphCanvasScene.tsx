@@ -61,6 +61,16 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
   showLabels: boolean;
 }) {
   const activePath = props.dragPositionId ?? props.hoveredPath;
+  const highlightedPath = activePath ?? props.selectedPath;
+  const connectedToHighlighted = useMemo(() => {
+    if (!activePath) return props.connectedToSelected;
+    const connected = new Set<string>();
+    for (const edge of props.edges) {
+      if (edge.source.id === activePath) connected.add(edge.target.id);
+      if (edge.target.id === activePath) connected.add(edge.source.id);
+    }
+    return connected;
+  }, [activePath, props.connectedToSelected, props.edges]);
   const enterIndexById = useMemo(() => {
     const focusNode = props.nodes.find((node) => node.id === props.selectedPath)
       ?? props.nodes[0];
@@ -68,9 +78,10 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
     return new Map(
       [...props.nodes]
         .sort((left, right) => (
-          Math.hypot(left.x - focusNode.x, left.y - focusNode.y)
-          - Math.hypot(right.x - focusNode.x, right.y - focusNode.y)
+          Number(right.id === props.selectedPath) - Number(left.id === props.selectedPath)
           || right.degree - left.degree
+          || Math.hypot(left.x - focusNode.x, left.y - focusNode.y)
+          - Math.hypot(right.x - focusNode.x, right.y - focusNode.y)
           || left.id.localeCompare(right.id)
         ))
         .map((node, index) => [node.id, index]),
@@ -81,7 +92,8 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
     <>
       <GraphEdges
         edges={props.edges}
-        hoveredPath={activePath}
+        focused={Boolean(highlightedPath)}
+        hoveredPath={highlightedPath}
       />
       {props.nodes.map((node) => (
         <GraphNode
@@ -95,8 +107,9 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
           onPositionCommit={props.onPositionCommit}
           onSelect={props.onSelect}
           onStartDrag={props.onStartDrag}
-          related={props.connectedToSelected.has(node.id)}
+          related={connectedToHighlighted.has(node.id)}
           selected={props.selectedPath === node.id}
+          dimmed={Boolean(highlightedPath && highlightedPath !== node.id && !connectedToHighlighted.has(node.id))}
           showLabel={props.showLabels}
         />
       ))}
