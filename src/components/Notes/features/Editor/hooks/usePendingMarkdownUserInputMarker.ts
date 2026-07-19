@@ -21,6 +21,7 @@ import { scheduleCompositionCommitFinalization } from './pendingMarkdownComposit
 import {
   collapseCommittedCompositionSelection,
 } from './pendingMarkdownCompositionRepair';
+import { syncEditorSelectionFromDOM } from '../utils/editorSelection';
 import {
   captureCompositionStartSelection,
   getCompositionSelectionAppend,
@@ -85,6 +86,15 @@ export function usePendingMarkdownUserInputMarker({
     _liveSerializer: ((doc: unknown) => string) | null
   ) => {
     return (event: Event) => {
+      if (
+        event instanceof KeyboardEvent &&
+        !event.isComposing &&
+        !view.composing &&
+        view.hasFocus?.() === true
+      ) {
+        syncEditorSelectionFromDOM(view);
+      }
+
       if (event.type === 'compositionstart') {
         compositionSessionRef.current += 1;
         isCompositionActiveRef.current = true;

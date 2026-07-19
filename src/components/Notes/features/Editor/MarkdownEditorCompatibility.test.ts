@@ -22,6 +22,7 @@ import {
   preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
+import { isEditorMarkdownEquivalentToNoteContent } from './milkdownEditorMarkdownReplacement';
 
 function typeText(view: EditorView, input: string): void {
   for (const text of input) {
@@ -85,6 +86,27 @@ async function destroyEditor(editor: { destroy: () => Promise<unknown> | unknown
 }
 
 describe('MarkdownEditor compatibility', () => {
+  it('keeps the reported mixed-list note equivalent after serialization', async () => {
+    const markdown = [
+      '1. 国内的==下载蹭小青==蛙',
+      '2. 买域名',
+      '   1. vlaina.io',
+      '   2. vlaina.cn',
+      '   3. vlaina.md',
+      '',
+      'sk-test-randomized-placeholder-token-1234567890',
+      'm',
+      '😁',
+      '放但是发生的”我”在”的“的',
+    ].join('\n');
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const serialized = serializer(view.state.doc);
+    expect(isEditorMarkdownEquivalentToNoteContent(serialized, markdown)).toBe(true);
+    await destroyEditor(editor);
+  });
+
   it('adds Typora and Obsidian theme alias classes to the editor root', async () => {
     const editor = await createEditor('# Theme aliases');
 

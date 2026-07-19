@@ -1,4 +1,4 @@
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { type Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
 import {
@@ -201,9 +201,7 @@ export function collapseCommittedCompositionSelection(
 
     const selectedText = state.doc.textBetween(selection.from, selection.to, '\n');
     if (selectedText !== committedText) return false;
-    const selectionPos = typeof collapseTo === 'number'
-      ? Math.max(0, Math.min(state.doc.content.size, collapseTo))
-      : selection.to;
+    const selectionPos = resolveCompositionSelectionEnd(selection, collapseTo);
 
     view.dispatch(
       state.tr.setSelection(TextSelection.create(state.doc, selectionPos)),
@@ -213,6 +211,30 @@ export function collapseCommittedCompositionSelection(
   } catch {
     return false;
   }
+}
+
+export function resolveCompositionSelectionEnd(
+  selection: Selection,
+  collapseTo?: number,
+): number {
+  const selectionEnd = selection.to;
+  if (typeof collapseTo !== 'number') return selectionEnd;
+
+  const doc = selection.$to.doc;
+  const candidate = Math.max(0, Math.min(doc.content.size, collapseTo));
+  try {
+    const candidatePosition = doc.resolve(candidate);
+    if (
+      candidate >= selectionEnd &&
+      candidatePosition.parent === selection.$to.parent &&
+      candidate <= selection.$to.end()
+    ) {
+      return candidate;
+    }
+  } catch {
+    return selectionEnd;
+  }
+  return selectionEnd;
 }
 
 export function replaceSelectedTextWithCommittedComposition(

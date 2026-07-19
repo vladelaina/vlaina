@@ -9,6 +9,7 @@ import {
 import type { CompositionStartSelection } from './pendingMarkdownAutosaveTypes';
 import {
   collapseSelectionAtPosition,
+  resolveCompositionSelectionEnd,
   syncDomSelectionAtPosition,
 } from './pendingMarkdownCompositionRepair';
 
@@ -196,9 +197,7 @@ export function splitBlockAfterCommittedCompositionSelection(
   }
 
   const stateBeforeSplit = view.state;
-  const selectionPos = typeof collapseTo === 'number'
-    ? Math.max(0, Math.min(stateBeforeSplit.doc.content.size, collapseTo))
-    : selection.to;
+  const selectionPos = resolveCompositionSelectionEnd(selection, collapseTo);
   if (event.cancelable) {
     event.preventDefault();
   }

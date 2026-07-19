@@ -6,6 +6,7 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
+import { baseKeymap } from '@milkdown/kit/prose/commands';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,6 +18,7 @@ import {
   replaceSelectedTextWithCommittedComposition,
   usePendingMarkdownAutosave,
 } from './usePendingMarkdownAutosave';
+import { splitBlockAfterCommittedCompositionSelection } from './pendingMarkdownCompositionSelection';
 
 function createEditor(defaultValue = '') {
   return Editor.make()
@@ -47,6 +49,27 @@ function findTextEndPos(view: EditorView, text: string): number {
 
 function getDocText(view: EditorView): string {
   return view.state.doc.textBetween(0, view.state.doc.content.size, '\n');
+}
+
+function setNativeCaretAfterText(view: EditorView, text: string): number {
+  const walker = view.dom.ownerDocument.createTreeWalker(view.dom, NodeFilter.SHOW_TEXT);
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    const value = node.nodeValue ?? '';
+    const offset = value.indexOf(text);
+    if (offset >= 0) {
+      const caretOffset = offset + text.length;
+      const selection = view.dom.ownerDocument.getSelection();
+      const range = view.dom.ownerDocument.createRange();
+      range.setStart(node, caretOffset);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      return view.posAtDOM(node, caretOffset, -1);
+    }
+    node = walker.nextNode();
+  }
+  throw new Error(`Unable to find native text: ${text}`);
 }
 
 describe('usePendingMarkdownAutosave', () => {
@@ -317,6 +340,93 @@ describe('usePendingMarkdownAutosave', () => {
       expect(view.state.selection.empty).toBe(true);
       expect(view.state.selection.from).toBe(chineseEnd);
     } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('does not collapse a committed composition selection to a stale earlier position', async () => {
+    const editor = createEditor(['m', '', '放但是发生的'].join('\n'));
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const stalePosition = findTextEndPos(view, 'm');
+      const committedEnd = findTextEndPos(view, '放但是发生的');
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, committedEnd - 1, committedEnd)),
+      );
+
+      expect(collapseCommittedCompositionSelection(view, '的', stalePosition)).toBe(true);
+      expect(view.state.selection.from).toBe(committedEnd);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('keeps a valid same-paragraph append position after committed composition text', async () => {
+    const editor = createEditor('你好AB');
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const committedEnd = findTextEndPos(view, '你好');
+      const appendedEnd = findTextEndPos(view, '你好AB');
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, committedEnd - 2, committedEnd)),
+      );
+
+      expect(collapseCommittedCompositionSelection(view, '你好', appendedEnd)).toBe(true);
+      expect(view.state.selection.from).toBe(appendedEnd);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('syncs a visible caret before ordinary Enter when the editor state is stale', async () => {
+    const editor = createEditor([
+      '1. 国内的==下载蹭小青==蛙',
+      '2. 买域名',
+      '   1. vlaina.io',
+      '   2. vlaina.cn',
+      '   3. vlaina.md',
+      '',
+      'sk-test-randomized-placeholder-token-1234567890',
+      'm',
+      '😁',
+      '放但是发生的”我”在”的“的',
+    ].join('\n'));
+    await editor.create();
+
+    let unmountHook = () => {};
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const stalePosition = findTextEndPos(view, 'sk-test-randomized-placeholder-token-1234567890');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, stalePosition)));
+      view.focus();
+      const visibleCaretPosition = setNativeCaretAfterText(view, '放但是发生的”我”在”的“的');
+      const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+        currentNotePath: 'docs/alpha.md',
+        currentNoteDiskRevision: 0,
+        currentNoteContent: getDocText(view),
+        updateContent: vi.fn(),
+        debouncedSave: vi.fn(),
+      }));
+      unmountHook = unmount;
+      const markUserInput = result.current.createUserInputMarker(view, null);
+      const enter = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true,
+      });
+
+      act(() => markUserInput(enter));
+
+      expect(view.state.selection.from).toBe(visibleCaretPosition);
+      expect(baseKeymap.Enter(view.state, view.dispatch, view)).toBe(true);
+      expect(getDocText(view)).toContain('放但是发生的”我”在”的“的\n');
+      expect(view.state.selection.$from.parent.textContent).toBe('');
+    } finally {
+      unmountHook();
       await editor.destroy();
     }
   });
@@ -610,6 +720,40 @@ describe('usePendingMarkdownAutosave', () => {
       expect(view.state.selection.from).toBeGreaterThanOrEqual(chineseEnd);
     } finally {
       unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('ignores a stale IME append position before the selected committed text on Enter', async () => {
+    const editor = createEditor(['m', '', '放但是发生的'].join('\n'));
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const stalePosition = findTextEndPos(view, 'm');
+      const committedEnd = findTextEndPos(view, '放但是发生的');
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, committedEnd - 1, committedEnd)),
+      );
+      const enter = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true,
+      });
+
+      const splitPosition = splitBlockAfterCommittedCompositionSelection(
+        view,
+        enter,
+        '的',
+        stalePosition,
+      );
+
+      expect(splitPosition).not.toBeNull();
+      expect(enter.defaultPrevented).toBe(true);
+      expect(view.state.selection.$from.parent.textContent).toBe('');
+      expect(getDocText(view)).toContain('放但是发生的\n');
+      expect(getDocText(view)).not.toContain('放但是发生\n的');
+    } finally {
       await editor.destroy();
     }
   });

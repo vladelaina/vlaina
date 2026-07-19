@@ -21,6 +21,7 @@ import { getMilkdownEditorClassName } from './milkdownEditorClassName';
 import { focusCurrentEditorAtViewportPoint } from './utils/focusEditorAtPoint';
 import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
 import { HEADING_PLACEHOLDER_I18N_REFRESH_META } from './plugins/heading/headingPlugin';
+import { syncEditorSelectionFromDOM } from './utils/editorSelection';
 
 export { createLargePlainMarkdownDocJSON, shouldUseLazyBlockVisibility } from './milkdownLargePlainMarkdown';
 export {
@@ -168,6 +169,15 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
   useEffect(() => {
     const handleBlur = () => {
+      try {
+        const editor = activatedEditorRef.current;
+        if (editor?.status === 'Created') {
+          const view = editor.ctx.get(editorViewCtx) as EditorView;
+          syncEditorSelectionFromDOM(view);
+        }
+      } catch {
+        // Selection sync is best-effort during window deactivation.
+      }
       flushCurrentPendingEditorMarkdown();
       flushSave();
     };

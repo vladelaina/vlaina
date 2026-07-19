@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearDiagnosticsLog, getDiagnosticsLogText } from '@/lib/diagnostics/diagnosticsLog';
 import { NoteSaveStatus } from './NoteSaveStatus';
 
@@ -17,7 +17,6 @@ vi.mock('@/stores/useNotesStore', () => ({
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({
     t: (key: string) => ({
-      'common.saved': 'Saved',
       'storage.saveFailed': 'Save failed',
     })[key] ?? key,
   }),
@@ -25,19 +24,13 @@ vi.mock('@/lib/i18n', () => ({
 
 describe('NoteSaveStatus', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     clearDiagnosticsLog();
     notesState.error = null;
     notesState.isDirty = false;
     notesState.saveError = null;
     notesState.saveErrorPath = null;
   });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('stays hidden while saving, then briefly shows saved after persistence finishes', () => {
+  it('stays hidden after persistence finishes', () => {
     const { rerender } = render(<NoteSaveStatus notePath="alpha.md" />);
     expect(screen.queryByRole('status')).toBeNull();
 
@@ -47,9 +40,6 @@ describe('NoteSaveStatus', () => {
 
     notesState.isDirty = false;
     rerender(<NoteSaveStatus notePath="alpha.md" />);
-    expect(screen.getByRole('status')).toHaveTextContent('Saved');
-
-    act(() => vi.runAllTimers());
     expect(screen.queryByRole('status')).toBeNull();
   });
 
