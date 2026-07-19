@@ -8,7 +8,7 @@ import {
 import { Icon } from '@/components/ui/icons';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import {
   getSidebarActionButtonClass,
   type SidebarTone,
@@ -51,8 +51,8 @@ export function SidebarCapsulePanel({
     <div
       data-sidebar-capsule-panel="true"
       className={cn(
-        'mx-2 mb-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--vlaina-radius-22px)] p-1',
-        chatComposerPillSurfaceClass,
+        'mx-2 mb-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--vlaina-ui-radius-panel)] p-1',
+        raisedPillSurfaceClass,
         className,
       )}
       {...props}
@@ -155,7 +155,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
         <div
           className={cn(
             'flex h-[var(--vlaina-size-40px)] items-center gap-2 rounded-full pl-3 pr-1',
-            chatComposerPillSurfaceClass,
+            raisedPillSurfaceClass,
             containerClassName,
           )}
         >

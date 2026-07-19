@@ -59,7 +59,7 @@ function getKindIconName(kind: ExternalDragPreviewKind): IconName {
 
 function ExternalDragPreviewCard({ count, kind, label }: ExternalDragPreviewState) {
   return (
-    <div className="flex h-[var(--vlaina-size-36px)] items-center gap-2 rounded-xl bg-[var(--vlaina-sidebar-notes-surface)] px-3 py-1 text-[var(--vlaina-font-base)] text-[var(--vlaina-sidebar-notes-text)]">
+    <div className="flex h-[var(--vlaina-size-36px)] items-center gap-2 rounded-[var(--vlaina-notes-ui-radius-compact)] bg-[var(--vlaina-sidebar-notes-surface)] px-3 py-1 text-[length:var(--vlaina-notes-ui-font-compact)] text-[var(--vlaina-sidebar-notes-text)]">
       <span className="flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center">
         <Icon
           name={getKindIconName(kind)}
@@ -69,7 +69,7 @@ function ExternalDragPreviewCard({ count, kind, label }: ExternalDragPreviewStat
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count > 1 ? (
-        <span className="shrink-0 rounded-full bg-[var(--vlaina-sidebar-notes-row-hover)] px-2 py-[var(--vlaina-space-1px)] text-[var(--vlaina-font-base)] font-medium text-[var(--vlaina-sidebar-notes-text-muted)]">
+        <span className="shrink-0 rounded-full bg-[var(--vlaina-sidebar-notes-row-hover)] px-2 py-[var(--vlaina-space-1px)] text-[length:var(--vlaina-notes-ui-font-compact)] font-medium text-[var(--vlaina-sidebar-notes-text-muted)]">
           {count}
         </span>
       ) : null}

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type DragEvent } from 'react';
 import { SettingsSwitch } from '@/components/Settings/components/SettingsFields';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -193,10 +193,10 @@ export function ChannelObject({
         onMiddleClick?.();
       }}
       className={cn(
-        'group/channel relative min-h-[var(--vlaina-size-112px)] cursor-grab rounded-[var(--vlaina-radius-26px)] border transition-all duration-[var(--vlaina-duration-200)] active:cursor-grabbing',
+        'group/channel relative min-h-[var(--vlaina-size-112px)] cursor-grab rounded-[var(--vlaina-ui-radius-group)] border transition-all duration-[var(--vlaina-duration-200)] active:cursor-grabbing',
         active
           ? 'bg-[var(--vlaina-sidebar-row-selected-bg)]'
-          : chatComposerPillSurfaceClass,
+          : raisedPillSurfaceClass,
         dragOver
           ? 'border-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-md)]'
           : 'border-transparent',
@@ -260,8 +260,8 @@ export function CreateChannelObject({ onClick }: { onClick: () => void }) {
       aria-label={t('settings.ai.newChannel')}
       data-settings-ai-action="new-channel"
       className={cn(
-        "flex min-h-[var(--vlaina-size-112px)] items-center justify-center rounded-[var(--vlaina-radius-26px)] border border-transparent transition-all duration-[var(--vlaina-duration-200)] shadow-[var(--vlaina-shadow-sm)] hover:shadow-[var(--vlaina-shadow-md)] active:scale-[var(--vlaina-scale-98)]",
-        chatComposerPillSurfaceClass
+        "flex min-h-[var(--vlaina-size-112px)] items-center justify-center rounded-[var(--vlaina-ui-radius-group)] border border-transparent transition-all duration-[var(--vlaina-duration-200)] shadow-[var(--vlaina-shadow-sm)] hover:shadow-[var(--vlaina-shadow-md)] active:scale-[var(--vlaina-scale-98)]",
+        raisedPillSurfaceClass
       )}
     >
       <div className="flex flex-col items-center gap-1">

@@ -5,7 +5,7 @@ import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { renderToolbarMarkup } from './toolbarMarkup';
 import type { FloatingToolbarState } from './types';
-import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { ghostIconButtonClass, raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 
 function createState(overrides?: Partial<FloatingToolbarState>): FloatingToolbarState {
   return {
@@ -45,7 +45,7 @@ describe('toolbar markup', () => {
   it('renders a reduced toolbar for code blocks', () => {
     const markup = renderToolbarMarkup(createState({ currentBlockType: 'codeBlock' }));
 
-    expect(markup).toContain(chatComposerPillSurfaceClass);
+    expect(markup).toContain(raisedPillSurfaceClass);
     expect(markup).toContain('data-action="block"');
     expect(markup).toContain('data-action="copy"');
     expect(markup).toContain('data-action="delete"');
@@ -71,7 +71,7 @@ describe('toolbar markup', () => {
         resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', file),
         'utf8',
       );
-      expect(source).toContain('chatComposerPillSurfaceClass');
+      expect(source).toContain('raisedPillSurfaceClass');
     });
 
     const aiDropdownSource = readFileSync(
@@ -79,7 +79,7 @@ describe('toolbar markup', () => {
       'utf8',
     );
     expect(aiDropdownSource).toContain("dropdown.className = 'toolbar-submenu ai-dropdown ai-dropdown-nested'");
-    expect(aiDropdownSource).not.toContain('dropdown.className = `toolbar-submenu ai-dropdown ai-dropdown-nested ${chatComposerPillSurfaceClass}`');
+    expect(aiDropdownSource).not.toContain('dropdown.className = `toolbar-submenu ai-dropdown ai-dropdown-nested ${raisedPillSurfaceClass}`');
   });
 
   it('keeps AI tools visible when no account or custom provider is available', () => {
@@ -231,9 +231,9 @@ describe('toolbar markup', () => {
     );
 
     expect(markup).toContain('ai-review-result-surface');
-    expect(markup).toContain(chatComposerPillSurfaceClass);
-    expect(markup).toContain('!rounded-[var(--vlaina-radius-26px)]');
-    expect(markup).toContain(`ai-review-content ai-review-content-after ai-review-content-glass !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`);
+    expect(markup).toContain(raisedPillSurfaceClass);
+    expect(markup).toContain('!rounded-[var(--vlaina-notes-ui-radius-panel)]');
+    expect(markup).toContain(`ai-review-content ai-review-content-after ai-review-content-glass !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}`);
     expect(markup).toContain('ai-review-diff-added');
     expect(markup).toContain('ai-review-diff-removed');
     expect(markup).toContain('Hello there');
@@ -249,7 +249,7 @@ describe('toolbar markup', () => {
     expect(markup).toContain('viewBox="0 0 256 256"');
     expect(markup).toContain('data-review-action="accept"');
     expect(markup).toContain('data-review-action="cancel"');
-    expect(markup.split(chatComposerGhostIconButtonClass).length - 1).toBe(3);
+    expect(markup.split(ghostIconButtonClass).length - 1).toBe(3);
     expect(markup.split('app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center').length - 1).toBe(3);
     expect(markup.split('rounded-full bg-transparent shadow-none').length - 1).toBe(3);
     expect(markup).not.toContain('icon-shadow-button');

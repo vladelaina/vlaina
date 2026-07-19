@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { themeIconTokens, themeSidebarTokens } from '@/styles/themeTokens';
@@ -147,8 +147,8 @@ export function SidebarEmptyWorkspacePanel({
             >
               <span
                 className={cn(
-                  'inline-flex max-w-[var(--vlaina-size-300px)] items-center rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
-                  chatComposerPillSurfaceClass,
+                  'inline-flex max-w-[var(--vlaina-size-300px)] items-center rounded-[var(--vlaina-notes-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+                  raisedPillSurfaceClass,
                 )}
               >
                 <span className="break-all">{activeRecentNotesRootHint.path}</span>

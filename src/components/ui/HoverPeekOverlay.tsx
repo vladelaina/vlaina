@@ -67,7 +67,7 @@ export function HoverPeekOverlay({
                         transition={SPRING_PREMIUM}
                         className={cn(
                             "fixed top-12 left-3 bottom-3 z-[var(--vlaina-z-50)]",
-                            "shadow-[var(--vlaina-shadow-2xl)] border border-[var(--vlaina-color-subtle-border)] rounded-2xl",
+                            "shadow-[var(--vlaina-shadow-2xl)] border border-[var(--vlaina-color-subtle-border)] rounded-[var(--vlaina-ui-radius-group)]",
                             "overflow-hidden",
                             className
                         )}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { providerInputClassName, providerInputShellClassName } from './providerInputStyles';
@@ -170,7 +170,7 @@ export function ProviderConnectionFields({
   };
 
   return (
-    <section className={cn("mb-2 min-w-0 overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1", chatComposerPillSurfaceClass)}>
+    <section className={cn("mb-2 min-w-0 overflow-hidden rounded-[var(--vlaina-ui-radius-group)] p-1", raisedPillSurfaceClass)}>
       <div className="flex flex-col">
         {/* Channel Label */}
         <div className="flex min-w-0 flex-wrap items-center gap-4 border-b border-transparent px-7 py-5 max-[640px]:px-4">

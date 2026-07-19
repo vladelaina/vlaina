@@ -11,7 +11,7 @@ import {
   getSidebarLabelClass,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { SettingsSectionHeader } from '../components/SettingsControls';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 
 const ACTUAL_SYSTEM_LANG_CODE = resolveSystemLanguage(getBrowserLanguages());
 const ACTUAL_SYSTEM_LANG_NATIVE_NAME = APP_LANGUAGES.find(
@@ -52,10 +52,10 @@ export function LanguageTab() {
               data-selected={selected ? 'true' : undefined}
               onClick={() => setLanguagePreference(option.value)}
               className={cn(
-                'group flex min-h-[var(--vlaina-size-56px)] cursor-pointer items-center justify-between gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-3 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent',
+                'group flex min-h-[var(--vlaina-size-56px)] cursor-pointer items-center justify-between gap-4 rounded-[var(--vlaina-ui-radius-group)] px-6 py-3 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent',
                 selected
                   ? 'bg-[var(--vlaina-sidebar-row-selected-bg)]'
-                  : chatComposerPillSurfaceClass,
+                  : raisedPillSurfaceClass,
               )}
             >
               <div className="flex min-w-0 flex-col">

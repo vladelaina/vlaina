@@ -668,6 +668,17 @@
   --vlaina-notes-root-cloud-icon-base-scale: 1;
   --vlaina-chat-embedded-sidebar-radius: var(--vlaina-radius-48px);
   --vlaina-notes-empty-overlay-top: 38.2%;
+  --vlaina-ui-radius-compact: var(--vlaina-radius-8px);
+  --vlaina-ui-radius-group: var(--vlaina-radius-12px);
+  --vlaina-ui-radius-floating: var(--vlaina-radius-8px);
+  --vlaina-ui-radius-panel: var(--vlaina-radius-22px);
+  --vlaina-ui-radius-tooltip: var(--vlaina-radius-10px);
+  --vlaina-notes-ui-font-compact: var(--vlaina-font-sm);
+  --vlaina-notes-ui-radius-compact: var(--vlaina-ui-radius-compact);
+  --vlaina-notes-ui-radius-group: var(--vlaina-ui-radius-group);
+  --vlaina-notes-ui-radius-floating: var(--vlaina-ui-radius-floating);
+  --vlaina-notes-ui-radius-panel: var(--vlaina-ui-radius-panel);
+  --vlaina-notes-ui-radius-tooltip: var(--vlaina-ui-radius-tooltip);
   --vlaina-settings-select-arrow-size: var(--vlaina-size-7px) var(--vlaina-size-12px);
   --vlaina-settings-select-arrow-position: right var(--vlaina-size-5px) center;
   --vlaina-width-slash-video-prompt: min(var(--vlaina-size-360px), calc(100vw - var(--vlaina-size-24px)));

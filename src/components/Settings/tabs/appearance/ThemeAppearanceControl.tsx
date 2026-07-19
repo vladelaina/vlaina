@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import {
   clearMarkdownThemePreview,
   setMarkdownThemePreviewId,
@@ -218,8 +218,8 @@ export function ThemeAppearanceControl({
 }: ThemeAppearanceControlProps) {
   return (
     <div className={cn(
-      "flex h-11 min-w-0 max-w-full items-center rounded-[var(--vlaina-radius-22px)] p-1.5 max-[520px]:h-auto max-[520px]:w-full max-[520px]:flex-wrap max-[520px]:gap-1.5",
-      chatComposerPillSurfaceClass,
+      "flex h-11 min-w-0 max-w-full items-center rounded-[var(--vlaina-ui-radius-group)] p-1.5 max-[520px]:h-auto max-[520px]:w-full max-[520px]:flex-wrap max-[520px]:gap-1.5",
+      raisedPillSurfaceClass,
     )}>
       <ColorModeToggle colorMode={colorMode} onChange={onColorModeChange} />
       <div className="mx-2 h-5 w-px bg-[var(--vlaina-divider)] max-[520px]:hidden" />

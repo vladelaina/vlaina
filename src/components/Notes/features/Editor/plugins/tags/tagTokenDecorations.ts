@@ -1,5 +1,5 @@
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { isNoteTagToken } from '@/lib/notes/tags';
 import {
   DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
@@ -51,7 +51,7 @@ function createTagTokenDecorationsFromCandidates(candidates: readonly TagTokenDe
       class: [
         'editor-tag-token tag cm-hashtag cm-meta v-tag',
         hasNext ? TAG_TOKEN_HAS_NEXT_CLASS : '',
-        chatComposerPillSurfaceClass,
+        raisedPillSurfaceClass,
       ].filter(Boolean).join(' '),
       'data-editor-tag-token': 'true',
     }, {

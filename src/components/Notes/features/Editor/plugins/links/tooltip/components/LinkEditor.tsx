@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { Icon } from '@/components/ui/icons';
 import {
     measureTextNaturalWidth,
@@ -191,8 +191,8 @@ export const LinkEditor = ({
                 width: `${editorWidth}px`,
             }}
             className={cn(
-                'floating-toolbar-inner link-tooltip-editor !rounded-[var(--vlaina-radius-26px)] z-[var(--vlaina-z-100)]',
-                chatComposerPillSurfaceClass
+                'floating-toolbar-inner link-tooltip-editor !rounded-[var(--vlaina-notes-ui-radius-floating)] z-[var(--vlaina-z-100)]',
+                raisedPillSurfaceClass
             )}
             onMouseDown={(e) => e.stopPropagation()}
         >

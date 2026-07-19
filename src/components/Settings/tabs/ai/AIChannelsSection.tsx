@@ -1,6 +1,6 @@
 import { type DragEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { themeMotionTokens } from '@/styles/themeTokens';
@@ -157,8 +157,8 @@ export function AIChannelsSection({
                 ease: themeMotionTokens.standardEase,
               }}
               className={cn(
-                "w-full rounded-[var(--vlaina-radius-26px)] border border-transparent px-6 py-8 text-left transition-all duration-[var(--vlaina-duration-200)] shadow-[var(--vlaina-shadow-sm)] hover:shadow-[var(--vlaina-shadow-md)] active:scale-[var(--vlaina-scale-98)]",
-                chatComposerPillSurfaceClass
+                "w-full rounded-[var(--vlaina-ui-radius-group)] border border-transparent px-6 py-8 text-left transition-all duration-[var(--vlaina-duration-200)] shadow-[var(--vlaina-shadow-sm)] hover:shadow-[var(--vlaina-shadow-md)] active:scale-[var(--vlaina-scale-98)]",
+                raisedPillSurfaceClass
               )}
             >
               <div className="mx-auto flex w-fit flex-col items-center gap-3">

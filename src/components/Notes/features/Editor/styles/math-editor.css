@@ -308,7 +308,7 @@
   width: 100%;
   box-sizing: border-box;
   border: var(--vlaina-border-width-1) solid var(--vlaina-border);
-  border-radius: var(--vlaina-radius-18px);
+  border-radius: var(--vlaina-notes-ui-radius-compact);
   background: var(--vlaina-color-input-surface);
   color: var(--vlaina-color-math-editor-text);
   padding: var(--vlaina-space-12px) var(--vlaina-space-14px);

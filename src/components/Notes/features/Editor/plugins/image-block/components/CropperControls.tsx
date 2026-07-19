@@ -2,7 +2,7 @@ import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 
 interface CropperControlsProps {
     zoom: number;
@@ -30,8 +30,8 @@ export const CropperControls = ({
     return (
         <div
             className={cn(
-                "absolute bottom-4 left-1/2 -translate-x-1/2 floating-toolbar-inner image-cropper-toolbar !rounded-[var(--vlaina-radius-26px)] z-[var(--vlaina-z-60)]",
-                chatComposerPillSurfaceClass,
+                "absolute bottom-4 left-1/2 -translate-x-1/2 floating-toolbar-inner image-cropper-toolbar !rounded-[var(--vlaina-notes-ui-radius-floating)] z-[var(--vlaina-z-60)]",
+                raisedPillSurfaceClass,
                 "transition-all duration-[var(--vlaina-duration-200)] origin-bottom",
                 isActive ? "opacity-[var(--vlaina-opacity-100)] scale-[var(--vlaina-scale-100)] translate-y-0" : "opacity-[var(--vlaina-opacity-0)] scale-[var(--vlaina-scale-95)] translate-y-2 pointer-events-none"
             )}

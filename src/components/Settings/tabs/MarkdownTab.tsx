@@ -6,7 +6,7 @@ import {
 } from '@/stores/unified/settings/markdownSettings';
 import { ShortcutKeys, SOFT_SHORTCUT_KEY_CLASSNAME } from '@/components/ui/shortcut-keys';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
 import { SettingsSwitch } from '../components/SettingsFields';
 import { MarkdownCodeBlockSettings } from './markdown/MarkdownCodeBlockSettings';
@@ -36,7 +36,7 @@ export function MarkdownTab() {
 
   return (
     <div className="max-w-3xl pb-10" data-settings-tab-panel="markdown">
-      <div className={cn('mb-8 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[var(--vlaina-radius-22px)] px-6 py-3 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-notes-text-soft)] max-[640px]:px-4', chatComposerPillSurfaceClass)}>
+      <div className={cn('mb-8 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[var(--vlaina-ui-radius-group)] px-6 py-3 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-notes-text-soft)] max-[640px]:px-4', raisedPillSurfaceClass)}>
         <span className="min-w-0 flex-1">{t('settings.markdown.shortcutHint')}</span>
         <ShortcutKeys
           keys={['Ctrl', 'Shift', '/']}

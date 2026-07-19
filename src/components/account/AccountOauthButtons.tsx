@@ -1,5 +1,5 @@
 import { Icon } from '@/components/ui/icons';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 import { useI18n } from '@/lib/i18n';
@@ -44,7 +44,7 @@ export function AccountOauthButtons({
           }}
           className={cn(
             'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-full px-5 text-[var(--vlaina-font-sm)] font-semibold tracking-tight text-[var(--vlaina-color-text-strong)] transition-all duration-[var(--vlaina-duration-200)] active:scale-[var(--vlaina-scale-985)] sm:h-[var(--vlaina-size-60px)] sm:px-6 sm:text-[var(--vlaina-font-15)] md:h-16',
-            chatComposerPillSurfaceClass,
+            raisedPillSurfaceClass,
             isCompact && 'h-14 text-[var(--vlaina-font-sm)]'
           )}
         >

@@ -4,7 +4,7 @@ import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { renderUrlRailEditor } from '../floating-toolbar/components/UrlRailEditor';
 import { isSupportedVideoUrl, normalizeVideoUrlInput } from '../video';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 import { isEditableShortcutTarget } from '@/lib/shortcuts/editableGuards';
 
@@ -42,7 +42,7 @@ export function openSlashVideoPrompt(args: {
     view.focus();
   };
 
-  prompt.className = `slash-video-prompt !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+  prompt.className = `slash-video-prompt !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}`;
   prompt.setAttribute('data-no-editor-drag-box', 'true');
   prompt.style.position = positionRoot ? 'absolute' : 'fixed';
   (positionRoot ?? document.body).append(prompt);

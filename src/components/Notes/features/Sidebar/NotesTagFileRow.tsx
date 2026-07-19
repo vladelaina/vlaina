@@ -85,7 +85,7 @@ export const NotesTagFileRow = memo(function NotesTagFileRow({
       }
       isActive={currentNotePath === path}
       main={
-        <span className="block min-w-0 max-w-full whitespace-normal break-words text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
+        <span className="block min-w-0 max-w-full whitespace-normal break-words text-[length:var(--vlaina-notes-ui-font-compact)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
           {displayName || getDisplayName(path) || stripMarkdownExtension(path.split('/').pop() ?? '') || path}
         </span>
       }

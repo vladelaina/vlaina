@@ -6,7 +6,7 @@ import { AssetGrid } from './AssetGrid';
 import { UploadZone } from './UploadZone';
 import { CoverPickerProps, CoverPickerTab } from './types';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 import { themeLazyLoadTokens } from '@/styles/themeTokens';
 import { AssetLibraryLoadingState } from './AssetLibraryLoadingState';
@@ -246,8 +246,8 @@ export function CoverPicker({
       <PopoverContent
         data-no-editor-drag-box="true"
         className={cn(
-          "w-[var(--vlaina-size-340px)] !rounded-[var(--vlaina-radius-26px)] p-0 flex flex-col overflow-hidden z-[var(--vlaina-z-50)] pointer-events-auto select-none backdrop-blur-[var(--vlaina-backdrop-blur-lg)]",
-          chatComposerPillSurfaceClass,
+          "w-[var(--vlaina-size-340px)] !rounded-[var(--vlaina-notes-ui-radius-panel)] p-0 flex flex-col overflow-hidden z-[var(--vlaina-z-50)] pointer-events-auto select-none backdrop-blur-[var(--vlaina-backdrop-blur-lg)]",
+          raisedPillSurfaceClass,
         )}
         align="end"
         side="bottom"

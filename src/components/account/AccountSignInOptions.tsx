@@ -68,7 +68,7 @@ export function AccountSignInOptions({
         {error ? (
           <div
             className={cn(
-              'rounded-2xl px-6 py-4 text-[var(--vlaina-font-13)] font-medium animate-in slide-in-from-top-2 duration-[var(--vlaina-duration-100)]',
+              'rounded-[var(--vlaina-ui-radius-group)] px-6 py-4 text-[var(--vlaina-font-13)] font-medium animate-in slide-in-from-top-2 duration-[var(--vlaina-duration-100)]',
               'bg-[var(--vlaina-color-brand-pink-soft)] text-[var(--vlaina-color-brand-pink)]'
             )}
           >

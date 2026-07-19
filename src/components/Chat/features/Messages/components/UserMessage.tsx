@@ -6,7 +6,7 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { resolveUserMessageBubbleWidth } from '@/components/Chat/features/Layout/chatUserBubbleWidth';
 import { LazyChatImageViewer } from '@/components/Chat/features/Markdown/components/LazyChatImageViewer';
-import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { ghostIconButtonClass, raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { UserMessageEditor } from './UserMessageEditor';
 import {
   isSvgSource,
@@ -20,7 +20,7 @@ import { COLLAPSED_USER_MESSAGE_VISIBLE_LINES, getLongUserMessagePreviewText, us
 const userMessageActionButtonClass = cn(
   'flex h-7 w-7 items-center justify-center',
   iconButtonStyles,
-  chatComposerGhostIconButtonClass,
+  ghostIconButtonClass,
   'text-[var(--vlaina-sidebar-chat-text)]',
 );
 
@@ -159,7 +159,7 @@ function UserMessageInner({
                     key={`${src}:${index}`}
                     className={cn(
                       'overflow-hidden rounded-2xl p-1',
-                      chatComposerPillSurfaceClass,
+                      raisedPillSurfaceClass,
                     )}
                   >
                     <LocalImage

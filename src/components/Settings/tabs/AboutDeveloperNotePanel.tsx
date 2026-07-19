@@ -7,7 +7,7 @@ export function DeveloperNotePanel() {
   const noteText = (key: MessageKey, values?: MessageValues) => renderRichText(t(key, values));
 
   return (
-    <div className="min-w-0 rounded-[var(--vlaina-radius-24px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)] max-[640px]:p-4">
+    <div className="min-w-0 rounded-[var(--vlaina-ui-radius-panel)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)] max-[640px]:p-4">
       <div className="space-y-4 text-[var(--vlaina-font-sm)] leading-7 text-[var(--vlaina-sidebar-notes-text)]">
         <p className="text-[var(--vlaina-font-h4)] font-semibold leading-8 text-[var(--vlaina-sidebar-notes-text)]">
           {noteText('settings.about.note.intro')}
@@ -47,7 +47,7 @@ export function DeveloperNotePanel() {
         <h3 className="text-[var(--vlaina-font-sm)] font-semibold leading-6 text-[var(--vlaina-sidebar-notes-text)]">
           {t('settings.about.note.resignationQuoteHeading')}
         </h3>
-        <div className="rounded-[var(--vlaina-radius-18px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-muted)] px-4 py-3 text-[var(--vlaina-font-13)] leading-6 text-[var(--vlaina-sidebar-notes-text-soft)]">
+        <div className="rounded-[var(--vlaina-ui-radius-group)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-muted)] px-4 py-3 text-[var(--vlaina-font-13)] leading-6 text-[var(--vlaina-sidebar-notes-text-soft)]">
           <p className="mt-3 whitespace-pre-wrap">
             {noteText('settings.about.note.resignationQuote')}
           </p>

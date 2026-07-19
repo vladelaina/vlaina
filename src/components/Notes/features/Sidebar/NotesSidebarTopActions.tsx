@@ -37,6 +37,7 @@ export function NotesSidebarTopActions() {
           icon={action.icon}
           label={action.label}
           iconClassName={action.iconClassName}
+          className="rounded-[var(--vlaina-notes-ui-radius-compact)] text-[length:var(--vlaina-notes-ui-font-compact)]"
         />
       ))}
     </SidebarActionGroup>

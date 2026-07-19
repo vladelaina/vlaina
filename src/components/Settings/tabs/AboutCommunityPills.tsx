@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Globe, Mail, QrCode } from 'lucide-react';
 import { FaDiscord, FaGithub, FaQq, FaWeixin } from 'react-icons/fa';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { cn } from '@/lib/utils';
@@ -89,15 +89,15 @@ function CommunityQrPill({
       <button
         type="button"
         aria-label={title}
-        className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+        className={cn(communityPillClassName, raisedPillSurfaceClass)}
       >
         {icon}
         <span>{label}</span>
       </button>
       <div className={cn(
-        'pointer-events-none absolute left-1/2 top-full z-[var(--vlaina-z-20)] mt-3 w-[var(--vlaina-size-168px)] -translate-x-1/2 rounded-[var(--vlaina-radius-26px)] p-3 opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)]',
+        'pointer-events-none absolute left-1/2 top-full z-[var(--vlaina-z-20)] mt-3 w-[var(--vlaina-size-168px)] -translate-x-1/2 rounded-[var(--vlaina-ui-radius-panel)] p-3 opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)]',
         isOpen && 'opacity-[var(--vlaina-opacity-100)]',
-        chatComposerPillSurfaceClass
+        raisedPillSurfaceClass
       )}
         data-community-qr-panel={id}
       >
@@ -131,7 +131,7 @@ function WebsitePill() {
       type="button"
       onClick={() => void openExternalHref(officialWebsiteUrl)}
       aria-label={t('settings.about.openWebsite')}
-      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+      className={cn(communityPillClassName, raisedPillSurfaceClass)}
     >
       <Globe size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-accent)]" />
       <span>{officialWebsiteLabel}</span>
@@ -145,7 +145,7 @@ function EmailPill() {
       type="button"
       onClick={() => void openExternalHref(supportEmailHref)}
       aria-label={supportEmail}
-      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+      className={cn(communityPillClassName, raisedPillSurfaceClass)}
     >
       <Mail size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-accent)]" />
       <span>{supportEmail}</span>
@@ -161,7 +161,7 @@ function DiscordPill() {
       type="button"
       onClick={() => void openExternalHref(discordInviteUrl)}
       aria-label={t('settings.about.openDiscord')}
-      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+      className={cn(communityPillClassName, raisedPillSurfaceClass)}
     >
       <FaDiscord size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-discord)]" />
       <span>{t('settings.about.discord')}</span>
@@ -199,7 +199,7 @@ function SlackPill() {
       type="button"
       onClick={() => void openExternalHref(slackInviteUrl)}
       aria-label={t('settings.about.openSlack')}
-      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+      className={cn(communityPillClassName, raisedPillSurfaceClass)}
     >
       <SlackLogoIcon size={themeIconTokens.sizeSidebar} />
       <span>{t('settings.about.slack')}</span>
@@ -215,7 +215,7 @@ function GithubPill() {
       type="button"
       onClick={() => void openExternalHref(githubRepositoryUrl)}
       aria-label={t('settings.about.openGithub')}
-      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+      className={cn(communityPillClassName, raisedPillSurfaceClass)}
     >
       <FaGithub size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-sidebar-notes-text)]" />
       <span>{t('settings.about.github')}</span>

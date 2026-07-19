@@ -6,7 +6,7 @@ import type { HealthStatus } from '../components/ModelListItem';
 import { useI18n } from '@/lib/i18n';
 import { getModelPresentationName } from '@/components/Chat/features/Input/modelFamilyRegistry';
 import { providerInputClassName, providerInputShellClassName } from './providerInputStyles';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { ModelBenchmarkErrorInfo } from './ModelBenchmarkErrorInfo';
 
 const SLOW_BENCHMARK_LATENCY_MS = 5000;
@@ -80,7 +80,7 @@ export function ActionButton({
       className={cn(
         'inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border border-transparent bg-transparent text-[var(--vlaina-font-xs)] font-semibold transition-colors duration-[var(--vlaina-duration-200)]',
         compact ? 'h-8 px-3' : 'h-9 px-4',
-        chatComposerPillSurfaceClass,
+        raisedPillSurfaceClass,
         muted
           ? 'text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]'
           : 'text-[var(--vlaina-sidebar-row-selected-text)] hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]'
@@ -127,7 +127,7 @@ export function SectionHeader({
         }}
         className={cn(
           'flex h-6 w-6 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]',
-          chatComposerPillSurfaceClass
+          raisedPillSurfaceClass
         )}
       >
         {busy ? (
@@ -168,7 +168,7 @@ export function ModelRow({
 }) {
   const tone = getHealthTone(health);
   const className = cn(
-    'flex min-w-0 items-center gap-3 rounded-[var(--vlaina-radius-20px)] border border-transparent px-4 py-3 text-left transition-all duration-[var(--vlaina-duration-200)]',
+    'flex min-w-0 items-center gap-3 rounded-[var(--vlaina-ui-radius-group)] border border-transparent px-4 py-3 text-left transition-all duration-[var(--vlaina-duration-200)]',
     selected && tone === 'neutral' && 'bg-[var(--vlaina-bg-secondary)] text-[var(--vlaina-sidebar-notes-text)]',
     selected && tone === 'success' && 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--vlaina-sidebar-notes-text)]',
     selected && tone === 'warning' && 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--vlaina-sidebar-notes-text)]',

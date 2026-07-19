@@ -1,5 +1,5 @@
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { getAiMenuGroups } from './menuConfig';
 import type { AiMenuGroup, AiMenuItem } from './types';
 import { escapeToolbarHtml } from '../../htmlEscape';
@@ -37,7 +37,7 @@ function buildShortcutHint(item: AiMenuItem): string {
 
 function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
   return `
-    <div class="ai-dropdown-root !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}">
+    <div class="ai-dropdown-root !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}">
       ${groups.map((group, index) => `
         ${group.rootAction ? `
           <button
@@ -71,7 +71,7 @@ function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
 
 function buildItemsMarkup(group: AiMenuGroup): string {
   return `
-    <div class="ai-dropdown-children !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}" data-ai-category-panel="${escapeToolbarHtml(group.id)}">
+    <div class="ai-dropdown-children !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}" data-ai-category-panel="${escapeToolbarHtml(group.id)}">
       ${group.items.map((item) => `
         <button
           class="ai-dropdown-item"

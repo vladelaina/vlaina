@@ -151,7 +151,7 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                 ease: themeMotionTokens.settingsModalEase,
               }}
               className={cn(
-                "relative flex h-[var(--vlaina-size-720px)] max-h-[var(--vlaina-height-settings-modal-max)] w-[var(--vlaina-size-1080px)] max-w-full min-w-0 overflow-hidden rounded-[var(--vlaina-radius-32px)] pointer-events-auto select-none transition-[background-color,box-shadow] duration-[var(--vlaina-duration-100)] max-[900px]:flex-col max-[640px]:max-h-[var(--vlaina-height-settings-modal-compact-max)] max-[640px]:rounded-[var(--vlaina-radius-24px)]",
+                "relative flex h-[var(--vlaina-size-720px)] max-h-[var(--vlaina-height-settings-modal-max)] w-[var(--vlaina-size-1080px)] max-w-full min-w-0 overflow-hidden rounded-[var(--vlaina-ui-radius-panel)] pointer-events-auto select-none transition-[background-color,box-shadow] duration-[var(--vlaina-duration-100)] max-[900px]:flex-col max-[640px]:max-h-[var(--vlaina-height-settings-modal-compact-max)]",
                 isAppearanceFontPreviewing
                   ? "bg-transparent shadow-[var(--vlaina-shadow-none)] ring-0"
                   : "bg-[var(--vlaina-color-setting-panel)] shadow-[var(--vlaina-shadow-2xl)] ring-1 ring-[var(--vlaina-color-subtle-border)]",

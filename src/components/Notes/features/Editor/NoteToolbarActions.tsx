@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
 import {
-  chatComposerGhostIconButtonClass,
-  chatComposerPillSurfaceClass,
-} from '@/components/Chat/features/Input/composerStyles';
+  ghostIconButtonClass,
+  raisedPillSurfaceClass,
+} from '@/components/ui/surfaceStyles';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getShortcutKeys } from '@/lib/shortcuts';
@@ -49,7 +49,7 @@ export interface NoteToolbarActionsProps {
 export const noteToolbarIconButtonClassName = cn(
   'app-no-drag flex h-8 w-8 items-center justify-center',
   'cursor-pointer text-[var(--vlaina-color-titlebar-button)] disabled:cursor-default',
-  chatComposerGhostIconButtonClass,
+  ghostIconButtonClass,
 );
 
 function NoteToolbarTooltip({ children, label }: { children: ReactNode; label: string }) {
@@ -61,8 +61,8 @@ function NoteToolbarTooltip({ children, label }: { children: ReactNode; label: s
         sideOffset={themeDomStyleTokens.toolbarTooltipOffsetPx}
         showArrow={false}
         className={cn(
-          'rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
-          chatComposerPillSurfaceClass,
+          'rounded-[var(--vlaina-notes-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+          raisedPillSurfaceClass,
         )}
       >
         {label}

@@ -1,7 +1,7 @@
 import { useUIStore } from '@/stores/uiSlice';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 import { dialogCloseIconButtonClassName } from '@/components/common/DialogCloseIconButton';
 import { StorageFolderNameEditor, StorageLocationDropdown } from './ImageStorageControls';
@@ -45,8 +45,8 @@ export function ImagesTab() {
 
             <div
                 className={cn(
-                    "mb-3 flex min-w-0 flex-col items-stretch gap-3 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4",
-                    chatComposerPillSurfaceClass
+                    "mb-3 flex min-w-0 flex-col items-stretch gap-3 rounded-[var(--vlaina-ui-radius-group)] px-6 py-4 max-[640px]:px-4",
+                    raisedPillSurfaceClass
                 )}
             >
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -69,8 +69,8 @@ export function ImagesTab() {
 
             <div
                 className={cn(
-                    "mb-3 flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4",
-                    chatComposerPillSurfaceClass
+                    "mb-3 flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[var(--vlaina-ui-radius-group)] px-6 py-4 max-[640px]:px-4",
+                    raisedPillSurfaceClass
                 )}
             >
                 <div className="min-w-0 text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">

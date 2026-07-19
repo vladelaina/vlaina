@@ -107,7 +107,7 @@ export function ConfirmDialog({
             }}
             onCloseAutoFocus={onCloseAutoFocus}
             onKeyDown={handleKeyDown}
-            className="w-full max-w-[var(--vlaina-size-360px)] rounded-[var(--vlaina-radius-34px)] border border-transparent bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-raised-soft)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-[var(--vlaina-duration-75)]"
+            className="w-full max-w-[var(--vlaina-size-360px)] rounded-[var(--vlaina-ui-radius-panel)] border border-transparent bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-raised-soft)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-[var(--vlaina-duration-75)]"
           >
             <div className="px-7 py-7">
               <DialogTitle className="text-[var(--vlaina-font-24)] leading-8 font-semibold tracking-[var(--vlaina-tracking-tight-display)] text-[var(--vlaina-color-text-strong)]">
@@ -129,7 +129,7 @@ export function ConfirmDialog({
                       await onAuxAction();
                     }}
                     className={cn(
-                      "inline-flex h-12 items-center justify-center rounded-full border border-transparent px-5 text-[var(--vlaina-font-sm)] font-semibold shadow-[var(--vlaina-shadow-raised-soft)] transition-[color,background-color,box-shadow,border-color,transform] outline-none app-ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] active:scale-[var(--vlaina-scale-985)]",
+                      "inline-flex h-12 items-center justify-center rounded-[var(--vlaina-ui-radius-group)] border border-transparent px-5 text-[var(--vlaina-font-sm)] font-semibold shadow-[var(--vlaina-shadow-raised-soft)] transition-[color,background-color,box-shadow,border-color,transform] outline-none app-ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] active:scale-[var(--vlaina-scale-985)]",
                       showKeyboardSelection && 'focus:ring-2',
                       auxActionVariant === 'success'
                         ? "bg-[var(--vlaina-color-status-success-fg)] text-[var(--vlaina-color-white)] hover:bg-[var(--vlaina-color-success)] focus:ring-[var(--vlaina-color-focus-ring-success)]"
@@ -148,7 +148,7 @@ export function ConfirmDialog({
                     onClose();
                   }}
                   className={cn(
-                    "inline-flex h-12 items-center justify-center rounded-full border border-transparent px-5 text-[var(--vlaina-font-sm)] font-semibold transition-[color,background-color,box-shadow,border-color,transform] outline-none app-ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] active:scale-[var(--vlaina-scale-985)]",
+                    "inline-flex h-12 items-center justify-center rounded-[var(--vlaina-ui-radius-group)] border border-transparent px-5 text-[var(--vlaina-font-sm)] font-semibold transition-[color,background-color,box-shadow,border-color,transform] outline-none app-ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] active:scale-[var(--vlaina-scale-985)]",
                     showKeyboardSelection && 'focus:ring-2',
                     variant === 'danger'
                       ? "bg-[var(--vlaina-color-danger)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-none)] hover:bg-[var(--vlaina-color-danger-hover)] focus:ring-[var(--vlaina-color-focus-ring-danger)]"
@@ -169,7 +169,7 @@ export function ConfirmDialog({
                     onClose();
                   }}
                   className={cn(
-                    "inline-flex h-12 items-center justify-center rounded-full border border-transparent bg-[var(--vlaina-color-setting-field)] px-5 text-[var(--vlaina-font-sm)] font-medium text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-raised-soft)] transition-[color,background-color,box-shadow,border-color,transform] outline-none app-ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] hover:bg-[var(--vlaina-hover-filled)] active:scale-[var(--vlaina-scale-985)]",
+                    "inline-flex h-12 items-center justify-center rounded-[var(--vlaina-ui-radius-group)] border border-transparent bg-[var(--vlaina-color-setting-field)] px-5 text-[var(--vlaina-font-sm)] font-medium text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-raised-soft)] transition-[color,background-color,box-shadow,border-color,transform] outline-none app-ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] hover:bg-[var(--vlaina-hover-filled)] active:scale-[var(--vlaina-scale-985)]",
                     showKeyboardSelection && 'focus:ring-2 focus:ring-[var(--vlaina-color-focus-ring-inverse)]',
                   )}
                 >

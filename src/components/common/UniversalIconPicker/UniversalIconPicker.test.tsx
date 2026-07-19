@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UniversalIconPicker } from './index';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import {
   ACTIVE_TAB_KEY,
   ICON_COLOR_KEY,
@@ -58,8 +58,8 @@ describe('UniversalIconPicker', () => {
     );
 
     const pickerShell = Array.from(container.querySelectorAll('div'))
-      .find((element) => element.className.includes('!rounded-[var(--vlaina-radius-26px)]'));
-    expect(pickerShell?.className).toContain(chatComposerPillSurfaceClass);
+      .find((element) => element.className.includes('!rounded-[var(--vlaina-ui-radius-panel)]'));
+    expect(pickerShell?.className).toContain(raisedPillSurfaceClass);
     expect(container.querySelector('[data-no-editor-drag-box="true"]')).toBeInstanceOf(HTMLElement);
   });
 

@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
   chatComposerFrameClass,
-  chatComposerSecondaryButtonClass,
   chatComposerSurfaceClass,
 } from '../../Input/composerStyles';
+import { secondaryPillButtonClass } from '@/components/ui/surfaceStyles';
 import { ChatAttachmentPreviewList } from '../../Input/components/ChatAttachmentPreviewList';
 import { ChatComposerField } from '../../Input/components/ChatComposerField';
 import type { ChatMessage } from '@/lib/ai/types';
@@ -218,7 +218,7 @@ export function UserMessageEditor({
             data-chat-message-editor-action="cancel"
             onClick={handleCancel}
             className={cn(
-              chatComposerSecondaryButtonClass,
+              secondaryPillButtonClass,
               'h-8 px-3.5 text-[var(--vlaina-font-13)] bg-[var(--vlaina-color-pill-surface)] hover:bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-text-primary)]'
             )}
           >

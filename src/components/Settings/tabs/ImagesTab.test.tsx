@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { ImagesTab } from './ImagesTab';
 
 const mocks = vi.hoisted(() => ({
@@ -89,8 +89,8 @@ describe('ImagesTab dropdown styling', () => {
     expect(menus).toHaveLength(2);
 
     menus.forEach((menu) => {
-      expect(menu.className).toContain(chatComposerPillSurfaceClass);
-      expect(menu.className).toContain('rounded-[var(--vlaina-radius-22px)]');
+      expect(menu.className).toContain(raisedPillSurfaceClass);
+      expect(menu.className).toContain('rounded-[var(--vlaina-ui-radius-panel)]');
     });
 
     expect(document.querySelector('[data-settings-image-storage-mode="subfolder"]')?.className)

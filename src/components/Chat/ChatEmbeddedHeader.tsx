@@ -1,5 +1,5 @@
 import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
-import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { ghostIconButtonClass, raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
@@ -33,7 +33,7 @@ export function ChatEmbeddedHeader(props: {
         }}
         className={cn(
           "group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",
-          chatComposerGhostIconButtonClass
+          ghostIconButtonClass
         )}
       >
         {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
@@ -80,7 +80,7 @@ export function ChatEmbeddedHeader(props: {
             }}
             className={cn(
               "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:text-[var(--vlaina-accent)]",
-              chatComposerPillSurfaceClass
+              raisedPillSurfaceClass
             )}
           >
             <Icon name="nav.panelRight" size="md" />
@@ -96,7 +96,7 @@ export function ChatEmbeddedHeader(props: {
             }}
             className={cn(
               "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)]",
-              chatComposerPillSurfaceClass
+              raisedPillSurfaceClass
             )}
           >
             <Icon name="nav.chevronRight" size="md" />

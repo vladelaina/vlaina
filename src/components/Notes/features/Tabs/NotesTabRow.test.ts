@@ -32,13 +32,13 @@ describe('NotesTabRow', () => {
 
     expect(titleBarSource).toContain('app-title-bar h-10');
     expect(titleBarSource).toContain('app-drag-region app-title-bar-center flex-1');
-    expect(source).toContain("chatComposerGhostIconButtonClass");
-    expect(source).toContain("chatComposerPillSurfaceClass");
+    expect(source).toContain("ghostIconButtonClass");
+    expect(source).toContain("raisedPillSurfaceClass");
     expect(source).toContain('<TitleBarCenterRegion className="group/tab-row gap-1">');
     expect(source).toContain('<TitleBarInteractiveRegion');
     expect(centerRegionSource).toContain('relative flex h-full w-full min-w-0 items-center px-2');
     expect(centerRegionSource).toContain('app-no-drag relative flex h-full w-fit max-w-full min-w-0 items-center');
-    expect(source).toContain('h-8 rounded-full px-1.5');
+    expect(source).toContain('h-8 rounded-[var(--vlaina-notes-ui-radius-group)] px-1.5');
     expect(source).toContain('const hasOpenTabs = openTabs.length > 0;');
     expect(source).toContain('{hasOpenTabs ? (');
     expect(source).toContain('flex min-w-0 items-center overflow-x-auto');
@@ -72,7 +72,7 @@ describe('NotesTabRow', () => {
     expect(source).toContain('{shouldShowTitleTooltip ? (');
     expect(source).toContain('label.scrollWidth > label.clientWidth + 1');
     expect(source).toContain('showArrow={false}');
-    expect(source).toContain('rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]');
+    expect(source).toContain('rounded-[var(--vlaina-notes-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]');
     expect(source).toContain('bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)]');
   });
 });

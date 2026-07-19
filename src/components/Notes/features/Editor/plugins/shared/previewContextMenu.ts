@@ -9,7 +9,7 @@ import {
 import { escapeToolbarHtml } from '../floating-toolbar/htmlEscape';
 import { suppressPreviewEditorOpen } from './previewContextMenuSuppression';
 import { markEditorUserInput } from './userInputEvents';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { translate } from '@/lib/i18n';
 import { themeIconTokens, themeRenderingTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
@@ -155,7 +155,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
   const createMenu = () => {
     closeMenu();
     menu = document.createElement('div');
-    menu.className = `slash-menu editor-preview-context-menu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+    menu.className = `slash-menu editor-preview-context-menu !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}`;
     menu.setAttribute('data-no-editor-drag-box', 'true');
     element.classList.add('editor-preview-context-menu-active');
 
@@ -195,7 +195,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     parentButton.setAttribute('aria-haspopup', 'menu');
 
     const submenu = document.createElement('div');
-    submenu.className = `slash-menu editor-preview-context-submenu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+    submenu.className = `slash-menu editor-preview-context-submenu !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}`;
     submenu.setAttribute('data-no-editor-drag-box', 'true');
     submenu.setAttribute('role', 'menu');
     items.forEach((item) => submenu.appendChild(item));

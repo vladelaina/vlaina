@@ -1,6 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { ghostIconButtonClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 
 interface MessageVersionNavigatorProps {
@@ -39,7 +39,7 @@ export function MessageVersionNavigator({
         className={cn(
           'grid h-6 w-6 place-items-center text-[var(--vlaina-sidebar-chat-text)] disabled:opacity-[var(--vlaina-opacity-30)] disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-[var(--vlaina-sidebar-chat-text)]',
           iconButtonStyles,
-          chatComposerGhostIconButtonClass,
+          ghostIconButtonClass,
         )}
       >
         <Icon name="nav.chevronLeft" size="md" />
@@ -53,7 +53,7 @@ export function MessageVersionNavigator({
         className={cn(
           'grid h-6 w-6 place-items-center text-[var(--vlaina-sidebar-chat-text)] disabled:opacity-[var(--vlaina-opacity-30)] disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-[var(--vlaina-sidebar-chat-text)]',
           iconButtonStyles,
-          chatComposerGhostIconButtonClass,
+          ghostIconButtonClass,
         )}
       >
         <Icon name="nav.chevronRight" size="md" />

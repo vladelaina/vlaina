@@ -1,20 +1,7 @@
-import { ghostIconButtonStyles } from '@/lib/utils';
-
-export const chatComposerPillSurfaceClass = [
-  "border !border-transparent !bg-[var(--vlaina-color-pill-surface)]",
-  "!shadow-[var(--vlaina-shadow-raised-soft)]",
-  "hover:!shadow-[var(--vlaina-shadow-menu-hover)]"
-].join(" ");
-
-export const chatPopoverPillSurfaceClass = [
-  chatComposerPillSurfaceClass,
-  "floating-popover-shadow"
-].join(" ");
-
-export const chatComposerGhostIconButtonClass = ghostIconButtonStyles;
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 
 export const chatComposerSurfaceClass = [
-  chatComposerPillSurfaceClass,
+  raisedPillSurfaceClass,
   "rounded-[var(--vlaina-radius-26px)]",
   "transition-shadow duration-[var(--vlaina-duration-300)] ease-out"
 ].join(" ");
@@ -34,24 +21,6 @@ export const chatComposerTextareaClass = [
   "placeholder:text-[var(--vlaina-color-brand-pink-muted-text)] placeholder:select-none",
   "focus:outline-none",
   "max-h-[var(--vlaina-size-320px)] min-h-[var(--vlaina-size-24px)]"
-].join(" ");
-
-export const chatComposerPrimaryButtonClass = [
-  "h-9 px-4 rounded-full",
-  "bg-[var(--vlaina-color-inverse-surface)] text-[var(--vlaina-color-inverse-text)] shadow-[var(--vlaina-shadow-md)]",
-  "hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]",
-  "transition-[background-color,color,box-shadow,opacity,transform] duration-[var(--vlaina-duration-200)]",
-  "disabled:bg-[var(--vlaina-bg-secondary)]",
-  "disabled:text-[var(--vlaina-color-text-disabled)] disabled:cursor-default disabled:shadow-[var(--vlaina-shadow-none)]",
-  "disabled:hover:scale-[var(--vlaina-scale-100)] disabled:active:scale-[var(--vlaina-scale-100)]"
-].join(" ");
-
-export const chatComposerSecondaryButtonClass = [
-  "h-9 px-4 rounded-full",
-  "bg-[var(--vlaina-bg-tertiary)]",
-  "text-[var(--vlaina-text-primary)]",
-  "hover:bg-[var(--vlaina-hover-filled)]",
-  "transition-colors"
 ].join(" ");
 
 export const chatComposerAttachmentTokenSurfaceClass = [

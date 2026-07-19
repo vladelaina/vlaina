@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 import { APP_VIEW_MODE_SWITCH_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
 import { cn } from '@/lib/utils';
@@ -61,8 +61,8 @@ export function AppViewModeSwitch() {
       role="tablist"
       aria-label={t('shortcut.action.toggleAppViewMode')}
       className={cn(
-        'relative mb-1.5 flex h-11 w-full shrink-0 items-center rounded-[var(--vlaina-radius-22px)] p-1.5',
-        chatComposerPillSurfaceClass,
+        'relative mb-1.5 flex h-11 w-full shrink-0 items-center rounded-[var(--vlaina-ui-radius-group)] p-1.5',
+        raisedPillSurfaceClass,
       )}
       style={{ minWidth: APP_VIEW_MODE_SWITCH_MIN_WIDTH }}
     >

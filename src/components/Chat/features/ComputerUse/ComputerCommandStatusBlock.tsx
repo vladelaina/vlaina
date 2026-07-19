@@ -3,7 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import type { ComputerCommandPhase, ComputerCommandStatus } from '@/lib/ai/computerUse/types';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { themeIconTokens } from '@/styles/themeTokens';
 import { ComputerCommandChanges } from './ComputerCommandChanges';
 
@@ -155,8 +155,8 @@ export function ComputerCommandStatusBlock({ isLoading, statuses }: ComputerComm
   const firstCompletedIndex = statuses.findIndex((status) => status.phase === 'completed');
   return (
     <div className={cn(
-      'mb-3 max-w-full rounded-[var(--vlaina-radius-22px)] p-[var(--vlaina-space-8px)] text-[var(--vlaina-font-xs)]',
-      chatComposerPillSurfaceClass,
+      'mb-3 max-w-full rounded-[var(--vlaina-ui-radius-group)] p-[var(--vlaina-space-8px)] text-[var(--vlaina-font-xs)]',
+      raisedPillSurfaceClass,
     )}>
       <button
         type="button"

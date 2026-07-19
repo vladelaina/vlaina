@@ -6,7 +6,7 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { subscribeChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
-import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { ghostIconButtonClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 
 const COPY_FEEDBACK_DURATION_MS = themeUiFeedbackTokens.copyFeedbackDurationMs;
@@ -162,7 +162,7 @@ export const MessageToolbar = memo(function MessageToolbar({
                   aria-label={t('chat.copyMessage')}
                   data-chat-message-action="copy"
                   onClick={handleCopy}
-                  className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, sidebarTextIconButtonClass)}
+                  className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, ghostIconButtonClass, sidebarTextIconButtonClass)}
               >
                   {isCopyFeedbackVisible ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
               </button>
@@ -174,7 +174,7 @@ export const MessageToolbar = memo(function MessageToolbar({
                 aria-label={t('chat.regenerateResponse')}
                 data-chat-message-action="regenerate"
                 onClick={onRegenerate}
-                className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}
+                className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, ghostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}
               >
                 <Icon name="common.refresh" size="md" />
               </button>
@@ -186,7 +186,7 @@ export const MessageToolbar = memo(function MessageToolbar({
                 aria-label={t('chat.branchConversation')}
                 data-chat-message-action="fork"
                 onClick={onFork}
-                className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}
+                className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, ghostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}
               >
                 <Icon name="chat.branch" size="md" />
               </button>

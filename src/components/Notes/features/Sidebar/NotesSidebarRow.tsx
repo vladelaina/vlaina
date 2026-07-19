@@ -51,7 +51,10 @@ export function NotesSidebarRow({
       indentWidth={depth * 16}
       leading={leading}
       leadingClassName={leadingClassName}
-      rowClassName={cn('items-center', rowClassName)}
+      rowClassName={cn(
+        'min-h-[var(--vlaina-size-36px)] items-center rounded-[var(--vlaina-notes-ui-radius-compact)] text-[length:var(--vlaina-notes-ui-font-compact)] leading-5',
+        rowClassName,
+      )}
       main={main}
       trailing={trailing}
       actions={actions}

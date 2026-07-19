@@ -7,7 +7,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { hasUserMessage } from '@/lib/ai/temporaryChat';
 import { useAutoTitle } from '@/hooks/useAutoTitle';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 
 interface TemporaryChatToggleProps {
@@ -107,7 +107,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
           className={cn(
             'relative flex items-center justify-center w-7 h-7 rounded-md transition-colors',
             iconButtonStyles,
-            !isPromoteMode && cn(chatComposerPillSurfaceClass, 'rounded-full'),
+            !isPromoteMode && cn(raisedPillSurfaceClass, 'rounded-full'),
             isPromoteMode
               ? 'bg-transparent text-[var(--vlaina-accent)] hover:bg-transparent hover:text-[var(--vlaina-accent)]'
               :
@@ -128,9 +128,9 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
         sideOffset={6}
         showArrow={false}
         className={cn(
-          "flex rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]",
+          "flex rounded-[var(--vlaina-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]",
           isPromoteMode ? 'items-center gap-1.5' : 'flex-col items-center gap-1.5',
-          chatComposerPillSurfaceClass
+          raisedPillSurfaceClass
         )}
       >
         {isPromoteMode ? (

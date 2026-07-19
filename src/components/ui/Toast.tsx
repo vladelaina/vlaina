@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToastStore, type Toast as ToastType } from '@/stores/useToastStore';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { themeMotionTokens } from '@/styles/themeTokens';
 
 interface ToastItemProps {
@@ -25,8 +25,8 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         }
       }}
       className={cn(
-        chatComposerPillSurfaceClass,
-        'relative flex cursor-pointer items-center overflow-hidden rounded-[var(--vlaina-radius-26px)] px-4 py-3',
+        raisedPillSurfaceClass,
+        'relative flex cursor-pointer items-center overflow-hidden rounded-[var(--vlaina-ui-radius-group)] px-4 py-3',
         'min-w-[var(--vlaina-size-300px)] max-w-[var(--vlaina-width-toast-max)]',
         'text-[var(--vlaina-text-primary)] transition-all duration-[var(--vlaina-duration-300)] ease-out'
       )}

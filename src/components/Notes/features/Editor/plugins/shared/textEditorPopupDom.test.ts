@@ -4,7 +4,7 @@ import {
   mountTextEditorPopup,
   resizeTextEditorPopupTextareaToContent,
 } from './textEditorPopupDom';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 
 function stubPopupGeometry(args: {
   card: HTMLElement;
@@ -71,8 +71,8 @@ describe('textEditorPopupDom', () => {
   it('uses the shared composer pill surface for formula and diagram popups', () => {
     const { card } = createTextEditorPopupElements();
 
-    expect(card.className).toContain('!rounded-[var(--vlaina-radius-26px)]');
-    expect(card.className).toContain(chatComposerPillSurfaceClass);
+    expect(card.className).toContain('!rounded-[var(--vlaina-notes-ui-radius-panel)]');
+    expect(card.className).toContain(raisedPillSurfaceClass);
     expect(card.getAttribute('data-no-editor-drag-box')).toBe('true');
   });
 

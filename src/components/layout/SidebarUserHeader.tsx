@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/icons';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { OPEN_SETTINGS_EVENT } from '@/components/Settings/settingsEvents';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
@@ -142,8 +142,8 @@ export function SidebarUserHeader({ toggleSidebar, interactionSuppressed = false
                         sideOffset={6}
                         showArrow={false}
                         className={cn(
-                            'flex items-center gap-1.5 rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
-                            chatComposerPillSurfaceClass
+                            'flex items-center gap-1.5 rounded-[var(--vlaina-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+                            raisedPillSurfaceClass
                         )}
                     >
                         <ShortcutKeys

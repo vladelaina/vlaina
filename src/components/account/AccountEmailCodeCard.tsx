@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
@@ -129,7 +129,7 @@ export function AccountEmailCodeCard({
             "placeholder:text-[var(--vlaina-sidebar-notes-text-soft)]",
             "focus:ring-2 focus:ring-[var(--vlaina-color-accent-focus-ring)]",
             "disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]",
-            chatComposerPillSurfaceClass
+            raisedPillSurfaceClass
           )}
         />
         <button
@@ -138,7 +138,7 @@ export function AccountEmailCodeCard({
           className={cn(
             "h-14 w-full rounded-full px-5 text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-color-text-strong)] transition-all duration-[var(--vlaina-duration-200)] active:scale-[var(--vlaina-scale-985)] sm:h-[var(--vlaina-size-60px)] sm:text-[var(--vlaina-font-15)] md:h-16",
             "disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)] disabled:active:scale-[var(--vlaina-scale-100)]",
-            chatComposerPillSurfaceClass
+            raisedPillSurfaceClass
           )}
         >
           {isLoading ? t('account.sending') : t('account.continueWithEmail')}
@@ -176,7 +176,7 @@ export function AccountEmailCodeCard({
             "h-14 w-full rounded-full text-center text-[var(--vlaina-font-26)] font-black tracking-[var(--vlaina-tracking-code-sm)] text-[var(--vlaina-color-text-strong)] transition-all duration-[var(--vlaina-duration-200)] outline-none sm:h-[var(--vlaina-size-60px)] sm:text-[var(--vlaina-font-30)] sm:tracking-[var(--vlaina-tracking-code-md)] md:h-16 md:text-3xl md:tracking-[var(--vlaina-tracking-code-lg)]",
             "focus:ring-2 focus:ring-[var(--vlaina-color-accent-focus-ring)]",
             "disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]",
-            chatComposerPillSurfaceClass
+            raisedPillSurfaceClass
           )}
         />
       </div>
@@ -187,7 +187,7 @@ export function AccountEmailCodeCard({
           className={cn(
             "h-14 w-full rounded-full px-5 text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-color-text-strong)] transition-all duration-[var(--vlaina-duration-200)] active:scale-[var(--vlaina-scale-985)] sm:h-[var(--vlaina-size-60px)] sm:text-[var(--vlaina-font-15)] md:h-16",
             "disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)] disabled:active:scale-[var(--vlaina-scale-100)]",
-            chatComposerPillSurfaceClass
+            raisedPillSurfaceClass
           )}
         >
           {isLoading ? t('account.verifying') : t('account.verifyCode')}

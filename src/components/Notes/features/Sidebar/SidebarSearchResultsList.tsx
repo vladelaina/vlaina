@@ -72,7 +72,7 @@ function SidebarSearchResultRow({
       main={(
         <div className={cn('min-w-0', hasContentLine && 'space-y-0.5')}>
           {showFileHeader ? (
-            <div className="whitespace-normal break-words text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
+            <div className="whitespace-normal break-words text-[length:var(--vlaina-notes-ui-font-compact)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
               <HighlightedSearchText
                 text={name}
                 query={query}
@@ -195,7 +195,7 @@ export function SidebarSearchResultsList({
   return (
     <div className="flex flex-col gap-0.5">
       {isContentScanPending ? (
-        <div className="px-3 py-1 text-[var(--vlaina-font-base)] text-[var(--vlaina-sidebar-notes-text-soft)]">
+        <div className="px-3 py-1 text-[length:var(--vlaina-notes-ui-font-compact)] text-[var(--vlaina-sidebar-notes-text-soft)]">
           {t('notes.searchingNoteContents')}
         </div>
       ) : null}

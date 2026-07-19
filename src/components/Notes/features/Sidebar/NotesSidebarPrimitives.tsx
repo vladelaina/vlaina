@@ -109,10 +109,10 @@ export function NotesSidebarSection({
           className={cn(
             'group flex items-center justify-between',
             nested
-              ? 'min-h-7 rounded-md px-2'
+              ? 'min-h-7 rounded-[var(--vlaina-radius-6px)] px-2'
               : flushHeader
-                ? 'min-h-8 rounded-lg px-0'
-                : 'min-h-8 rounded-lg px-2',
+                ? 'min-h-8 rounded-[var(--vlaina-notes-ui-radius-compact)] px-0'
+                : 'min-h-8 rounded-[var(--vlaina-notes-ui-radius-compact)] px-2',
             headerClassName,
             isInteractive && 'cursor-pointer'
           )}
@@ -121,7 +121,8 @@ export function NotesSidebarSection({
             <div className="inline-flex max-w-full items-center gap-1 align-middle">
               <span className={cn(
                 'min-w-0 truncate font-semibold text-[var(--vlaina-sidebar-notes-section-label)] group-hover:text-[var(--vlaina-sidebar-notes-section-label-hover)]',
-                nested ? 'text-[var(--vlaina-font-base)] tracking-[var(--vlaina-tracking-label-md)]' : 'text-[var(--vlaina-font-base)] tracking-[var(--vlaina-tracking-label-sm)]'
+                'text-[length:var(--vlaina-notes-ui-font-compact)]',
+                nested ? 'tracking-[var(--vlaina-tracking-label-md)]' : 'tracking-[var(--vlaina-tracking-label-sm)]'
               )}>
                 {title}
               </span>

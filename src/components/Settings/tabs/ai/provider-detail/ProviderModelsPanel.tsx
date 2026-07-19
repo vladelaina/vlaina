@@ -11,7 +11,7 @@ import {
 } from './ProviderModelListParts';
 import { ProviderQuickAdd } from './ProviderQuickAdd';
 import { VirtualModelList } from './VirtualModelList';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 
@@ -131,7 +131,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
   };
   return (
     <section className="min-w-0 space-y-4">
-      <div className={cn("min-w-0 overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1", chatComposerPillSurfaceClass)}>
+      <div className={cn("min-w-0 overflow-hidden rounded-[var(--vlaina-ui-radius-group)] p-1", raisedPillSurfaceClass)}>
         <div className="space-y-5 px-6 py-6 max-[640px]:px-4">
           {hasFetchedModels ? (
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -171,7 +171,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                   }}
                   className={cn(
                     'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]',
-                    chatComposerPillSurfaceClass
+                    raisedPillSurfaceClass
                   )}
                 >
                   {props.isFetchingModels ? (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { AccountSignInOptions } from '@/components/account/AccountSignInOptions';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
@@ -135,8 +135,8 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           {t('account.signInDescription')}
         </DialogDescription>
         <div className={cn(
-          "relative w-full rounded-[var(--vlaina-radius-36px)] px-5 py-6 sm:rounded-[var(--vlaina-radius-48px)] sm:px-8 sm:py-9 md:rounded-[var(--vlaina-radius-56px)] md:p-12",
-          chatComposerPillSurfaceClass
+          "relative w-full rounded-[var(--vlaina-ui-radius-panel)] px-5 py-6 sm:px-8 sm:py-9 md:p-12",
+          raisedPillSurfaceClass
         )}>
           <DialogClose
             ref={closeButtonRef}

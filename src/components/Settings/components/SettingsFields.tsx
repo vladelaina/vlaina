@@ -6,7 +6,7 @@ import { themeTextAreaTokens } from '@/styles/themeTokens';
 import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 
 const fieldShellClassName =
-  'rounded-2xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-control-active)] transition-colors focus-within:border-[var(--vlaina-accent)]';
+  'rounded-[var(--vlaina-ui-radius-group)] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-control-active)] transition-colors focus-within:border-[var(--vlaina-accent)]';
 
 interface SettingsTextInputProps extends ComponentPropsWithoutRef<'input'> {
   leading?: ReactNode;
@@ -27,7 +27,7 @@ export const SettingsTextInput = forwardRef<HTMLInputElement, SettingsTextInputP
           ref={ref}
           spellCheck={false}
           className={cn(
-            'block h-11 w-full min-w-0 rounded-2xl border-0 bg-transparent px-4 text-[var(--vlaina-font-sm)] text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-sidebar-chat-text-soft)] focus:ring-0',
+            'block h-11 w-full min-w-0 rounded-[var(--vlaina-ui-radius-group)] border-0 bg-transparent px-4 text-[var(--vlaina-font-sm)] text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-sidebar-chat-text-soft)] focus:ring-0',
             leading && 'pl-11',
             trailing && 'pr-20',
             inputClassName
@@ -85,7 +85,7 @@ export const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextarea
           }}
           spellCheck={false}
           className={cn(
-            'block w-full min-w-0 rounded-2xl border-0 bg-transparent px-4 py-3 text-[var(--vlaina-font-sm)] leading-6 text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-sidebar-chat-text-soft)] focus:ring-0',
+        'block w-full min-w-0 rounded-[var(--vlaina-ui-radius-group)] border-0 bg-transparent px-4 py-3 text-[var(--vlaina-font-sm)] leading-6 text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-sidebar-chat-text-soft)] focus:ring-0',
             autoGrow && 'min-h-0 resize-none overflow-y-auto',
             textareaClassName
           )}

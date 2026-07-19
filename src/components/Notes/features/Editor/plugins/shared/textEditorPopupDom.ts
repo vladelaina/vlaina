@@ -1,4 +1,4 @@
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { translate } from '@/lib/i18n';
 import { themeTextAreaTokens } from '@/styles/themeTokens';
 
@@ -30,7 +30,7 @@ export function createTextEditorPopupElements(
   placeholder = ''
 ): TextEditorPopupElements {
   const card = document.createElement('div');
-  card.className = `text-editor-card math-editor-card !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+  card.className = `text-editor-card math-editor-card !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}`;
   card.setAttribute('data-no-editor-drag-box', 'true');
 
   const content = document.createElement('div');

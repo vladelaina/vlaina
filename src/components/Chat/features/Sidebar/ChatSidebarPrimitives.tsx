@@ -1,6 +1,6 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { getSidebarToneStyles } from '@/components/layout/sidebar/sidebarLabelStyles';
 import {
   SidebarList,
@@ -126,7 +126,7 @@ export function ChatSidebarHoverEmptyHint({
       <span
         className={cn(
           'whitespace-nowrap rounded-full px-4 py-2 text-center text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-chat-text-soft)]',
-          chatComposerPillSurfaceClass,
+          raisedPillSurfaceClass,
         )}
       >
         {title}

@@ -35,7 +35,7 @@
 }
 
 .ai-review-content {
-  border-radius: var(--vlaina-radius-24px);
+  border-radius: var(--vlaina-notes-ui-radius-panel);
   padding: var(--vlaina-space-20px);
 }
 

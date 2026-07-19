@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { filterCodeBlockLanguages, LanguageSelector } from './LanguageSelector';
 
 vi.mock('@/components/ui/popover', () => ({
@@ -43,7 +43,7 @@ describe('LanguageSelector', () => {
     expect(filterCodeBlockLanguages('  ts  ', languages).map((language) => language.id)).toEqual(['ts']);
   });
 
-  it('uses lowercase capsule options inside the shared pill surface', () => {
+  it('uses lowercase compact options inside the shared pill surface', () => {
     render(
       <LanguageSelector
         language="ts"
@@ -55,10 +55,10 @@ describe('LanguageSelector', () => {
       />,
     );
 
-    expect(screen.getByTestId('language-selector-content').className).toContain(chatComposerPillSurfaceClass);
+    expect(screen.getByTestId('language-selector-content').className).toContain(raisedPillSurfaceClass);
 
     const javascriptOption = screen.getByRole('button', { name: 'javascript' });
-    expect(javascriptOption.className).toContain('rounded-full');
+    expect(javascriptOption.className).toContain('rounded-[var(--vlaina-notes-ui-radius-compact)]');
     expect(screen.queryByRole('button', { name: 'JavaScript' })).toBeNull();
   });
 
@@ -82,14 +82,14 @@ describe('LanguageSelector', () => {
     expect(trigger.className).toContain('rounded-full');
     expect(trigger.className).not.toContain('hover:bg-');
     expect(trigger.className).not.toContain('dark:hover:bg-');
-    expect(trigger.className).not.toContain(chatComposerPillSurfaceClass);
+    expect(trigger.className).not.toContain(raisedPillSurfaceClass);
     expect(trigger.querySelector('.code-block-chrome-language-label')?.className).toContain('whitespace-nowrap');
     expect(trigger.querySelector('.code-block-chrome-language-label')?.className).not.toContain('truncate');
 
     const searchInput = screen.getByPlaceholderText('Search language...');
     expect(searchInput.parentElement?.className).toContain('h-[var(--vlaina-size-40px)]');
     expect(searchInput.parentElement?.className).toContain('rounded-full');
-    expect(searchInput.parentElement?.className).toContain(chatComposerPillSurfaceClass);
+    expect(searchInput.parentElement?.className).toContain(raisedPillSurfaceClass);
 
     const autoDetectButton = screen.getByRole('button', { name: 'Auto Detect Language' });
     expect(autoDetectButton.getAttribute('title')).toBeNull();

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoverPicker } from './CoverPicker';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 
 const hoisted = vi.hoisted(() => ({
   loadAssets: vi.fn(),
@@ -97,8 +97,8 @@ describe('CoverPicker', () => {
 
     const pickerShell = Array.from(container.querySelectorAll('div'))
       .find((element) => element.className.includes('w-[var(--vlaina-size-340px)]'));
-    expect(pickerShell?.className).toContain(chatComposerPillSurfaceClass);
-    expect(pickerShell?.className).toContain('!rounded-[var(--vlaina-radius-26px)]');
+    expect(pickerShell?.className).toContain(raisedPillSurfaceClass);
+    expect(pickerShell?.className).toContain('!rounded-[var(--vlaina-notes-ui-radius-panel)]');
     expect(pickerShell?.getAttribute('data-no-editor-drag-box')).toBe('true');
   });
 

@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, type ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { WindowControls } from '@/components/layout/WindowControls';
-import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { ghostIconButtonClass } from '@/components/ui/surfaceStyles';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
 import { desktopWindow } from '@/lib/desktop/window';
 import { isMacOS, shouldRenderMacOSTrafficLightPreview } from '@/lib/desktop/platform';
@@ -107,7 +107,7 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
             onClick={onToggleSidebar}
             className={cn(
               "app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",
-              chatComposerGhostIconButtonClass
+              ghostIconButtonClass
             )}
           >
             <>

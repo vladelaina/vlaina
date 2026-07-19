@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 import { useLinkTooltipContentWidth } from '../hooks/useLinkTooltipContentWidth';
 
@@ -37,8 +37,8 @@ export const LinkViewer = ({
                 maxWidth: `${maxWidth}px`,
             }}
             className={cn(
-                'floating-toolbar-inner link-tooltip-viewer !rounded-[var(--vlaina-radius-26px)] animate-in fade-in duration-[var(--vlaina-duration-100)]',
-                chatComposerPillSurfaceClass
+                'floating-toolbar-inner link-tooltip-viewer !rounded-[var(--vlaina-notes-ui-radius-floating)] animate-in fade-in duration-[var(--vlaina-duration-100)]',
+                raisedPillSurfaceClass
             )}
             onMouseDown={(e) => e.stopPropagation()}
         >

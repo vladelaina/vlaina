@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { useI18n } from '@/lib/i18n';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 
 export function ModelBenchmarkErrorInfo({ error }: { error: string }) {
@@ -47,8 +47,8 @@ export function ModelBenchmarkErrorInfo({ error }: { error: string }) {
         sideOffset={6}
         showArrow={false}
         className={cn(
-          'max-w-[var(--vlaina-width-toast-max)] rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-center text-xs text-[var(--vlaina-sidebar-chat-text)]',
-          chatComposerPillSurfaceClass,
+          'max-w-[var(--vlaina-width-toast-max)] rounded-[var(--vlaina-ui-radius-tooltip)] px-3 py-2 text-center text-xs text-[var(--vlaina-sidebar-chat-text)]',
+          raisedPillSurfaceClass,
         )}
       >
         {copied ? t('common.copied') : error}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { Button } from '@/components/ui/button';
 import {
   getElectronBridge,
@@ -72,7 +72,7 @@ export function ComputerCommandApprovalSettings() {
         </p>
       </div>
 
-      <div className={cn('min-w-0 overflow-hidden rounded-[var(--vlaina-radius-26px)] p-2', chatComposerPillSurfaceClass)}>
+      <div className={cn('min-w-0 overflow-hidden rounded-[var(--vlaina-ui-radius-group)] p-2', raisedPillSurfaceClass)}>
         {approvals.length === 0 ? (
           <div className="px-4 py-3 text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text-soft)]">
             {t('settings.ai.computerPermissionsEmpty')}

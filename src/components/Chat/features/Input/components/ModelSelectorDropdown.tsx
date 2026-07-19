@@ -15,7 +15,7 @@ import {
   MODEL_SELECTOR_DROPDOWN_WIDTH,
   MODEL_SELECTOR_LIST_HEIGHT,
 } from '../modelSelectorLayout'
-import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '../composerStyles'
+import { ghostIconButtonClass, raisedPillSurfaceClass } from '@/components/ui/surfaceStyles'
 import {
   CustomModelIcon,
   ModelOption,
@@ -102,8 +102,8 @@ export function ModelSelectorDropdown({
             !isEmbedded && (dropdownAlign === 'left' ? "left-0" : "right-0"),
             "w-[var(--vlaina-size-27rem)]",
             "max-w-[var(--vlaina-width-model-selector-max)]",
-            "rounded-[var(--vlaina-radius-26px)]",
-            chatComposerPillSurfaceClass,
+            "rounded-[var(--vlaina-ui-radius-panel)]",
+            raisedPillSurfaceClass,
             "backdrop-blur-[var(--vlaina-backdrop-blur-lg)] overflow-hidden flex flex-col",
             dropdownLayerClassName,
             "animate-in fade-in duration-[var(--vlaina-duration-75)] zoom-in-95"
@@ -139,7 +139,7 @@ export function ModelSelectorDropdown({
                   }}
                   className={cn(
                     "flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center",
-                    chatComposerGhostIconButtonClass,
+                    ghostIconButtonClass,
                     styles.settingsButton
                   )}
               >
@@ -173,8 +173,8 @@ export function ModelSelectorDropdown({
                         className={cn(
                           "group/model-category relative flex h-12 w-12 cursor-pointer items-center justify-center transition-[background-color,color,box-shadow] duration-[var(--vlaina-duration-150)]",
                           isActive
-                            ? "rounded-2xl bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-md)]"
-                            : cn("rounded-2xl bg-transparent", styles.categoryHover)
+                            ? "rounded-[var(--vlaina-ui-radius-group)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-md)]"
+                            : cn("rounded-[var(--vlaina-ui-radius-group)] bg-transparent", styles.categoryHover)
                         )}
                       >
                         {category.kind === 'favorites' ? (

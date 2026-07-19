@@ -2,7 +2,7 @@ import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachPreviewContextMenu, resolvePreviewParagraphInsertPos } from './previewContextMenu';
 import { shouldSuppressPreviewEditorOpen, suppressPreviewEditorOpen } from './previewContextMenuSuppression';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 
 const mocks = vi.hoisted(() => ({
   getElectronBridge: vi.fn(),
@@ -304,7 +304,7 @@ describe('previewContextMenu', () => {
 
     expect(document.querySelector('.editor-preview-context-menu')).not.toBeNull();
     expect(document.querySelector('.editor-preview-context-menu')?.classList.contains('slash-menu')).toBe(true);
-    expect(document.querySelector('.editor-preview-context-menu')?.className).toContain(chatComposerPillSurfaceClass);
+    expect(document.querySelector('.editor-preview-context-menu')?.className).toContain(raisedPillSurfaceClass);
     expect(document.querySelector('.editor-preview-context-menu')).toHaveAttribute('data-no-editor-drag-box', 'true');
     expect(document.querySelector('.editor-preview-context-submenu')).toHaveAttribute('data-no-editor-drag-box', 'true');
     expect(document.querySelectorAll('.editor-preview-context-submenu')).toHaveLength(2);

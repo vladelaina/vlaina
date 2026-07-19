@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { EmojiTab } from './EmojiTab';
 import { useI18n } from '@/lib/i18n';
 import type { CustomIcon } from './UploadTab';
@@ -136,7 +136,7 @@ export function UniversalIconPicker({
           className={cn(
             "fixed bottom-20 right-4 z-[var(--vlaina-z-max)] flex h-9 w-9 items-center justify-center rounded-[var(--vlaina-radius-10px)]",
             "text-[var(--vlaina-text-secondary)] transition-colors",
-            chatComposerPillSurfaceClass,
+            raisedPillSurfaceClass,
             iconButtonStyles
           )}
         >
@@ -161,7 +161,7 @@ export function UniversalIconPicker({
       <div className={cn(
         "flex flex-col overflow-hidden",
         fixedPanelHeight && "min-h-[var(--vlaina-size-420px)]",
-        surface && cn("!rounded-[var(--vlaina-radius-26px)] backdrop-blur-[var(--vlaina-backdrop-blur-lg)]", chatComposerPillSurfaceClass)
+        surface && cn("!rounded-[var(--vlaina-ui-radius-panel)] backdrop-blur-[var(--vlaina-backdrop-blur-lg)]", raisedPillSurfaceClass)
       )}>
         <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--vlaina-border)] overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-4">

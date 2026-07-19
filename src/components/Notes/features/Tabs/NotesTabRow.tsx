@@ -6,9 +6,9 @@ import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn } from '@/lib/utils';
 import {
-  chatComposerGhostIconButtonClass,
-  chatComposerPillSurfaceClass,
-} from '@/components/Chat/features/Input/composerStyles';
+  ghostIconButtonClass,
+  raisedPillSurfaceClass,
+} from '@/components/ui/surfaceStyles';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import {
@@ -189,8 +189,8 @@ export function NotesTabRow() {
       {hasOpenTabs ? (
         <TitleBarInteractiveRegion
           className={cn(
-            'h-8 rounded-full px-1.5 transition-all duration-[var(--vlaina-duration-200)]',
-            chatComposerPillSurfaceClass,
+            'h-8 rounded-[var(--vlaina-notes-ui-radius-group)] px-1.5 transition-all duration-[var(--vlaina-duration-200)]',
+            raisedPillSurfaceClass,
           )}
         >
           <DndContext
@@ -236,7 +236,7 @@ export function NotesTabRow() {
                 hasOpenTabs
                   ? 'pointer-events-none opacity-[var(--vlaina-opacity-0)] group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)]'
                   : 'pointer-events-auto opacity-[var(--vlaina-opacity-100)]',
-                chatComposerGhostIconButtonClass,
+                ghostIconButtonClass,
                 'text-[var(--vlaina-color-tab-muted-fg)]'
               )}
             >
@@ -248,8 +248,8 @@ export function NotesTabRow() {
             sideOffset={6}
             showArrow={false}
             className={cn(
-              'flex items-center gap-1.5 rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
-              chatComposerPillSurfaceClass,
+              'flex items-center gap-1.5 rounded-[var(--vlaina-notes-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+              raisedPillSurfaceClass,
             )}
           >
             <span>{t('sidebar.newNote')}</span>

@@ -1,4 +1,4 @@
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 
 export const selectClassName = 
@@ -11,8 +11,8 @@ export const settingsSelectedActionButtonClassName =
   "inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-sidebar-row-selected-bg)] px-4 text-[var(--vlaina-font-13)] font-[var(--vlaina-font-weight-semibold-plus)] text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-selection-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]";
 
 export const settingsPillDropdownContentClassName = cn(
-  "z-[var(--vlaina-z-120)] rounded-[var(--vlaina-radius-22px)] p-1.5",
-  chatComposerPillSurfaceClass
+  "z-[var(--vlaina-z-120)] rounded-[var(--vlaina-ui-radius-panel)] p-1.5",
+  raisedPillSurfaceClass
 );
 
 export const settingsPillDropdownItemClassName =

@@ -8,7 +8,7 @@ import { ModuleShortcutId, ModuleShortcutSection, getModuleShortcutPreset } from
 import { useDialogWindowDrag } from '@/hooks/useDialogWindowDrag';
 import { useI18n } from '@/lib/i18n';
 import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { themeBackdropTokens, themeIconTokens } from '@/styles/themeTokens';
 
 interface ModuleShortcutsDialogProps {
@@ -169,7 +169,7 @@ export function ModuleShortcutsDialog({
         }}
         onPointerDownOutside={handlePointerDownOutside}
         onInteractOutside={handleInteractOutside}
-        className="sm:max-w-lg rounded-[var(--vlaina-radius-20px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] p-4 shadow-[var(--vlaina-shadow-floating-panel)] overflow-hidden duration-[var(--vlaina-duration-75)]"
+        className="sm:max-w-lg rounded-[var(--vlaina-ui-radius-panel)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] p-4 shadow-[var(--vlaina-shadow-floating-panel)] overflow-hidden duration-[var(--vlaina-duration-75)]"
       >
         <div
           className="app-drag-region flex min-w-0 items-center justify-between gap-3 px-1 pb-4 cursor-grab active:cursor-grabbing select-none"
@@ -192,7 +192,7 @@ export function ModuleShortcutsDialog({
                 className="app-no-drag relative ml-1 flex h-[var(--vlaina-size-34px)] min-w-[var(--vlaina-size-96px)] max-w-[var(--vlaina-size-240px)] flex-1 items-center gap-2 rounded-full px-3 cursor-auto select-text"
                 onMouseDown={(event) => event.stopPropagation()}
               >
-                <div className={cn('absolute inset-0 rounded-full', chatComposerPillSurfaceClass)} />
+                <div className={cn('absolute inset-0 rounded-full', raisedPillSurfaceClass)} />
                 <Icon
                   name="common.search"
                   size={themeIconTokens.sizeRow}

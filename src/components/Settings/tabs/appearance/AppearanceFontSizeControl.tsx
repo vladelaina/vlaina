@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import {
@@ -71,10 +71,10 @@ export function AppearanceFontSizeControl({ onPreviewingChange }: AppearanceFont
 
       <div
         className={cn(
-          "mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4",
+          "mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[var(--vlaina-ui-radius-group)] px-6 py-4 max-[640px]:px-4",
           isPreviewingFontSize
             ? "border border-transparent !bg-transparent !shadow-[var(--vlaina-shadow-none)] hover:!shadow-[var(--vlaina-shadow-none)]"
-            : chatComposerPillSurfaceClass,
+            : raisedPillSurfaceClass,
         )}
       >
         <div className={cn(

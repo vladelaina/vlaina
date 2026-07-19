@@ -16,11 +16,11 @@ describe('SlashMenuPanel', () => {
       'utf8',
     );
 
-    expect(menuDomSource).toContain('chatComposerPillSurfaceClass');
-    expect(menuDomSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
+    expect(menuDomSource).toContain('raisedPillSurfaceClass');
+    expect(menuDomSource).toContain('!rounded-[var(--vlaina-notes-ui-radius-panel)]');
     expect(menuDomSource).toContain("menu.setAttribute('data-no-editor-drag-box', 'true')");
-    expect(videoPromptSource).toContain('chatComposerPillSurfaceClass');
-    expect(videoPromptSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
+    expect(videoPromptSource).toContain('raisedPillSurfaceClass');
+    expect(videoPromptSource).toContain('!rounded-[var(--vlaina-notes-ui-radius-panel)]');
     expect(videoPromptSource).toContain("prompt.setAttribute('data-no-editor-drag-box', 'true')");
   });
 

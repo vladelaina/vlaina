@@ -34,7 +34,7 @@ function FindToolbarButton({
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       className={cn(
-        'inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all active:scale-[var(--vlaina-scale-90)]',
+        'inline-flex h-8 w-8 items-center justify-center rounded-[var(--vlaina-notes-ui-radius-compact)] transition-all active:scale-[var(--vlaina-scale-90)]',
         active
           ? 'text-[var(--vlaina-color-status-info-fg)] bg-[var(--vlaina-color-status-info-bg)]'
           : 'text-[var(--vlaina-color-text-soft)] hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]',
@@ -105,7 +105,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
           damping: themeMotionTokens.noteFindSpringDamping,
         },
       }}
-      className="w-[var(--vlaina-width-note-find-bar)] max-w-full rounded-[var(--vlaina-radius-22px)] bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-color-panel-border)] backdrop-blur-[var(--vlaina-backdrop-blur-3xl)] p-1.5"
+      className="w-[var(--vlaina-width-note-find-bar)] max-w-full rounded-[var(--vlaina-notes-ui-radius-panel)] bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-color-panel-border)] backdrop-blur-[var(--vlaina-backdrop-blur-3xl)] p-1.5"
     >
       <div
         className={cn(
@@ -204,7 +204,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => controller.replaceAll()}
                   className={cn(
-                    'px-3 py-1.5 text-[var(--vlaina-font-11)] font-bold uppercase tracking-widest text-[var(--vlaina-color-text-soft)] transition-all rounded-xl hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]',
+                    'px-3 py-1.5 text-[var(--vlaina-font-11)] font-bold uppercase tracking-widest text-[var(--vlaina-color-text-soft)] transition-all rounded-[var(--vlaina-notes-ui-radius-compact)] hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]',
                     !controller.canReplace && 'opacity-[var(--vlaina-opacity-20)] cursor-not-allowed',
                   )}
                 >
@@ -216,7 +216,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => controller.replaceCurrent()}
                   className={cn(
-                    'px-4 py-1.5 text-[var(--vlaina-font-11)] font-bold uppercase tracking-widest bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] rounded-xl transition-all active:scale-[var(--vlaina-scale-95)] shadow-[var(--vlaina-shadow-none)]',
+                    'px-4 py-1.5 text-[var(--vlaina-font-11)] font-bold uppercase tracking-widest bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] rounded-[var(--vlaina-notes-ui-radius-compact)] transition-all active:scale-[var(--vlaina-scale-95)] shadow-[var(--vlaina-shadow-none)]',
                     !controller.canReplace && 'opacity-[var(--vlaina-opacity-50)] grayscale cursor-not-allowed',
                   )}
                 >

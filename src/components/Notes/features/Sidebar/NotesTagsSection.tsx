@@ -60,7 +60,7 @@ export function NotesTagsSection({
         data-notes-sidebar-tags-header="true"
         leading={
           <span className="relative flex size-[var(--vlaina-size-20px)] items-center justify-center">
-            <span className="text-[var(--vlaina-font-base)] font-semibold leading-none text-[var(--vlaina-sidebar-notes-folder-icon)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]">
+            <span className="text-[length:var(--vlaina-notes-ui-font-compact)] font-semibold leading-none text-[var(--vlaina-sidebar-notes-folder-icon)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]">
               #
             </span>
             <CollapseTriangleAffordance
@@ -75,7 +75,7 @@ export function NotesTagsSection({
           </span>
         }
         main={
-          <span className="block min-w-0 max-w-full truncate text-[var(--vlaina-font-base)] text-[var(--vlaina-sidebar-notes-text)]">
+          <span className="block min-w-0 max-w-full truncate text-[length:var(--vlaina-notes-ui-font-compact)] text-[var(--vlaina-sidebar-notes-text)]">
             {t('notes.tags')}
           </span>
         }
@@ -94,7 +94,7 @@ export function NotesTagsSection({
                 contentClassName="min-w-0 overflow-hidden pr-2"
                 leading={
                   <span className="relative flex size-[var(--vlaina-size-20px)] items-center justify-center">
-                    <span className="text-[var(--vlaina-font-sm)] font-semibold leading-none text-[var(--vlaina-sidebar-notes-folder-icon)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]">
+                    <span className="text-[length:var(--vlaina-notes-ui-font-compact)] font-semibold leading-none text-[var(--vlaina-sidebar-notes-folder-icon)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]">
                       #
                     </span>
                     <CollapseTriangleAffordance
@@ -109,7 +109,7 @@ export function NotesTagsSection({
                   </span>
                 }
                 main={
-                  <span className="block min-w-0 max-w-full whitespace-normal break-words text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
+                  <span className="block min-w-0 max-w-full whitespace-normal break-words text-[length:var(--vlaina-notes-ui-font-compact)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
                     {entry.tag}
                   </span>
                 }

@@ -5,7 +5,7 @@ import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { TreeItemDeleteDialog } from '@/components/Notes/features/FileTree/components/TreeItemDeleteDialog';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 import { themeBackdropTokens } from '@/styles/themeTokens';
 import type { useResizableBox } from '@/components/layout/shell/useResizableBox';
@@ -139,9 +139,9 @@ export function NotesViewLayout({
               data-notes-chat-floating="true"
               data-notes-external-block-selection-root="true"
               className={cn(
-                'absolute bottom-4 right-4 z-[var(--vlaina-z-40)] overflow-hidden !rounded-[var(--vlaina-radius-26px)]',
+                'absolute bottom-4 right-4 z-[var(--vlaina-z-40)] overflow-hidden !rounded-[var(--vlaina-notes-ui-radius-panel)]',
                 isFloatingChatResizing && 'will-change-[width,height]',
-                chatComposerPillSurfaceClass,
+                raisedPillSurfaceClass,
               )}
               style={{
                 width: `${floatingChatLiveSize.width}px`,

@@ -206,7 +206,7 @@ export function ChatInputComposerFrame({
           {(isDragging || isBlockDropActive || isFileTreeDropActive) && (
             <div
               className={cn(
-                "absolute inset-0 z-[var(--vlaina-z-20)] flex items-center justify-center rounded-[var(--vlaina-radius-32px)] border-2 border-dashed backdrop-blur-[var(--vlaina-backdrop-blur-sm)] pointer-events-none",
+                "absolute inset-0 z-[var(--vlaina-z-20)] flex items-center justify-center rounded-[var(--vlaina-radius-26px)] border-2 border-dashed backdrop-blur-[var(--vlaina-backdrop-blur-sm)] pointer-events-none",
                 isBlockDropActive || isFileTreeDropActive
                   ? "border-[var(--vlaina-color-accent)] bg-[var(--vlaina-color-accent-soft)]"
                   : "border-[var(--vlaina-color-subtle-border-strong)] bg-[var(--vlaina-color-overlay-weak)]"

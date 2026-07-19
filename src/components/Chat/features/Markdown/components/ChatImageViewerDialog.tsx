@@ -4,7 +4,7 @@ import { DialogCloseIconButton, dialogCloseIconButtonClassName } from "@/compone
 import { Icon } from "@/components/ui/icons";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
-import { chatPopoverPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
+import { raisedPopoverSurfaceClass } from "@/components/ui/surfaceStyles";
 import { useI18n } from "@/lib/i18n";
 import { themeChatImageViewerTokens, themeCropperTokens, themeStyleResetTokens } from "@/styles/themeTokens";
 import { clampZoom, MAX_ZOOM, resolveInitialViewerZoom, ZOOM_STEP, type ViewerPoint, type ViewerSize } from "./chatImageViewerGeometry";
@@ -222,7 +222,7 @@ export function ChatImageViewerDialog({
             data-chat-image-viewer-control="true"
             className={cn(
               "pointer-events-auto inline-flex items-center gap-1 rounded-full px-2 py-2 text-[var(--vlaina-color-text-strong)]",
-              chatPopoverPillSurfaceClass
+              raisedPopoverSurfaceClass
             )}
             onClick={(event) => event.stopPropagation()}
           >

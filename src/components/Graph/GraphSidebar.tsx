@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { AppViewModeSwitch } from '@/components/layout/sidebar/AppViewModeSwitch';
 import {
   SidebarSearchDrawer,
@@ -104,7 +104,7 @@ export function GraphSidebar({ active = true }: { active?: boolean }) {
             className={cn(
               'relative mx-2 grid h-9 grid-cols-2 rounded-full p-1',
               isSearchOpen ? 'mt-1' : 'mt-3',
-              chatComposerPillSurfaceClass,
+              raisedPillSurfaceClass,
             )}
           >
             <span
@@ -157,7 +157,7 @@ export function GraphSidebar({ active = true }: { active?: boolean }) {
                           : getSidebarIdleRowSurfaceClass('notes'),
                       ].join(' ')}
                     >
-                      <span className="w-full truncate text-[length:var(--vlaina-font-base)] font-medium">
+                      <span className="w-full truncate text-[length:var(--vlaina-font-sm)] font-medium">
                         {node.label}
                       </span>
                       <span className="w-full truncate text-[length:var(--vlaina-font-13)] text-[var(--vlaina-sidebar-notes-text-soft)]">

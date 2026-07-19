@@ -7,9 +7,9 @@ import { useI18n } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
 import {
-  chatComposerGhostIconButtonClass,
-  chatComposerPillSurfaceClass,
-} from '@/components/Chat/features/Input/composerStyles';
+  ghostIconButtonClass,
+  raisedPillSurfaceClass,
+} from '@/components/ui/surfaceStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { AccountAvatarImage } from './AccountAvatarImage';
 import { themeRenderingTokens } from '@/styles/themeTokens';
@@ -205,7 +205,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               }}
               className={cn(
                 'group -mr-1 flex h-7 w-7 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]',
-                chatComposerGhostIconButtonClass,
+                ghostIconButtonClass,
                 isMenuOpen && 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-menu-hover)]'
               )}
             >
@@ -228,8 +228,8 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
             <div className="fixed inset-0 z-[var(--vlaina-z-60)]" onClick={() => setIsMenuOpen(false)} />
             <div
               className={cn(
-                "absolute left-[var(--vlaina-offset-account-menu-anchor-x)] top-8 z-[var(--vlaina-z-70)] w-48 rounded-[var(--vlaina-radius-22px)] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-[var(--vlaina-duration-75)]",
-                chatComposerPillSurfaceClass
+                "absolute left-[var(--vlaina-offset-account-menu-anchor-x)] top-8 z-[var(--vlaina-z-70)] w-48 rounded-[var(--vlaina-ui-radius-panel)] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-[var(--vlaina-duration-75)]",
+                raisedPillSurfaceClass
               )}
             >
               <button

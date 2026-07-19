@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -66,8 +66,8 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
     return (
         <div className={cn(
             "absolute top-2 right-2 mt-0 z-[var(--vlaina-z-60)] transition-all duration-[var(--vlaina-duration-200)]",
-            "floating-toolbar-inner image-toolbar !rounded-[var(--vlaina-radius-26px)]",
-            chatComposerPillSurfaceClass,
+            "floating-toolbar-inner image-toolbar !rounded-[var(--vlaina-notes-ui-radius-floating)]",
+            raisedPillSurfaceClass,
             "transform origin-top-right",
             isVisible
                 ? "opacity-[var(--vlaina-opacity-100)] scale-[var(--vlaina-scale-100)] translate-y-0"

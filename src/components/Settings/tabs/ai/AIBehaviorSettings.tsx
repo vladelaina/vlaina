@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { SettingsTextarea } from '@/components/Settings/components/SettingsFields';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { SETTINGS_BEFORE_CLOSE_EVENT } from '../../settingsEvents';
@@ -65,7 +65,7 @@ export function AIBehaviorSettings() {
         <h3 className="text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.systemPrompt')}</h3>
       </div>
 
-      <div className={cn("min-w-0 overflow-hidden rounded-[var(--vlaina-radius-26px)] p-2", chatComposerPillSurfaceClass)}>
+      <div className={cn("min-w-0 overflow-hidden rounded-[var(--vlaina-ui-radius-group)] p-2", raisedPillSurfaceClass)}>
         <SettingsTextarea
           data-settings-control="ai-system-prompt"
           autoGrow={true}

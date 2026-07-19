@@ -184,7 +184,7 @@ describe('GitTitleBarAction', () => {
     const button = await screen.findByTestId('git-sync-button');
     expect(button.querySelector('[data-icon="common.gitBranch"]')).toBeInTheDocument();
     expect(screen.getByTestId('git-sync-tooltip')).toHaveClass(
-      'rounded-[var(--vlaina-radius-18px)]',
+      'rounded-[var(--vlaina-notes-ui-radius-tooltip)]',
       'text-[var(--vlaina-sidebar-chat-text)]',
     );
     expect(screen.getByTestId('git-sync-tooltip')).toHaveTextContent('git.sync');
@@ -375,7 +375,7 @@ describe('GitTitleBarAction', () => {
     expect(screen.getAllByTestId('git-open-diff-file')[0].parentElement).toHaveClass('select-none');
     expect(screen.getByTestId('git-commit-message')).toHaveClass('select-text');
     expect(screen.getByTestId('git-commit-message').parentElement).toHaveClass(
-      'rounded-2xl',
+      'rounded-[var(--vlaina-ui-radius-group)]',
       'bg-[var(--vlaina-color-setting-field)]',
       'shadow-[var(--vlaina-shadow-control-active)]',
     );

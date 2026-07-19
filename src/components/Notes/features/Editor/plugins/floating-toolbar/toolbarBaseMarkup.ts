@@ -3,7 +3,7 @@ import type { ToolbarButtonConfig, ToolbarGroupKey, ToolbarLayout } from './tool
 import { EXTRA_BUTTONS, FORMAT_BUTTONS, TOOLBAR_LAYOUTS } from './toolbarConfig';
 import { getBlockTypeIconMarkup } from './components/BlockDropdown';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { translate } from '@/lib/i18n';
 import { escapeToolbarHtml } from './htmlEscape';
 import { sanitizeCssColorValue } from './colorMarkdownHtml';
@@ -217,7 +217,7 @@ export function renderToolbarBodyMarkup(state: FloatingToolbarState): string {
   });
 
   return `
-    <div class="floating-toolbar-inner !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}">
+    <div class="floating-toolbar-inner !rounded-[var(--vlaina-notes-ui-radius-floating)] ${raisedPillSurfaceClass}">
       ${parts.join('')}
     </div>
   `;

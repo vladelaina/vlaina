@@ -1,5 +1,5 @@
 import { Fragment, type HTMLAttributes, type ReactNode } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { cn } from '@/lib/utils';
 
 interface NotesSidebarEmptyStateProps extends HTMLAttributes<HTMLDivElement> {
@@ -80,7 +80,7 @@ export function NotesSidebarHoverEmptyHint({
           </span>
         ) : null}
         {actionItems.length > 0 ? (
-          <div className={cn('flex max-w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', chatComposerPillSurfaceClass)}>
+          <div className={cn('flex max-w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', raisedPillSurfaceClass)}>
             {actions && actionLabel && actionLabel !== title ? (
               <span className="px-2 text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text)]">
                 {actionLabel}
@@ -137,14 +137,14 @@ export function NotesSidebarPillEmptyHint({
           <span
             className={cn(
               'whitespace-nowrap rounded-full px-4 py-2 text-center text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text-soft)]',
-              chatComposerPillSurfaceClass,
+              raisedPillSurfaceClass,
             )}
           >
             {title}
           </span>
         ) : null}
         {actions?.length ? (
-          <div className={cn('flex max-w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', chatComposerPillSurfaceClass)}>
+          <div className={cn('flex max-w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', raisedPillSurfaceClass)}>
             {actions.map((action, index) => (
               <Fragment key={action.label}>
                 {index > 0 ? (

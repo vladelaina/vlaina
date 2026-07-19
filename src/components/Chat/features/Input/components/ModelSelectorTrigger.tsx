@@ -5,7 +5,7 @@ import {
   getModelPresentationName,
   type ModelFamily,
 } from '../modelFamilyRegistry'
-import { chatComposerPillSurfaceClass } from '../composerStyles'
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles'
 import { CustomModelIcon, monochromeModelIconClass } from './ModelSelectorOption'
 import type { ModelSelectorThemeStyles } from '../modelSelectorTypes'
 
@@ -31,7 +31,7 @@ export function ModelSelectorTrigger({
         onClick={onToggle}
         className={cn(
           "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-[background-color,color,box-shadow] duration-[var(--vlaina-duration-200)] group",
-          chatComposerPillSurfaceClass,
+          raisedPillSurfaceClass,
           selectedModel ? styles.triggerTextActive : styles.triggerText,
           styles.triggerHover
         )}

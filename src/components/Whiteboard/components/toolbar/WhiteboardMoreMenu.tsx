@@ -1,5 +1,5 @@
 import { memo, useRef, type ReactNode } from 'react';
-import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { ghostIconButtonClass } from '@/components/ui/surfaceStyles';
 import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/shared';
 import {
   DropdownMenu,
@@ -34,7 +34,7 @@ const menuSurfaceClassName = cn(
 const moreButtonClassName = cn(
   'app-no-drag absolute right-3 top-3 z-[var(--vlaina-z-20)] flex h-8 w-8 items-center justify-center',
   'cursor-pointer text-[var(--vlaina-text-tertiary)] disabled:cursor-default',
-  chatComposerGhostIconButtonClass,
+  ghostIconButtonClass,
   'hover:text-[var(--vlaina-sidebar-row-selected-text)]',
 );
 

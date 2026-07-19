@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
 import { AppearanceTab } from './AppearanceTab';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
 import { SETTINGS_BEFORE_CLOSE_EVENT } from '../settingsEvents';
 
@@ -216,8 +216,8 @@ describe('AppearanceTab theme entry', () => {
       expect(screen.getByRole('menuitem', { name: 'vlook-fancy' })).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('menu').className).toContain(chatComposerPillSurfaceClass);
-    expect(screen.getByRole('menu').className).toContain('rounded-[var(--vlaina-radius-22px)]');
+    expect(screen.getByRole('menu').className).toContain(raisedPillSurfaceClass);
+    expect(screen.getByRole('menu').className).toContain('rounded-[var(--vlaina-ui-radius-panel)]');
     expect(screen.getByRole('menuitem', { name: 'Default' }).className).toContain('rounded-full');
   });
 

@@ -1,14 +1,14 @@
 import type { FloatingToolbarState } from '../types';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { renderAiReviewDiffMarkup } from './reviewDiff';
-import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { ghostIconButtonClass, raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { translate } from '@/lib/i18n';
 import { escapeToolbarHtml } from '../htmlEscape';
 
 const reviewIconActionClass = [
   'ai-review-icon-action app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center',
   'text-[var(--vlaina-sidebar-chat-text)]',
-  chatComposerGhostIconButtonClass,
+  ghostIconButtonClass,
 ].join(' ');
 
 export function renderAiReviewMarkup(state: FloatingToolbarState): string | null {
@@ -33,11 +33,11 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
       : '<div class="ai-review-result-surface"></div>';
 
   return `
-    <div class="floating-toolbar-inner floating-toolbar-ai-review-mode !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}">
+    <div class="floating-toolbar-inner floating-toolbar-ai-review-mode !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}">
       <div class="ai-review-panel" tabindex="-1">
         <div class="ai-review-body">
           <section class="ai-review-merge-panel">
-            <div class="ai-review-content ai-review-content-after ai-review-content-glass !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}">
+            <div class="ai-review-content ai-review-content-after ai-review-content-glass !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}">
               ${resultMarkup}
               <div class="ai-review-footer">
                 <div class="ai-review-controls-left">

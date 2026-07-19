@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -7,7 +7,7 @@ import { themeIconTokens } from '@/styles/themeTokens';
 
 export const whiteboardFloatingPanelClassName = cn(
   'pointer-events-auto border border-[var(--vlaina-color-toolbar-border)] shadow-[var(--vlaina-shadow-toolbar)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]',
-  chatComposerPillSurfaceClass,
+  raisedPillSurfaceClass,
 );
 
 export function WhiteboardToolbarButton({

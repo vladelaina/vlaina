@@ -1,7 +1,7 @@
 import { useCallback, type ReactNode, type RefObject } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { ShortcutKeys, SOFT_SHORTCUT_KEY_CLASSNAME } from '@/components/ui/shortcut-keys';
 import {
   DropdownMenu,
@@ -105,8 +105,8 @@ export function NoteToolbarMoreMenu({
           sideOffset={themeDomStyleTokens.toolbarTooltipOffsetPx}
           showArrow={false}
           className={cn(
-            'rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
-            chatComposerPillSurfaceClass,
+            'rounded-[var(--vlaina-notes-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+            raisedPillSurfaceClass,
           )}
         >
           {t('notes.moreActions')}

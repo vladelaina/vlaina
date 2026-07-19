@@ -8,7 +8,7 @@ import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { resolveNotesRootRelativeFullPath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { themeFileTreeTokens } from '@/styles/themeTokens';
-import { chatComposerSecondaryButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { secondaryPillButtonClass } from '@/components/ui/surfaceStyles';
 import { collectOpenedFolderImagePaths } from './slashImageLibraryPaths';
 
 const IMAGE_LIBRARY_COLUMNS = 3;
@@ -153,7 +153,7 @@ export function OpenedFolderImageLibraryPanel({
           type="button"
           onClick={onChooseComputer}
           className={cn(
-            chatComposerSecondaryButtonClass,
+            secondaryPillButtonClass,
             'inline-flex shrink-0 items-center gap-2 text-[var(--vlaina-font-sm)] font-medium',
           )}
         >

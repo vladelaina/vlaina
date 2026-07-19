@@ -3,9 +3,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { useSortable } from '@dnd-kit/sortable';
 import { Icon } from '@/components/ui/icons';
 import {
-  chatComposerGhostIconButtonClass,
-  chatComposerPillSurfaceClass,
-} from '@/components/Chat/features/Input/composerStyles';
+  ghostIconButtonClass,
+  raisedPillSurfaceClass,
+} from '@/components/ui/surfaceStyles';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
@@ -40,7 +40,7 @@ export function NoteHistoryButton({
       }}
       className={cn(
         'notes-tab-row-history-button app-no-drag flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all',
-        chatComposerGhostIconButtonClass,
+        ghostIconButtonClass,
         'text-[var(--vlaina-color-tab-muted-fg)] disabled:pointer-events-none disabled:opacity-[var(--vlaina-opacity-35)]'
       )}
     >
@@ -206,8 +206,8 @@ export const SortableTab = memo(function SortableTab({
           sideOffset={6}
           showArrow={false}
           className={cn(
-            'rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
-            chatComposerPillSurfaceClass,
+            'rounded-[var(--vlaina-notes-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+            raisedPillSurfaceClass,
           )}
         >
           <div className="flex flex-col gap-0.5">

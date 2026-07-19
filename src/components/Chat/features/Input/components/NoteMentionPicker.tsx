@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { NoteMentionCandidate } from '../noteMentionHelpers';
 import { useI18n } from '@/lib/i18n';
-import { chatComposerPillSurfaceClass } from '../composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import {
   getSidebarIdleRowSurfaceClass,
   getSidebarSelectedRowSurfaceClass,
@@ -127,7 +127,7 @@ function NoteMentionSection({
               key={candidate.path}
               type="button"
               className={cn(
-                'flex h-10 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[var(--vlaina-font-15)] font-medium transition-colors',
+                'flex h-10 w-full items-center gap-2 rounded-[var(--vlaina-ui-radius-compact)] px-3 py-2 text-left text-[var(--vlaina-font-15)] font-medium transition-colors',
                 isActive
                   ? getSidebarSelectedRowSurfaceClass('chat')
                   : getSidebarIdleRowSurfaceClass('chat')
@@ -165,8 +165,8 @@ export function NoteMentionPicker({
   return (
     <div
       className={cn(
-        'absolute bottom-full z-[var(--vlaina-z-40)] mb-2 max-h-72 overflow-y-auto !rounded-[var(--vlaina-radius-26px)] p-1.5 text-[var(--vlaina-sidebar-chat-text)]',
-        chatComposerPillSurfaceClass,
+        'absolute bottom-full z-[var(--vlaina-z-40)] mb-2 max-h-72 overflow-y-auto !rounded-[var(--vlaina-ui-radius-panel)] p-1.5 text-[var(--vlaina-sidebar-chat-text)]',
+        raisedPillSurfaceClass,
         className ?? 'left-3 right-3',
       )}
       data-no-focus-input="true"
@@ -194,7 +194,7 @@ export function NoteMentionPicker({
             />
           </>
         ) : (
-          <p className="rounded-xl px-3 py-2 text-sm font-medium text-[var(--vlaina-sidebar-chat-text-soft)]">
+          <p className="rounded-[var(--vlaina-ui-radius-compact)] px-3 py-2 text-sm font-medium text-[var(--vlaina-sidebar-chat-text-soft)]">
             {status === 'loading' ? 'Loading notes...' : 'No matching notes'}
           </p>
         )}

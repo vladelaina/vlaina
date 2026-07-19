@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui/icons";
-import { chatComposerPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
+import { raisedPillSurfaceClass } from "@/components/ui/surfaceStyles";
 import { focusComposerInput, insertTextIntoComposer } from "@/lib/ui/composerFocusRegistry";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { useSelectionInsertState } from "./useSelectionInsertState";
@@ -35,7 +35,7 @@ export function SelectionInsertButton() {
           className={cn(
             "pointer-events-auto absolute flex h-7 w-7 items-center justify-center rounded-md transition-colors",
             iconButtonStyles,
-            cn(chatComposerPillSurfaceClass, "rounded-full"),
+            cn(raisedPillSurfaceClass, "rounded-full"),
             "text-[var(--vlaina-sidebar-chat-text)] hover:bg-transparent hover:text-[var(--vlaina-accent)] dark:hover:bg-transparent",
             transformClass,
           )}

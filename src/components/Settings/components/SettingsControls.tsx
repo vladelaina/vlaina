@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 import { themeDomStyleTokens, themeMotionTokens } from '@/styles/themeTokens';
 
@@ -98,7 +98,7 @@ export function SettingsItem({
     return (
         <div
             data-settings-item={dataSettingsItem}
-            className={cn("mb-3 flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4", chatComposerPillSurfaceClass, className)}
+            className={cn("mb-3 flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[var(--vlaina-ui-radius-group)] px-6 py-4 max-[640px]:px-4", raisedPillSurfaceClass, className)}
         >
             <div className={cn(
                 hasDescription

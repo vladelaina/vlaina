@@ -98,7 +98,7 @@ export function WhiteboardSidebar() {
                   key={board.id}
                   aria-current={selected ? 'page' : undefined}
                   className={[
-                    'flex min-h-[var(--vlaina-size-36px)] w-full items-center rounded-xl px-1.5 text-left text-[var(--vlaina-font-base)] font-medium leading-none',
+                    'flex min-h-[var(--vlaina-size-36px)] w-full items-center rounded-[var(--vlaina-ui-radius-compact)] px-1.5 text-left text-[length:var(--vlaina-font-sm)] font-medium leading-none',
                     selected ? getSidebarSelectedRowSurfaceClass('notes') : getSidebarIdleRowSurfaceClass('notes'),
                   ].join(' ')}
                 >

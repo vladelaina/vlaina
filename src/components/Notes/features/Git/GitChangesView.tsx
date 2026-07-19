@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Icon } from '@/components/ui/icons';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
-import { chatComposerSecondaryButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { secondaryPillButtonClass } from '@/components/ui/surfaceStyles';
 import { SettingsTextarea } from '@/components/Settings/components/SettingsFields';
 import { useI18n } from '@/lib/i18n';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -132,7 +132,7 @@ export function GitChangesView({
             data-testid="git-use-current-time"
             variant="ghost"
             size="sm"
-            className={chatComposerSecondaryButtonClass}
+            className={secondaryPillButtonClass}
             onClick={onUseCurrentTime}
           >
             <Icon name="misc.clock" />

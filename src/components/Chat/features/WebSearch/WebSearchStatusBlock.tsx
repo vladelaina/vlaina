@@ -1,5 +1,5 @@
 import { Icon } from '@/components/ui/icons';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { sanitizeWebSearchSourceUrl } from '@/lib/ai/webSearch/statusMarkup';
 import type { WebSearchStatus } from '@/lib/ai/webSearch/types';
 import { useI18n, type MessageKey } from '@/lib/i18n';
@@ -138,8 +138,8 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
     <div
       data-chat-selection-excluded="true"
       className={cn(
-        'mb-3 max-w-full select-none rounded-[var(--vlaina-radius-22px)] px-3 py-2 text-[var(--vlaina-font-xs)] text-[var(--vlaina-text-secondary)]',
-        chatComposerPillSurfaceClass,
+        'mb-3 max-w-full select-none rounded-[var(--vlaina-ui-radius-group)] px-3 py-2 text-[var(--vlaina-font-xs)] text-[var(--vlaina-text-secondary)]',
+        raisedPillSurfaceClass,
       )}
     >
       <div className="flex items-center gap-2 font-medium text-[var(--vlaina-text-primary)]">

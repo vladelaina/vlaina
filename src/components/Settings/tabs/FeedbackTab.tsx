@@ -92,7 +92,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
     <div className="space-y-8">
       <div>
         <SettingsSectionHeader>{t('settings.feedback.title')}</SettingsSectionHeader>
-        <div className="min-w-0 rounded-[var(--vlaina-radius-24px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)] max-[640px]:p-4">
+        <div className="min-w-0 rounded-[var(--vlaina-ui-radius-panel)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)] max-[640px]:p-4">
           <div className="space-y-4">
             <textarea
               value={message}
@@ -106,7 +106,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
               placeholder={t('settings.feedback.placeholder')}
               className={cn(
                 compact ? 'min-h-[var(--vlaina-size-150px)]' : 'min-h-[var(--vlaina-size-220px)]',
-                'w-full resize-y rounded-[var(--vlaina-radius-18px)] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] px-4 py-3 text-[var(--vlaina-font-sm)] leading-6 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] focus:border-[var(--vlaina-accent)]'
+                'w-full resize-y rounded-[var(--vlaina-ui-radius-group)] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] px-4 py-3 text-[var(--vlaina-font-sm)] leading-6 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] focus:border-[var(--vlaina-accent)]'
               )}
             />
             <div className="flex flex-wrap items-center justify-between gap-3">

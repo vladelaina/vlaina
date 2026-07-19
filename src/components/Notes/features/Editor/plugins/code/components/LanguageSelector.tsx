@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn, ghostIconButtonStyles, iconButtonStyles } from '@/lib/utils';
@@ -130,8 +130,8 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                 align="start"
                 sideOffset={8}
                 className={cn(
-                    "w-[var(--vlaina-size-220px)] overflow-hidden flex flex-col p-0 !rounded-[var(--vlaina-radius-26px)]",
-                    chatComposerPillSurfaceClass,
+                    "w-[var(--vlaina-size-220px)] overflow-hidden flex flex-col p-0 !rounded-[var(--vlaina-notes-ui-radius-panel)]",
+                    raisedPillSurfaceClass,
                 )}
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 onClick={(e) => e.stopPropagation()}
@@ -141,7 +141,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                     <div
                         className={cn(
                             "relative flex h-[var(--vlaina-size-40px)] items-center gap-2 rounded-full pl-3 pr-1",
-                            chatComposerPillSurfaceClass,
+                            raisedPillSurfaceClass,
                         )}
                     >
                         <Icon size={themeIconTokens.sizeCompact} name="common.search" className="text-[var(--vlaina-color-text-soft)]" />
@@ -193,7 +193,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                         onOpenChange(false);
                                     }}
                                     className={cn(
-                                        "flex w-full cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-left text-xs transition-colors",
+                                        "flex w-full cursor-pointer items-center gap-2 rounded-[var(--vlaina-notes-ui-radius-compact)] px-3 py-2 text-left text-xs transition-colors",
                                         language === lang.id
                                             ? "bg-[var(--vlaina-sidebar-notes-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] font-[var(--vlaina-font-weight-semibold-plus)]"
                                             : index === activeIndex

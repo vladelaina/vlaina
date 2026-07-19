@@ -6,7 +6,7 @@ import { convertBlockType } from '../commands';
 import { applyBlockPreview, clearFormatPreview, commitBlockPreview, hasBlockPreview } from '../previewStyles';
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { ICON_SIZES } from '@/components/ui/icons/sizes';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { raisedPillSurfaceClass } from '@/components/ui/surfaceStyles';
 import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import { escapeToolbarHtml } from '../htmlEscape';
 
@@ -89,7 +89,7 @@ export function renderBlockDropdown(
   onClose: () => void
 ): void {
   const dropdown = document.createElement('div');
-  dropdown.className = `toolbar-submenu block-dropdown !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+  dropdown.className = `toolbar-submenu block-dropdown !rounded-[var(--vlaina-notes-ui-radius-panel)] ${raisedPillSurfaceClass}`;
   
   let html = '';
   

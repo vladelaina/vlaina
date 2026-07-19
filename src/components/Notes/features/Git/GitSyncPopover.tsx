@@ -4,10 +4,10 @@ import { Icon } from '@/components/ui/icons';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { PopoverContent } from '@/components/ui/popover';
 import {
-  chatComposerPillSurfaceClass,
-  chatComposerSecondaryButtonClass,
-  chatPopoverPillSurfaceClass,
-} from '@/components/Chat/features/Input/composerStyles';
+  raisedPillSurfaceClass,
+  secondaryPillButtonClass,
+  raisedPopoverSurfaceClass,
+} from '@/components/ui/surfaceStyles';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
@@ -43,8 +43,8 @@ export function GitSyncPopover({
       side="bottom"
       sideOffset={themeDomStyleTokens.editorPopupAnchorOffsetPx}
       className={cn(
-        'app-no-drag flex h-[var(--vlaina-height-git-popover)] w-[var(--vlaina-width-git-popover)] flex-col overflow-hidden rounded-[var(--vlaina-radius-26px)] p-0 backdrop-blur-[var(--vlaina-backdrop-blur-lg)] data-[state=open]:duration-[var(--vlaina-duration-200)] data-[state=closed]:duration-[var(--vlaina-duration-75)]',
-        chatPopoverPillSurfaceClass,
+        'app-no-drag flex h-[var(--vlaina-height-git-popover)] w-[var(--vlaina-width-git-popover)] flex-col overflow-hidden rounded-[var(--vlaina-notes-ui-radius-panel)] p-0 backdrop-blur-[var(--vlaina-backdrop-blur-lg)] data-[state=open]:duration-[var(--vlaina-duration-200)] data-[state=closed]:duration-[var(--vlaina-duration-75)]',
+        raisedPopoverSurfaceClass,
       )}
     >
         <div className="select-none border-b border-[var(--border)] p-4">
@@ -59,7 +59,7 @@ export function GitSyncPopover({
               data-testid="git-pull-button"
               variant="ghost"
               size="sm"
-              className={cn('ml-auto', chatComposerSecondaryButtonClass)}
+              className={cn('ml-auto', secondaryPillButtonClass)}
               disabled={busy || controller.statusLoading || pullUnavailable}
               aria-busy={pulling}
               onClick={controller.pull}
@@ -74,7 +74,7 @@ export function GitSyncPopover({
               size="sm"
               className={commitsToPush > 0
                 ? "h-9 rounded-full bg-[var(--primary)] px-4 text-[var(--primary-foreground)] shadow-[var(--vlaina-shadow-md)] transition-[background-color,color,box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:scale-[var(--vlaina-scale-105)] hover:bg-[var(--vlaina-color-accent-hover)] hover:text-[var(--primary-foreground)] active:scale-[var(--vlaina-scale-95)] disabled:bg-[var(--vlaina-bg-secondary)] disabled:text-[var(--vlaina-color-text-disabled)] disabled:shadow-[var(--vlaina-shadow-none)] disabled:hover:scale-[var(--vlaina-scale-100)]"
-                : chatComposerSecondaryButtonClass}
+                : secondaryPillButtonClass}
               disabled={busy || controller.statusLoading || remoteUnavailable}
               aria-busy={pushing}
               onClick={controller.push}
@@ -100,8 +100,8 @@ export function GitSyncPopover({
           <div
             role="tablist"
             className={cn(
-              'relative mx-4 my-3 flex h-11 shrink-0 select-none items-center rounded-[var(--vlaina-radius-22px)] p-1.5',
-              chatComposerPillSurfaceClass,
+              'relative mx-4 my-3 flex h-11 shrink-0 select-none items-center rounded-[var(--vlaina-notes-ui-radius-group)] p-1.5',
+              raisedPillSurfaceClass,
             )}
           >
             <span

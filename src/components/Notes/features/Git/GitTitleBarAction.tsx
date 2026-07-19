@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  chatComposerGhostIconButtonClass,
-  chatComposerPillSurfaceClass,
-} from '@/components/Chat/features/Input/composerStyles';
+  ghostIconButtonClass,
+  raisedPillSurfaceClass,
+} from '@/components/ui/surfaceStyles';
 import { Icon } from '@/components/ui/icons';
 import { Popover, PopoverAnchor, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -41,7 +41,7 @@ function ConnectedGitTitleBarAction({ git, rootPath }: { git: GitBridge; rootPat
               aria-label={t('git.sync')}
               className={cn(
                 'app-no-drag flex size-[var(--vlaina-size-28px)] items-center justify-center text-[var(--vlaina-color-titlebar-button)] hover:text-[var(--vlaina-color-titlebar-button-hover)]',
-                chatComposerGhostIconButtonClass,
+                ghostIconButtonClass,
               )}
             >
               <Icon name="common.gitBranch" className="size-[var(--vlaina-size-18px)]" />
@@ -53,8 +53,8 @@ function ConnectedGitTitleBarAction({ git, rootPath }: { git: GitBridge; rootPat
           sideOffset={themeDomStyleTokens.toolbarTooltipOffsetPx}
           showArrow={false}
           className={cn(
-            'flex items-center gap-1.5 rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
-            chatComposerPillSurfaceClass,
+            'flex items-center gap-1.5 rounded-[var(--vlaina-notes-ui-radius-tooltip)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
+            raisedPillSurfaceClass,
           )}
         >
           {t('git.sync')}
