@@ -33,6 +33,26 @@ function runImageMagick(args) {
   throw missingCommandErrors[0];
 }
 
+function pngHasTransparency(pngBytes) {
+  if (pngBytes.length < 33 || pngBytes.toString('ascii', 1, 4) !== 'PNG') {
+    return false;
+  }
+
+  const colorType = pngBytes[25];
+  if (colorType === 4 || colorType === 6) {
+    return true;
+  }
+
+  let offset = 8;
+  while (offset + 12 <= pngBytes.length) {
+    const chunkLength = pngBytes.readUInt32BE(offset);
+    const chunkType = pngBytes.toString('ascii', offset + 4, offset + 8);
+    if (chunkType === 'tRNS') return true;
+    offset += chunkLength + 12;
+  }
+  return false;
+}
+
 async function writePngBackedIco(pngBytes, targetPath) {
   const headerSize = 6;
   const directorySize = 16;
@@ -56,6 +76,42 @@ async function writePngBackedIco(pngBytes, targetPath) {
   await writeFile(targetPath, output);
 }
 
+async function createTransparentIconSource(sourcePath, targetPath, sourceBytes) {
+  try {
+    runImageMagick([
+      sourcePath,
+      '-alpha',
+      'on',
+      '-fuzz',
+      '15%',
+      '-fill',
+      'none',
+      '-draw',
+      'color 0,0 floodfill',
+      '-background',
+      'white',
+      '-alpha',
+      'background',
+      targetPath,
+    ]);
+    const iconBytes = await readFile(targetPath);
+    if (!pngHasTransparency(iconBytes)) {
+      throw new Error('Generated icon source does not contain transparency.');
+    }
+    return iconBytes;
+  } catch (error) {
+    if (error?.code !== 'ENOENT' && error?.code !== 'EPERM') {
+      throw error;
+    }
+    if (process.platform === 'win32') {
+      throw new Error('ImageMagick is required to generate transparent Windows and Store icons.');
+    }
+    await writeFile(targetPath, sourceBytes);
+    console.warn('ImageMagick was unavailable; the source icon background could not be made transparent.');
+    return sourceBytes;
+  }
+}
+
 async function createWindowsIcon(sourcePath, targetPath, pngBytes) {
   // Build a real multi-resolution ICO so Windows can pick the right size
   // instead of scaling a single embedded PNG at runtime.
@@ -68,6 +124,11 @@ async function createWindowsIcon(sourcePath, targetPath, pngBytes) {
       'icon:auto-resize=256,128,64,48,32,16',
       targetPath,
     ]);
+    const icoBytes = await readFile(targetPath);
+    const iconCount = icoBytes.length >= 6 ? icoBytes.readUInt16LE(4) : 0;
+    if (iconCount < 6) {
+      throw new Error(`Generated Windows icon contains only ${iconCount} image sizes.`);
+    }
   } catch (error) {
     if (error?.code !== 'ENOENT' && error?.code !== 'EPERM') {
       throw error;
@@ -96,22 +157,36 @@ function createIcnsFromPng(pngBytes) {
 async function createAppxAssets(sourcePath) {
   await mkdir(appxAssetsDir, { recursive: true });
   const assets = [
-    ['StoreLogo.png', 50],
-    ['Square44x44Logo.png', 44],
-    ['Square150x150Logo.png', 150],
+    ['StoreLogo.png', 50, 50, 50],
+    ['Square44x44Logo.png', 44, 44, 44],
+    ['Square150x150Logo.png', 150, 150, 150],
+    ['Wide310x150Logo.png', 310, 150, 130],
+    ['Square44x44Logo.targetsize-16_altform-unplated.png', 16, 16, 16],
+    ['Square44x44Logo.targetsize-24_altform-unplated.png', 24, 24, 24],
+    ['Square44x44Logo.targetsize-32_altform-unplated.png', 32, 32, 32],
+    ['Square44x44Logo.targetsize-44_altform-unplated.png', 44, 44, 44],
+    ['Square44x44Logo.targetsize-48_altform-unplated.png', 48, 48, 48],
+    ['Square44x44Logo.targetsize-256_altform-unplated.png', 256, 256, 256],
   ];
 
   try {
-    for (const [filename, size] of assets) {
+    for (const [filename, width, height, iconSize] of assets) {
       const destination = path.join(appxAssetsDir, filename);
       runImageMagick([
         sourcePath,
         '-background',
         'none',
         '-resize',
-        `${size}x${size}`,
+        `${iconSize}x${iconSize}`,
+        '-gravity',
+        'center',
+        '-extent',
+        `${width}x${height}`,
         destination,
       ]);
+      if (!pngHasTransparency(await readFile(destination))) {
+        throw new Error(`Generated AppX icon does not contain transparency: ${filename}`);
+      }
     }
   } catch (error) {
     if (error?.code !== 'ENOENT' && error?.code !== 'EPERM') throw error;
@@ -190,11 +265,14 @@ async function createMacIcon(sourcePath, targetPath, pngBytes) {
 
 async function main() {
   const pngBytes = await readFile(sourcePngPath);
+  const iconSourcePath = path.join(buildDir, 'icon-source.png');
   await mkdir(buildDir, { recursive: true });
-  await writeFile(targetPngPath, pngBytes);
-  await createWindowsIcon(sourcePngPath, targetIcoPath, pngBytes);
-  await createMacIcon(sourcePngPath, targetIcnsPath, pngBytes);
-  await createAppxAssets(sourcePngPath);
+  const iconBytes = await createTransparentIconSource(sourcePngPath, iconSourcePath, pngBytes);
+  await writeFile(targetPngPath, iconBytes);
+  await createWindowsIcon(iconSourcePath, targetIcoPath, iconBytes);
+  await createMacIcon(iconSourcePath, targetIcnsPath, iconBytes);
+  await createAppxAssets(iconSourcePath);
+  await rm(iconSourcePath, { force: true });
   console.log(
     `Generated desktop and AppX assets from ${path.relative(projectRoot, sourcePngPath)}`,
   );

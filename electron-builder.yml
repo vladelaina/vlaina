@@ -46,6 +46,9 @@ files:
   - "!**/example/**"
   - "!**/examples/**"
   - "!**/.github/**"
+extraResources:
+  - from: build/icon.png
+    to: vlaina-icon.png
 asar: true
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 fileAssociations:
@@ -87,7 +90,7 @@ appx:
   publisher: CN=5503A135-7FA4-466B-815C-DBE627F4065F
   publisherDisplayName: vladelaina
   displayName: vlaina
-  backgroundColor: '#101114'
+  backgroundColor: transparent
   languages:
     - en-US
     - zh-CN

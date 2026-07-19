@@ -44,7 +44,9 @@ configureDevelopmentUserDataPath({ app, repoRoot });
 const rendererDevUrl = process.env.VITE_DEV_SERVER_URL ?? 'http://127.0.0.1:3000';
 const apiBaseUrl = (process.env.APP_API_BASE_URL ?? 'https://api.vlaina.com').trim().replace(/\/+$/, '');
 const managedApiBaseUrl = `${apiBaseUrl}/v1`;
-const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'logo.png');
+const appIconPath = app.isPackaged
+  ? path.join(process.resourcesPath, 'vlaina-icon.png')
+  : path.join(__dirname, '..', 'public', 'logo.png');
 const trayIconSize = process.platform === 'darwin' ? 18 : 16;
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({
