@@ -16,6 +16,7 @@ import {
   WhiteboardToolbarGroup,
   whiteboardFloatingPanelClassName,
 } from './WhiteboardToolbarPrimitives';
+import { WhiteboardColorPicker } from './WhiteboardColorPicker';
 
 export type WhiteboardToolPanelName = 'brush' | 'eraser';
 
@@ -99,6 +100,7 @@ function ColorChoices({ colors, tool, onChange }: {
           style={{ backgroundColor: color }}
         />
       ))}
+      <WhiteboardColorPicker color={colors[tool]} onChange={(color) => onChange(tool, color)} />
     </WhiteboardToolbarGroup>
   );
 }

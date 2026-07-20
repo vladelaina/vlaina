@@ -85,6 +85,8 @@
   "whiteboard.undo": "Undo",
   "whiteboard.redo": "Redo",
   "whiteboard.brushSize": "Brush size",
+  "whiteboard.customColor": "Custom color",
+  "whiteboard.pickColor": "Pick color",
   "whiteboard.decreaseBrushSize": "Decrease brush size",
   "whiteboard.increaseBrushSize": "Increase brush size",
   "whiteboard.copy": "Copy",

@@ -19,6 +19,7 @@ vi.mock('@/components/ui/tooltip', () => ({
 }));
 
 function renderToolbar(overrides: Partial<ComponentProps<typeof WhiteboardToolbar>> = {}) {
+  const onBrushColorChange = vi.fn();
   const onBrushSizeSelect = vi.fn();
   const onToolChange = vi.fn();
   const rendered = render(
@@ -28,14 +29,14 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof WhiteboardToolba
         brushSizes={WHITEBOARD_DEFAULT_BRUSH_SIZES}
         spacePressed={false}
         tool="select"
-        onBrushColorChange={vi.fn()}
+        onBrushColorChange={onBrushColorChange}
         onBrushSizeSelect={onBrushSizeSelect}
         onImageAdd={vi.fn()}
         onToolChange={onToolChange}
         {...overrides}
     />,
   );
-  return { onBrushSizeSelect, onToolChange, ...rendered };
+  return { onBrushColorChange, onBrushSizeSelect, onToolChange, ...rendered };
 }
 
 describe('WhiteboardToolbar', () => {
@@ -79,7 +80,7 @@ describe('WhiteboardToolbar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'whiteboard.tool.pen' }));
 
     expect(screen.getByRole('button', { name: 'whiteboard.tool.pencil' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '#27272a' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '#000000' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'whiteboard.brushSize 100%' })).toBeInTheDocument();
     const sizePreviews = document.querySelectorAll('[data-whiteboard-size-preview]');
     expect(sizePreviews).toHaveLength(5);
@@ -87,6 +88,33 @@ describe('WhiteboardToolbar', () => {
     expect(sizePreviews[4]).toHaveStyle({ height: '12px', width: '12px' });
     fireEvent.click(screen.getByRole('button', { name: 'whiteboard.tool.marker' }));
     expect(onToolChange).toHaveBeenCalledWith('marker');
+  });
+
+  it('applies a custom brush color only after confirmation', () => {
+    const { onBrushColorChange } = renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'whiteboard.tool.pen' }));
+    const customColor = screen.getByRole('button', { name: 'whiteboard.customColor' });
+    expect(customColor).toHaveStyle({ backgroundImage: 'var(--vlaina-color-picker-rainbow)' });
+    fireEvent.click(customColor);
+
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('HEX')).toHaveValue('#000000');
+    fireEvent.change(screen.getByLabelText('HEX'), { target: { value: '#43a555' } });
+    expect(onBrushColorChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.apply' }));
+    expect(onBrushColorChange).toHaveBeenCalledWith('pen', '#43A555');
+  });
+
+  it('discards a custom brush color when cancelled', () => {
+    const { onBrushColorChange } = renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'whiteboard.tool.pen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'whiteboard.customColor' }));
+    fireEvent.change(screen.getByLabelText('HEX'), { target: { value: '#43a555' } });
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
+
+    expect(onBrushColorChange).not.toHaveBeenCalled();
   });
 
   it('renders enlarged controls at the bottom center and opens details above them', () => {

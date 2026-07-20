@@ -436,6 +436,8 @@ export const themeWhiteboardTokens = {
   brushWheelButtonDelta: 1,
   brushSizePresets: [0.5, 0.75, 1, 1.5, 2],
   brushSizePreviewBasePx: 6,
+  colorPickerHueGradient: 'linear-gradient(to bottom, #ef4444, #f59e0b, #ffff00, #10b981, #00ffff, #1e96eb, #8b5cf6, #ff00ff, #ef4444)',
+  colorPickerSaturationValueGradient: 'linear-gradient(to top, var(--vlaina-color-picker-black), transparent), linear-gradient(to right, var(--vlaina-color-picker-white), transparent)',
   strokePointMinDistancePx: 1.4,
   mousePressureSpeedPxPerMs: 1.2,
   mousePressureRange: {
@@ -471,7 +473,7 @@ export const themeWhiteboardTokens = {
   brushCursorStrokeWidthPx: 1,
   brushCursorInkOpacity: 1,
   brushCursorWashGuideOpacity: 0.2,
-  brushColorSwatches: ['#27272a', '#ef4444', '#f59e0b', '#10b981', '#1e96eb', '#8b5cf6'],
+  brushColorSwatches: ['#84cfff', '#f0a0b5', '#21c45d', '#ff8c38', '#fd5e5e', '#929292', '#000000'],
   exportPaddingPx: 56,
   exportEmptyWidthPx: 1200,
   exportEmptyHeightPx: 800,

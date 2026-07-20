@@ -141,12 +141,12 @@ export const WHITEBOARD_DEFAULT_BRUSH_SIZES: WhiteboardBrushSizes = {
   'stroke-eraser': 1,
 };
 export const WHITEBOARD_DEFAULT_BRUSH_COLORS: WhiteboardBrushColors = {
-  pen: themeWhiteboardTokens.brushColorSwatches[0],
+  pen: themeWhiteboardTokens.brushColorSwatches[6],
   pencil: themeWhiteboardTokens.brushColorSwatches[1],
-  marker: themeWhiteboardTokens.brushColorSwatches[4],
-  fountain: themeWhiteboardTokens.brushColorSwatches[0],
-  watercolor: themeWhiteboardTokens.brushColorSwatches[3],
-  crayon: themeWhiteboardTokens.brushColorSwatches[2],
+  marker: themeWhiteboardTokens.brushColorSwatches[2],
+  fountain: themeWhiteboardTokens.brushColorSwatches[6],
+  watercolor: themeWhiteboardTokens.brushColorSwatches[2],
+  crayon: themeWhiteboardTokens.brushColorSwatches[4],
 };
 
 export const WHITEBOARD_DEFAULT_PAPER_STYLE: WhiteboardPaperStyle = 'dots';
