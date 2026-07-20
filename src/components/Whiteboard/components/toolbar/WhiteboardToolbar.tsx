@@ -81,10 +81,10 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: Whiteboa
 
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[var(--vlaina-z-50)] flex justify-center px-3">
+      <div className="pointer-events-none absolute inset-x-0 top-3 z-[var(--vlaina-z-50)] flex justify-center px-3">
         <div className="app-no-drag pointer-events-auto relative flex max-w-full min-w-0 items-center">
         {openPanel && !props.spacePressed ? (
-          <div className="pointer-events-none absolute bottom-full left-1/2 z-[var(--vlaina-z-50)] flex w-max max-w-[var(--vlaina-whiteboard-panel-max-width)] -translate-x-1/2 pb-1">
+          <div className="pointer-events-none absolute left-1/2 top-full z-[var(--vlaina-z-50)] flex w-max max-w-[var(--vlaina-whiteboard-panel-max-width)] -translate-x-1/2 pt-2">
             <div className="pointer-events-auto w-max max-w-full">
               <WhiteboardToolPanel
                 brushColors={props.brushColors}
@@ -101,18 +101,18 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: Whiteboa
         <div
           data-whiteboard-main-toolbar="true"
           className={cn(
-            'flex h-10 max-w-full min-w-0 items-center gap-1.5 overflow-x-auto rounded-[var(--vlaina-radius-pill)] px-2',
+            'flex h-[var(--vlaina-size-56px)] max-w-full min-w-0 items-center gap-1 overflow-x-auto rounded-[var(--vlaina-radius-16px)] px-1.5',
             whiteboardFloatingPanelClassName,
           )}
         >
           <WhiteboardToolbarGroup>
-            <WhiteboardToolbarButton active={visualTool === 'hand'} icon="whiteboard.hand" label={t('whiteboard.tool.hand')} onClick={() => chooseStandaloneTool('hand')} />
-            <WhiteboardToolbarButton active={eraserActive} icon={eraserConfig.icon} label={t(eraserConfig.labelKey)} onClick={() => togglePanel('eraser', eraserActive, lastEraserTool)} />
+            <WhiteboardToolbarButton large active={visualTool === 'hand'} icon="whiteboard.hand" label={t('whiteboard.tool.hand')} onClick={() => chooseStandaloneTool('hand')} />
+            <WhiteboardToolbarButton large active={eraserActive} icon={eraserConfig.icon} label={t(eraserConfig.labelKey)} onClick={() => togglePanel('eraser', eraserActive, lastEraserTool)} />
           </WhiteboardToolbarGroup>
           <WhiteboardToolbarGroup>
             <span className="mx-0.5 h-5 w-px shrink-0 bg-[var(--vlaina-color-toolbar-border)]" />
-            <WhiteboardToolbarButton active={drawingActive} icon={drawingConfig.icon} indicatorColor={props.brushColors[drawingConfig.id as WhiteboardDrawingTool]} label={t(drawingConfig.labelKey)} onClick={() => togglePanel('brush', drawingActive, lastDrawingTool)} />
-            <WhiteboardToolbarButton icon="whiteboard.image" label={t('whiteboard.addImage')} onClick={handleImageSelect} />
+            <WhiteboardToolbarButton large active={drawingActive} icon={drawingConfig.icon} indicatorColor={props.brushColors[drawingConfig.id as WhiteboardDrawingTool]} label={t(drawingConfig.labelKey)} onClick={() => togglePanel('brush', drawingActive, lastDrawingTool)} />
+            <WhiteboardToolbarButton large icon="whiteboard.image" label={t('whiteboard.addImage')} onClick={handleImageSelect} />
           </WhiteboardToolbarGroup>
         </div>
         </div>

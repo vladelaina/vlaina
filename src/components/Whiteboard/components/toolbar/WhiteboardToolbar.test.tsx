@@ -127,11 +127,11 @@ describe('WhiteboardToolbar', () => {
     expect(mainToolbar?.closest('[data-whiteboard-titlebar-slot="true"]')).not.toBeInTheDocument();
     expect(interactionRegion).toHaveClass('app-no-drag', 'pointer-events-auto', 'max-w-full');
     expect(interactionRegion).not.toHaveClass('w-full');
-    expect(placementRegion).toHaveClass('inset-x-0', 'bottom-4', 'justify-center');
+    expect(placementRegion).toHaveClass('inset-x-0', 'top-3', 'justify-center');
     expect(panel?.parentElement).toHaveClass('w-max', 'max-w-full');
-    expect(panel?.parentElement?.parentElement).toHaveClass('bottom-full', 'left-1/2', '-translate-x-1/2', 'w-max');
+    expect(panel?.parentElement?.parentElement).toHaveClass('top-full', 'left-1/2', '-translate-x-1/2', 'w-max');
     expect(panel?.parentElement?.parentElement).not.toHaveClass('inset-x-2');
-    expect(mainToolbar).toHaveClass('h-10', 'gap-1.5', 'px-2');
+    expect(mainToolbar).toHaveClass('h-[var(--vlaina-size-56px)]', 'gap-1', 'px-1.5');
   });
 
   it('keeps the image action in the drawing tools group without a ruler action', () => {

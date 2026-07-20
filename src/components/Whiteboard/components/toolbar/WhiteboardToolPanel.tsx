@@ -40,7 +40,7 @@ export function WhiteboardToolPanel(props: WhiteboardToolPanelProps) {
     <div
       data-whiteboard-tool-panel="true"
       className={cn(
-        'flex max-w-full items-center gap-3 overflow-x-auto rounded-[var(--vlaina-radius-16px)] px-2 py-1.5',
+        'flex h-[var(--vlaina-size-56px)] max-w-full items-center gap-3 overflow-x-auto rounded-[var(--vlaina-radius-16px)] px-2 py-1.5',
         whiteboardFloatingPanelClassName,
       )}
     >
