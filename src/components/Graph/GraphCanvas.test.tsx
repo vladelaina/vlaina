@@ -83,11 +83,8 @@ describe('GraphCanvas', () => {
     const edge = canvas.querySelector('[data-graph-edge-layer="base"]')!;
     const activeEdge = canvas.querySelector('[data-graph-edge-layer="active"]')!;
     const visibleNode = node.querySelectorAll('circle')[1]!;
-    const enteringNodes = canvas.querySelectorAll('[data-graph-node-position]');
-    expect(enteringNodes[0]).toHaveClass('vlaina-graph-node-enter');
-    expect(enteringNodes[0]).toHaveStyle({ '--vlaina-graph-enter-index': '0' });
-    expect(enteringNodes[1]).toHaveStyle({ '--vlaina-graph-enter-index': '1' });
-    expect(edge.parentElement).toHaveClass('vlaina-graph-edge-enter');
+    expect(canvas.querySelectorAll('.vlaina-graph-enter')).toHaveLength(1);
+    expect(node).not.toHaveClass('vlaina-graph-node-enter');
     expect(Number(hitTarget.getAttribute('r'))).toBeGreaterThanOrEqual(16);
     expect(edge).toHaveAttribute('stroke', 'var(--vlaina-color-graph-edge)');
     expect(Number(edge.getAttribute('stroke-opacity'))).toBeGreaterThan(0);
@@ -110,6 +107,34 @@ describe('GraphCanvas', () => {
     expect(diagnostics).toContain('pointer-drag-start');
     expect(diagnostics).toContain('pointer-drag-release');
     expect(diagnostics).toContain('force-release');
+  });
+
+  it('keeps a local child edge attached without showing a stale base edge', () => {
+    render(
+      <GraphCanvas
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath="Alpha.md"
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+    const child = screen.getByRole('button', { name: 'Beta, 1' });
+    const hitTarget = child.querySelector('[data-graph-node-hit-target="Beta.md"]')!;
+    const canvas = screen.getByRole('img', { name: 'app.viewGraph' });
+    const baseEdge = canvas.querySelector('[data-graph-edge-layer="base"]')!;
+    const activeEdge = canvas.querySelector('[data-graph-edge-layer="active"]')!;
+
+    fireEvent.pointerDown(hitTarget, { button: 0, clientX: 300, clientY: 100, pointerId: 11 });
+    expect(baseEdge).toHaveAttribute('stroke-opacity', '0');
+    expect(activeEdge).toHaveAttribute('opacity', '1');
+    fireEvent.pointerMove(canvas, { clientX: 340, clientY: 120, pointerId: 11 });
+    fireEvent.pointerUp(canvas, { clientX: 340, clientY: 120, pointerId: 11 });
+
+    expect(baseEdge).toHaveAttribute('stroke-opacity', '0.14');
+    expect(baseEdge.getAttribute('d')).toContain('L340,120');
   });
 
   it('cancels an interrupted node drag without opening or committing it', () => {
@@ -219,8 +244,8 @@ describe('GraphCanvas', () => {
     const edge = canvas.querySelector('[data-graph-edge-layer="base"]')!;
     const activeEdge = canvas.querySelector('[data-graph-edge-layer="active"]')!;
     expect(visibleNode).toHaveClass('fill-[var(--vlaina-color-graph-node)]');
-    expect(visibleNode).toHaveClass('vlaina-graph-node-dot-enter');
-    expect(gamma).toHaveStyle({ '--vlaina-graph-enter-index': '0' });
+    expect(visibleNode).not.toHaveClass('vlaina-graph-node-dot-enter');
+    expect(gamma).not.toHaveClass('vlaina-graph-node-enter');
     expect(edge).toHaveAttribute('stroke', 'var(--vlaina-color-graph-edge)');
     expect(activeEdge).toHaveAttribute('d', '');
     expect(activeEdge).toHaveAttribute('opacity', '0');

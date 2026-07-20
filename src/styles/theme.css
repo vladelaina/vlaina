@@ -950,16 +950,11 @@
   --vlaina-color-graph-label: var(--vlaina-color-text-primary);
   --vlaina-color-graph-controls-bg: var(--vlaina-bg-secondary);
   --vlaina-color-graph-controls-hover: var(--vlaina-hover);
-  --vlaina-motion-graph-node-enter-duration: 180ms;
-  --vlaina-motion-graph-node-enter-stagger: 3ms;
-  --vlaina-motion-graph-edge-enter-delay: 0ms;
-  --vlaina-motion-graph-edge-enter-duration: 240ms;
+  --vlaina-motion-graph-enter-duration: 140ms;
   --vlaina-motion-graph-enter-easing: cubic-bezier(0.22, 1, 0.36, 1);
   --vlaina-motion-graph-interaction-duration: 140ms;
   --vlaina-motion-graph-label-duration: 120ms;
   --vlaina-graph-inverse-zoom: 1;
-  --vlaina-graph-enter-index: 0;
-  --vlaina-graph-node-enter-radius: 5px;
   --vlaina-width-graph-mode-indicator: calc(50% - var(--vlaina-space-4px));
   --vlaina-color-whiteboard-grid-dot: rgb(39 39 42 / 0.13);
   --vlaina-whiteboard-toolbar-max-width: calc(100% - var(--vlaina-size-56px));
@@ -1192,17 +1187,7 @@
   --vlaina-collapse-triangle-active-fg: var(--vlaina-sidebar-row-selected-text);
 }
 
-@keyframes vlaina-graph-node-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes vlaina-graph-node-dot-enter {
-  from { r: 0; }
-  to { r: var(--vlaina-graph-node-enter-radius); }
-}
-
-@keyframes vlaina-graph-edge-enter {
+@keyframes vlaina-graph-enter {
   from { opacity: 0; }
   to { opacity: 1; }
 }
@@ -1212,14 +1197,8 @@
   to { opacity: 1; }
 }
 
-.vlaina-graph-node-enter {
-  animation: vlaina-graph-node-enter var(--vlaina-motion-graph-node-enter-duration) var(--vlaina-motion-graph-enter-easing) both;
-  animation-delay: calc(var(--vlaina-graph-enter-index) * var(--vlaina-motion-graph-node-enter-stagger));
-}
-
-.vlaina-graph-node-dot-enter {
-  animation: vlaina-graph-node-dot-enter var(--vlaina-motion-graph-node-enter-duration) var(--vlaina-motion-graph-enter-easing) both;
-  animation-delay: calc(var(--vlaina-graph-enter-index) * var(--vlaina-motion-graph-node-enter-stagger));
+.vlaina-graph-enter {
+  animation: vlaina-graph-enter var(--vlaina-motion-graph-enter-duration) var(--vlaina-motion-graph-enter-easing) both;
 }
 
 .vlaina-graph-node-dot {
@@ -1240,27 +1219,22 @@
   transition: stroke-opacity var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing);
 }
 
+.vlaina-graph-edge-base.is-dragging {
+  transition: none;
+}
+
 .vlaina-graph-label-enter {
   animation: vlaina-graph-label-enter var(--vlaina-motion-graph-label-duration) var(--vlaina-motion-graph-enter-easing) both;
 }
 
-.vlaina-graph-edge-enter {
-  animation: vlaina-graph-edge-enter var(--vlaina-motion-graph-edge-enter-duration) var(--vlaina-motion-graph-enter-easing) both;
-  animation-delay: var(--vlaina-motion-graph-edge-enter-delay);
-}
-
-[data-graph-active="false"] .vlaina-graph-node-enter,
-[data-graph-active="false"] .vlaina-graph-node-dot-enter,
-[data-graph-active="false"] .vlaina-graph-label-enter,
-[data-graph-active="false"] .vlaina-graph-edge-enter {
+[data-graph-active="false"] .vlaina-graph-enter,
+[data-graph-active="false"] .vlaina-graph-label-enter {
   animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vlaina-graph-node-enter,
-  .vlaina-graph-node-dot-enter,
-  .vlaina-graph-label-enter,
-  .vlaina-graph-edge-enter {
+  .vlaina-graph-enter,
+  .vlaina-graph-label-enter {
     animation: none;
   }
   .vlaina-graph-node-dot,

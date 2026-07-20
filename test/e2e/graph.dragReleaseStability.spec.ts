@@ -52,7 +52,7 @@ test.describe('graph drag release stability', () => {
         const audit = { entryAnimationStarts: 0 };
         (window as any).__graphDragReleaseAudit = audit;
         element.addEventListener('animationstart', (event) => {
-          if ((event as AnimationEvent).animationName.includes('graph-node-enter')) {
+          if ((event as AnimationEvent).animationName.includes('graph-enter')) {
             audit.entryAnimationStarts += 1;
           }
         });
@@ -162,6 +162,68 @@ test.describe('graph drag release stability', () => {
       expect(await graphView.locator('.vlaina-graph-node-dot').evaluateAll((dots) => (
         dots.filter((dot) => Number((dot as SVGCircleElement).style.opacity) < 0.5).length
       ))).toBe(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps a dragged local-graph child attached to its active edge', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('graph-local-child-edge');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      const fixture = await createNotesRootFilesFixture(page, {
+        name: 'graph-local-child-edge',
+        files: [
+          { filename: 'Child.md', content: '# Child\n\n[[Hub]]' },
+          { filename: 'Hub.md', content: '# Hub\n\n[[Child]]\n[[Other]]' },
+          { filename: 'Other.md', content: '# Other\n\n[[Hub]]' },
+        ],
+      });
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Graph Local Child Edge',
+      });
+      await setAppViewMode(page, 'graph');
+
+      const graphView = page.locator(GRAPH_VIEW_SELECTOR);
+      const modeButtons = page.locator('[data-graph-mode-indicator="true"]').locator('..').getByRole('button');
+      await modeButtons.nth(1).click();
+      const nodes = graphView.locator('[data-graph-node-hit-target]');
+      await expect(nodes).toHaveCount(2, { timeout: 30_000 });
+      await page.waitForTimeout(1_500);
+
+      const target = nodes.last();
+      const box = await target.boundingBox();
+      expect(box).not.toBeNull();
+      const startX = box!.x + box!.width / 2;
+      const startY = box!.y + box!.height / 2;
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      await page.mouse.move(startX + 100, startY + 60, { steps: 12 });
+
+      await expect(graphView.locator('[data-graph-edge-layer="base"]')).toHaveAttribute('stroke-opacity', '0');
+      await expect(graphView.locator('[data-graph-edge-layer="active"]')).toHaveAttribute('opacity', '1');
+      const endpointGap = await target.evaluate((element) => {
+        const nodeMatrix = (element.parentElement as unknown as SVGGElement | null)
+          ?.transform.baseVal.consolidate()?.matrix;
+        const path = element.closest('svg')
+          ?.querySelector<SVGPathElement>('[data-graph-edge-layer="active"]')
+          ?.getAttribute('d') ?? '';
+        const values = path.match(/[-+\d.e]+/giu)?.map(Number) ?? [];
+        let closest = Number.POSITIVE_INFINITY;
+        for (let index = 0; index + 1 < values.length; index += 2) {
+          closest = Math.min(closest, Math.hypot(
+            values[index]! - (nodeMatrix?.e ?? 0),
+            values[index + 1]! - (nodeMatrix?.f ?? 0),
+          ));
+        }
+        return closest;
+      });
+      expect(endpointGap).toBeLessThan(0.5);
+      await page.mouse.up();
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
