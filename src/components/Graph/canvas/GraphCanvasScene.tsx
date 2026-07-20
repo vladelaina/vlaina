@@ -22,8 +22,20 @@ export function GraphCanvasScene(props: {
   selectedPath: string | null;
   viewport: GraphViewport;
 }) {
-  const showLabels = props.labelsReady
+  const showAllLabels = props.labelsReady
     && props.viewport.zoom >= themeGraphTokens.labelVisibilityZoom;
+  const overviewLabelIds = useMemo(() => {
+    return new Set(
+      [...props.nodes]
+        .filter((node) => node.degree >= themeGraphTokens.overviewLabelMinDegree)
+        .sort((left, right) => right.degree - left.degree || left.id.localeCompare(right.id))
+        .slice(0, themeGraphTokens.overviewLabelMaxCount)
+        .map((node) => node.id),
+    );
+  }, [props.nodes]);
+  const showOverviewLabels = props.labelsReady
+    && !showAllLabels
+    && props.viewport.zoom >= themeGraphTokens.overviewLabelVisibilityZoom;
   return (
     <g
       transform={`translate(${props.viewport.x} ${props.viewport.y}) scale(${props.viewport.zoom})`}
@@ -36,6 +48,7 @@ export function GraphCanvasScene(props: {
         dragPositionId={props.dragPositionId}
         edges={props.edges}
         hoveredPath={props.hoveredPath}
+        overviewLabelIds={overviewLabelIds}
         nodes={props.nodes}
         onHoverChange={props.onHoverChange}
         onFocusChange={props.onFocusChange}
@@ -44,7 +57,8 @@ export function GraphCanvasScene(props: {
         onSelect={props.onSelect}
         onStartDrag={props.onStartDrag}
         selectedPath={props.selectedPath}
-        showLabels={showLabels}
+        showLabels={showAllLabels}
+        showOverviewLabels={showOverviewLabels}
       />
     </g>
   );
@@ -56,6 +70,7 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
   edges: PositionedGraphEdge[];
   hoveredPath: string | null;
   nodes: PositionedGraphNode[];
+  overviewLabelIds: ReadonlySet<string>;
   onHoverChange: (path: string | null) => void;
   onFocusChange: (path: string) => void;
   onOpen: (path: string) => void;
@@ -64,6 +79,7 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
   onStartDrag: (event: PointerEvent<SVGGElement>, path: string, position: GraphNodePosition) => void;
   selectedPath: string | null;
   showLabels: boolean;
+  showOverviewLabels: boolean;
 }) {
   const activePath = props.dragPositionId ?? props.hoveredPath;
   const highlightedPath = activePath ?? props.selectedPath;
@@ -116,7 +132,9 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
           related={connectedToHighlighted.has(node.id)}
           selected={props.selectedPath === node.id}
           dimmed={Boolean(highlightedPath && highlightedPath !== node.id && !connectedToHighlighted.has(node.id))}
-          showLabel={props.showLabels}
+          showLabel={props.showLabels || (
+            props.showOverviewLabels && props.overviewLabelIds.has(node.id)
+          )}
         />
       ))}
     </>

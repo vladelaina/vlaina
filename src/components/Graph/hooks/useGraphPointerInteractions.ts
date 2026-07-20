@@ -128,6 +128,27 @@ export function useGraphPointerInteractions(options: GraphPointerInteractionOpti
     }
   };
 
+  const cancelDrag = (event: PointerEvent<SVGSVGElement>) => {
+    if (frameRef.current !== null) {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    pendingPointRef.current = null;
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag) return;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (drag.kind === 'node') {
+      if (drag.moved) options.onDragPosition(drag.id, drag.startPosition);
+      options.onReleaseDrag(drag.id);
+      options.setDragPosition(null);
+      return;
+    }
+    options.setViewport(drag.startViewport);
+  };
+
   const startPan = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0 && event.button !== 1) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -172,6 +193,7 @@ export function useGraphPointerInteractions(options: GraphPointerInteractionOpti
   }, []);
 
   return {
+    cancelDrag,
     finishDrag,
     getDraggedNodeId: () => dragRef.current?.kind === 'node' ? dragRef.current.id : null,
     handlePointerMove,

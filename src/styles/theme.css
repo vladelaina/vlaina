@@ -929,11 +929,11 @@
   --vlaina-color-row-soft: rgb(244 244 245 / 0.4);
   --vlaina-color-whiteboard-canvas: var(--vlaina-color-surface-main);
   --vlaina-color-graph-canvas: var(--vlaina-color-surface-main);
-  --vlaina-color-graph-edge: rgb(122 169 205 / 0.46);
+  --vlaina-color-graph-edge: var(--vlaina-sidebar-row-selected-text-muted);
   --vlaina-color-graph-edge-active: var(--vlaina-sidebar-row-selected-text);
-  --vlaina-color-graph-node: rgb(103 153 192 / 0.92);
+  --vlaina-color-graph-node: var(--vlaina-sidebar-row-selected-text-soft);
   --vlaina-color-graph-node-active: var(--vlaina-sidebar-row-selected-text);
-  --vlaina-color-graph-node-related: color-mix(in srgb, var(--vlaina-sidebar-row-selected-text) 58%, var(--vlaina-color-text-muted));
+  --vlaina-color-graph-node-related: var(--vlaina-color-graph-node-active);
   --vlaina-color-graph-node-ring: var(--vlaina-color-surface-main);
   --vlaina-color-graph-node-ring-active: var(--vlaina-sidebar-row-selected-bg);
   --vlaina-color-graph-label: var(--vlaina-color-text-primary);
@@ -1283,8 +1283,6 @@
   --vlaina-color-surface-active: rgb(255 255 255 / 0.12);
   --vlaina-color-surface-row-hover: #151516;
   --vlaina-color-surface-row-active: #1f2933;
-  --vlaina-color-graph-edge: rgb(126 184 226 / 0.52);
-  --vlaina-color-graph-node: rgb(126 184 226 / 0.94);
   --vlaina-color-surface-empty: rgb(255 255 255 / 0.055);
   --vlaina-color-text-strong: #fcfcfc;
   --vlaina-color-text-primary: #f2f2f3;

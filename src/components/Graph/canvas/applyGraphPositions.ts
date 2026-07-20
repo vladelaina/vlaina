@@ -23,6 +23,7 @@ interface GraphPositionElements {
 
 const elementsBySvg = new WeakMap<SVGSVGElement, GraphPositionElements>();
 const edgeLayersBySvg = new WeakMap<SVGSVGElement, Map<string, GraphEdgeLayer>>();
+export type GraphEdgeUpdateMode = 'active' | 'all' | 'none';
 
 export function registerGraphEdgeLayer(
   element: SVGPathElement | null,
@@ -98,7 +99,7 @@ export function applyDraggedGraphNodePosition(
 export function applyGraphPositions(
   svg: SVGSVGElement | null,
   positions: GraphNodePositions,
-  updateEdges = true,
+  edgeUpdateMode: GraphEdgeUpdateMode = 'all',
 ) {
   if (!svg) return;
   const elements = getGraphPositionElements(svg);
@@ -108,6 +109,10 @@ export function applyGraphPositions(
     elements.positionsById.set(node.id, position);
     node.element.setAttribute('transform', `translate(${position.x} ${position.y})`);
   }
-  if (!updateEdges) return;
-  updateEdgePaths(svg, elements.positionsById);
+  if (edgeUpdateMode === 'none') return;
+  updateEdgePaths(
+    svg,
+    elements.positionsById,
+    edgeUpdateMode === 'active' ? (layerId) => layerId === 'active' : undefined,
+  );
 }

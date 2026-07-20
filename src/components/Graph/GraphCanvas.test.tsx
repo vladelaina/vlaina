@@ -112,6 +112,31 @@ describe('GraphCanvas', () => {
     expect(diagnostics).toContain('force-release');
   });
 
+  it('cancels an interrupted node drag without opening or committing it', () => {
+    const onOpenPath = vi.fn();
+    const onPositionCommit = vi.fn();
+    render(
+      <GraphCanvas
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath={null}
+        onOpenPath={onOpenPath}
+        onPositionCommit={onPositionCommit}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+    const node = screen.getByRole('button', { name: 'Alpha, 1' });
+    const hitTarget = node.querySelector('[data-graph-node-hit-target="Alpha.md"]')!;
+    const canvas = screen.getByRole('img', { name: 'app.viewGraph' });
+
+    fireEvent.pointerDown(hitTarget, { button: 0, clientX: 100, clientY: 100, pointerId: 10 });
+    fireEvent.pointerCancel(canvas, { clientX: 0, clientY: 0, pointerId: 10 });
+
+    expect(onOpenPath).not.toHaveBeenCalled();
+    expect(onPositionCommit).not.toHaveBeenCalled();
+  });
+
   it('coalesces repeated pointer moves into one animation frame', () => {
     render(
       <GraphCanvas
@@ -227,6 +252,37 @@ describe('GraphCanvas', () => {
           onStartDrag={vi.fn()}
           selectedPath={null}
           viewport={{ x: 0, y: 0, zoom: 0.5 }}
+        />
+      </svg>,
+    );
+
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(screen.queryByText('Gamma')).not.toBeInTheDocument();
+  });
+
+  it('shows high-degree overview labels at an intermediate zoom', () => {
+    const overviewNodes = graph.nodes.map((node, index) => ({
+      ...node,
+      degree: [6, 3, 1][index]!,
+    }));
+    render(
+      <svg>
+        <GraphCanvasScene
+          connectedToSelected={new Set()}
+          dragPositionId={null}
+          edges={[{ source: overviewNodes[0]!, target: overviewNodes[1]! }]}
+          hoveredPath={null}
+          labelsReady
+          nodes={overviewNodes}
+          onHoverChange={vi.fn()}
+          onFocusChange={vi.fn()}
+          onOpen={vi.fn()}
+          onPositionCommit={vi.fn()}
+          onSelect={vi.fn()}
+          onStartDrag={vi.fn()}
+          selectedPath={null}
+          viewport={{ x: 0, y: 0, zoom: 0.6 }}
         />
       </svg>,
     );
