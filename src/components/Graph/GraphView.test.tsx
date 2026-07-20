@@ -55,6 +55,30 @@ describe('GraphView', () => {
     expect(screen.getByText('graph.empty')).toBeInTheDocument();
   });
 
+  it('does not render a partial graph before the initial note scan completes', () => {
+    hoisted.notesState.currentNote = { content: '# Alpha', path: 'Alpha.md' };
+    hoisted.notesState.notesPath = '/tmp/test-notes';
+    hoisted.notesState.rootFolderPath = '/tmp/test-notes';
+    hoisted.notesState.rootFolder = {
+      children: [{
+        id: 'Alpha.md',
+        isFolder: false,
+        kind: 'note',
+        name: 'Alpha.md',
+        path: 'Alpha.md',
+      }],
+    };
+    hoisted.notesState.noteContentsCache = new Map([
+      ['Alpha.md', { content: '# Alpha', modifiedAt: 1 }],
+    ]);
+    hoisted.notesState.scanAllNotes.mockImplementation(() => new Promise(() => undefined));
+
+    render(<GraphView />);
+
+    expect(screen.getByText('graph.loading')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'app.viewGraph' })).not.toBeInTheDocument();
+  });
+
   it('mounts a populated graph in StrictMode without an effect feedback loop', async () => {
     hoisted.notesState.currentNote = { content: '# Alpha', path: 'Alpha.md' };
     hoisted.notesState.notesPath = '/tmp/test-notes';

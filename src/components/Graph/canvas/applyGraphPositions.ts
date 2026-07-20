@@ -18,10 +18,12 @@ interface GraphEdgeLayer {
 interface GraphPositionElements {
   nodes: GraphNodeElements[];
   nodesById: Map<string, GraphNodeElements>;
+  positionsById: Map<string, { x: number; y: number }>;
 }
 
 const elementsBySvg = new WeakMap<SVGSVGElement, GraphPositionElements>();
 const edgeLayersBySvg = new WeakMap<SVGSVGElement, Map<string, GraphEdgeLayer>>();
+export type GraphEdgeUpdateMode = 'active' | 'all' | 'none';
 
 export function registerGraphEdgeLayer(
   element: SVGPathElement | null,
@@ -51,15 +53,34 @@ function getGraphPositionElements(svg: SVGSVGElement): GraphPositionElements {
   }
 
   const nodes = [...svg.querySelectorAll<SVGGElement>('[data-graph-node-position]')].map((group) => ({
-      element: group,
-      id: group.dataset.graphNodePosition ?? '',
-    }));
+    element: group,
+    id: group.dataset.graphNodePosition ?? '',
+  }));
   const elements = {
     nodes,
     nodesById: new Map(nodes.map((node) => [node.id, node])),
+    positionsById: new Map<string, { x: number; y: number }>(),
   };
   elementsBySvg.set(svg, elements);
   return elements;
+}
+
+function updateEdgePaths(
+  svg: SVGSVGElement,
+  positions: ReadonlyMap<string, { x: number; y: number }>,
+  shouldUpdate: (layerId: string) => boolean = () => true,
+) {
+  for (const [layerId, layer] of edgeLayersBySvg.get(svg)?.entries() ?? []) {
+    if (!shouldUpdate(layerId)) continue;
+    if (!layer.element.isConnected) continue;
+    const path: string[] = [];
+    for (const edge of layer.edges) {
+      const source = positions.get(edge.sourceId);
+      const target = positions.get(edge.targetId);
+      if (source && target) path.push(`M${source.x},${source.y}L${target.x},${target.y}`);
+    }
+    layer.element.setAttribute('d', path.join(''));
+  }
 }
 
 export function applyDraggedGraphNodePosition(
@@ -68,33 +89,30 @@ export function applyDraggedGraphNodePosition(
   position: { x: number; y: number },
 ) {
   if (!svg) return;
-  const node = getGraphPositionElements(svg).nodesById.get(id);
+  const elements = getGraphPositionElements(svg);
+  const node = elements.nodesById.get(id);
+  elements.positionsById.set(id, position);
   node?.element.setAttribute('transform', `translate(${position.x} ${position.y})`);
+  updateEdgePaths(svg, elements.positionsById, (layerId) => layerId === 'active');
 }
 
 export function applyGraphPositions(
   svg: SVGSVGElement | null,
   positions: GraphNodePositions,
-  updateEdges = true,
+  edgeUpdateMode: GraphEdgeUpdateMode = 'all',
 ) {
   if (!svg) return;
   const elements = getGraphPositionElements(svg);
   for (const node of elements.nodes) {
     const position = positions[node.id];
     if (!position) continue;
+    elements.positionsById.set(node.id, position);
     node.element.setAttribute('transform', `translate(${position.x} ${position.y})`);
   }
-  if (!updateEdges) return;
-  for (const layer of edgeLayersBySvg.get(svg)?.values() ?? []) {
-    if (!layer.element.isConnected) continue;
-    let path = '';
-    for (const edge of layer.edges) {
-      const source = positions[edge.sourceId];
-      const target = positions[edge.targetId];
-      if (source && target) {
-        path += `M${source.x},${source.y}L${target.x},${target.y}`;
-      }
-    }
-    layer.element.setAttribute('d', path);
-  }
+  if (edgeUpdateMode === 'none') return;
+  updateEdgePaths(
+    svg,
+    elements.positionsById,
+    edgeUpdateMode === 'active' ? (layerId) => layerId === 'active' : undefined,
+  );
 }

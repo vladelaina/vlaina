@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { themeGraphTokens } from '@/styles/themeTokens';
 import { GraphCanvasScene } from './canvas/GraphCanvasScene';
@@ -29,26 +29,46 @@ export function GraphCanvas(props: GraphCanvasProps) {
   const { t } = useI18n();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const graphRef = useRef(props.graph);
+  const forceFrameRef = useRef(0);
+  const userPositionedViewportRef = useRef(false);
+  const hoveredGraphRef = useRef(props.graph);
+  const hoverClearTimeoutRef = useRef<number | null>(null);
+  const suppressedHoverPathRef = useRef<string | null>(null);
+  const suppressHoverUntilPointerMoveRef = useRef(false);
   if (graphRef.current !== props.graph) {
     clearGraphPositionElements(svgRef.current);
     graphRef.current = props.graph;
+    forceFrameRef.current = 0;
+    userPositionedViewportRef.current = false;
+    suppressedHoverPathRef.current = null;
+    suppressHoverUntilPointerMoveRef.current = false;
   }
-  const forceFrameRef = useRef(0);
   const [forceLayoutVersion, setForceLayoutVersion] = useState(0);
+  const [labelsReadyGraph, setLabelsReadyGraph] = useState<PositionedNoteGraph | null>(null);
   const [dragPosition, setDragPosition] = useState<{
     id: string;
     position: GraphNodePosition;
   } | null>(null);
+  const dragPositionRef = useRef<typeof dragPosition>(null);
+  dragPositionRef.current = dragPosition;
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
+  const visibleHoveredPath = hoveredGraphRef.current === props.graph ? hoveredPath : null;
   const handlePositionsFrame = useCallback((positions: GraphNodePositions) => {
-    const updateEdges = forceFrameRef.current % themeGraphTokens.edgeAnimationFrameInterval === 0;
+    const updateAllEdges = forceFrameRef.current
+      % themeGraphTokens.edgeAnimationFrameInterval === 0;
+    const edgeUpdateMode = dragPositionRef.current
+      ? 'active'
+      : updateAllEdges ? 'all' : 'none';
     forceFrameRef.current += 1;
-    applyGraphPositions(svgRef.current, positions, updateEdges);
+    applyGraphPositions(svgRef.current, positions, edgeUpdateMode);
   }, []);
   const handlePositionsInitialized = useCallback(() => {
+    setLabelsReadyGraph(graphRef.current);
+    if (userPositionedViewportRef.current) return;
     setForceLayoutVersion((current) => current + 1);
   }, []);
   const forceSimulation = useGraphForceSimulation({
+    active: props.active !== false,
     dragPosition,
     graph: props.graph,
     onDraggedPositionFrame: (id, position) => {
@@ -59,6 +79,10 @@ export function GraphCanvas(props: GraphCanvasProps) {
     onPositionsInitialized: handlePositionsInitialized,
     positionOverrides: props.positionOverrides,
   });
+  const handlePositionCommit = useCallback((path: string, position: GraphNodePosition) => {
+    applyGraphPositions(svgRef.current, forceSimulation.positionsRef.current);
+    props.onPositionCommit(path, position);
+  }, [forceSimulation.positionsRef, props.onPositionCommit]);
   const geometry = useGraphCanvasGeometry({
     dragPosition,
     graph: props.graph,
@@ -75,7 +99,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
   const pointerInteractions = useGraphPointerInteractions({
     onDragPosition: forceSimulation.updateDragPosition,
     onOpenPath: props.onOpenPath,
-    onPositionCommit: props.onPositionCommit,
+    onPositionCommit: handlePositionCommit,
     onReleaseDrag: forceSimulation.releaseDragPosition,
     onSelectPath: props.onSelectPath,
     setDragPosition,
@@ -83,6 +107,75 @@ export function GraphCanvas(props: GraphCanvasProps) {
     svgRef,
     viewport: viewportController.viewport,
   });
+  const startNodeDrag = useCallback((
+    event: ReactPointerEvent<SVGGElement>,
+    path: string,
+    position: GraphNodePosition,
+  ) => {
+    userPositionedViewportRef.current = true;
+    pointerInteractions.startNodeDrag(event, path, position);
+  }, [pointerInteractions.startNodeDrag]);
+  const handleHoverChange = useCallback((path: string | null) => {
+    if (suppressHoverUntilPointerMoveRef.current && path) return;
+    if (hoverClearTimeoutRef.current !== null) {
+      window.clearTimeout(hoverClearTimeoutRef.current);
+      hoverClearTimeoutRef.current = null;
+    }
+    if (path) {
+      if (suppressedHoverPathRef.current === path) return;
+      hoveredGraphRef.current = graphRef.current;
+      setHoveredPath((current) => current === path ? current : path);
+      return;
+    }
+    hoverClearTimeoutRef.current = window.setTimeout(() => {
+      hoverClearTimeoutRef.current = null;
+      setHoveredPath(null);
+    }, themeGraphTokens.nodeHoverLeaveDelayMs);
+  }, []);
+  const handleFocusChange = useCallback((path: string) => {
+    suppressHoverUntilPointerMoveRef.current = false;
+    suppressedHoverPathRef.current = null;
+    handleHoverChange(path);
+  }, [handleHoverChange]);
+  const clearPointerHover = useCallback((draggedNodeId: string | null) => {
+    suppressHoverUntilPointerMoveRef.current = true;
+    suppressedHoverPathRef.current = draggedNodeId;
+    if (hoverClearTimeoutRef.current !== null) {
+      window.clearTimeout(hoverClearTimeoutRef.current);
+      hoverClearTimeoutRef.current = null;
+    }
+    setHoveredPath(null);
+  }, []);
+  const finishPointerInteraction = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    const draggedNodeId = pointerInteractions.getDraggedNodeId();
+    pointerInteractions.finishDrag(event);
+    clearPointerHover(draggedNodeId);
+  }, [clearPointerHover, pointerInteractions]);
+  const cancelPointerInteraction = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    const draggedNodeId = pointerInteractions.getDraggedNodeId();
+    pointerInteractions.cancelDrag(event);
+    clearPointerHover(draggedNodeId);
+  }, [clearPointerHover, pointerInteractions]);
+  const handlePointerMove = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    pointerInteractions.handlePointerMove(event);
+    if (suppressHoverUntilPointerMoveRef.current) {
+      suppressHoverUntilPointerMoveRef.current = false;
+      suppressedHoverPathRef.current = null;
+      return;
+    }
+    const suppressedPath = suppressedHoverPathRef.current;
+    if (!suppressedPath) return;
+    const target = event.target;
+    const hoveredNode = target instanceof Element
+      ? target.closest<SVGGElement>('[data-graph-node-position]')
+      : null;
+    if (hoveredNode?.dataset.graphNodePosition !== suppressedPath) {
+      suppressedHoverPathRef.current = null;
+    }
+  }, [pointerInteractions]);
+  useEffect(() => () => {
+    if (hoverClearTimeoutRef.current !== null) window.clearTimeout(hoverClearTimeoutRef.current);
+  }, []);
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
@@ -92,22 +185,33 @@ export function GraphCanvas(props: GraphCanvasProps) {
         aria-label={t('app.viewGraph')}
         className="h-full w-full touch-none cursor-grab select-none"
         onPointerDown={pointerInteractions.startPan}
-        onPointerMove={pointerInteractions.handlePointerMove}
-        onPointerUp={pointerInteractions.finishDrag}
-        onPointerCancel={pointerInteractions.finishDrag}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishPointerInteraction}
+        onPointerCancel={cancelPointerInteraction}
+        onPointerLeave={() => {
+          if (hoverClearTimeoutRef.current !== null) {
+            window.clearTimeout(hoverClearTimeoutRef.current);
+            hoverClearTimeoutRef.current = null;
+          }
+          suppressHoverUntilPointerMoveRef.current = false;
+          suppressedHoverPathRef.current = null;
+          setHoveredPath(null);
+        }}
         onWheel={viewportController.handleWheel}
       >
         <GraphCanvasScene
           connectedToSelected={geometry.connectedToSelected}
           dragPositionId={dragPosition?.id ?? null}
           edges={geometry.edges}
-          hoveredPath={hoveredPath}
+          hoveredPath={visibleHoveredPath}
+          labelsReady={labelsReadyGraph === props.graph}
           nodes={geometry.nodes}
-          onHoverChange={setHoveredPath}
+          onHoverChange={handleHoverChange}
+          onFocusChange={handleFocusChange}
           onOpen={props.onOpenPath}
-          onPositionCommit={props.onPositionCommit}
+          onPositionCommit={handlePositionCommit}
           onSelect={props.onSelectPath}
-          onStartDrag={pointerInteractions.startNodeDrag}
+          onStartDrag={startNodeDrag}
           selectedPath={props.selectedPath}
           viewport={viewportController.viewport}
         />

@@ -37,7 +37,6 @@ export function GraphView({
   const loading = useGraphNoteScan({ onPrimaryContentReady, onStartupReady });
 
   const {
-    fallbackFocusPath,
     focusPath,
     fullGraph,
     selectedPath,
@@ -49,10 +48,9 @@ export function GraphView({
   );
 
   useEffect(() => {
-    if (selectedPath && fullGraph.nodes.some((node) => node.id === selectedPath)) return;
-    if (selectedPath === fallbackFocusPath) return;
-    setSelectedPath(fallbackFocusPath);
-  }, [fallbackFocusPath, fullGraph.nodes, selectedPath, setSelectedPath]);
+    if (!selectedPath || fullGraph.nodes.some((node) => node.id === selectedPath)) return;
+    setSelectedPath(null);
+  }, [fullGraph.nodes, selectedPath, setSelectedPath]);
 
   const handleOpenNode = useCallback(async (path: string) => {
     await openNote(path);
@@ -91,7 +89,7 @@ export function GraphView({
           active={active}
           graph={layout}
           positionOverrides={positionOverrides}
-          selectedPath={focusPath}
+          selectedPath={selectedPath}
           onSelectPath={setSelectedPath}
           onOpenPath={(path) => void handleOpenNode(path)}
           onPositionCommit={handlePositionCommit}

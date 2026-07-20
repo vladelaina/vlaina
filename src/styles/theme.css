@@ -940,20 +940,20 @@
   --vlaina-color-row-soft: rgb(244 244 245 / 0.4);
   --vlaina-color-whiteboard-canvas: var(--vlaina-color-surface-main);
   --vlaina-color-graph-canvas: var(--vlaina-color-surface-main);
-  --vlaina-color-graph-edge: var(--vlaina-color-text-tertiary);
+  --vlaina-color-graph-edge: var(--vlaina-sidebar-row-selected-text-muted);
   --vlaina-color-graph-edge-active: var(--vlaina-sidebar-row-selected-text);
-  --vlaina-color-graph-node: var(--vlaina-color-text-muted);
+  --vlaina-color-graph-node: var(--vlaina-sidebar-row-selected-text-soft);
   --vlaina-color-graph-node-active: var(--vlaina-sidebar-row-selected-text);
-  --vlaina-color-graph-node-related: color-mix(in srgb, var(--vlaina-sidebar-row-selected-text) 58%, var(--vlaina-color-text-muted));
+  --vlaina-color-graph-node-related: var(--vlaina-color-graph-node-active);
   --vlaina-color-graph-node-ring: var(--vlaina-color-surface-main);
   --vlaina-color-graph-node-ring-active: var(--vlaina-sidebar-row-selected-bg);
   --vlaina-color-graph-label: var(--vlaina-color-text-primary);
   --vlaina-color-graph-controls-bg: var(--vlaina-bg-secondary);
   --vlaina-color-graph-controls-hover: var(--vlaina-hover);
   --vlaina-motion-graph-node-enter-duration: 180ms;
-  --vlaina-motion-graph-node-enter-stagger: 2ms;
-  --vlaina-motion-graph-edge-enter-delay: 90ms;
-  --vlaina-motion-graph-edge-enter-duration: 280ms;
+  --vlaina-motion-graph-node-enter-stagger: 3ms;
+  --vlaina-motion-graph-edge-enter-delay: 0ms;
+  --vlaina-motion-graph-edge-enter-duration: 240ms;
   --vlaina-motion-graph-enter-easing: cubic-bezier(0.22, 1, 0.36, 1);
   --vlaina-motion-graph-interaction-duration: 140ms;
   --vlaina-motion-graph-label-duration: 120ms;
@@ -1227,12 +1227,17 @@
   transform-origin: center;
   transition:
     transform var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing),
+    opacity var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing),
     fill var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing),
     stroke var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing);
 }
 
 .vlaina-graph-edge-active {
   transition: opacity var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing);
+}
+
+.vlaina-graph-edge-base {
+  transition: stroke-opacity var(--vlaina-motion-graph-interaction-duration) var(--vlaina-motion-graph-enter-easing);
 }
 
 .vlaina-graph-label-enter {
@@ -1244,6 +1249,13 @@
   animation-delay: var(--vlaina-motion-graph-edge-enter-delay);
 }
 
+[data-graph-active="false"] .vlaina-graph-node-enter,
+[data-graph-active="false"] .vlaina-graph-node-dot-enter,
+[data-graph-active="false"] .vlaina-graph-label-enter,
+[data-graph-active="false"] .vlaina-graph-edge-enter {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vlaina-graph-node-enter,
   .vlaina-graph-node-dot-enter,
@@ -1252,6 +1264,7 @@
     animation: none;
   }
   .vlaina-graph-node-dot,
+  .vlaina-graph-edge-base,
   .vlaina-graph-edge-active {
     transition: none;
   }
