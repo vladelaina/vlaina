@@ -556,6 +556,9 @@ export const themeBackdropTokens = {
 } as const;
 
 export const themeSidebarTokens = {
+  defaultViewportRatio: 0.28,
+  defaultMinWidthPx: 280,
+  defaultMaxWidthPx: 420,
   width: 'var(--vlaina-width-sidebar-default)',
   mobileWidth: 'var(--vlaina-width-sidebar-mobile)',
   iconWidth: 'var(--vlaina-width-sidebar-icon)',
@@ -826,9 +829,6 @@ export const themeFileTreeTokens = {
   virtualRowHorizontalChromePx: 72,
   virtualRowDepthIndentPx: 12,
   virtualRowAverageCharacterWidthPx: 8,
-  sidebarRowHorizontalChromePx: 136,
-  sidebarRowDepthIndentPx: 16,
-  sidebarMeasuredTextSafetyPx: 16,
 } as const;
 
 export const themeChatStreamTokens = {

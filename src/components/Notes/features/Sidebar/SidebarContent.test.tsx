@@ -342,7 +342,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
   });
 
-  it('widens the sidebar when a loaded file name needs more room', async () => {
+  it('keeps the startup width when a loaded file name needs more room', async () => {
     render(
       <SidebarContent
         rootFolder={{
@@ -365,10 +365,8 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(hoisted.uiState.setSidebarWidth).toHaveBeenCalledWith(expect.any(Number));
-    });
-    expect(hoisted.uiState.setSidebarWidth.mock.calls[0][0]).toBeGreaterThan(270);
+    await act(async () => undefined);
+    expect(hoisted.uiState.setSidebarWidth).not.toHaveBeenCalled();
   });
 
   it('does not resize when a long file name arrives after the initial calculation', async () => {
