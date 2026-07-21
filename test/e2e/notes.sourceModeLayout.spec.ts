@@ -441,8 +441,53 @@ test.describe('notes source mode layout', () => {
       await toggleSourceModeWithShortcut(page, 'source');
       const sourceEditor = page.locator(SOURCE_EDITOR_SELECTOR);
       await expect(sourceEditor).toBeVisible({ timeout: 10_000 });
+      await expect(sourceEditor).toBeFocused({ timeout: 10_000 });
       await expect.poll(() => getSourceEditorValue(page), { timeout: 10_000 })
         .toContain('# Alpha Source Audit');
+
+      const sourceCaretAudit = await sourceEditor.evaluate((element) => {
+        const textarea = element as HTMLTextAreaElement;
+        const firstLineStart = textarea.value.indexOf('- first item');
+        const secondLineStart = textarea.value.indexOf('- second item');
+        if (firstLineStart < 0 || secondLineStart < 0) {
+          throw new Error('Source caret audit lines were not found');
+        }
+        textarea.setSelectionRange(firstLineStart + 4, firstLineStart + 4);
+        document.dispatchEvent(new Event('vlaina:native-caret-overlay-refresh'));
+        const pageDownEvent = new KeyboardEvent('keydown', {
+          key: 'PageDown',
+          bubbles: true,
+          cancelable: true,
+        });
+        textarea.dispatchEvent(pageDownEvent);
+        return {
+          caretColor: getComputedStyle(textarea).caretColor,
+          firstLineStart,
+          hasCustomCaret: Boolean(document.querySelector('.native-caret-overlay')),
+          pageDownPrevented: pageDownEvent.defaultPrevented,
+          secondLineStart,
+        };
+      });
+      expect(sourceCaretAudit.caretColor).not.toBe('transparent');
+      expect(sourceCaretAudit.hasCustomCaret).toBe(false);
+      expect(sourceCaretAudit.pageDownPrevented).toBe(false);
+
+      await page.keyboard.press('ArrowRight');
+      await expect.poll(() => sourceEditor.evaluate((element) => (element as HTMLTextAreaElement).selectionStart))
+        .toBe(sourceCaretAudit.firstLineStart + 5);
+      await page.keyboard.press('ArrowLeft');
+      await expect.poll(() => sourceEditor.evaluate((element) => (element as HTMLTextAreaElement).selectionStart))
+        .toBe(sourceCaretAudit.firstLineStart + 4);
+      await page.keyboard.press('ArrowDown');
+      await expect.poll(() => sourceEditor.evaluate((element) => (element as HTMLTextAreaElement).selectionStart))
+        .toBe(sourceCaretAudit.secondLineStart + 4);
+      await page.keyboard.press('ArrowUp');
+      await expect.poll(() => sourceEditor.evaluate((element) => (element as HTMLTextAreaElement).selectionStart))
+        .toBe(sourceCaretAudit.firstLineStart + 4);
+
+      await sourceEditor.evaluate((element) => (element as HTMLTextAreaElement).blur());
+      await sourceEditor.click({ position: { x: 80, y: 16 } });
+      await expect(sourceEditor).toBeFocused();
 
       await sourceEditor.focus();
       await page.keyboard.press('Control+Shift+/');
@@ -481,6 +526,7 @@ test.describe('notes source mode layout', () => {
 
       await toggleSourceModeFromMoreMenu(page, 'source');
       await expect(sourceEditor).toBeVisible({ timeout: 10_000 });
+      await expect(sourceEditor).toBeFocused({ timeout: 10_000 });
       await expect.poll(() => getSourceEditorValue(page), { timeout: 10_000 })
         .toContain(compositionText);
 
