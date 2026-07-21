@@ -1,4 +1,4 @@
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { collapseSelectionAndHideFloatingToolbar } from '../clipboard/copyCleanup';
 import { deleteSelectedBlocks } from '../cursor/blockSelectionCommands';
@@ -52,7 +52,12 @@ function deleteSelectionRange(view: EditorView, from: number, to: number) {
   }
 
   const nextPos = Math.max(0, Math.min(from, tr.doc.content.size));
-  tr.setSelection(TextSelection.create(tr.doc, nextPos));
+  const $nextPos = tr.doc.resolve(nextPos);
+  tr.setSelection(
+    $nextPos.parent.inlineContent
+      ? TextSelection.create(tr.doc, nextPos)
+      : Selection.near($nextPos, -1)
+  );
   tr.setMeta(floatingToolbarKey, {
     type: TOOLBAR_ACTIONS.HIDE,
   });

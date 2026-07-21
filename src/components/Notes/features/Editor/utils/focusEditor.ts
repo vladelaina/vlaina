@@ -71,8 +71,7 @@ function shouldUseTextblockAsFirstLineTarget(node: {
 
 function canCreateCollapsedTextSelection(view: EditorView, pos: number): boolean {
   try {
-    TextSelection.create(view.state.doc, pos);
-    return true;
+    return view.state.doc.resolve(pos).parent.inlineContent;
   } catch {
     return false;
   }
@@ -198,10 +197,11 @@ function focusSelectionAtFirstLineEnd(view: EditorView): void {
   const textSelectionPos = resolveFirstTextblockLineEndPos(view);
   let selection: Selection = createDocumentStartTextSelection(view.state.doc);
   if (textSelectionPos !== null) {
-    try {
+    const $textSelectionPos = view.state.doc.resolve(textSelectionPos);
+    if ($textSelectionPos.parent.inlineContent) {
       selection = TextSelection.create(view.state.doc, textSelectionPos);
-    } catch {
-      selection = Selection.near(view.state.doc.resolve(textSelectionPos), -1);
+    } else {
+      selection = Selection.near($textSelectionPos, -1);
     }
   }
 

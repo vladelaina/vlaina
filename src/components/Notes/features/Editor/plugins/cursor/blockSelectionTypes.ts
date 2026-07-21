@@ -8,6 +8,8 @@ export interface RectBounds {
 export interface BlockRect extends RectBounds {
   from: number;
   to: number;
+  /** Exact caret edges when the selectable block range includes structural inline nodes. */
+  caretRange?: BlockRange;
   contentLeft?: number;
   contentRight?: number;
   contentLineRects?: RectBounds[];

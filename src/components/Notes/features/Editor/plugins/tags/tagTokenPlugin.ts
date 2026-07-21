@@ -260,6 +260,7 @@ export const tagTokenPlugin = $prose(() => new Plugin({
 
         try {
           const pos = view.posAtDOM(edge.textNode, edge.offset);
+          if (!view.state.doc.resolve(pos).parent.inlineContent) return false;
           view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)).scrollIntoView());
           view.focus();
           event.preventDefault();

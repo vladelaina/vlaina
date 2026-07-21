@@ -252,6 +252,7 @@ async function getWrappedLineClickTarget(page: Page, lineIndex: number): Promise
   x: number;
   y: number;
   expectedOffset: number;
+  expectedPos: number;
   lineCount: number;
   lineRect: { top: number; bottom: number; left: number; right: number };
 } | null> {
@@ -281,25 +282,21 @@ async function getWrappedLineClickTarget(page: Page, lineIndex: number): Promise
     }
 
     const lineRect = lineRects[lineIndex]!;
-    let expectedOffset = 0;
-    for (let offset = 0; offset < textNode.textContent.length; offset += 1) {
-      const range = document.createRange();
-      range.setStart(textNode, offset);
-      range.setEnd(textNode, offset + 1);
-      const rect = range.getBoundingClientRect();
-      range.detach();
-      if (rect.width <= 0 || rect.height <= 0) continue;
-      const centerY = rect.top + rect.height / 2;
-      if (centerY >= lineRect.top - 1 && centerY <= lineRect.bottom + 1) {
-        expectedOffset = offset + 1;
-      }
-    }
-
     const editorRect = editor.getBoundingClientRect();
+    const x = editorRect.right - 8;
+    const y = (lineRect.top + lineRect.bottom) / 2;
+    const bridge = (window as any).__vlainaE2E;
+    const expectedPos = bridge.getEditorPositionAtPoint(x, y) as number | null;
+    const textRange = bridge.getEditorTextRange('WRAP_AUDIT_START') as {
+      from: number;
+      to: number;
+    } | null;
+    if (expectedPos === null || textRange === null) return null;
     return {
-      x: editorRect.right - 8,
-      y: (lineRect.top + lineRect.bottom) / 2,
-      expectedOffset,
+      x,
+      y,
+      expectedOffset: expectedPos - textRange.from,
+      expectedPos,
       lineCount: lineRects.length,
       lineRect,
     };
@@ -373,8 +370,29 @@ test.describe('notes line click input audit', () => {
             .toBeGreaterThanOrEqual(3);
 
           const marker = `WRAP_MARK_${lineIndex + 1}`;
+          const focused = await page.evaluate(({ x, y }) => (
+            (window as any).__vlainaE2E.focusEditorAtPoint(x, y)
+          ), clickTarget!);
+          expect(focused, { clickTarget }).toBe(true);
+          const focusedSelection = await page.evaluate(() => (
+            (window as any).__vlainaE2E.getEditorSelectionSummary()
+          ));
+          expect(focusedSelection, { clickTarget }).toMatchObject({
+            empty: true,
+            from: clickTarget!.expectedPos,
+            to: clickTarget!.expectedPos,
+          });
+
           await page.mouse.click(clickTarget!.x, clickTarget!.y);
           await expectVisibleCaret(page, `wrapped visual line ${lineIndex + 1}`);
+          const selection = await page.evaluate(() => (
+            (window as any).__vlainaE2E.getEditorSelectionSummary()
+          ));
+          expect(selection, { clickTarget }).toMatchObject({
+            empty: true,
+            from: clickTarget!.expectedPos,
+            to: clickTarget!.expectedPos,
+          });
           await page.keyboard.type(marker);
           await waitForEditorAnimationFrame(page);
 
@@ -392,8 +410,7 @@ test.describe('notes line click input audit', () => {
           }, { marker });
 
           expect(result.markerIndex, { clickTarget, result }).toBeGreaterThanOrEqual(0);
-          expect(Math.abs(result.markerIndex - clickTarget!.expectedOffset), { clickTarget, result })
-            .toBeLessThanOrEqual(24);
+          expect(result.markerIndex, { clickTarget, result }).toBe(clickTarget!.expectedOffset);
           expect(result.finalHasMarker, { clickTarget, result }).toBe(false);
         });
       }

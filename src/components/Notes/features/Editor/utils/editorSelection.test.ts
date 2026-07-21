@@ -64,4 +64,19 @@ describe('syncEditorSelectionFromDOM', () => {
     outside.remove();
     dom.remove();
   });
+
+  it('does not create a text selection from a structural DOM boundary', () => {
+    const { dispatch, dom, view } = createView();
+    const selection = document.getSelection()!;
+    const range = document.createRange();
+    range.setStart(dom, 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    view.posAtDOM = vi.fn(() => 0);
+
+    expect(syncEditorSelectionFromDOM(view as never)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+    dom.remove();
+  });
 });

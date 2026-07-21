@@ -44,7 +44,7 @@ function createView(selection = { empty: true, from: 0, to: 0 }): EditorView {
     content: {
       size: 100,
     },
-    resolve: vi.fn((pos: number) => ({ pos })),
+    resolve: vi.fn((pos: number) => ({ pos, parent: { inlineContent: true } })),
   };
   const tr = {
     doc,

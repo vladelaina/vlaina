@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/kit/core';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
 import {
   MAX_SELECTED_CODE_BLOCK_DOM_SCAN_NODES,
   createToolbarActionController,
@@ -220,6 +223,34 @@ describe('toolbarActions copy feedback', () => {
     expect(view.dispatch).not.toHaveBeenCalled();
 
     controller.destroy();
+  });
+
+  it('moves to the preceding text endpoint after deleting a final heading', async () => {
+    const editor = Editor.make()
+      .config((ctx) => ctx.set(defaultValueCtx, 'Before\n\n# Heading'))
+      .use(commonmark);
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    let headingFrom = -1;
+    let headingTo = -1;
+    view.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'heading') return true;
+      headingFrom = pos + 1;
+      headingTo = headingFrom + node.content.size;
+      return false;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, headingFrom, headingTo)));
+    const controller = createToolbarActionController(() => null);
+
+    await controller.handleAction(view, 'delete');
+
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent.inlineContent).toBe(true);
+    expect(view.state.selection.from).toBe(view.state.doc.content.size - 1);
+
+    controller.destroy();
+    await editor.destroy();
   });
 });
 

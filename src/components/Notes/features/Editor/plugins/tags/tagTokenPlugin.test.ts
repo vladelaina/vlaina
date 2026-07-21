@@ -358,4 +358,45 @@ describe('tagTokenPlugin', () => {
 
     createRangeSpy.mockRestore();
   });
+
+  it('does not create a text selection from a structural tag DOM position', async () => {
+    const editor = await createEditor('Use #project');
+    const view = editor.ctx.get(editorViewCtx);
+    const token = view.dom.querySelector<HTMLElement>('[data-editor-tag-token="true"]');
+    expect(token).not.toBeNull();
+    const createRangeSpy = vi.spyOn(document, 'createRange').mockReturnValue({
+      selectNodeContents: vi.fn(),
+      getClientRects: () => ({
+        length: 1,
+        item: () => ({
+          left: 10,
+          right: 90,
+          top: 20,
+          bottom: 40,
+          width: 80,
+          height: 20,
+        } as DOMRect),
+      }),
+      detach: vi.fn(),
+    } as unknown as Range);
+    vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
+    const dispatch = vi.spyOn(view, 'dispatch');
+    const event = new MouseEvent('click', {
+      button: 0,
+      cancelable: true,
+      clientX: 88,
+      clientY: 30,
+    });
+    Object.defineProperty(event, 'target', { value: token });
+    let handled = false;
+
+    view.someProp('handleDOMEvents', (handlers) => {
+      handled = handlers.click?.(view, event) ?? handled;
+    });
+
+    expect(handled).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+    createRangeSpy.mockRestore();
+    await editor.destroy();
+  });
 });

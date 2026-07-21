@@ -47,7 +47,7 @@ import {
 } from './blankAreaDragBoxPlainClicks';
 import { createBlankAreaDragBoxPluginView } from './blankAreaDragBoxPluginView';
 import { createBlankAreaDragBoxPluginProps } from './blankAreaDragBoxPluginProps';
-import { resolveListParagraphEndPlainClick } from './listParagraphEndPlainClick';
+import { resolveTextblockLineEndPlainClick } from './listParagraphEndPlainClick';
 
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 export { shouldClearBlockSelectionForTransaction } from './blankAreaDragBoxState';
@@ -132,8 +132,8 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           : CLEAR_BLOCKS_ACTION);
       },
       onPlainClick({ zone, action, clientX, clientY }) {
-        const paragraphEndAction = resolveListParagraphEndPlainClick(view, event);
-        const resolvedAction = paragraphEndAction ?? action;
+        const textblockLineEndAction = resolveTextblockLineEndPlainClick(view, event);
+        const resolvedAction = textblockLineEndAction ?? action;
         if (zone === 'below-last-block') {
           dispatchTailBlankClickAction(view);
           return;
@@ -146,7 +146,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           clearBlockSelection(view);
           return;
         }
-        if (paragraphEndAction) {
+        if (textblockLineEndAction) {
           dispatchBlankAreaPlainClick(view, resolvedAction);
           return;
         }

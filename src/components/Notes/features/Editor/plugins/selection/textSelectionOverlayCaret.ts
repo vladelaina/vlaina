@@ -1,22 +1,42 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { PointerCaretTarget } from './textSelectionOverlayViewTypes';
 
+function isInlineCaretTarget(view: EditorView, target: PointerCaretTarget): boolean {
+  try {
+    if (target.doc && target.doc !== view.state.doc) return false;
+    const pos = Math.max(0, Math.min(view.state.doc.content.size, target.pos));
+    return view.state.doc.resolve(pos).parent.inlineContent;
+  } catch {
+    return false;
+  }
+}
+
 export function getDomCaretTarget(
   view: EditorView,
   target: PointerCaretTarget
 ): PointerCaretTarget | null {
+  const nextPos = Math.max(0, Math.min(view.state.doc.content.size, target.pos));
+  if (!isInlineCaretTarget(view, { ...target, pos: nextPos })) {
+    return null;
+  }
+
   if (target.node && target.offset !== undefined && view.dom.contains(target.node)) {
-    return target;
+    try {
+      if (view.posAtDOM(target.node, target.offset) === nextPos) {
+        return { ...target, pos: nextPos };
+      }
+    } catch {
+    }
   }
 
   try {
-    const nextPos = Math.max(0, Math.min(view.state.doc.content.size, target.pos));
     const domTarget = view.domAtPos(nextPos);
     if (domTarget.node !== view.dom && !view.dom.contains(domTarget.node)) {
       return null;
     }
 
     return {
+      doc: view.state.doc,
       node: domTarget.node,
       offset: domTarget.offset,
       pos: nextPos,
@@ -117,6 +137,7 @@ function getTextNodeCaretTargetFromPoint(
   if (best.horizontalDistance > 8) return null;
   try {
     return {
+      doc: view.state.doc,
       node: best.node,
       offset: best.offset,
       pos: view.posAtDOM(best.node, best.offset),
@@ -135,7 +156,7 @@ export function getCaretTargetFromPoint(
     caretRangeFromPoint?: (x: number, y: number) => Range | null;
   };
   const textNodeTarget = getTextNodeCaretTargetFromPoint(view, event);
-  if (textNodeTarget !== null) {
+  if (textNodeTarget !== null && isInlineCaretTarget(view, textNodeTarget)) {
     return textNodeTarget;
   }
 
@@ -148,11 +169,13 @@ export function getCaretTargetFromPoint(
 
   if (node && offset !== null && view.dom.contains(node)) {
     try {
-      return {
+      const target = {
+        doc: view.state.doc,
         node,
         offset,
         pos: view.posAtDOM(node, offset),
       };
+      return isInlineCaretTarget(view, target) ? target : null;
     } catch {
     }
   }

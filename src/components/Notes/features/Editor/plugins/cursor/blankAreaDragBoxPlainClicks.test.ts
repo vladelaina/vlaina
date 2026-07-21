@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveListParagraphEndPlainClick } from './listParagraphEndPlainClick';
+import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
+import { TextSelection } from '@milkdown/kit/prose/state';
+import { resolveTextblockLineEndPlainClick } from './listParagraphEndPlainClick';
+import { clearTextSelectionForDragSession } from './blankAreaDragBoxPlainClicks';
 
 function createHarness(nextContent: 'paragraph' | 'list' | 'none' = 'paragraph') {
   const editor = document.createElement('div');
@@ -46,11 +51,11 @@ function createHarness(nextContent: 'paragraph' | 'list' | 'none' = 'paragraph')
   return { editor, event, view };
 }
 
-describe('resolveListParagraphEndPlainClick', () => {
+describe('resolveTextblockLineEndPlainClick', () => {
   it('targets the current paragraph end before a following pasted list paragraph', () => {
     const { editor, event, view } = createHarness();
 
-    expect(resolveListParagraphEndPlainClick(view, event)).toEqual({
+    expect(resolveTextblockLineEndPlainClick(view, event)).toEqual({
       targetPos: 30,
       bias: -1,
       blockFrom: 2,
@@ -62,7 +67,7 @@ describe('resolveListParagraphEndPlainClick', () => {
   it.each(['none', 'list'] as const)('targets the paragraph end when followed by %s', (nextContent) => {
     const { editor, event, view } = createHarness(nextContent);
 
-    expect(resolveListParagraphEndPlainClick(view, event)).toEqual({
+    expect(resolveTextblockLineEndPlainClick(view, event)).toEqual({
       targetPos: 30,
       bias: -1,
       blockFrom: 2,
@@ -71,10 +76,172 @@ describe('resolveListParagraphEndPlainClick', () => {
     editor.remove();
   });
 
+  it.each(['hardbreak', 'hard_break'] as const)(
+    'targets a non-final textblock line end before %s',
+    (breakName) => {
+      const { editor, event, view } = createHarness();
+      const parentSize = 36;
+      view.state.doc.resolve.mockReturnValue({
+        depth: 3,
+        parent: {
+          isTextblock: true,
+          content: { size: parentSize },
+          type: { name: 'paragraph' },
+        },
+        parentOffset: 29,
+        nodeAfter: { type: { name: breakName } },
+        before: vi.fn(() => 2),
+      });
+
+      expect(resolveTextblockLineEndPlainClick(view, event)).toEqual({
+        targetPos: 30,
+        bias: -1,
+        blockFrom: 2,
+      });
+
+      editor.remove();
+    }
+  );
+
+  it('targets a hard-break line end inside a non-list nested textblock', () => {
+    const { editor, event, view } = createHarness();
+    const paragraph = editor.querySelector('p');
+    const blockquote = document.createElement('blockquote');
+    blockquote.append(paragraph!);
+    editor.replaceChildren(blockquote);
+    view.state.doc.resolve.mockReturnValue({
+      depth: 2,
+      parent: {
+        isTextblock: true,
+        content: { size: 36 },
+        type: { name: 'paragraph' },
+      },
+      parentOffset: 29,
+      nodeAfter: { type: { name: 'hardbreak' } },
+      before: vi.fn(() => 2),
+    });
+
+    expect(resolveTextblockLineEndPlainClick(view, event)).toEqual({
+      targetPos: 30,
+      bias: -1,
+      blockFrom: 2,
+    });
+
+    editor.remove();
+  });
+
+  it('resolves the textblock line when the blank surface target is its list item', () => {
+    const { editor, event, view } = createHarness();
+    const listItem = editor.querySelector('li');
+    Object.defineProperty(event, 'target', { configurable: true, value: listItem });
+    view.state.doc.resolve.mockReturnValue({
+      depth: 3,
+      parent: {
+        isTextblock: true,
+        content: { size: 36 },
+        type: { name: 'paragraph' },
+      },
+      parentOffset: 29,
+      nodeAfter: { type: { name: 'hardbreak' } },
+      before: vi.fn(() => 2),
+    });
+
+    expect(resolveTextblockLineEndPlainClick(view, event)).toEqual({
+      targetPos: 30,
+      bias: -1,
+      blockFrom: 2,
+    });
+
+    editor.remove();
+  });
+
+  it('keeps the exact browser position at an ordinary wrapped-line end', () => {
+    const { editor, event, view } = createHarness();
+    view.state.doc.resolve.mockReturnValue({
+      depth: 3,
+      parent: {
+        isTextblock: true,
+        content: { size: 36 },
+        type: { name: 'paragraph' },
+      },
+      parentOffset: 29,
+      nodeAfter: { type: { name: 'text' } },
+      before: vi.fn(() => 2),
+    });
+
+    expect(resolveTextblockLineEndPlainClick(view, event)).toEqual({
+      targetPos: 30,
+      bias: -1,
+      blockFrom: 2,
+    });
+    editor.remove();
+  });
+
+  it('keeps an exact line-end position from the same editor external gutter', () => {
+    const { editor, event, view } = createHarness();
+    const externalBlank = document.createElement('div');
+    document.body.appendChild(externalBlank);
+    Object.defineProperty(event, 'target', { configurable: true, value: externalBlank });
+
+    expect(resolveTextblockLineEndPlainClick(view, event)).toEqual({
+      targetPos: 30,
+      bias: -1,
+      blockFrom: 2,
+    });
+
+    externalBlank.remove();
+    editor.remove();
+  });
+
+  it('leaves interactive targets to their own pointer handlers', () => {
+    const { editor, event, view } = createHarness();
+    const button = document.createElement('button');
+    editor.appendChild(button);
+    Object.defineProperty(event, 'target', { configurable: true, value: button });
+
+    expect(resolveTextblockLineEndPlainClick(view, event)).toBeNull();
+
+    editor.remove();
+  });
+
   it('leaves text clicks to native selection', () => {
     const finalParagraph = createHarness('none');
     Object.defineProperty(finalParagraph.event, 'clientX', { configurable: true, value: 484 });
-    expect(resolveListParagraphEndPlainClick(finalParagraph.view, finalParagraph.event)).toBeNull();
+    expect(resolveTextblockLineEndPlainClick(finalParagraph.view, finalParagraph.event)).toBeNull();
     finalParagraph.editor.remove();
+  });
+});
+
+describe('clearTextSelectionForDragSession', () => {
+  it('keeps the collapsed caret at an exact hard-break line edge', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, 'Alpha  \nBeta');
+      })
+      .use(commonmark)
+      .use(gfm);
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      let hardBreakPos: number | null = null;
+      view.state.doc.descendants((node, pos) => {
+        if (node.type.name !== 'hardbreak' && node.type.name !== 'hard_break') return true;
+        hardBreakPos = pos;
+        return false;
+      });
+      expect(hardBreakPos).not.toBeNull();
+
+      view.dispatch(view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, hardBreakPos!, hardBreakPos! + 1)
+      ));
+      clearTextSelectionForDragSession(view);
+
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.from).toBe(hardBreakPos);
+      expect(view.state.selection.to).toBe(hardBreakPos);
+    } finally {
+      await editor.destroy();
+    }
   });
 });

@@ -182,6 +182,9 @@ export interface E2EBridge {
     timings?: Record<string, number>;
   }>;
   getEditorSelectionSummary(): EditorSelectionSummary | null;
+  getEditorPositionAtPoint(clientX: number, clientY: number): number | null;
+  getEditorTextRange(text: string, anchorText?: string): { from: number; to: number } | null;
+  focusEditorAtPoint(clientX: number, clientY: number): boolean;
   setEditorSelectionRange(from: number, to?: number): Promise<EditorSelectionSummary | null>;
   focusCurrentEditor(): Promise<boolean>;
   focusCurrentEditorAtEnd(): Promise<boolean>;

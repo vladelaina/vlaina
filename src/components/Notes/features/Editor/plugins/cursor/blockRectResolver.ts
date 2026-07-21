@@ -6,6 +6,7 @@ import {
   isTooLargeForBlockPositionSnapshot,
 } from '../../utils/editorBlockPositionCache';
 import { collectSelectableBlockTargets, type SelectableBlockTarget } from './blockUnitResolver';
+import { resolveInlineCaretRange } from './blockUnitRangeCollection';
 
 interface BlockRectResolverOptions {
   view: EditorView;
@@ -161,9 +162,11 @@ function collectSelectableBlockRects(view: EditorView): BlockRect[] {
 
   return targets.map(({ range, element, rect }) => {
     const contentBounds = resolveContentHorizontalBounds(element, rect);
+    const caretRange = resolveInlineCaretRange(view.state.doc, range);
     const blockRect = {
       from: range.from,
       to: range.to,
+      ...(caretRange ? { caretRange } : {}),
       left: useEditorHorizontalBounds ? editorRect.left : rect.left,
       top: rect.top,
       right: useEditorHorizontalBounds ? editorRect.right : rect.right,
