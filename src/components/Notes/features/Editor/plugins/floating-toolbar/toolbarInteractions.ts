@@ -17,6 +17,7 @@ import {
   COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS,
   PREVIEWED_DIRECT_APPLY_ACTIONS,
 } from './toolbarDirectApplyActions';
+import { hasUsableTextRange } from './selectionValidity';
 
 export { focusSelectedCodeBlockAfterDelete } from './toolbarActions';
 
@@ -43,7 +44,7 @@ export function createToolbarEventDelegation(
 
     if (currentView.state.selection.empty && currentState.selectionRange) {
       const { from, to } = currentState.selectionRange;
-      if (from < to && to <= currentView.state.doc.content.size) {
+      if (hasUsableTextRange(currentView.state.doc, from, to)) {
         try {
           currentView.dispatch(
             currentView.state.tr

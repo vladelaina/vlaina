@@ -72,6 +72,9 @@ function collapseEditorSelectionAtPointer(view: EditorView, event: MouseEvent): 
     let didSetSelection = false;
     for (const cursorPos of cursorPositions) {
         try {
+            if (!doc.resolve(cursorPos).parent.inlineContent) {
+                continue;
+            }
             tr.setSelection(TextSelection.create(doc, cursorPos));
             didSetSelection = true;
             break;

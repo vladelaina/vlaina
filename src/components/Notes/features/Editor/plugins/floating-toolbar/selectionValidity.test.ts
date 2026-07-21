@@ -147,6 +147,15 @@ describe('selectionValidity', () => {
     await editor.destroy();
   });
 
+  it('rejects a text-containing range whose endpoint is a structural boundary', async () => {
+    const editor = await createEditor('hello');
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(hasUsableTextRange(view.state.doc, 0, 6)).toBe(false);
+
+    await editor.destroy();
+  });
+
   it('rejects whitespace-only text selections', async () => {
     const editor = await createEditor('a   b');
     const view = editor.ctx.get(editorViewCtx);

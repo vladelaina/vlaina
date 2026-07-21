@@ -192,6 +192,42 @@ describe('installLinkTooltipEvents', () => {
         editorDom.remove();
     });
 
+    it('does not replay a link pointer position after the document changes', () => {
+        const { editorDom, handlers } = createHandlers();
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        editorDom.appendChild(link);
+        const { doc } = useTextSelectionCapableView(editorDom, handlers);
+        const cleanup = installLinkTooltipEvents(handlers);
+
+        link.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: 10,
+            clientY: 10,
+        }));
+        handlers.view.dispatch.mockClear();
+        handlers.view.state.doc = { ...doc };
+        const mouseUp = new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+        });
+
+        document.dispatchEvent(mouseUp);
+
+        expect(mouseUp.defaultPrevented).toBe(false);
+        expect(handlers.view.dispatch).not.toHaveBeenCalled();
+
+        cleanup();
+        editorDom.remove();
+    });
+
     it('shows editor link tooltips when a list item is the pointer target', () => {
         const { editorDom, handlers } = createHandlers();
         const listItem = document.createElement('li');
@@ -289,6 +325,35 @@ describe('installLinkTooltipEvents', () => {
         expect(handlers.hide).toHaveBeenCalledWith(true);
         expect(mouseDown.defaultPrevented).toBe(false);
         expect(blockSelectionStart).toHaveBeenCalledTimes(1);
+
+        cleanup();
+        editorDom.remove();
+    });
+
+    it('skips structural coordinate positions when closing the tooltip selection', () => {
+        const { editorDom, handlers } = createHandlers();
+        const text = document.createElement('span');
+        text.textContent = 'plain text';
+        editorDom.appendChild(text);
+        const { doc } = useTextSelectionCapableView(editorDom, handlers, () => 5);
+        doc.resolve.mockImplementation((pos: number) => ({
+            parent: { inlineContent: pos === 7 },
+        }));
+        handlers.view.state.selection = { empty: false, from: 1, to: 7 };
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        text.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: 10,
+            clientY: 10,
+        }));
+
+        expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 7);
+        expect(stateMocks.textSelectionCreate).not.toHaveBeenCalledWith(doc, 5);
+        expect(handlers.view.dispatch).toHaveBeenCalledTimes(1);
 
         cleanup();
         editorDom.remove();
@@ -492,7 +557,7 @@ describe('installLinkTooltipEvents', () => {
         const blankText = document.createElement('span');
         const doc = {
             content: { size: 40 },
-            resolve: vi.fn((pos: number) => ({ pos })),
+            resolve: vi.fn((pos: number) => ({ pos, parent: { inlineContent: true } })),
         };
         const tr = {
             doc,
@@ -545,18 +610,17 @@ describe('installLinkTooltipEvents', () => {
         const blankText = document.createElement('span');
         const doc = {
             content: { size: 40 },
-            resolve: vi.fn((pos: number) => ({ pos })),
+            resolve: vi.fn((pos: number) => ({
+                pos,
+                parent: { inlineContent: pos !== 39 },
+            })),
         };
         const tr = {
             doc,
             setMeta: vi.fn(() => tr),
             setSelection: vi.fn(() => tr),
         };
-        stateMocks.textSelectionCreate
-            .mockImplementationOnce(() => {
-                throw new Error('not a text cursor');
-            })
-            .mockReturnValue({ type: 'text-selection' });
+        stateMocks.textSelectionCreate.mockReturnValue({ type: 'text-selection' });
         handlers.view = {
             dom: editorDom,
             state: {
@@ -583,8 +647,8 @@ describe('installLinkTooltipEvents', () => {
             clientY: 11,
         }));
 
-        expect(stateMocks.textSelectionCreate).toHaveBeenNthCalledWith(1, doc, 39);
-        expect(stateMocks.textSelectionCreate).toHaveBeenNthCalledWith(2, doc, 8);
+        expect(stateMocks.textSelectionCreate).toHaveBeenCalledTimes(1);
+        expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 8);
         expect(tr.setSelection).toHaveBeenCalledWith({ type: 'text-selection' });
         expect(handlers.view.dispatch).toHaveBeenCalledWith(tr);
 

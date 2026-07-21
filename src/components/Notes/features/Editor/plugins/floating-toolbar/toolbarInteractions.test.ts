@@ -239,7 +239,7 @@ describe('toolbar interactions', () => {
       content: {
         size: 40,
       },
-      resolve: vi.fn((pos: number) => ({ pos })),
+      resolve: vi.fn((pos: number) => ({ pos, parent: { inlineContent: true } })),
     };
     const tr = {
       doc,
@@ -349,7 +349,7 @@ describe('toolbar interactions', () => {
       content: {
         size: 40,
       },
-      resolve: vi.fn((pos: number) => ({ pos })),
+      resolve: vi.fn((pos: number) => ({ pos, parent: { inlineContent: true } })),
     };
     const tr = {
       doc,

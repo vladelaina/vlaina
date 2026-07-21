@@ -7,6 +7,7 @@ import {
   focusCurrentEditorAtViewportPoint,
   type EditorViewportPoint,
 } from './features/Editor/utils/focusEditorAtPoint';
+import { getCurrentEditorNotePath } from './features/Editor/utils/editorViewRegistry';
 import {
   countNotesSplitPreviewLeaves,
   createInitialNotesSplitPaneTree,
@@ -152,6 +153,9 @@ export function useNotesSplitPanes(args: {
     const pending = pendingSplitEditorFocusRef.current;
     const latestPath = useNotesStore.getState().currentNote?.path ?? null;
     if (!pending || pending.path !== latestPath) {
+      return;
+    }
+    if (getCurrentEditorNotePath() !== pending.path) {
       return;
     }
 

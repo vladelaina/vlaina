@@ -146,6 +146,7 @@ export function startLinkTextSelectionSession(
         resolveLinkTextRootFromMouseEvent(view, event),
     );
     if (anchor === null) return false;
+    const sessionDoc = view.state.doc;
 
     const ownerDocument = view.dom.ownerDocument;
     const startX = event.clientX;
@@ -161,6 +162,7 @@ export function startLinkTextSelectionSession(
     };
 
     const extendSelection = (moveEvent: MouseEvent) => {
+        if (view.state.doc !== sessionDoc) return;
         const head = resolveEditorTextPositionAtPointer(
             view,
             moveEvent.clientX,
@@ -173,6 +175,10 @@ export function startLinkTextSelectionSession(
     };
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
+        if (view.state.doc !== sessionDoc) {
+            stop();
+            return;
+        }
         if ((moveEvent.buttons & 1) === 0) {
             stop();
             return;
@@ -191,6 +197,7 @@ export function startLinkTextSelectionSession(
 
     const handleMouseUp = (upEvent: MouseEvent) => {
         stop();
+        if (view.state.doc !== sessionDoc) return;
         upEvent.preventDefault();
         upEvent.stopPropagation();
         upEvent.stopImmediatePropagation();
@@ -198,7 +205,9 @@ export function startLinkTextSelectionSession(
         if (!moved) {
             dispatchEditorTextSelection(view, anchor, anchor, { hideFloatingToolbar: false });
             window.setTimeout(() => {
-                dispatchEditorTextSelection(view, anchor, anchor, { hideFloatingToolbar: false });
+                if (view.state.doc === sessionDoc) {
+                    dispatchEditorTextSelection(view, anchor, anchor, { hideFloatingToolbar: false });
+                }
             }, 0);
             return;
         }

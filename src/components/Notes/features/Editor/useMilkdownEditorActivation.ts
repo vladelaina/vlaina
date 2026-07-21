@@ -73,6 +73,10 @@ export function useMilkdownEditorActivation(args: {
       diskRevision: currentNoteDiskRevision,
       content: currentNoteContentRef.current,
     };
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+    if (getCurrentEditorView() === view) {
+      setCurrentEditorView(view, currentNotePath);
+    }
     onEditorViewReadyRef.current?.();
   }, [currentNoteDiskRevision, currentNotePath]);
 
@@ -103,7 +107,7 @@ export function useMilkdownEditorActivation(args: {
         return;
       }
 
-      setCurrentEditorView(view);
+      setCurrentEditorView(view, currentNotePath);
       setCurrentEditorBlockSelectionClearer(() => clearBlockSelection(view));
       if (!preserveStartupEditorPosition) {
         try {
@@ -171,6 +175,7 @@ export function useMilkdownEditorActivation(args: {
   }, [
     cleanupActivatedEditor,
     createUserInputMarker,
+    currentNotePath,
     preserveStartupEditorPosition,
   ]);
 

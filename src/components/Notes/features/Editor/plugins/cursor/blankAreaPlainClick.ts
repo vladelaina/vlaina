@@ -67,6 +67,11 @@ function resolveVisualLineHorizontalBias(block: BlockRect, clientX: number, clie
   return null;
 }
 
+function resolveBlockCaretPos(block: BlockRect, bias: 1 | -1): number {
+  if (bias === 1) return block.caretRange?.from ?? block.from + 1;
+  return block.caretRange?.to ?? Math.max(block.from + 1, block.to - 1);
+}
+
 function createListItemHeadTextSelection(
   doc: Transaction['doc'],
   itemFrom: number,
@@ -113,9 +118,7 @@ export function resolveBlankAreaPlainClickAction(args: {
 
   const bias = resolveVisualLineHorizontalBias(nearestBlock, clientX, clientY)
     ?? resolveHorizontalBias(nearestBlock, clientX);
-  const targetPos = bias === 1
-    ? nearestBlock.from + 1
-    : Math.max(nearestBlock.from + 1, nearestBlock.to - 1);
+  const targetPos = resolveBlockCaretPos(nearestBlock, bias);
 
   return {
     targetPos,
@@ -133,18 +136,20 @@ export function resolveInsideBlockTrailingPlainClickAction(args: {
   for (let index = 0; index < blockRects.length; index += 1) {
     const block = blockRects[index];
     if (!block.allowInsideTrailingClick) continue;
-    const trailingLine = resolveNearestVisualLine(block, clientY);
+    const trailingLine = isPointVerticallyInsideLine(block, clientY)
+      ? resolveNearestVisualLine(block, clientY)
+      : null;
     if (trailingLine) {
       if (clientX <= trailingLine.left - INSIDE_BLOCK_LEADING_LINE_CLICK_MIN_GAP_PX) {
         return {
-          targetPos: block.from + 1,
+          targetPos: resolveBlockCaretPos(block, 1),
           bias: 1,
           blockFrom: block.from,
         };
       }
       if (clientX < trailingLine.right + INSIDE_BLOCK_TRAILING_LINE_CLICK_MIN_GAP_PX) continue;
       return {
-        targetPos: Math.max(block.from + 1, block.to - 1),
+        targetPos: resolveBlockCaretPos(block, -1),
         bias: -1,
         blockFrom: block.from,
       };
@@ -159,7 +164,7 @@ export function resolveInsideBlockTrailingPlainClickAction(args: {
     if (!isInsideBlockOrGap) continue;
 
     return {
-      targetPos: Math.max(block.from + 1, block.to - 1),
+      targetPos: resolveBlockCaretPos(block, -1),
       bias: -1,
       blockFrom: block.from,
     };
@@ -200,5 +205,9 @@ export function applyBlankAreaPlainClickSelection(
   }
 
   const safePos = Math.max(0, Math.min(action.targetPos, docEnd));
-  return tr.setSelection(Selection.near(tr.doc.resolve(safePos), action.bias));
+  const $safePos = tr.doc.resolve(safePos);
+  if ($safePos.parent.inlineContent) {
+    return tr.setSelection(TextSelection.create(tr.doc, safePos));
+  }
+  return tr.setSelection(Selection.near($safePos, action.bias));
 }

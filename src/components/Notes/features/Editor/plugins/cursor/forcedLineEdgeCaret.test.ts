@@ -40,6 +40,47 @@ describe('forcedLineEdgeCaret', () => {
     expect((view.dom.ownerDocument as Document).createTreeWalker).not.toHaveBeenCalled();
   });
 
+  it('preserves the exact hard-break line target while refining its visual caret', () => {
+    const editorRoot = document.createElement('div');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Final line';
+    editorRoot.appendChild(paragraph);
+    document.body.appendChild(editorRoot);
+    const createRangeSpy = vi.spyOn(document, 'createRange').mockImplementation(() => ({
+      selectNodeContents: vi.fn(),
+      getClientRects: vi.fn().mockReturnValue([{
+        left: 388,
+        top: 792,
+        right: 562,
+        bottom: 827,
+        width: 174,
+        height: 35,
+      }]),
+      detach: vi.fn(),
+    }) as any);
+    const view = {
+      state: {
+        doc: {
+          content: { size: 120 },
+          nodeAt: vi.fn(() => ({ nodeSize: 6 })),
+        },
+      },
+      dom: editorRoot,
+      nodeDOM: vi.fn(() => paragraph),
+      domAtPos: vi.fn(() => ({ node: paragraph.firstChild, offset: 0 })),
+    } as unknown as EditorView;
+
+    expect(resolveVisualLineEdgePos(
+      view,
+      { blockFrom: 106, targetPos: 112, bias: -1 },
+      643,
+      817,
+    )?.pos).toBe(112);
+
+    createRangeSpy.mockRestore();
+    editorRoot.remove();
+  });
+
   it('clears text block caret overlays without materializing selector results', () => {
     const editorRoot = document.createElement('div');
     editorRoot.classList.add('editor-textblock-caret-overlay-active');

@@ -13,7 +13,13 @@ export function collapsePointerNativeSelectionAt(
   { session, view }: TextSelectionOverlayViewContext,
   target: PointerCaretTarget
 ): void {
+  if (target.doc && target.doc !== view.state.doc) {
+    return;
+  }
   const nextPos = Math.max(0, Math.min(view.state.doc.content.size, target.pos));
+  if (!view.state.doc.resolve(nextPos).parent.inlineContent) {
+    return;
+  }
   const tr = view.state.tr
     .setSelection(TextSelection.create(view.state.doc, nextPos))
     .setMeta(floatingToolbarKey, {
@@ -54,9 +60,11 @@ function shouldReassertPointerClickCollapse(
 
 function reassertPointerClickCollapse(
   context: TextSelectionOverlayViewContext,
-  target: PointerCaretTarget
+  target: PointerCaretTarget,
+  expectedDoc: EditorView['state']['doc']
 ) {
   if (!shouldReassertPointerClickCollapse(context, target)) return;
+  if (context.view.state.doc !== expectedDoc) return;
   collapsePointerNativeSelectionAt(context, target);
 }
 
@@ -64,19 +72,20 @@ export function schedulePointerClickCollapseReassertion(
   context: TextSelectionOverlayViewContext,
   target: PointerCaretTarget
 ): void {
-  const { session } = context;
+  const { session, view } = context;
+  const expectedDoc = view.state.doc;
   cancelPointerClickCollapseReassertion(context);
 
   queueMicrotask(() => {
-    reassertPointerClickCollapse(context, target);
+    reassertPointerClickCollapse(context, target, expectedDoc);
   });
   session.pointerClickCollapseFrame = requestAnimationFrame(() => {
     session.pointerClickCollapseFrame = null;
-    reassertPointerClickCollapse(context, target);
+    reassertPointerClickCollapse(context, target, expectedDoc);
   });
   session.pointerClickCollapseTimeout = window.setTimeout(() => {
     session.pointerClickCollapseTimeout = null;
-    reassertPointerClickCollapse(context, target);
+    reassertPointerClickCollapse(context, target, expectedDoc);
   }, 0);
 }
 

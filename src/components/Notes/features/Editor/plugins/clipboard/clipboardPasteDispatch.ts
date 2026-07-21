@@ -77,13 +77,18 @@ function dispatchSliceAndKeepCursorAtTail(
         ? mappedTo
         : findTailCursorPosInRange(tr.doc, mappedFrom, mappedTo) ?? mappedTo;
     const safePos = Math.max(0, Math.min(tailPos, tr.doc.content.size));
+    const $safePos = tr.doc.resolve(safePos);
 
     tr.setSelection(
         options?.preferRangeEnd
-            ? TextSelection.create(tr.doc, safePos)
+            ? $safePos.parent.inlineContent
+                ? TextSelection.create(tr.doc, safePos)
+                : Selection.near($safePos, -1)
             : tailPos == null
-            ? Selection.near(tr.doc.resolve(safePos), -1)
-            : Selection.near(tr.doc.resolve(safePos), 1)
+            ? Selection.near($safePos, -1)
+            : $safePos.parent.inlineContent
+            ? TextSelection.create(tr.doc, safePos)
+            : Selection.near($safePos, 1)
     );
     view.dispatch(tr.scrollIntoView());
     markEditorUserInput(view);
@@ -282,7 +287,10 @@ export function moveSelectionToDropPoint(view: EditorView, event: DragEvent): bo
     if (!pos) return false;
 
     const safePos = Math.max(0, Math.min(pos.pos, view.state.doc.content.size));
-    const selection = Selection.near(view.state.doc.resolve(safePos), 1);
+    const $safePos = view.state.doc.resolve(safePos);
+    const selection = $safePos.parent.inlineContent
+        ? TextSelection.create(view.state.doc, safePos)
+        : Selection.near($safePos, 1);
     view.dispatch(view.state.tr.setSelection(selection));
     return true;
 }

@@ -1048,10 +1048,38 @@ async function runSplitSpacingAudit(
   await expect(page.locator(`${previewRootSelector} .notes-readonly-markdown-blank-line`))
     .toHaveCount(TIGHT_BLOCK_SPACING_BLANK_LINE_COUNT);
 
-  await betaPreview.locator('p', { hasText: 'Tight paragraph after h3.' }).click();
+  const activationParagraph = betaPreview.locator('p', { hasText: 'Tight paragraph after h3.' });
+  const activationBox = await activationParagraph.boundingBox();
+  if (!activationBox) {
+    throw new Error('Missing split activation paragraph geometry');
+  }
+  const activationPoint = {
+    x: activationBox.x + activationBox.width / 2,
+    y: activationBox.y + activationBox.height / 2,
+  };
+  await page.mouse.click(activationPoint.x, activationPoint.y);
   await expectCurrentNotePathToMatch(page, betaPath);
   await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Tight paragraph after h3.' }))
     .toBeVisible({ timeout: 10_000 });
+  const expectedActivationPos = await page.evaluate(({ x, y }) => (
+    (window as any).__vlainaE2E.getEditorPositionAtPoint(x, y)
+  ), activationPoint) as number | null;
+  const activationTextRange = await page.evaluate(() => (
+    (window as any).__vlainaE2E.getEditorTextRange('Tight paragraph after h3.')
+  )) as { from: number; to: number } | null;
+  expect(expectedActivationPos).not.toBeNull();
+  expect(activationTextRange).not.toBeNull();
+  expect(expectedActivationPos).toBeGreaterThanOrEqual(activationTextRange!.from);
+  expect(expectedActivationPos).toBeLessThanOrEqual(activationTextRange!.to);
+  await expect.poll(async () => page.evaluate(() => (
+    (window as any).__vlainaE2E.getEditorSelectionSummary()
+  )), {
+    message: 'Expected delayed split activation focus to keep the clicked editor position',
+  }).toMatchObject({
+    empty: true,
+    from: expectedActivationPos,
+    to: expectedActivationPos,
+  });
   const editorMetrics = await getAdjacentBlockSpacingMetrics(
     page,
     EDITOR_SELECTOR,

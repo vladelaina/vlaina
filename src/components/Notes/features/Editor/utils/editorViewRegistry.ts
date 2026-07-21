@@ -7,13 +7,15 @@ import {
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 let currentEditorView: EditorView | null = null;
+let currentEditorNotePath: string | null = null;
 let currentMarkdownParser: Parser | null = null;
 let currentMarkdownSerializer: Serializer | null = null;
 let currentEditorBlockSelectionClearer: (() => void) | null = null;
 const editorViewListeners = new Set<(view: EditorView | null) => void>();
 
-export function setCurrentEditorView(view: EditorView | null): void {
+export function setCurrentEditorView(view: EditorView | null, notePath?: string): void {
   currentEditorView = view;
+  currentEditorNotePath = view ? notePath ?? null : null;
   if (view === null) {
     currentEditorBlockSelectionClearer = null;
   }
@@ -24,6 +26,10 @@ export function setCurrentEditorView(view: EditorView | null): void {
 
 export function getCurrentEditorView(): EditorView | null {
   return currentEditorView;
+}
+
+export function getCurrentEditorNotePath(): string | null {
+  return currentEditorNotePath;
 }
 
 export function setCurrentEditorBlockSelectionClearer(clearer: (() => void) | null): void {

@@ -55,6 +55,15 @@ export function hasUsableTextRange(doc: ProseNode, from: number, to: number): bo
   if (safeFrom === safeTo) {
     return false;
   }
+  if (typeof doc.resolve === 'function') {
+    try {
+      if (!doc.resolve(safeFrom).parent.inlineContent || !doc.resolve(safeTo).parent.inlineContent) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+  }
 
   if (typeof doc.nodesBetween === 'function') {
     return hasUsableTextNodeInRange(doc, safeFrom, safeTo);

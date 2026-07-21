@@ -67,14 +67,45 @@ describe('endBlankClickPlugin', () => {
         const view = editor.ctx.get(editorViewCtx);
 
         try {
+            const expectedTailPos = view.state.doc.content.size + 1;
             expect(dispatchTailBlankClickAction(view)).toBe(true);
             expect(view.state.selection).toBeInstanceOf(TextSelection);
+            expect(view.state.selection.from).toBe(expectedTailPos);
+            expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+            expect(view.state.selection.$from.parent.content.size).toBe(0);
 
             expect(simulateDomEvent(view, 'blur', new Event('blur'))).toBe(false);
 
             expect(view.state.selection).toBeInstanceOf(TextSelection);
             expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
             expect(view.dom.querySelector('.ProseMirror-selectednode')).toBeNull();
+        } finally {
+            await editor.destroy();
+        }
+    });
+
+    it('places the caret inside an existing empty tail paragraph without moving backward', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Alpha');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(endBlankClickPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        try {
+            const paragraphType = view.state.schema.nodes.paragraph;
+            view.dispatch(view.state.tr.insert(view.state.doc.content.size, paragraphType.create()));
+            const expectedTailPos = view.state.doc.content.size - 1;
+
+            expect(dispatchTailBlankClickAction(view)).toBe(true);
+            expect(view.state.selection).toBeInstanceOf(TextSelection);
+            expect(view.state.selection.from).toBe(expectedTailPos);
+            expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+            expect(view.state.selection.$from.parent.content.size).toBe(0);
         } finally {
             await editor.destroy();
         }
