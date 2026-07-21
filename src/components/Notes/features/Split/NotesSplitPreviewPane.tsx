@@ -18,7 +18,6 @@ import {
   selectMarkdownTypewriterModeEnabled,
 } from '@/stores/unified/settings/markdownSettings';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
-import { normalizeLeadingFrontmatterMarkdown } from '@/components/Notes/features/Editor/plugins/frontmatter/frontmatterMarkdown';
 import { resolveEffectiveNotesRootPath } from '@/stores/notes/effectiveNotesRootPath';
 import { findStarredEntryByPath } from '@/stores/notes/starred';
 import type { NotesSplitDirection } from './notesSplitLayout';
@@ -35,6 +34,7 @@ import { NotesSplitPaneChrome } from './NotesSplitPaneChrome';
 import {
   SPLIT_PREVIEW_REMARK_PLUGINS,
   SplitPreviewMarkdownImage,
+  prepareSplitPreviewMarkdown,
   type ReactMarkdownImageProps,
 } from './NotesSplitPreviewMarkdown';
 import '@/components/common/markdown/markdownSurface.css';
@@ -122,7 +122,10 @@ export function NotesSplitPreviewPane({
     metadataEntry ? undefined : readNoteMetadataFromMarkdown(content)
   ), [content, metadataEntry]);
   const noteMetadata = metadataEntry ?? fallbackMetadata;
-  const previewMarkdown = useMemo(() => normalizeLeadingFrontmatterMarkdown(content), [content]);
+  const previewMarkdown = useMemo(
+    () => prepareSplitPreviewMarkdown(content),
+    [content],
+  );
   const cover = normalizeCover(noteMetadata?.cover);
   const iconSize = noteMetadata?.iconSize ?? defaultIconSize ?? DEFAULT_ICON_SIZE;
   const notesRootPath = resolveEffectiveNotesRootPath({

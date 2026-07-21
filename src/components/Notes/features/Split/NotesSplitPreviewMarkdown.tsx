@@ -4,6 +4,8 @@ import {
   READONLY_MARKDOWN_REMARK_PLUGINS,
 } from '@/components/common/markdown/markdownPipeline';
 import { remarkObsidianImageEmbeds } from '@/components/common/markdown/theme-compatibility/obsidian/imageEmbed';
+import { normalizeLeadingFrontmatterMarkdown } from '@/components/Notes/features/Editor/plugins/frontmatter/frontmatterMarkdown';
+import { normalizeAlternativeMathBlockFences } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 type MarkdownAstNode = {
   children?: MarkdownAstNode[];
@@ -57,6 +59,10 @@ export const SPLIT_PREVIEW_REMARK_PLUGINS = [
   remarkObsidianImageEmbeds,
   remarkReadonlyMarkdownBlankLines,
 ] as any[];
+
+export function prepareSplitPreviewMarkdown(content: string) {
+  return normalizeLeadingFrontmatterMarkdown(normalizeAlternativeMathBlockFences(content));
+}
 
 function isAlreadyRenderableImageSrc(src: string): boolean {
   return /^(?:https?:|data:|blob:|attachment:|app-file:|asset:)/i.test(src);

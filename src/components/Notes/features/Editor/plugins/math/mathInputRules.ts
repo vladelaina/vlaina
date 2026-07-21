@@ -13,7 +13,7 @@ type UndoableInputRule = InputRule & { undoable?: boolean };
 
 export { MATH_BLOCK_INPUT_RULE_PATTERN } from './mathBlockFence';
 
-export const MATH_INLINE_INPUT_RULE_PATTERN = /(?<!\$)\$([^$\s][^$]*[^$\s]|[^$\s])\$$/;
+export const MATH_INLINE_INPUT_RULE_PATTERN = /(?:(?<!\$)\$([^$\s][^$]*[^$\s]|[^$\s])\$|(?<!\\)\\\((\S(?:.*?\S)?)\\\))$/;
 
 export function applyMathBlockInputRule(
   state: {
@@ -67,7 +67,7 @@ export function applyMathInlineInputRule(
   start: number,
   end: number
 ) {
-  const latex = match[1] || '';
+  const latex = match[1] ?? match[2] ?? '';
   const { tr, schema } = state;
   const mathInlineType = schema.nodes.math_inline;
 

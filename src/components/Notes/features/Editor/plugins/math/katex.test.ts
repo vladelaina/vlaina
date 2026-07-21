@@ -52,6 +52,17 @@ describe('katex utils', () => {
     expect(result.html).toContain('mathbb');
   });
 
+  it('isolates macro definitions between formulas and cached renders', () => {
+    const definition = renderLatex('\\gdef\\R{\\mathbf{H}}\\R', false);
+    const sharedMacro = renderLatex('\\R', false);
+
+    expect(definition.error).toBeNull();
+    expect(definition.html).toContain('mathbf');
+    expect(sharedMacro.error).toBeNull();
+    expect(sharedMacro.html).toContain('mathbb');
+    expect(sharedMacro.html).not.toContain('mathbf');
+  });
+
   it('renders display math line breaks written with double backslashes or newline commands', () => {
     const doubleBackslash = renderLatex('a \\\\ b', true);
     const newlineCommand = renderLatex('a \\newline b', true);

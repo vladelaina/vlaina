@@ -117,6 +117,22 @@ describe('normalizeAlternativeMathBlockFences', () => {
     expect(normalizeAlternativeMathBlockFences(markdown)).toBe(markdown);
   });
 
+  it('does not mistake bracketed code-like text for generated math', () => {
+    const markdown = ['[', 'config_value', ']'].join('\n');
+
+    expect(normalizeAlternativeMathBlockFences(markdown)).toBe(markdown);
+  });
+
+  it('normalizes standalone same-line display math including blockquotes', () => {
+    expect(normalizeAlternativeMathBlockFences('$$x^2$$')).toBe(['$$', 'x^2', '$$'].join('\n'));
+    expect(normalizeAlternativeMathBlockFences('\\[x^2\\]')).toBe(['$$', 'x^2', '$$'].join('\n'));
+    expect(normalizeAlternativeMathBlockFences('$$ x^2 $$')).toBe(['$$', 'x^2', '$$'].join('\n'));
+    expect(normalizeAlternativeMathBlockFences('\\[ x^2 \\]')).toBe(['$$', 'x^2', '$$'].join('\n'));
+    expect(normalizeAlternativeMathBlockFences('> $$x^2$$')).toBe(
+      ['> $$', '> x^2', '> $$'].join('\n')
+    );
+  });
+
   it('does not convert alternative math fences inside fenced code', () => {
     const markdown = ['```md', '\\[', 'x^2', '\\]', '```'].join('\n');
 
@@ -380,6 +396,19 @@ describe('restoreMathBlockFenceStylesFromReference', () => {
     expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toBe(
       ['\\[', 'a=\\frac{f}{m}=\\mu g', '\\]'].join('\n')
     );
+  });
+
+  it('restores same-line display math styles when the formula remains one line', () => {
+    const serialized = ['$$', 'x^2', '$$'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(serialized, '$$x^2$$')).toBe('$$x^2$$');
+    expect(restoreMathBlockFenceStylesFromReference(serialized, '\\[x^2\\]')).toBe('\\[x^2\\]');
+  });
+
+  it('keeps multiline math when a same-line reference formula becomes multiline', () => {
+    const serialized = ['$$', 'x^2', 'y^2', '$$'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(serialized, '$$x^2$$')).toBe(serialized);
   });
 
   it('matches reference styles by latex when a new math block is inserted before existing blocks', () => {

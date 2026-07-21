@@ -107,6 +107,34 @@ describe('MarkdownEditor compatibility', () => {
     await destroyEditor(editor);
   });
 
+  it('opens supported math delimiters and math code fences as editable math nodes', async () => {
+    const editor = await createEditor([
+      'Inline \\(x+y\\).',
+      '',
+      '\\[',
+      '\\ce{H2O}',
+      '\\]',
+      '',
+      '$$x^2$$',
+      '',
+      '```math',
+      '\\frac{1}{2}',
+      '```',
+      '',
+      '```latex',
+      '\\documentclass{article}',
+      '```',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(view.dom.querySelectorAll('[data-type="math-inline"]')).toHaveLength(1);
+    expect(view.dom.querySelectorAll('[data-type="math-block"]')).toHaveLength(3);
+    expect(view.dom.querySelector('[data-type="math-block"] .math-error')).toBeNull();
+    expect(view.dom.querySelector('.code-block-container[data-language="tex"]')).toBeInstanceOf(HTMLElement);
+
+    await destroyEditor(editor);
+  });
+
   it('adds Typora and Obsidian theme alias classes to the editor root', async () => {
     const editor = await createEditor('# Theme aliases');
 

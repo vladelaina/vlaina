@@ -1,5 +1,4 @@
 import ReactMarkdown from 'react-markdown';
-import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import {
@@ -12,8 +11,7 @@ import {
   rehypeImageSrcsetSanitizer,
   rehypeRawHtmlUrlSanitizer,
 } from '@/components/common/markdown/imagePolicy';
-import { KATEX_SHARED_RENDER_OPTIONS } from '@/components/common/markdown/katexOptions';
-import { rehypeKatexSourceSanitizer } from '@/components/common/markdown/katexSourceSanitizer';
+import { rehypeNotesKatex } from '@/components/common/markdown/rehypeNotesKatex';
 import { rehypeDropUnsafeRawHtmlContent } from '@/components/common/markdown/rawHtmlSanitizer';
 import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
 import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
@@ -25,6 +23,7 @@ import {
   sanitizeNoteMediaSrc,
 } from '@/lib/notes/markdown/urlSecurity';
 import { cn } from '@/lib/utils';
+import { normalizeAlternativeMathBlockFences } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 const BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
 const EXPORT_BLOCKED_LOADABLE_RAW_HTML_TAGS = new Set(['audio', 'iframe', 'track', 'video']);
@@ -49,8 +48,7 @@ const NOTE_EXPORT_REHYPE_PLUGINS = [
   [rehypeSanitize, NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA],
   rehypeRawHtmlUrlSanitizer,
   rehypeImageSrcsetSanitizer,
-  [rehypeKatex, KATEX_SHARED_RENDER_OPTIONS],
-  rehypeKatexSourceSanitizer,
+  rehypeNotesKatex,
 ] as any[];
 
 function sanitizeExportLinkHref(value: unknown): string | null {
@@ -147,6 +145,8 @@ export function NoteExportDocument({
   title: string;
   className?: string;
 }) {
+  const renderableMarkdown = normalizeAlternativeMathBlockFences(markdown);
+
   return (
     <article className={cn('note-export', className)}>
       <h1 className="note-export-title">{title}</h1>
@@ -161,7 +161,7 @@ export function NoteExportDocument({
             source: () => null,
           }}
         >
-          {markdown}
+          {renderableMarkdown}
         </ReactMarkdown>
       </div>
     </article>

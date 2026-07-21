@@ -35,6 +35,28 @@ describe('markdown syntax persistence matrix', () => {
       markdown: ['Inline math $x + y$.', '', '$$', '\\frac{1}{2}', '$$'].join('\n'),
     },
     {
+      name: 'parenthesized inline math',
+      markdown: 'Inline math \\(x + y\\).',
+      expected: 'Inline math $x + y$.',
+    },
+    {
+      name: 'same-line dollar display math',
+      markdown: '$$x + y$$',
+    },
+    {
+      name: 'same-line bracket display math',
+      markdown: '\\[x + y\\]',
+    },
+    {
+      name: 'math code fence canonicalizes to display math',
+      markdown: ['```math', '\\frac{1}{2}', '```'].join('\n'),
+      expected: ['$$', '\\frac{1}{2}', '$$'].join('\n'),
+    },
+    {
+      name: 'latex code fence remains source code',
+      markdown: ['```latex', '\\documentclass{article}', '```'].join('\n'),
+    },
+    {
       name: 'standard bracket display math',
       markdown: ['Before math.', '', '\\[', 'f=\\mu mg', '\\]', '', 'After math.'].join('\n'),
     },

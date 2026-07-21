@@ -1055,7 +1055,7 @@ $$
 
 ``` md
 $$
-{matrix}
+\begin{matrix}
 1&0&0\\
 0&1&0\\
 0&0&1\\
@@ -1079,7 +1079,6 @@ $$
 \frac{\partial X}{\partial u} &  \frac{\partial Y}{\partial u} & 0 \\
 \frac{\partial X}{\partial v} &  \frac{\partial Y}{\partial v} & 0 \\
 \end{vmatrix}
-${$tep1}{\style{visibility:hidden}{(x+1)(x+1)}}
 $$
 ```
 
@@ -1089,7 +1088,6 @@ $$
 \frac{\partial X}{\partial u} &  \frac{\partial Y}{\partial u} & 0 \\
 \frac{\partial X}{\partial v} &  \frac{\partial Y}{\partial v} & 0 \\
 \end{vmatrix}
-${$tep1}{\style{visibility:hidden}{(x+1)(x+1)}}
 $$
 
 
@@ -1369,4 +1367,3 @@ Note right of C: 没人陪我玩
         压力测试                               :after a1  , 20h
         测试报告                               : 48h
 ```
-

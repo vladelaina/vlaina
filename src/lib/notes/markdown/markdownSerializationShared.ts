@@ -145,7 +145,9 @@ export const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN = /^(\s*(?:>\s*)*)]\s*
 export const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_SUFFIX_PATTERN = /^(.*)\\\]\s*$/;
 export const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_SUFFIX_PATTERN = /^(.*)]\s*$/;
 export const DOLLAR_MATH_BLOCK_FENCE_PATTERN = /^(\s*(?:>\s*)*)\$\$\s*$/;
-export const LATEX_LIKE_MATH_CONTENT_PATTERN = /\\[A-Za-z]+|(?:^|[^\w])(?:\\?[A-Za-z]\w*)\s*(?:[=^_]|\\(?:le|ge|neq|approx|times|cdot|frac|sqrt|mu|alpha|beta|gamma|theta)\b)|[{}^_]/;
+export const STANDALONE_DOLLAR_MATH_PATTERN = /^(\s*(?:>\s*)*)\$\$[ \t]*(\S(?:.*?\S)?)[ \t]*\$\$\s*$/;
+export const STANDALONE_BRACKET_MATH_PATTERN = /^(\s*(?:>\s*)*)\\\[[ \t]*(\S(?:.*?\S)?)[ \t]*\\\]\s*$/;
+export const LATEX_LIKE_MATH_CONTENT_PATTERN = /\\[A-Za-z]+|(?:^|[^\w])(?:\\?[A-Za-z]\w*)\s*(?:=|[<>]|\^(?:\{|\d)|_(?:\{|\d)|\\(?:le|ge|neq|approx|times|cdot|frac|sqrt|mu|alpha|beta|gamma|theta)\b)/;
 export const GENERIC_HTML_BLOCK_TAGS = new Set([
   'address',
   'article',
@@ -202,7 +204,7 @@ export const GENERIC_HTML_BLOCK_TAGS = new Set([
   'ul',
 ]);
 
-export type MathBlockFenceStyle = 'dollar' | 'bracket';
+export type MathBlockFenceStyle = 'dollar' | 'bracket' | 'dollar-inline' | 'bracket-inline';
 
 export interface MathBlockFenceReference {
   latex: string;
