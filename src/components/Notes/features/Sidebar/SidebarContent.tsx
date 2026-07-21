@@ -16,7 +16,6 @@ import { useSidebarLiveNoteContent } from './useSidebarLiveNoteContent';
 import { useSidebarRenameShortcut } from './useSidebarRenameShortcut';
 import { SidebarContentView } from './SidebarContentView';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
-import { useNotesSidebarAutoWidth } from './useNotesSidebarAutoWidth';
 
 const EMPTY_NOTE_CONTENTS_CACHE = new Map<string, { content: string; modifiedAt: number | null }>();
 interface SidebarContentProps {
@@ -59,7 +58,6 @@ export function SidebarContent({
   const notesRootStoreIsLoading = useNotesRootStore((s) => s.isLoading);
   const openNotesRoot = useNotesRootStore((s) => s.openNotesRoot);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
-  const setSidebarWidth = useUIStore((s) => s.setSidebarWidth);
   const currentDraftPreviewTitle = useUIStore((s) => {
     if (!currentNotePath || s.notesPreviewTitle?.path !== currentNotePath) {
       return '';
@@ -103,15 +101,6 @@ export function SidebarContent({
     draftNotes,
     currentDraftPreviewTitle,
     currentDraftContent,
-  });
-  useNotesSidebarAutoWidth({
-    active,
-    displayRootFolder,
-    isLoading,
-    notesPath,
-    notesRootPath: currentNotesRoot?.path ?? null,
-    rootRef: sidebarRootRef,
-    setSidebarWidth,
   });
   const {
     inputRef,
