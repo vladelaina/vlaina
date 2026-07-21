@@ -456,6 +456,70 @@ describe('GraphCanvas', () => {
     expect(edge.getAttribute('d')).not.toBe(clusteredEdge);
   });
 
+  it('keeps shared node positions when switching to a local graph', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const positionOverrides = {
+      'Alpha.md': { x: 100, y: 100 },
+      'Beta.md': { x: 300, y: 100 },
+      'Gamma.md': { x: 500, y: 100 },
+    };
+    const view = render(
+      <GraphCanvas
+        graph={graph}
+        positionOverrides={positionOverrides}
+        selectedPath="Alpha.md"
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+    act(() => {
+      const now = performance.now() + 1_000;
+      frames.splice(0).forEach((callback) => callback(now));
+    });
+
+    const localGraph: PositionedNoteGraph = {
+      focusNodeId: 'Alpha.md',
+      nodes: graph.nodes.slice(0, 2),
+      edges: graph.edges,
+    };
+    view.rerender(
+      <GraphCanvas
+        graph={localGraph}
+        positionOverrides={{}}
+        selectedPath="Alpha.md"
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    expect(readNodePosition(screen.getByRole('button', { name: 'Alpha, 1' }))).toEqual({ x: 100, y: 100 });
+    expect(readNodePosition(screen.getByRole('button', { name: 'Beta, 1' }))).toEqual({ x: 300, y: 100 });
+
+    view.rerender(
+      <GraphCanvas
+        graph={graph}
+        positionOverrides={{}}
+        selectedPath="Alpha.md"
+        onOpenPath={vi.fn()}
+        onPositionCommit={vi.fn()}
+        onPositionsCommit={vi.fn()}
+        onSelectPath={vi.fn()}
+      />,
+    );
+
+    expect(readNodePosition(screen.getByRole('button', { name: 'Alpha, 1' }))).toEqual({ x: 100, y: 100 });
+    expect(readNodePosition(screen.getByRole('button', { name: 'Beta, 1' }))).toEqual({ x: 300, y: 100 });
+    expect(readNodePosition(screen.getByRole('button', { name: 'Gamma, 0' }))).toEqual({ x: 500, y: 100 });
+  });
+
   it('pans the canvas and zooms around the pointer', () => {
     render(
       <GraphCanvas

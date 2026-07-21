@@ -145,6 +145,28 @@ test.describe('graph drag release stability', () => {
       const startX = box!.x + box!.width / 2;
       const startY = box!.y + box!.height / 2;
       await page.mouse.move(startX, startY);
+      await expect(graphView.locator('[data-graph-edge-layer="active"]')).toHaveAttribute('opacity', '1');
+      const firstHoverEndpointGap = await graphView.evaluate((element) => {
+        const nodePositions = [...element.querySelectorAll<SVGCircleElement>('[data-graph-node-hit-target]')]
+          .map((node) => {
+            const matrix = (node.parentElement as unknown as SVGGElement | null)
+              ?.transform.baseVal.consolidate()?.matrix;
+            return { x: matrix?.e ?? 0, y: matrix?.f ?? 0 };
+          });
+        const path = element.querySelector<SVGPathElement>('[data-graph-edge-layer="active"]')
+          ?.getAttribute('d') ?? '';
+        const values = path.match(/[-+\d.e]+/giu)?.map(Number) ?? [];
+        let largestGap = 0;
+        for (let index = 0; index + 1 < values.length; index += 2) {
+          const closest = nodePositions.reduce((distance, position) => Math.min(
+            distance,
+            Math.hypot(values[index]! - position.x, values[index + 1]! - position.y),
+          ), Number.POSITIVE_INFINITY);
+          largestGap = Math.max(largestGap, closest);
+        }
+        return largestGap;
+      });
+      expect(firstHoverEndpointGap).toBeLessThan(0.5);
       await page.mouse.down();
       await page.mouse.move(startX + 90, startY + 55, { steps: 10 });
       await page.mouse.up();
@@ -189,11 +211,62 @@ test.describe('graph drag release stability', () => {
       await setAppViewMode(page, 'graph');
 
       const graphView = page.locator(GRAPH_VIEW_SELECTOR);
+      const allNodes = graphView.locator('[data-graph-node-hit-target]');
+      await expect(allNodes).toHaveCount(3, { timeout: 30_000 });
+      await page.waitForTimeout(1_500);
+      const positionsBeforeLocal = await allNodes.evaluateAll((elements) => Object.fromEntries(
+        elements.map((element) => {
+          const matrix = (element.parentElement as unknown as SVGGElement | null)
+            ?.transform.baseVal.consolidate()?.matrix;
+          return [element.getAttribute('data-graph-node-hit-target'), {
+            x: matrix?.e ?? 0,
+            y: matrix?.f ?? 0,
+          }];
+        }),
+      ));
+      const readFirstGraphFrame = () => graphView.evaluate(async (element) => (
+        new Promise<{
+          edgeLength: number;
+          positions: Record<string, { x: number; y: number }>;
+        }>((resolve) => {
+          requestAnimationFrame(() => {
+            const positions = Object.fromEntries(
+              [...element.querySelectorAll<SVGCircleElement>('[data-graph-node-hit-target]')]
+                .map((node) => {
+                  const matrix = (node.parentElement as unknown as SVGGElement | null)
+                    ?.transform.baseVal.consolidate()?.matrix;
+                  return [node.dataset.graphNodeHitTarget ?? '', {
+                    x: matrix?.e ?? 0,
+                    y: matrix?.f ?? 0,
+                  }];
+                }),
+            );
+            const edge = element.querySelector<SVGPathElement>('[data-graph-edge-layer="base"]');
+            resolve({ edgeLength: edge?.getTotalLength() ?? 0, positions });
+          });
+        })
+      ));
+      const expectFrameToRetainPositions = (frame: Awaited<ReturnType<typeof readFirstGraphFrame>>) => {
+        expect(frame.edgeLength).toBeGreaterThan(20);
+        for (const [id, position] of Object.entries(frame.positions)) {
+          const before = positionsBeforeLocal[id];
+          expect(before).toBeDefined();
+          expect(Math.hypot(position.x - before!.x, position.y - before!.y)).toBeLessThan(0.5);
+        }
+      };
       const modeButtons = page.locator('[data-graph-mode-indicator="true"]').locator('..').getByRole('button');
       await modeButtons.nth(1).click();
       const nodes = graphView.locator('[data-graph-node-hit-target]');
       await expect(nodes).toHaveCount(2, { timeout: 30_000 });
-      await page.waitForTimeout(1_500);
+      expectFrameToRetainPositions(await readFirstGraphFrame());
+
+      await modeButtons.nth(0).click();
+      await expect(allNodes).toHaveCount(3, { timeout: 30_000 });
+      expectFrameToRetainPositions(await readFirstGraphFrame());
+
+      await modeButtons.nth(1).click();
+      await expect(nodes).toHaveCount(2, { timeout: 30_000 });
+      expectFrameToRetainPositions(await readFirstGraphFrame());
 
       const target = nodes.last();
       const box = await target.boundingBox();
@@ -201,6 +274,30 @@ test.describe('graph drag release stability', () => {
       const startX = box!.x + box!.width / 2;
       const startY = box!.y + box!.height / 2;
       await page.mouse.move(startX, startY);
+      await expect(graphView.locator('[data-graph-edge-layer="active"]')).toHaveAttribute('opacity', '1');
+      const firstHoverEndpointGap = await target.evaluate((element) => {
+        const nodePositions = [...element.closest('svg')!
+          .querySelectorAll<SVGCircleElement>('[data-graph-node-hit-target]')]
+          .map((node) => {
+            const matrix = (node.parentElement as unknown as SVGGElement | null)
+              ?.transform.baseVal.consolidate()?.matrix;
+            return { x: matrix?.e ?? 0, y: matrix?.f ?? 0 };
+          });
+        const path = element.closest('svg')
+          ?.querySelector<SVGPathElement>('[data-graph-edge-layer="active"]')
+          ?.getAttribute('d') ?? '';
+        const values = path.match(/[-+\d.e]+/giu)?.map(Number) ?? [];
+        let largestGap = 0;
+        for (let index = 0; index + 1 < values.length; index += 2) {
+          const closest = nodePositions.reduce((distance, position) => Math.min(
+            distance,
+            Math.hypot(values[index]! - position.x, values[index + 1]! - position.y),
+          ), Number.POSITIVE_INFINITY);
+          largestGap = Math.max(largestGap, closest);
+        }
+        return largestGap;
+      });
+      expect(firstHoverEndpointGap).toBeLessThan(0.5);
       await page.mouse.down();
       await page.mouse.move(startX + 100, startY + 60, { steps: 12 });
 
