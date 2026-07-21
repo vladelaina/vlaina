@@ -506,7 +506,7 @@ describe('EditorTopRightToolbar', () => {
 
     expect(moreButton).toBeInTheDocument();
     expect(moreButton).not.toHaveFocus();
-    expect(mocks.lastCloseAutoFocusPreventDefault).not.toHaveBeenCalled();
+    expect(mocks.lastCloseAutoFocusPreventDefault).toHaveBeenCalledTimes(1);
     expect(onToggleSourceMode).toHaveBeenCalledTimes(1);
   });
 

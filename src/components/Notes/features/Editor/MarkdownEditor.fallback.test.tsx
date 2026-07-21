@@ -276,7 +276,21 @@ describe('MarkdownEditor source fallback', () => {
     const sourceEditor = screen.getByLabelText('Markdown source editor');
     expect(sourceEditor).toHaveClass('text-[length:var(--vlaina-markdown-font-body-size)]');
     expect(sourceEditor).toHaveClass('leading-[var(--vlaina-markdown-line-height-body)]');
+    expect(sourceEditor).toHaveAttribute('data-native-caret-overlay-disabled', 'true');
     expect(sourceEditor.closest('[data-vlaina-markdown-font-size-surface="true"]')).toBeInstanceOf(HTMLElement);
+  });
+
+  it('focuses the source textarea when source mode opens', () => {
+    render(
+      <MarkdownSourceEditor
+        currentNotePath="alpha.md"
+        showBodyLineNumbers={false}
+        saveNote={mocks.notesState.saveNote}
+        mode="source"
+      />,
+    );
+
+    expect(document.activeElement).toBe(screen.getByLabelText('Markdown source editor'));
   });
 
   it('keeps markdown editable when the Milkdown runtime throws during render', async () => {
@@ -565,6 +579,30 @@ describe('MarkdownEditor source fallback', () => {
     unmount();
     requestAnimationFrameSpy.mockRestore();
     cancelAnimationFrameSpy.mockRestore();
+  });
+
+  it('preserves the focused source selection during an external content refresh', () => {
+    render(
+      <MarkdownSourceEditor
+        currentNotePath="alpha.md"
+        showBodyLineNumbers={false}
+        saveNote={mocks.notesState.saveNote}
+        mode="source"
+      />,
+    );
+
+    const sourceEditor = screen.getByLabelText('Markdown source editor') as HTMLTextAreaElement;
+    sourceEditor.setSelectionRange(3, 8, 'backward');
+
+    act(() => {
+      mocks.notesState.currentNote = { path: 'alpha.md', content: '# Alpha refreshed\n\nExternal body' };
+      mocks.notifyNotesStoreListeners();
+    });
+
+    expect(sourceEditor).toHaveValue('# Alpha refreshed\n\nExternal body');
+    expect(sourceEditor.selectionStart).toBe(3);
+    expect(sourceEditor.selectionEnd).toBe(8);
+    expect(sourceEditor.selectionDirection).toBe('backward');
   });
 
   it('does not flush a stale source-mode draft while unmounting after an external reload', () => {

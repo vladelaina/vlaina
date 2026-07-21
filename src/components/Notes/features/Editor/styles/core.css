@@ -35,6 +35,10 @@
   background-color: transparent;
 }
 
+[data-note-source-editor='true'] {
+  caret-color: var(--vlaina-caret-color);
+}
+
 [data-note-toolbar-root='true'] {
   isolation: isolate;
   overflow: hidden;
