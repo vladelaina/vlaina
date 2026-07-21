@@ -91,17 +91,20 @@ test.describe('graph interactions', () => {
           Number.parseFloat(getComputedStyle(element.parentElement!).animationDelay) || 0
         ));
         const visibleNode = elements[0]?.parentElement?.querySelectorAll('circle')[1];
+        const graphEntry = elements[0]?.closest('svg')?.querySelector('.vlaina-graph-enter');
         return {
+          graphAnimationName: graphEntry ? getComputedStyle(graphEntry).animationName : '',
           maxDelay: Math.max(...delays),
           minDelay: Math.min(...delays),
           nodeAnimationName: getComputedStyle(elements[0]!.parentElement!).animationName,
           dotAnimationName: visibleNode ? getComputedStyle(visibleNode).animationName : '',
         };
       });
-      expect(entryAnimation.nodeAnimationName).toContain('vlaina-graph-node-enter');
-      expect(entryAnimation.dotAnimationName).toContain('vlaina-graph-node-dot-enter');
+      expect(entryAnimation.graphAnimationName).toContain('vlaina-graph-enter');
+      expect(entryAnimation.nodeAnimationName).toBe('none');
+      expect(entryAnimation.dotAnimationName).toBe('none');
       expect(entryAnimation.minDelay).toBe(0);
-      expect(entryAnimation.maxDelay).toBeGreaterThan(entryAnimation.minDelay);
+      expect(entryAnimation.maxDelay).toBe(0);
       await expect(graphView.locator('[data-graph-top-controls="true"]')).toHaveCount(0);
       expect(Date.now() - graphOpenedAt).toBeLessThan(5_000);
       const edgeAppearance = await renderedEdges.first().evaluate((element) => {

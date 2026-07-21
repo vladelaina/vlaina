@@ -30,10 +30,16 @@ export function useGraphViewportController(args: {
   const [viewport, setViewport] = useState(GRAPH_INITIAL_VIEWPORT);
   const viewportRef = useRef(viewport);
   const pendingWheelViewportRef = useRef<typeof viewport | null>(null);
+  const fitFrameRef = useRef<number | null>(null);
   const wheelFrameRef = useRef<number | null>(null);
   const viewportAnimationFrameRef = useRef<number | null>(null);
   nodesRef.current = args.nodes;
   viewportRef.current = viewport;
+
+  const cancelPendingFit = useCallback(() => {
+    if (fitFrameRef.current !== null) window.cancelAnimationFrame(fitFrameRef.current);
+    fitFrameRef.current = null;
+  }, []);
 
   const cancelWheelFrame = useCallback(() => {
     if (wheelFrameRef.current !== null) window.cancelAnimationFrame(wheelFrameRef.current);
@@ -49,13 +55,14 @@ export function useGraphViewportController(args: {
   }, []);
 
   const setViewportImmediately = useCallback<Dispatch<SetStateAction<GraphViewport>>>((value) => {
+    cancelPendingFit();
     cancelViewportAnimation();
     setViewport((current) => {
       const next = typeof value === 'function' ? value(current) : value;
       viewportRef.current = next;
       return next;
     });
-  }, [cancelViewportAnimation]);
+  }, [cancelPendingFit, cancelViewportAnimation]);
 
   const animateViewportTo = useCallback((target: GraphViewport) => {
     cancelWheelFrame();
@@ -97,17 +104,20 @@ export function useGraphViewportController(args: {
   }, [args.svgRef]);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
+    cancelPendingFit();
+    fitFrameRef.current = window.requestAnimationFrame(() => {
+      fitFrameRef.current = null;
       const next = getFittedViewport();
       if (next) setViewportImmediately(next);
     });
-    return () => window.cancelAnimationFrame(frame);
-  }, [args.nodeKey, getFittedViewport, setViewportImmediately]);
+    return cancelPendingFit;
+  }, [args.nodeKey, cancelPendingFit, getFittedViewport, setViewportImmediately]);
 
   useEffect(() => () => {
     cancelWheelFrame();
+    cancelPendingFit();
     cancelViewportAnimation();
-  }, [cancelViewportAnimation, cancelWheelFrame]);
+  }, [cancelPendingFit, cancelViewportAnimation, cancelWheelFrame]);
 
   useEffect(() => {
     if (!args.selectedPath) return;
@@ -133,6 +143,7 @@ export function useGraphViewportController(args: {
 
   const handleWheel = (event: WheelEvent<SVGSVGElement>) => {
     event.preventDefault();
+    cancelPendingFit();
     cancelViewportAnimation();
     const rect = event.currentTarget.getBoundingClientRect();
     const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -153,5 +164,5 @@ export function useGraphViewportController(args: {
     });
   };
 
-  return { handleWheel, setViewport: setViewportImmediately, viewport };
+  return { cancelPendingFit, handleWheel, setViewport: setViewportImmediately, viewport };
 }

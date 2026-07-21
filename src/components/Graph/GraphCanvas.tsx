@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
+} from 'react';
 import { useI18n } from '@/lib/i18n';
 import { themeGraphTokens } from '@/styles/themeTokens';
 import { GraphCanvasScene } from './canvas/GraphCanvasScene';
@@ -89,6 +96,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
     positionOverrides: props.positionOverrides,
     selectedPath: props.selectedPath,
     simulationPositions: forceSimulation.positionsRef.current,
+    simulationVersion: forceFrameRef.current,
   });
   const viewportController = useGraphViewportController({
     nodeKey: `${geometry.nodeKey}\n${forceLayoutVersion}\n${props.active === false ? 'inactive' : 'active'}`,
@@ -113,8 +121,21 @@ export function GraphCanvas(props: GraphCanvasProps) {
     position: GraphNodePosition,
   ) => {
     userPositionedViewportRef.current = true;
+    viewportController.cancelPendingFit();
     pointerInteractions.startNodeDrag(event, path, position);
-  }, [pointerInteractions.startNodeDrag]);
+  }, [pointerInteractions.startNodeDrag, viewportController.cancelPendingFit]);
+  const startPan = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    if (event.button === 0 || event.button === 1) {
+      userPositionedViewportRef.current = true;
+      viewportController.cancelPendingFit();
+    }
+    pointerInteractions.startPan(event);
+  }, [pointerInteractions.startPan, viewportController.cancelPendingFit]);
+  const handleWheel = useCallback((event: ReactWheelEvent<SVGSVGElement>) => {
+    userPositionedViewportRef.current = true;
+    viewportController.cancelPendingFit();
+    viewportController.handleWheel(event);
+  }, [viewportController.cancelPendingFit, viewportController.handleWheel]);
   const handleHoverChange = useCallback((path: string | null) => {
     if (suppressHoverUntilPointerMoveRef.current && path) return;
     if (hoverClearTimeoutRef.current !== null) {
@@ -184,7 +205,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
         role="img"
         aria-label={t('app.viewGraph')}
         className="h-full w-full touch-none cursor-grab select-none"
-        onPointerDown={pointerInteractions.startPan}
+        onPointerDown={startPan}
         onPointerMove={handlePointerMove}
         onPointerUp={finishPointerInteraction}
         onPointerCancel={cancelPointerInteraction}
@@ -197,7 +218,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
           suppressedHoverPathRef.current = null;
           setHoveredPath(null);
         }}
-        onWheel={viewportController.handleWheel}
+        onWheel={handleWheel}
       >
         <GraphCanvasScene
           connectedToSelected={geometry.connectedToSelected}

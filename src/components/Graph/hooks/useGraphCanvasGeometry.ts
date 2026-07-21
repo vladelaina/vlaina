@@ -8,6 +8,7 @@ export function useGraphCanvasGeometry(args: {
   positionOverrides: GraphNodePositions;
   selectedPath: string | null;
   simulationPositions: GraphNodePositions;
+  simulationVersion: number;
 }) {
   const nodes = useMemo(() => args.graph.nodes.map((node) => {
     const position = args.simulationPositions[node.id]
@@ -15,7 +16,13 @@ export function useGraphCanvasGeometry(args: {
         ? args.dragPosition.position
         : args.positionOverrides[node.id]);
     return position ? { ...node, ...position } : node;
-  }), [args.dragPosition, args.graph.nodes, args.positionOverrides, args.simulationPositions]);
+  }), [
+    args.dragPosition,
+    args.graph.nodes,
+    args.positionOverrides,
+    args.simulationPositions,
+    args.simulationVersion,
+  ]);
   const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const edges = useMemo(() => args.graph.edges.flatMap((edge) => {
     const source = nodeById.get(edge.source.id);

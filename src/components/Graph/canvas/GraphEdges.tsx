@@ -17,6 +17,7 @@ function getEdgeDefinitions(edges: readonly PositionedGraphEdge[]) {
 }
 
 export const GraphEdges = memo(function GraphEdges(props: {
+  dragging?: boolean;
   edges: PositionedGraphEdge[];
   focused?: boolean;
   hoveredPath: string | null;
@@ -61,16 +62,18 @@ export const GraphEdges = memo(function GraphEdges(props: {
   }, [lastHoveredPath, props.hoveredPath]);
 
   return (
-    <g aria-hidden="true" className="vlaina-graph-edge-enter pointer-events-none">
+    <g aria-hidden="true" className="pointer-events-none">
       <path
         ref={registerBaseLayer}
         data-graph-edge-count={props.edges.length}
         data-graph-edge-layer="base"
-        className="vlaina-graph-edge-base"
+        className={`vlaina-graph-edge-base${props.dragging ? ' is-dragging' : ''}`}
         d={basePath}
         fill={themeGraphTokens.edgeFill}
         stroke="var(--vlaina-color-graph-edge)"
-        strokeOpacity={props.focused ? themeGraphTokens.focusedEdgeOpacity : themeGraphTokens.edgeOpacity}
+        strokeOpacity={props.dragging
+          ? 0
+          : props.focused ? themeGraphTokens.focusedEdgeOpacity : themeGraphTokens.edgeOpacity}
         strokeWidth={themeGraphTokens.edgeWidthPx}
         vectorEffect="non-scaling-stroke"
       />

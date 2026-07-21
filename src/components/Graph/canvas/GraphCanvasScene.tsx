@@ -92,26 +92,10 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
     }
     return connected;
   }, [activePath, props.connectedToSelected, props.edges]);
-  const enterIndexById = useMemo(() => {
-    const focusNode = props.nodes.find((node) => node.id === props.selectedPath)
-      ?? props.nodes[0];
-    if (!focusNode) return new Map<string, number>();
-    return new Map(
-      [...props.nodes]
-        .sort((left, right) => (
-          Number(right.id === props.selectedPath) - Number(left.id === props.selectedPath)
-          || right.degree - left.degree
-          || Math.hypot(left.x - focusNode.x, left.y - focusNode.y)
-          - Math.hypot(right.x - focusNode.x, right.y - focusNode.y)
-          || left.id.localeCompare(right.id)
-        ))
-        .map((node, index) => [node.id, index]),
-    );
-  }, [props.nodes, props.selectedPath]);
-
   return (
-    <>
+    <g className="vlaina-graph-enter">
       <GraphEdges
+        dragging={props.dragPositionId !== null}
         edges={props.edges}
         focused={Boolean(highlightedPath)}
         hoveredPath={highlightedPath}
@@ -120,7 +104,6 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
         <GraphNode
           key={node.id}
           dragging={props.dragPositionId === node.id}
-          enterIndex={enterIndexById.get(node.id) ?? 0}
           hovered={activePath === node.id}
           node={node}
           onHoverChange={props.onHoverChange}
@@ -137,6 +120,6 @@ const GraphSceneContent = memo(function GraphSceneContent(props: {
           )}
         />
       ))}
-    </>
+    </g>
   );
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { Force } from 'd3-force';
 import { logDiagnostic } from '@/lib/diagnostics/diagnosticsLog';
 import { themeGraphTokens } from '@/styles/themeTokens';
@@ -12,7 +12,6 @@ import {
 import {
   cloneGraphNodePositions,
   setGraphNodePosition,
-  syncGraphNodePositions,
 } from '../model/graphPositionSnapshot';
 import {
   beginGraphForceReleaseDiagnostic,
@@ -41,6 +40,7 @@ export function useGraphForceSimulation(args: {
   positionOverrides: GraphNodePositions;
 }) {
   const positionsRef = useRef<GraphNodePositions>({});
+  const retainedPositionsRef = useRef<GraphNodePositions>({});
   const nodesByIdRef = useRef(new Map<string, GraphForceNode>());
   const simulationRef = useRef<ReturnType<typeof createGraphForceSimulation> | null>(null);
   const initialSimulationPendingRef = useRef(false);
@@ -73,10 +73,15 @@ export function useGraphForceSimulation(args: {
     args.graph.edges.map((edge) => `${edge.source.id}>${edge.target.id}`).join('\n'),
   ].join('\n--\n'), [args.graph.edges, args.graph.nodes]);
 
-  const readPositions = (): GraphNodePositions => syncGraphNodePositions(
-    nodesByIdRef.current,
-    positionsRef.current,
-  );
+  const readPositions = (): GraphNodePositions => {
+    const positions = positionsRef.current;
+    const retainedPositions = retainedPositionsRef.current;
+    for (const [id, node] of nodesByIdRef.current) {
+      setGraphNodePosition(retainedPositions, id, node);
+      positions[id] = retainedPositions[id]!;
+    }
+    return positions;
+  };
 
   const stopSavedLayoutEntrance = () => {
     const entrance = savedLayoutEntranceRef.current;
@@ -119,28 +124,36 @@ export function useGraphForceSimulation(args: {
     entrance.frameId = window.requestAnimationFrame(step);
   };
 
-  const initializeSimulation = (useOverrides = true) => {
+  const initializeSimulation = (
+    useOverrides = true,
+    carriedPositions: GraphNodePositions = {},
+  ) => {
     simulationRef.current?.stop();
     stopSavedLayoutEntrance();
     savedLayoutEntranceRef.current = null;
+    const initialPositions = useOverrides
+      ? { ...carriedPositions, ...overridesRef.current }
+      : {};
     const nodes = createGraphForceNodes(graphRef.current.nodes.map((node) => ({
       ...node,
-      ...(useOverrides ? overridesRef.current[node.id] : null),
+      ...(useOverrides ? initialPositions[node.id] : null),
     })));
     const hasCompleteLayout = useOverrides && nodes.every((node) => (
-      overridesRef.current[node.id] !== undefined
+      initialPositions[node.id] !== undefined
     ));
     const anchoredNodes = useOverrides
-      ? nodes.filter((node) => overridesRef.current[node.id] !== undefined)
+      ? nodes.filter((node) => initialPositions[node.id] !== undefined)
       : [];
-    const savedLayoutTargets = hasCompleteLayout
+    const shouldAnimateSavedLayout = hasCompleteLayout
+      && Object.keys(carriedPositions).length === 0;
+    const savedLayoutTargets = shouldAnimateSavedLayout
       ? Object.fromEntries(nodes.map((node) => [node.id, { x: node.x, y: node.y }]))
       : null;
-    if (nodes.length > 0) {
+    if (nodes.length > 0 && (!hasCompleteLayout || shouldAnimateSavedLayout)) {
       const centerX = themeGraphTokens.viewBoxWidthPx / 2;
       const centerY = themeGraphTokens.viewBoxHeightPx / 2;
       for (const node of nodes) {
-        if (!hasCompleteLayout && overridesRef.current[node.id] !== undefined) continue;
+        if (!hasCompleteLayout && initialPositions[node.id] !== undefined) continue;
         node.x = centerX + (node.x - centerX) * themeGraphTokens.forceInitialSpreadRatio;
         node.y = centerY + (node.y - centerY) * themeGraphTokens.forceInitialSpreadRatio;
       }
@@ -202,16 +215,18 @@ export function useGraphForceSimulation(args: {
         targets: savedLayoutTargets,
       };
       if (activeRef.current) startSavedLayoutEntrance();
-    } else if (activeRef.current) {
+    } else if (!hasCompleteLayout && activeRef.current) {
       simulation.alpha(1).restart();
+    } else if (hasCompleteLayout) {
+      initializedRef.current(positions);
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     previousDragIdRef.current = null;
     movedDragIdRef.current = null;
     positionsRef.current = {};
-    initializeSimulation();
+    initializeSimulation(true, retainedPositionsRef.current);
   }, [graphKey]);
 
   useEffect(() => {
@@ -342,6 +357,7 @@ export function useGraphForceSimulation(args: {
     node.vx = 0;
     node.vy = 0;
     setGraphNodePosition(positionsRef.current, id, position);
+    setGraphNodePosition(retainedPositionsRef.current, id, position);
     draggedFrameRef.current(id, position);
     simulation
       .alpha(Math.max(simulation.alpha(), themeGraphTokens.forceDragAlpha))
