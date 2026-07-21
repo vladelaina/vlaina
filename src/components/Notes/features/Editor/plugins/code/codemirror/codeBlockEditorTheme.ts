@@ -14,6 +14,7 @@ import {
   resolveCodeBlockBlankContentClickPosition,
 } from './codeBlockPointerSelection';
 import { createCodeBlockEditorBaseTheme } from './codeBlockEditorThemeStyles';
+import { codeBlockCaretGeometryPlugin } from './codeBlockCaretGeometry';
 
 export { resolveCodeBlockBlankContentClickPosition } from './codeBlockPointerSelection';
 
@@ -117,6 +118,7 @@ export function createCodeBlockEditorTheme() {
     Prec.highest(codeBlockSelectedTextField),
     Prec.highest(codeBlockCompatibilityLineField),
     Prec.highest(codeBlockPointerSelectionPlugin),
+    Prec.highest(codeBlockCaretGeometryPlugin),
     Prec.highest(CodeMirror.mouseSelectionStyle.of((view, event) => {
       const position = resolveCodeBlockBlankContentClickPosition(view, event);
       if (position === null) {

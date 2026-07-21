@@ -11,6 +11,7 @@ import {
   clearTextBlockCaretOverlay,
   type SerializedRect,
 } from './forcedLineEdgeCaret';
+import { resolveTextBlockCaretLineHeight } from './textBlockCaretGeometry';
 
 const FORCED_CARET_CLASS = 'editor-forced-line-end-caret-active';
 const FORCED_CARET_STYLE_ID = 'editor-forced-line-end-caret-style';
@@ -47,7 +48,7 @@ function createForcedLineEdgeCaret(
     left: forcedCaretX,
     top: textRect.top,
     bottom: textRect.bottom,
-  });
+  }, resolveTextBlockCaretLineHeight(view, view.state.selection.head));
   caret.className = 'editor-forced-line-end-caret';
   caret.style.left = `${overlayRect.left}px`;
   caret.style.top = `${overlayRect.top}px`;

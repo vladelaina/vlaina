@@ -711,6 +711,7 @@ export const themeCaretOverlayTokens = {
   zIndex: 10001,
   blinkDuration: '1.05s',
   blinkHoldDelayMs: 220,
+  normalLineHeightRatio: 1.2,
   visibleKeyframeEnd: '45%',
   hiddenKeyframeStart: '46%',
   opacityVisible: 1,

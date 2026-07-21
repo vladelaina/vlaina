@@ -9,6 +9,7 @@ import {
 } from './externalTextDropPayload';
 import { markEditorUserInput } from '../shared/userInputEvents';
 import { createCaretOverlayRect } from '@/lib/ui/caretOverlayStyles';
+import { resolveTextBlockCaretLineHeight } from './textBlockCaretGeometry';
 
 export {
   MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN,
@@ -34,7 +35,12 @@ interface BlockDropTarget {
   rect: CursorRect;
 }
 
-function getCursorRect(view: EditorView, event: DragEvent): CursorRect | null {
+interface TextDropTarget {
+  pos: number;
+  rect: CursorRect;
+}
+
+function getCursorRect(view: EditorView, event: DragEvent): TextDropTarget | null {
   const posInfo = view.posAtCoords({
     left: event.clientX,
     top: event.clientY,
@@ -42,14 +48,17 @@ function getCursorRect(view: EditorView, event: DragEvent): CursorRect | null {
   if (!posInfo) return null;
 
   try {
-    return view.coordsAtPos(posInfo.pos);
+    return {
+      pos: posInfo.pos,
+      rect: view.coordsAtPos(posInfo.pos),
+    };
   } catch {
     return null;
   }
 }
 
-function positionCursor(cursor: HTMLElement, rect: CursorRect) {
-  const overlayRect = createCaretOverlayRect(rect);
+function positionCursor(cursor: HTMLElement, rect: CursorRect, lineHeight: number | null) {
+  const overlayRect = createCaretOverlayRect(rect, lineHeight);
 
   cursor.classList.remove('block');
   cursor.style.left = `${Math.round(overlayRect.left)}px`;
@@ -207,13 +216,17 @@ export const externalTextDropCursorPlugin = $prose(() => {
             return false;
           }
 
-          const rect = getCursorRect(view, event);
-          if (!rect) {
+          const target = getCursorRect(view, event);
+          if (!target) {
             hideCursor();
             return false;
           }
 
-          positionCursor(ensureCursor(view), rect);
+          positionCursor(
+            ensureCursor(view),
+            target.rect,
+            resolveTextBlockCaretLineHeight(view, target.pos),
+          );
           return false;
         },
         dragleave(view, event) {

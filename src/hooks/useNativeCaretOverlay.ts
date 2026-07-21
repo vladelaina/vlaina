@@ -5,6 +5,7 @@ import {
   holdCaretBlink,
   isCaretNavigationKey,
   releaseCaretBlink,
+  resolveElementLineHeight,
 } from '@/lib/ui/caretOverlayStyles';
 import {
   getControlCaretRect,
@@ -71,7 +72,12 @@ export function useNativeCaretOverlay(): void {
         return;
       }
 
-      const overlayRect = createCaretOverlayRect(rect);
+      const overlayRect = createCaretOverlayRect(
+        rect,
+        activeElement instanceof HTMLTextAreaElement
+          ? resolveElementLineHeight(activeElement)
+          : null,
+      );
       if (!isCaretOverlayVisuallyVisible(activeElement, overlayRect, caret)) {
         hide();
         return;

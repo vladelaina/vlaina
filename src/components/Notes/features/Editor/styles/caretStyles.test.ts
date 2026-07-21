@@ -7,6 +7,7 @@ import {
   createCaretOverlayRect,
   holdCaretBlink,
   releaseCaretBlink,
+  resolveElementLineHeight,
 } from '@/lib/ui/caretOverlayStyles';
 
 function readIndexStyles() {
@@ -163,6 +164,7 @@ describe('caret styles', () => {
     expect(source).toContain('export const CARET_BLINK_HOLD_DELAY_MS = themeCaretOverlayTokens.blinkHoldDelayMs;');
     expect(source).toContain('export function isCaretNavigationKey');
     expect(source).toContain('export function createCaretOverlayRect');
+    expect(source).toContain('export function resolveElementLineHeight');
     expect(source).toContain('export function holdCaretBlink');
     expect(source).toContain('export function releaseCaretBlink');
     expect(source).toContain('width: ${CARET_WIDTH_VAR};');
@@ -212,6 +214,28 @@ describe('caret styles', () => {
       top: 36,
       height: 18,
     });
+
+    expect(createCaretOverlayRect(
+      { left: 11, top: 20, bottom: 40 },
+      25,
+    )).toEqual({
+      left: 11,
+      top: 17.5,
+      height: 25,
+    });
+  });
+
+  it('resolves explicit and normal computed line heights', () => {
+    const explicit = document.createElement('p');
+    explicit.style.fontSize = '17px';
+    explicit.style.lineHeight = '25px';
+    const normal = document.createElement('p');
+    normal.style.fontSize = '20px';
+    normal.style.lineHeight = 'normal';
+    document.body.append(explicit, normal);
+
+    expect(resolveElementLineHeight(explicit)).toBe(25);
+    expect(resolveElementLineHeight(normal)).toBe(24);
   });
 
   it('keeps all embedded CodeMirror editors on the shared caret theme', () => {
@@ -241,7 +265,7 @@ describe('caret styles', () => {
     const source = readTextBlockCaretOverlayPlugin();
 
     expect(source).toContain('createCaretOverlayStyle({');
-    expect(source).toContain('createCaretOverlayRect(rect)');
+    expect(source).toContain('resolveTextBlockCaretLineHeight(this.view, this.view.state.selection.head)');
     expect(source).toContain('activeSelector: `.ProseMirror.${TEXTBLOCK_CARET_CLASS}`');
     expect(source).toContain('selection.$from.parent.isTextblock');
     expect(source).toContain('isCaretNavigationKey(event)');
@@ -266,7 +290,7 @@ describe('caret styles', () => {
     expect(cursorRule).toContain('background: var(--vlaina-caret-color);');
     expect(cursorRule).toContain('transform: translateX(calc(var(--vlaina-caret-width) / -2));');
     expect(cursorRule).not.toContain('background: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));');
-    expect(source).toContain('createCaretOverlayRect(rect)');
+    expect(source).toContain('resolveTextBlockCaretLineHeight(view, target.pos)');
     expect(source).not.toContain('MIN_CURSOR_HEIGHT');
   });
 
@@ -292,7 +316,8 @@ describe('caret styles', () => {
     expect(source).toContain('inputCaretHeight > 0 && contentHeight > 0');
     expect(source).toContain('contentTop + (contentHeight - inputCaretHeight) / 2');
     expect(source).toContain('top + inputCaretHeight');
-    expect(source).toContain('createCaretOverlayRect(rect)');
+    expect(source).toContain('createCaretOverlayRect(');
+    expect(source).toContain('resolveElementLineHeight(activeElement)');
     expect(source).toContain('isCaretNavigationKey(event)');
     expect(source).toContain('holdCaretBlink(caret, null)');
     expect(source).toContain('holdCaretBlink(caret, keyboardCaretNavigationActive ? null : undefined)');

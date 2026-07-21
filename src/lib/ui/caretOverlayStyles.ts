@@ -102,21 +102,44 @@ export function releaseCaretBlink(element: HTMLElement | null): void {
   element.removeAttribute(CARET_BLINK_HELD_ATTR);
 }
 
-export function createCaretOverlayRect(lineRect: CaretOverlayLineRect): CaretOverlayRect {
-  const lineHeight = Math.max(0, lineRect.bottom - lineRect.top);
-  if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+export function createCaretOverlayRect(
+  lineRect: CaretOverlayLineRect,
+  preferredHeight?: number | null,
+): CaretOverlayRect {
+  const measuredHeight = Math.max(0, lineRect.bottom - lineRect.top);
+  const hasMeasuredHeight = Number.isFinite(measuredHeight) && measuredHeight > 0;
+  const requestedHeight = preferredHeight !== null && preferredHeight !== undefined &&
+    Number.isFinite(preferredHeight) && preferredHeight > 0
+    ? preferredHeight
+    : hasMeasuredHeight
+      ? measuredHeight
+      : CARET_MIN_VISUAL_HEIGHT;
+  if (!hasMeasuredHeight) {
     return {
       left: lineRect.left,
       top: lineRect.top,
-      height: CARET_MIN_VISUAL_HEIGHT,
+      height: Math.max(CARET_MIN_VISUAL_HEIGHT, requestedHeight),
     };
   }
 
-  const height = Math.max(CARET_MIN_VISUAL_HEIGHT, lineHeight * CARET_VISUAL_HEIGHT_RATIO);
+  const height = Math.max(CARET_MIN_VISUAL_HEIGHT, requestedHeight * CARET_VISUAL_HEIGHT_RATIO);
 
   return {
     left: lineRect.left,
-    top: lineRect.top + (lineHeight - height) / 2,
+    top: lineRect.top + (measuredHeight - height) / 2,
     height,
   };
+}
+
+export function resolveElementLineHeight(element: Element | null): number | null {
+  if (!(element instanceof HTMLElement)) return null;
+
+  const styles = element.ownerDocument.defaultView?.getComputedStyle(element);
+  const lineHeight = Number.parseFloat(styles?.lineHeight ?? '');
+  if (Number.isFinite(lineHeight) && lineHeight > 0) return lineHeight;
+
+  const fontSize = Number.parseFloat(styles?.fontSize ?? '');
+  return Number.isFinite(fontSize) && fontSize > 0
+    ? fontSize * themeCaretOverlayTokens.normalLineHeightRatio
+    : null;
 }

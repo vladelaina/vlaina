@@ -78,6 +78,28 @@ describe('useNativeCaretOverlay', () => {
     hook.unmount();
   });
 
+  it('matches textarea carets to the rendered line height', () => {
+    const textarea = document.createElement('textarea');
+    textarea.style.lineHeight = '24px';
+    textarea.value = 'hello';
+    textarea.selectionStart = 2;
+    textarea.selectionEnd = 2;
+    vi.spyOn(textarea, 'getBoundingClientRect').mockReturnValue(rect(120, 180, 240, 48));
+    document.body.appendChild(textarea);
+    elementFromPoint.mockReturnValue(textarea);
+
+    const hook = renderHook(() => useNativeCaretOverlay());
+
+    act(() => {
+      textarea.focus();
+      document.dispatchEvent(new Event(NATIVE_CARET_OVERLAY_REFRESH_EVENT));
+    });
+
+    expect(document.querySelector<HTMLElement>('.native-caret-overlay')?.style.height).toBe('24px');
+
+    hook.unmount();
+  });
+
   it('hides the caret when another surface covers the focused composer', () => {
     const root = document.createElement('div');
     root.dataset.chatInput = 'true';

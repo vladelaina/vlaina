@@ -9,6 +9,7 @@ import {
   releaseCaretBlink,
 } from '@/lib/ui/caretOverlayStyles';
 import { isTagTokenBoundary } from './textBlockCaretTagBoundary';
+import { resolveTextBlockCaretLineHeight } from './textBlockCaretGeometry';
 
 export { isTagTokenBoundaryAtTextblock } from './textBlockCaretTagBoundary';
 
@@ -258,7 +259,10 @@ export class TextBlockCaretOverlayView {
       doc.body.appendChild(this.caret);
     }
 
-    let overlayRect = createCaretOverlayRect(rect);
+    let overlayRect = createCaretOverlayRect(
+      rect,
+      resolveTextBlockCaretLineHeight(this.view, this.view.state.selection.head),
+    );
     const previousCharacterRight = isTagTokenBoundary(this.view)
       ? resolvePreviousCharacterRight(this.view)
       : null;
