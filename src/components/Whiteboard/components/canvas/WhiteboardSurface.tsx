@@ -81,13 +81,15 @@ export function WhiteboardSurface({
   const [viewportSize, setViewportSize] = useState<WhiteboardPoint>({ x: 0, y: 0 });
   const drawing = isDrawingTool(tool);
   const usesCrosshair = tool === 'select';
+  const movingSelection = movePreview !== null;
   const cursorClass = cn(
     'group/whiteboard-surface relative h-full overflow-hidden touch-none',
     isPanning && 'cursor-grabbing',
-    !isPanning && (tool === 'hand' || spacePressed) && 'cursor-grab',
-    !isPanning && !spacePressed && (drawing || tool === 'stroke-eraser') && 'cursor-none',
-    !isPanning && usesCrosshair && 'cursor-crosshair',
-    !isPanning && !drawing && !usesCrosshair && tool !== 'hand' && !spacePressed && tool !== 'stroke-eraser' && 'cursor-default',
+    !isPanning && movingSelection && 'cursor-grabbing',
+    !isPanning && !movingSelection && (tool === 'hand' || spacePressed) && 'cursor-grab',
+    !isPanning && !movingSelection && !spacePressed && (drawing || tool === 'stroke-eraser') && 'cursor-none',
+    !isPanning && !movingSelection && usesCrosshair && 'cursor-crosshair',
+    !isPanning && !movingSelection && !drawing && !usesCrosshair && tool !== 'hand' && !spacePressed && tool !== 'stroke-eraser' && 'cursor-default',
   );
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     if (!hasImageFile(event.dataTransfer)) return;

@@ -6,6 +6,7 @@ import type { WhiteboardElement, WhiteboardTool } from '../../model/whiteboardMo
 interface WhiteboardElementNodeProps {
   element: WhiteboardElement;
   erasing?: boolean;
+  moving?: boolean;
   selected: boolean;
   showSelectionBorder: boolean;
   tool: WhiteboardTool;
@@ -15,6 +16,7 @@ interface WhiteboardElementNodeProps {
 export const WhiteboardElementNode = memo(function WhiteboardElementNode({
   element,
   erasing = false,
+  moving = false,
   selected,
   showSelectionBorder,
   tool,
@@ -26,7 +28,7 @@ export const WhiteboardElementNode = memo(function WhiteboardElementNode({
       aria-label={element.text}
       className={cn(
         'absolute select-none overflow-hidden rounded-[var(--vlaina-radius-8px)] border bg-[var(--vlaina-color-whiteboard-element)] shadow-[var(--vlaina-shadow-whiteboard-element)]',
-        tool === 'select' ? selected ? 'cursor-grab' : 'cursor-move' : 'pointer-events-none',
+        tool === 'select' ? moving ? 'cursor-grabbing' : selected ? 'cursor-grab' : 'cursor-move' : 'pointer-events-none',
       )}
       onPointerDown={(event) => onPointerDown(event, element)}
       style={{

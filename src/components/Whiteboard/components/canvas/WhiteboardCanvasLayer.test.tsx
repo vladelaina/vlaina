@@ -135,4 +135,30 @@ describe('WhiteboardCanvasLayer', () => {
 
     expect(container.querySelector('[data-whiteboard-element="true"]')).toHaveClass('cursor-grab');
   });
+
+  it('shows a grabbing cursor on an image while moving the selection', () => {
+    const { container } = render(
+      <WhiteboardCanvasLayer
+        brushCursorColor="transparent"
+        brushCursorPoint={null}
+        brushCursorSize={1}
+        brushCursorTool={null}
+        draftStroke={null}
+        elements={[{ height: 80, id: 'image-1', text: 'one.png', type: 'image', width: 100, x: 0, y: 0 }]}
+        eraserPreview={EMPTY_WHITEBOARD_ERASER_PREVIEW}
+        movePreview={{ dx: 10, dy: 5, elementIds: ['image-1'], strokeIds: [] }}
+        selectedElementIds={['image-1']}
+        selectedStrokeIds={[]}
+        selectionPath={null}
+        strokes={[]}
+        tool="select"
+        viewport={{ x: 0, y: 0, zoom: 1 }}
+        viewportSize={{ x: 500, y: 500 }}
+        onElementPointerDown={vi.fn()}
+        onSelectionResizePointerDown={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('[data-whiteboard-element="true"]')).toHaveClass('cursor-grabbing');
+  });
 });

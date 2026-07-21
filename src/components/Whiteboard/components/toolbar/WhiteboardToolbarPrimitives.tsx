@@ -46,7 +46,7 @@ export function WhiteboardToolbarButton({
               ? 'size-[var(--vlaina-size-44px)] rounded-[var(--vlaina-radius-12px)]'
               : 'size-[var(--vlaina-size-36px)] rounded-[var(--vlaina-radius-circle)]',
             active
-              ? 'border-[var(--vlaina-color-accent-border-muted)] bg-[var(--vlaina-accent-light)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-selection-soft)]'
+              ? 'border-transparent bg-[var(--vlaina-accent-light)] text-[var(--vlaina-accent)]'
               : 'hover:bg-[var(--vlaina-color-control-hover-bg)] hover:text-[var(--vlaina-color-control-hover-fg)] active:scale-[var(--vlaina-scale-95)]',
           )}
         >

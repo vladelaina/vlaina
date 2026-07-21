@@ -81,10 +81,10 @@ export const WhiteboardToolbar = memo(function WhiteboardToolbar(props: Whiteboa
 
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 top-3 z-[var(--vlaina-z-50)] flex justify-center px-3">
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[var(--vlaina-z-50)] flex justify-center px-3">
         <div className="app-no-drag pointer-events-auto relative flex max-w-full min-w-0 items-center">
         {openPanel && !props.spacePressed ? (
-          <div className="pointer-events-none absolute left-1/2 top-full z-[var(--vlaina-z-50)] flex w-max max-w-[var(--vlaina-whiteboard-panel-max-width)] -translate-x-1/2 pt-2">
+          <div className="pointer-events-none absolute bottom-full left-1/2 z-[var(--vlaina-z-50)] flex w-max max-w-[var(--vlaina-whiteboard-panel-max-width)] -translate-x-1/2 pb-2">
             <div className="pointer-events-auto w-max max-w-full">
               <WhiteboardToolPanel
                 brushColors={props.brushColors}
