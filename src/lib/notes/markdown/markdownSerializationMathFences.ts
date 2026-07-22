@@ -4,7 +4,9 @@ import {
   ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_SUFFIX_PATTERN,
   ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN, ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN,
   ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_SUFFIX_PATTERN,
-  LATEX_LIKE_MATH_CONTENT_PATTERN
+  LATEX_LIKE_MATH_CONTENT_PATTERN,
+  STANDALONE_BRACKET_MATH_PATTERN,
+  STANDALONE_DOLLAR_MATH_PATTERN,
 } from './markdownSerializationShared';
 
 export function normalizeAlternativeMathBlockFences(text: string): string {
@@ -48,6 +50,20 @@ export function normalizeAlternativeMathBlockFences(text: string): string {
         }
 
         pendingFence.lines.push(line);
+        continue;
+      }
+
+      const standaloneDollar = STANDALONE_DOLLAR_MATH_PATTERN.exec(line);
+      if (standaloneDollar) {
+        const prefix = standaloneDollar[1] ?? '';
+        output.push(`${prefix}$$`, `${prefix}${standaloneDollar[2] ?? ''}`, `${prefix}$$`);
+        continue;
+      }
+
+      const standaloneBracket = STANDALONE_BRACKET_MATH_PATTERN.exec(line);
+      if (standaloneBracket) {
+        const prefix = standaloneBracket[1] ?? '';
+        output.push(`${prefix}$$`, `${prefix}${standaloneBracket[2] ?? ''}`, `${prefix}$$`);
         continue;
       }
 

@@ -62,6 +62,16 @@ describe('mathInputRules', () => {
     expect(doubleDollarMatch).toBeNull();
   });
 
+  it('matches parenthesized inline math', () => {
+    const match = 'value \\(x + (y - 1)\\)'.match(MATH_INLINE_INPUT_RULE_PATTERN);
+
+    expect(match?.[2]).toBe('x + (y - 1)');
+  });
+
+  it('does not treat an escaped parenthesized delimiter as math', () => {
+    expect('\\\\(x\\)'.match(MATH_INLINE_INPUT_RULE_PATTERN)).toBeNull();
+  });
+
   it('applies the block input rule by replacing the fence text with a math block node', () => {
     const { state, deleteStep, replaceSelectionWith } = createInputRuleState();
     const match = '$$\\frac{1}{2}$$ '.match(MATH_BLOCK_INPUT_RULE_PATTERN) as RegExpMatchArray;
@@ -120,6 +130,15 @@ describe('mathInputRules', () => {
       kind: 'math_inline',
       attrs: { latex: 'x+y' },
     });
+  });
+
+  it('applies the parenthesized inline input rule', () => {
+    const { state } = createInputRuleState();
+    const match = '\\(x+y\\)'.match(MATH_INLINE_INPUT_RULE_PATTERN) as RegExpMatchArray;
+
+    applyMathInlineInputRule(state as any, match, 8, 15);
+
+    expect(state.schema.nodes.math_inline!.create).toHaveBeenCalledWith({ latex: 'x+y' });
   });
 
   it('returns null when the target math node type is unavailable', () => {

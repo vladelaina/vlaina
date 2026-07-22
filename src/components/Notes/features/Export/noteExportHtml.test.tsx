@@ -300,4 +300,52 @@ describe('renderNoteExportHtml', () => {
     expect(html).not.toContain('application/x-tex');
     expect(html).not.toContain('hidden_export_marker');
   });
+
+  it('renders all supported notes math delimiters, math fences, and chemistry consistently', async () => {
+    const html = await renderNoteExportHtml(
+      [
+        'Inline \\(x+y\\) and chemistry $\\ce{H2O}$.',
+        '',
+        '\\[',
+        '\\pu{123 kJ mol-1}',
+        '\\]',
+        '',
+        '$$x^2$$',
+        '',
+        '```math',
+        '\\frac{1}{2}',
+        '```',
+        '',
+        '```latex',
+        '\\documentclass{article}',
+        '```',
+      ].join('\n'),
+      'Math Syntax',
+    );
+    const doc = parseExportHtml(html);
+
+    expect(doc.querySelectorAll('.katex')).toHaveLength(5);
+    expect(doc.body.textContent).toContain('H');
+    expect(doc.body.textContent).toContain('kJ');
+    expect(doc.querySelector('code.language-latex')?.textContent).toContain('\\documentclass');
+    expect(doc.querySelector('code.language-math')).toBeNull();
+  });
+
+  it('isolates macros and enforces the shared formula size limit during export', async () => {
+    const html = await renderNoteExportHtml(
+      [
+        '$\\gdef\\R{\\mathbf{H}}\\R$',
+        '$\\R$',
+        `$${'x'.repeat(10001)}$`,
+      ].join('\n\n'),
+      'Math Boundaries',
+    );
+    const doc = parseExportHtml(html);
+    const formulas = doc.querySelectorAll('.katex');
+
+    expect(formulas).toHaveLength(2);
+    expect(formulas[0]?.innerHTML).toContain('mathbf');
+    expect(formulas[1]?.innerHTML).toContain('mathbb');
+    expect(doc.querySelector('.math-error')).toBeInstanceOf(HTMLElement);
+  });
 });

@@ -10,12 +10,14 @@ import {
   DOLLAR_MATH_BLOCK_FENCE_PATTERN,
   DollarMathFenceMatch,
   MathBlockFenceReference, MathBlockFenceReferenceIndex,
-  MathBlockFenceStyle
+  MathBlockFenceStyle,
+  STANDALONE_BRACKET_MATH_PATTERN,
+  STANDALONE_DOLLAR_MATH_PATTERN,
 } from './markdownSerializationShared';
 
 export function restoreMathBlockFenceStylesFromReference(markdown: string, reference: string): string {
   const references = collectMathBlockFenceReferences(reference);
-  if (!references.some((item) => item.style === 'bracket')) {
+  if (!references.some((item) => item.style !== 'dollar')) {
     return markdown;
   }
 
@@ -41,7 +43,14 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
       );
       nextReferenceIndex = referenceMatch.nextIndex;
 
-      if (referenceMatch.style === 'bracket') {
+      const singleLineLatex = match.closeIndex === index + 2
+        ? stripMathContainerPrefix(lines[index + 1] ?? '', match.prefix)
+        : null;
+      if (referenceMatch.style === 'dollar-inline' && singleLineLatex !== null) {
+        output.push(`${match.prefix}$$${singleLineLatex}$$`);
+      } else if (referenceMatch.style === 'bracket-inline' && singleLineLatex !== null) {
+        output.push(`${match.prefix}\\[${singleLineLatex}\\]`);
+      } else if (referenceMatch.style === 'bracket') {
         output.push(`${match.prefix}\\[`);
         for (let cursor = index + 1; cursor < match.closeIndex; cursor += 1) {
           output.push(lines[cursor] ?? '');
@@ -174,6 +183,26 @@ export function collectMathBlockFenceReferencesFromSegment(
   const dollarFenceMatches = collectDollarMathFenceMatches(lines);
 
   for (let index = 0; index < lines.length; index += 1) {
+    const standaloneDollar = STANDALONE_DOLLAR_MATH_PATTERN.exec(lines[index]);
+    if (standaloneDollar) {
+      const prefix = standaloneDollar[1] ?? '';
+      references.push({
+        latex: `${prefix}${standaloneDollar[2] ?? ''}`,
+        style: 'dollar-inline',
+      });
+      continue;
+    }
+
+    const standaloneBracket = STANDALONE_BRACKET_MATH_PATTERN.exec(lines[index]);
+    if (standaloneBracket) {
+      const prefix = standaloneBracket[1] ?? '';
+      references.push({
+        latex: `${prefix}${standaloneBracket[2] ?? ''}`,
+        style: 'bracket-inline',
+      });
+      continue;
+    }
+
     const dollarMatch = dollarFenceMatches.get(index);
     if (dollarMatch) {
       references.push({
@@ -222,6 +251,10 @@ export function collectMathBlockFenceReferencesFromSegment(
       index = closeIndex;
     }
   }
+}
+
+function stripMathContainerPrefix(line: string, prefix: string): string {
+  return prefix && line.startsWith(prefix) ? line.slice(prefix.length) : line;
 }
 
 export function normalizeMathBlockLatex(latex: string): string {
