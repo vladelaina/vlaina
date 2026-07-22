@@ -59,6 +59,7 @@ export function decodeSecretRecord(rawRecord, safeStorage, options = {}) {
 
   const decoded = {};
   let needsMigration = false;
+  let decryptionFailed = false;
   const allowPlaintext = options.allowPlaintext !== false;
 
   for (const [key, value] of Object.entries(rawRecord)) {
@@ -68,6 +69,7 @@ export function decodeSecretRecord(rawRecord, safeStorage, options = {}) {
         decoded[key] = safeStorage.decryptString(envelope);
       } catch {
         needsMigration = true;
+        decryptionFailed = true;
       }
       continue;
     }
@@ -85,5 +87,6 @@ export function decodeSecretRecord(rawRecord, safeStorage, options = {}) {
   return {
     record: decoded,
     needsMigration,
+    ...(decryptionFailed ? { decryptionFailed: true } : {}),
   };
 }

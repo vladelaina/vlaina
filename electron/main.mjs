@@ -27,6 +27,7 @@ import { createTrustedIpc } from './trustedIpc.mjs';
 import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.mjs';
 import { normalizeMarkdownOpenPath } from './markdownOpenPath.mjs';
 import { getWindowsAppUserModelId } from './microsoftStoreIdentity.mjs';
+import { configureLinuxSafeStorageBackend } from './linuxSafeStorage.mjs';
 import {
   normalizeExternalUrl,
   normalizeProxyConfig,
@@ -40,6 +41,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.join(__dirname, '..');
 
 configureDevelopmentUserDataPath({ app, repoRoot });
+configureLinuxSafeStorageBackend({ app });
 
 const rendererDevUrl = process.env.VITE_DEV_SERVER_URL ?? 'http://127.0.0.1:3000';
 const apiBaseUrl = (process.env.APP_API_BASE_URL ?? 'https://api.vlaina.com').trim().replace(/\/+$/, '');

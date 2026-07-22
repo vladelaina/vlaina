@@ -161,11 +161,42 @@ describe('desktop filesystem symlink boundary', () => {
     await expect(assertAuthorizedFsPath(devUserDataPath)).resolves.toBe(devUserDataPath);
   });
 
+  it('authorizes the stable repository dev Electron userData path', async () => {
+    const devUserDataPath = path.join(
+      process.cwd(),
+      'temp',
+      'electron-user-data-dev',
+      '.vlaina',
+      'notes',
+      'notes-roots',
+      'notes-root-test',
+      'config.json',
+    );
+
+    await expect(assertAuthorizedFsPath(devUserDataPath)).resolves.toBe(devUserDataPath);
+  });
+
   it('keeps sensitive files protected inside repository dev electron userData paths', async () => {
     const protectedPath = path.join(
       process.cwd(),
       'temp',
       'electron-user-data-3999',
+      '.vlaina',
+      'app',
+      'secrets',
+      'account.json',
+    );
+
+    await expect(assertAuthorizedFsPath(protectedPath)).rejects.toThrow(
+      'File path is reserved for internal desktop storage',
+    );
+  });
+
+  it('keeps sensitive files protected inside the stable repository dev profile', async () => {
+    const protectedPath = path.join(
+      process.cwd(),
+      'temp',
+      'electron-user-data-dev',
       '.vlaina',
       'app',
       'secrets',

@@ -6,6 +6,7 @@ import { normalizeAccountProvider } from '@/lib/account/provider';
 import {
   AUTH_PROVIDER_STORAGE_KEY,
   AUTH_STATE_STORAGE_KEY,
+  clearPersistedUser,
   normalizeAuthError,
   normalizePersistedUser,
   persistUser,
@@ -90,15 +91,19 @@ export function createSignIn(
             hasCheckedStatus: true,
             error: null,
           });
-          persistUser({
-            isConnected: true,
-            provider: providerFromResult,
-            username,
-            primaryEmail,
-            avatarUrl,
-            membershipTier,
-            membershipName,
-          });
+          if (result.persistent === false) {
+            clearPersistedUser();
+          } else {
+            persistUser({
+              isConnected: true,
+              provider: providerFromResult,
+              username,
+              primaryEmail,
+              avatarUrl,
+              membershipTier,
+              membershipName,
+            });
+          }
           void get().checkStatus({ force: true }).catch(() => undefined);
           void refreshAvatar(set, get, username, avatarUrl);
           return true;
