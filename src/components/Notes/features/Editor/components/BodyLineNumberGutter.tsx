@@ -10,6 +10,7 @@ import {
   type BodyLineNumberWindow,
 } from '../utils/bodyLineNumberWindow';
 import { observeBodyLineNumberGutterLayout } from '../utils/bodyLineNumberGutterObservers';
+import { createBodyLineNumberRefreshScheduler } from '../utils/bodyLineNumberRefreshScheduler';
 
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 const BLOCK_DRAG_ACTIVE_CLASS = 'editor-block-drag-active';
@@ -56,6 +57,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
     let pendingDeferredSelectionSyncElements: Element[] | null = [];
     const editorRoot = resolvedShell.querySelector<HTMLElement>('.ProseMirror');
     const scrollRoot = resolvedShell.closest<HTMLElement>('[data-note-scroll-root="true"]');
+    const layoutRefreshScheduler = createBodyLineNumberRefreshScheduler(scheduleLayoutRefreshFrame);
 
     function syncRenderedLabels(nextLayout: BodyLineNumberLabelLayout, force = false) {
       const shellRect = resolvedShell.getBoundingClientRect();
@@ -196,8 +198,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       }
     }
 
-    function refresh(selectionSyncElements?: readonly Element[]) {
-      queueDeferredSelectionSyncElements(selectionSyncElements);
+    function scheduleLayoutRefreshFrame() {
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
       }
@@ -213,9 +214,15 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
         needsRefreshAfterDeferredBlockInteraction = false;
         clearDeferredBlockInteractionRefresh();
         const nextLayout = resolveBodyLineNumberLabelLayout(resolvedShell, markdownRef.current);
+        layoutRefreshScheduler.markCompleted();
         layoutRef.current = nextLayout;
         syncRenderedLabels(nextLayout, true);
       });
+    }
+
+    function refresh(selectionSyncElements?: readonly Element[]) {
+      queueDeferredSelectionSyncElements(selectionSyncElements);
+      layoutRefreshScheduler.request(layoutRef.current.targets.length);
     }
 
     refreshRef.current = refresh;
@@ -249,6 +256,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       if (renderedWindowFrameId !== null) {
         cancelAnimationFrame(renderedWindowFrameId);
       }
+      layoutRefreshScheduler.cancel();
       clearDeferredBlockInteractionRefresh();
       clearPointerInteractionFallback();
       disconnectLayoutObservers();

@@ -294,6 +294,84 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
+  it('throttles full layout measurements for large documents', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      window.clearTimeout(id);
+    });
+
+    class TestResizeObserver {
+      constructor(_callback: ResizeObserverCallback) {}
+
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    }
+    let mutationCallback: MutationCallback = () => {};
+    class TestMutationObserver {
+      constructor(callback: MutationCallback) {
+        mutationCallback = callback;
+      }
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    vi.stubGlobal('MutationObserver', TestMutationObserver);
+
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
+    editorRoot.className = 'ProseMirror';
+    const paragraphs = Array.from(
+      { length: MAX_BODY_LINE_NUMBER_PRECISE_TEXT_ANCHOR_TARGETS + 1 },
+      (_value, index) => {
+        const paragraph = document.createElement('p');
+        paragraph.textContent = `Line ${index + 1}`;
+        setRect(paragraph, { left: 106, top: 40 + index * 24, height: 24 });
+        return paragraph;
+      },
+    );
+    editorRoot.append(...paragraphs);
+    shell.appendChild(editorRoot);
+    setRect(shell, { left: 10, top: 20, height: 400 });
+    setRect(editorRoot, { left: 106, top: 20, height: paragraphs.length * 24 });
+    const firstTargetRect = vi.spyOn(paragraphs[0]!, 'getBoundingClientRect');
+
+    try {
+      render(createElement(BodyLineNumberGutter, {
+        markdown: paragraphs.map((paragraph) => paragraph.textContent).join('\n\n'),
+        revision: 1,
+        shellRef,
+      }));
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      const initialMeasurementCount = firstTargetRect.mock.calls.length;
+
+      act(() => {
+        const record = { type: 'childList', target: editorRoot } as unknown as MutationRecord;
+        mutationCallback([record], {} as MutationObserver);
+        mutationCallback([record], {} as MutationObserver);
+        vi.advanceTimersByTime(199);
+      });
+      expect(firstTargetRect).toHaveBeenCalledTimes(initialMeasurementCount);
+
+      act(() => {
+        vi.advanceTimersByTime(2);
+      });
+      expect(firstTargetRect).toHaveBeenCalledTimes(initialMeasurementCount + 1);
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('ignores internal code editor mutations because code block resize already refreshes labels', () => {
     vi.useFakeTimers();
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>

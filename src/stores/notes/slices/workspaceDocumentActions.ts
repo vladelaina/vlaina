@@ -1,6 +1,5 @@
 import { createEmptyMetadataFile, setNoteEntry } from '../storage';
 import {
-  getCachedNoteModifiedAt,
   pruneCachedNoteContents,
   setCachedNoteContent,
 } from '../document/noteContentCache';
@@ -269,7 +268,7 @@ export function createWorkspaceDocumentActions(
     },
 
     updateContent: (content: string) => {
-      const { currentNote, noteContentsCache, openTabs, saveErrorPath } = get();
+      const { currentNote, openTabs, saveErrorPath } = get();
       if (!currentNote) {
         return;
       }
@@ -281,12 +280,6 @@ export function createWorkspaceDocumentActions(
         currentNoteRevision: get().currentNoteRevision + 1,
         isDirty: true,
         openTabs: setNoteTabDirtyState(openTabs, currentNote.path, true),
-        noteContentsCache: setCachedNoteContent(
-          noteContentsCache,
-          currentNote.path,
-          content,
-          getCachedNoteModifiedAt(noteContentsCache, currentNote.path)
-        ),
         ...(saveErrorPath === currentNote.path
           ? { saveError: null, saveErrorPath: null }
           : {}),

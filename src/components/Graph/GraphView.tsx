@@ -34,14 +34,14 @@ export function GraphView({
       ? state.nodePositionsByRoot[currentNotesRootPath] ?? EMPTY_GRAPH_NODE_POSITIONS
       : EMPTY_GRAPH_NODE_POSITIONS
   ));
-  const loading = useGraphNoteScan({ onPrimaryContentReady, onStartupReady });
+  const loading = useGraphNoteScan({ active, onPrimaryContentReady, onStartupReady });
 
   const {
     focusPath,
     fullGraph,
     selectedPath,
     visibleGraph,
-  } = useNoteGraphModel();
+  } = useNoteGraphModel(active);
   const layout = useMemo(
     () => layoutNoteGraph(visibleGraph, focusPath),
     [focusPath, visibleGraph],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FileTreeNode, NoteContentCacheEntry } from '@/stores/notes/types';
-import { buildNoteGraph } from './noteGraph';
+import { buildNoteGraph, createNoteGraphScanInput } from './noteGraph';
 
 function note(path: string): FileTreeNode {
   return {
@@ -17,6 +17,23 @@ function cache(entries: Array<[string, string]>): Map<string, NoteContentCacheEn
 }
 
 describe('buildNoteGraph', () => {
+  it('keeps the scan input stable when only folder expansion changes', () => {
+    const collapsed: FileTreeNode = {
+      id: 'docs',
+      name: 'docs',
+      path: 'docs',
+      isFolder: true,
+      expanded: false,
+      children: [note('docs/Alpha.md')],
+    };
+    const expanded = { ...collapsed, expanded: true };
+
+    expect(createNoteGraphScanInput([collapsed])).toEqual(createNoteGraphScanInput([expanded]));
+    expect(createNoteGraphScanInput([collapsed]).key).not.toBe(
+      createNoteGraphScanInput([{ ...collapsed, children: [note('docs/Beta.md')] }]).key,
+    );
+  });
+
   it('builds unique undirected edges from title, alias, and relative wikilinks', () => {
     const graph = buildNoteGraph(
       [note('Alpha.md'), note('docs/Beta.md'), note('docs/Gamma.md')],

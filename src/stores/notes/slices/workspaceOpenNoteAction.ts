@@ -27,6 +27,7 @@ import {
   mergeLoadedNoteMetadata,
   mergeOpenedTab,
   openDraftNoteFromMemory,
+  preserveDirtyCurrentNoteContent,
   resolveLatestOpenedContent,
 } from './workspaceOpenNoteSupport';
 
@@ -85,6 +86,13 @@ export function createOpenNoteAction(set: NotesSet, get: NotesGet): Pick<Workspa
           preservedDirtySaveError = get().error;
         }
         ({ notesPath, recentNotes, currentNote, noteContentsCache } = get());
+      }
+
+      const stateBeforeOpen = get();
+      const preservedCache = preserveDirtyCurrentNoteContent(stateBeforeOpen, path);
+      if (preservedCache !== stateBeforeOpen.noteContentsCache) {
+        set({ noteContentsCache: preservedCache });
+        noteContentsCache = preservedCache;
       }
 
       if (targetIsDraft && openDraftNoteFromMemory(

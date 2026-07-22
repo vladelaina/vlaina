@@ -90,7 +90,9 @@ export function SidebarContent({
   );
   const currentDraftContent = useNotesStore((s) =>
     currentNotePath && isDraftNotePath(currentNotePath)
-      ? s.noteContentsCache.get(currentNotePath)?.content ?? ''
+      ? s.currentNote?.path === currentNotePath
+        ? s.currentNote.content
+        : s.noteContentsCache.get(currentNotePath)?.content ?? ''
       : ''
   );
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);

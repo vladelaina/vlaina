@@ -142,12 +142,12 @@ describe('workspace document actions', () => {
     store.getState().updateContent('# Edited alpha');
 
     expect(store.getState().currentNote?.content).toBe('# Edited alpha');
-    expect(store.getState().noteContentsCache).not.toBe(noteContentsCache);
-    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('# Edited alpha');
+    expect(store.getState().noteContentsCache).toBe(noteContentsCache);
+    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('# Saved alpha');
     expect(store.getState().openTabs[0]?.isDirty).toBe(true);
   });
 
-  it('keeps draft cache content live while editing', () => {
+  it('keeps draft edits in the current note without cloning the content cache', () => {
     const noteContentsCache = new Map([
       ['draft:blank', { content: '', modifiedAt: null }],
     ]);
@@ -162,8 +162,9 @@ describe('workspace document actions', () => {
 
     store.getState().updateContent('Draft body');
 
-    expect(store.getState().noteContentsCache).not.toBe(noteContentsCache);
-    expect(store.getState().noteContentsCache.get('draft:blank')?.content).toBe('Draft body');
+    expect(store.getState().currentNote?.content).toBe('Draft body');
+    expect(store.getState().noteContentsCache).toBe(noteContentsCache);
+    expect(store.getState().noteContentsCache.get('draft:blank')?.content).toBe('');
   });
 
   it('keeps the active tab dirty when a draft save fails after the file write step', async () => {

@@ -79,7 +79,7 @@ describe('GraphView', () => {
     expect(screen.queryByRole('img', { name: 'app.viewGraph' })).not.toBeInTheDocument();
   });
 
-  it('mounts a populated graph in StrictMode without an effect feedback loop', async () => {
+  it('does not scan notes while inactive', () => {
     hoisted.notesState.currentNote = { content: '# Alpha', path: 'Alpha.md' };
     hoisted.notesState.notesPath = '/tmp/test-notes';
     hoisted.notesState.rootFolderPath = '/tmp/test-notes';
@@ -102,10 +102,66 @@ describe('GraphView', () => {
       </StrictMode>,
     );
 
-    expect(await screen.findByRole('img', { name: 'app.viewGraph' })).toBeInTheDocument();
     expect(document.querySelector('[data-graph-view-mode="true"]')).toHaveAttribute('data-graph-active', 'false');
+    expect(screen.queryByRole('img', { name: 'app.viewGraph' })).not.toBeInTheDocument();
+    expect(hoisted.notesState.scanAllNotes).not.toHaveBeenCalled();
+  });
+
+  it('mounts a populated active graph in StrictMode without an effect feedback loop', async () => {
+    hoisted.notesState.currentNote = { content: '# Alpha', path: 'Alpha.md' };
+    hoisted.notesState.notesPath = '/tmp/test-notes';
+    hoisted.notesState.rootFolderPath = '/tmp/test-notes';
+    hoisted.notesState.rootFolder = {
+      children: [{
+        id: 'Alpha.md',
+        isFolder: false,
+        kind: 'note',
+        name: 'Alpha.md',
+        path: 'Alpha.md',
+      }],
+    };
+    hoisted.notesState.noteContentsCache = new Map([
+      ['Alpha.md', { content: '# Alpha', modifiedAt: 1 }],
+    ]);
+
+    render(
+      <StrictMode>
+        <GraphView />
+      </StrictMode>,
+    );
+
+    expect(await screen.findByRole('img', { name: 'app.viewGraph' })).toBeInTheDocument();
     await waitFor(() => expect(hoisted.notesState.scanAllNotes).toHaveBeenCalledWith(
       expect.objectContaining({ background: true, priorityPaths: ['Alpha.md'] }),
     ));
+  });
+
+  it('preserves the canvas while pausing data work after deactivation', async () => {
+    hoisted.notesState.currentNote = { content: '# Alpha', path: 'Alpha.md' };
+    hoisted.notesState.notesPath = '/tmp/test-notes';
+    hoisted.notesState.rootFolderPath = '/tmp/test-notes';
+    hoisted.notesState.rootFolder = {
+      children: [{
+        id: 'Alpha.md',
+        isFolder: false,
+        kind: 'note',
+        name: 'Alpha.md',
+        path: 'Alpha.md',
+      }],
+    };
+    hoisted.notesState.noteContentsCache = new Map([
+      ['Alpha.md', { content: '# Alpha', modifiedAt: 1 }],
+    ]);
+    const { rerender } = render(<GraphView />);
+    const canvas = await screen.findByRole('img', { name: 'app.viewGraph' });
+    await waitFor(() => expect(hoisted.notesState.scanAllNotes).toHaveBeenCalled());
+    hoisted.notesState.scanAllNotes.mockClear();
+    hoisted.notesState.rootFolder = null;
+    hoisted.notesState.noteContentsCache = new Map();
+
+    rerender(<GraphView active={false} />);
+
+    expect(screen.getByRole('img', { name: 'app.viewGraph' })).toBe(canvas);
+    expect(hoisted.notesState.scanAllNotes).not.toHaveBeenCalled();
   });
 });
