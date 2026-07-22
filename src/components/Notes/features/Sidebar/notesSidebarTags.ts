@@ -158,6 +158,39 @@ function addPathToTagIndex(
   }
 }
 
+export function reconcileNotesSidebarTagIndexPath(
+  index: NotesSidebarTagIndex,
+  path: string,
+  content: string | undefined,
+  contentIdentity?: object,
+): NotesSidebarTagIndex {
+  if (content === undefined) {
+    removePathFromTagIndex(index, path);
+    return index;
+  }
+
+  const indexed = index.paths.get(path);
+  if (contentIdentity && indexed?.contentIdentity === contentIdentity) {
+    return index;
+  }
+
+  const contentSignature = createTagRelevantContentSignature(content);
+  if (indexed?.contentSignature === contentSignature) {
+    if (contentIdentity && indexed.contentIdentity !== contentIdentity) {
+      indexed.contentIdentity = contentIdentity;
+    }
+    return index;
+  }
+
+  removePathFromTagIndex(index, path);
+  addPathToTagIndex(
+    index,
+    path,
+    buildNotesSidebarTagPathIndexEntry(path, content, contentIdentity),
+  );
+  return index;
+}
+
 export function reconcileNotesSidebarTagIndex(
   index: NotesSidebarTagIndex,
   entries: readonly NotesSidebarTagScopeEntry[],
@@ -173,30 +206,12 @@ export function reconcileNotesSidebarTagIndex(
   }
 
   for (const entry of entries) {
-    const content = getNoteContent(entry.path);
-    if (content === undefined) {
-      removePathFromTagIndex(index, entry.path);
-      continue;
-    }
-
-    const indexed = index.paths.get(entry.path);
     const contentIdentity = getNoteContentIdentity?.(entry.path);
-    if (contentIdentity && indexed?.contentIdentity === contentIdentity) {
-      continue;
-    }
-    const contentSignature = createTagRelevantContentSignature(content);
-    if (indexed?.contentSignature === contentSignature) {
-      if (contentIdentity && indexed.contentIdentity !== contentIdentity) {
-        indexed.contentIdentity = contentIdentity;
-      }
-      continue;
-    }
-
-    removePathFromTagIndex(index, entry.path);
-    addPathToTagIndex(
+    reconcileNotesSidebarTagIndexPath(
       index,
       entry.path,
-      buildNotesSidebarTagPathIndexEntry(entry.path, content, contentIdentity),
+      getNoteContent(entry.path),
+      contentIdentity,
     );
   }
 

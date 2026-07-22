@@ -32,7 +32,7 @@ export function GraphSidebar({ active = true }: { active?: boolean }) {
   const setMode = useGraphUIStore((state) => state.setMode);
   const setSearchQuery = useGraphUIStore((state) => state.setSearchQuery);
   const setSelectedPath = useGraphUIStore((state) => state.setSelectedPath);
-  const { focusPath, fullGraph, mode } = useNoteGraphModel();
+  const { focusPath, fullGraph, mode } = useNoteGraphModel(active);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const openSearch = useCallback(() => setIsSearchOpen(true), []);

@@ -110,6 +110,33 @@ describe('featureSlice scan cache validation', () => {
     expect(store.getState().noteContentsCache.get(notePath)?.size).toBe(7);
   });
 
+  it('reuses a recently validated scan entry without another stat call', async () => {
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{ id: notePath, name: 'alpha.md', path: notePath, isFolder: false }],
+      },
+      noteContentsCache: new Map([[
+        notePath,
+        createCachedNoteContentEntry('# Cache', 2, {
+          freshUntil: Date.now() + 10_000,
+          size: 7,
+        }),
+      ]]),
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.stat).not.toHaveBeenCalled();
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(store.getState().noteContentsCache.get(notePath)?.content).toBe('# Cache');
+  });
+
   it('preserves the raw disk baseline while scanning normalized markdown', async () => {
     mocks.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 9 });
     mocks.readFile.mockResolvedValue('# Disk!\r\n');

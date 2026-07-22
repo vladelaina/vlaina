@@ -78,6 +78,29 @@ export function limitWorkspaceNoteContents(cache: NoteContentCache, state: Notes
   );
 }
 
+export function preserveDirtyCurrentNoteContent(
+  state: NotesStore,
+  nextPath: string,
+): NoteContentCache {
+  const currentNote = state.currentNote;
+  if (!state.isDirty || !currentNote || currentNote.path === nextPath) {
+    return state.noteContentsCache;
+  }
+
+  const cachedEntry = state.noteContentsCache.get(currentNote.path);
+  return setCachedNoteContent(
+    state.noteContentsCache,
+    currentNote.path,
+    currentNote.content,
+    cachedEntry?.modifiedAt ?? null,
+    {
+      baselineContent: cachedEntry?.savedContent ?? cachedEntry?.content ?? currentNote.content,
+      ...(cachedEntry?.freshUntil !== undefined ? { freshUntil: cachedEntry.freshUntil } : {}),
+      ...(cachedEntry?.size !== undefined ? { size: cachedEntry.size } : {}),
+    },
+  );
+}
+
 export function isCachedNoteFresh(state: NotesStore, path: string, now = Date.now()) {
   const freshUntil = state.noteContentsCache.get(path)?.freshUntil;
   return typeof freshUntil === 'number' && now <= freshUntil;

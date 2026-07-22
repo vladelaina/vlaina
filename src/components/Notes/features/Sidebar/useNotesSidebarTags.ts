@@ -7,6 +7,7 @@ import {
   buildNotesSidebarTagScopeEntries,
   createNotesSidebarTagIndex,
   reconcileNotesSidebarTagIndex,
+  reconcileNotesSidebarTagIndexPath,
   type NotesSidebarTagIndex,
 } from './notesSidebarTags';
 import {
@@ -96,13 +97,9 @@ export function useNotesSidebarTags({
     noteContentsCacheRevision,
     scopeEntries,
   });
-  const tags = useMemo(
+  const reconciledTagIndex = useMemo(
     () => {
       const getContentSource = (path: string) => {
-        if (liveNoteContent?.path === path) {
-          return liveNoteContent;
-        }
-
         const cachedNote = noteContentsCache.get(path);
         if (cachedNote) {
           return cachedNote;
@@ -123,11 +120,9 @@ export function useNotesSidebarTags({
         (path) => getContentSource(path)?.content,
         getContentSource,
       );
-
-      return buildNotesSidebarTagsFromTagIndex(index);
+      return { index };
     },
     [
-      liveNoteContent?.content,
       liveNoteContent?.path,
       noteContentsCache,
       noteContentsCacheRevision,
@@ -136,6 +131,18 @@ export function useNotesSidebarTags({
       sidebarTagContentCache,
     ],
   );
+  const tags = useMemo(() => {
+    const index = reconciledTagIndex.index;
+    if (liveNoteContent) {
+      reconcileNotesSidebarTagIndexPath(
+        index,
+        liveNoteContent.path,
+        liveNoteContent.content,
+        liveNoteContent,
+      );
+    }
+    return buildNotesSidebarTagsFromTagIndex(index);
+  }, [liveNoteContent, reconciledTagIndex]);
   const missingIndexedContentAfterDirectRead = useMemo(
     () => scopeEntries.some(
       (entry) =>

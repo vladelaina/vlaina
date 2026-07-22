@@ -34,6 +34,11 @@ export interface NoteGraph {
   edges: NoteGraphEdge[];
 }
 
+export interface NoteGraphScanInput {
+  key: string;
+  priorityPaths: string[];
+}
+
 let graphBuildCache: {
   fileTree: readonly FileTreeNode[];
   noteContentsCache: ReadonlyMap<string, NoteContentCacheEntry>;
@@ -59,8 +64,12 @@ function collectNotePaths(nodes: readonly FileTreeNode[], limit: number): string
   return paths.sort((left, right) => left.localeCompare(right));
 }
 
-export function collectNoteGraphPaths(nodes: readonly FileTreeNode[]): string[] {
-  return collectNotePaths(nodes, MAX_GRAPH_NODES);
+export function createNoteGraphScanInput(nodes: readonly FileTreeNode[]): NoteGraphScanInput {
+  const candidatePaths = collectNotePaths(nodes, MAX_GRAPH_CANDIDATE_NODES);
+  return {
+    key: candidatePaths.join('\0'),
+    priorityPaths: candidatePaths.slice(0, MAX_GRAPH_NODES),
+  };
 }
 
 function selectVisibleGraphPaths(

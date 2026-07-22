@@ -1,22 +1,35 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
-import { collectNoteGraphPaths } from '../model/noteGraph';
+import { createNoteGraphScanInput } from '../model/noteGraph';
 
 export function useGraphNoteScan(args: {
+  active?: boolean;
   onPrimaryContentReady?: () => void;
   onStartupReady?: () => void;
 }) {
-  const rootFolder = useNotesStore((state) => state.rootFolder);
-  const rootFolderPath = useNotesStore((state) => state.rootFolderPath);
-  const notesPath = useNotesStore((state) => state.notesPath);
+  const active = args.active ?? true;
+  const rootFolder = useNotesStore((state) => active ? state.rootFolder : null);
+  const rootFolderPath = useNotesStore((state) => active ? state.rootFolderPath : null);
+  const notesPath = useNotesStore((state) => active ? state.notesPath : '');
   const scanAllNotes = useNotesStore((state) => state.scanAllNotes);
-  const currentNotesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? null);
+  const currentNotesRootPath = useNotesRootStore((state) => (
+    active ? state.currentNotesRoot?.path ?? null : null
+  ));
   const [loading, setLoading] = useState(false);
+  const nextScanInput = useMemo(
+    () => createNoteGraphScanInput(rootFolder?.children ?? []),
+    [rootFolder],
+  );
+  const scanInputRef = useRef(nextScanInput);
+  if (scanInputRef.current.key !== nextScanInput.key) {
+    scanInputRef.current = nextScanInput;
+  }
+  const scanInput = scanInputRef.current;
   const [completedScan, setCompletedScan] = useState<{
     currentNotesRootPath: string | null;
     notesPath: string;
-    rootFolder: typeof rootFolder;
+    scanKey: string;
     rootFolderPath: string | null;
   } | null>(null);
   const readyReportedRef = useRef(false);
@@ -24,12 +37,17 @@ export function useGraphNoteScan(args: {
   primaryContentReadyRef.current = args.onPrimaryContentReady;
 
   useEffect(() => {
+    if (!active) return;
     if (readyReportedRef.current) return;
     readyReportedRef.current = true;
     args.onStartupReady?.();
-  }, [args.onStartupReady]);
+  }, [active, args.onStartupReady]);
 
   useEffect(() => {
+    if (!active) {
+      setLoading(false);
+      return;
+    }
     if (!rootFolder || !notesPath || rootFolderPath !== notesPath) {
       setLoading(false);
       primaryContentReadyRef.current?.();
@@ -41,7 +59,7 @@ export function useGraphNoteScan(args: {
     const reportPrimaryContentReady = () => {
       if (abortController.signal.aborted || primaryContentReported) return;
       primaryContentReported = true;
-      setCompletedScan({ currentNotesRootPath, notesPath, rootFolder, rootFolderPath });
+      setCompletedScan({ currentNotesRootPath, notesPath, scanKey: scanInput.key, rootFolderPath });
       setLoading(false);
       primaryContentReadyRef.current?.();
     };
@@ -49,7 +67,7 @@ export function useGraphNoteScan(args: {
     void scanAllNotes({
       background: true,
       signal: abortController.signal,
-      priorityPaths: collectNoteGraphPaths(rootFolder.children),
+      priorityPaths: scanInput.priorityPaths,
       onPriorityPathsScanned: reportPrimaryContentReady,
     })
       .catch(() => undefined)
@@ -58,16 +76,17 @@ export function useGraphNoteScan(args: {
       });
 
     return () => abortController.abort();
-  }, [currentNotesRootPath, notesPath, rootFolder, rootFolderPath, scanAllNotes]);
+  }, [active, currentNotesRootPath, notesPath, rootFolderPath, scanAllNotes, scanInput]);
 
   const scanPending = Boolean(
-    rootFolder
+    active
+    && rootFolder
     && notesPath
     && rootFolderPath === notesPath
     && (
       completedScan?.currentNotesRootPath !== currentNotesRootPath
       || completedScan?.notesPath !== notesPath
-      || completedScan?.rootFolder !== rootFolder
+      || completedScan?.scanKey !== scanInput.key
       || completedScan?.rootFolderPath !== rootFolderPath
     )
   );

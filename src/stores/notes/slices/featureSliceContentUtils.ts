@@ -21,6 +21,7 @@ export const MAX_BACKLINK_SCAN_CHARS = 8 * 1024 * 1024;
 export const MAX_ALL_TAGS = 5000;
 export const MAX_TAG_CACHE_SCAN_ENTRIES = 5000;
 export const MAX_TAG_CACHE_SCAN_CHARS = 8 * 1024 * 1024;
+export const NOTE_CONTENT_SCAN_FRESH_MS = 1000;
 
 const searchableNoteUtf8Encoder = new TextEncoder();
 

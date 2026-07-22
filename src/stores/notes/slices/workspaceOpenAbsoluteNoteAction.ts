@@ -24,6 +24,7 @@ import {
   mergeLoadedNoteCacheEntry,
   mergeLoadedNoteMetadata,
   mergeOpenedTab,
+  preserveDirtyCurrentNoteContent,
   resolveLatestOpenedContent,
 } from './workspaceOpenNoteSupport';
 
@@ -84,6 +85,13 @@ export function createOpenAbsoluteNoteAction(
           preservedDirtySaveError = get().error;
         }
         ({ notesPath, currentNote, noteContentsCache } = get());
+      }
+
+      const stateBeforeOpen = get();
+      const preservedCache = preserveDirtyCurrentNoteContent(stateBeforeOpen, normalizedAbsolutePath);
+      if (preservedCache !== stateBeforeOpen.noteContentsCache) {
+        set({ noteContentsCache: preservedCache });
+        noteContentsCache = preservedCache;
       }
 
       try {

@@ -7,6 +7,7 @@ import {
   createNotesSidebarTagIndex,
   extractNotesSidebarTags,
   reconcileNotesSidebarTagIndex,
+  reconcileNotesSidebarTagIndexPath,
   reconcileNotesSidebarTagPathIndex,
 } from './notesSidebarTags';
 
@@ -48,6 +49,24 @@ const rootFolder: FolderNode = {
 };
 
 describe('notesSidebarTags', () => {
+  it('updates one live path without rebuilding unrelated tag entries', () => {
+    const index = createNotesSidebarTagIndex();
+    reconcileNotesSidebarTagIndex(
+      index,
+      [{ path: 'alpha.md' }, { path: 'beta.md' }],
+      (path) => path === 'alpha.md' ? '#old' : '#stable',
+    );
+    const stableEntry = index.paths.get('beta.md');
+
+    reconcileNotesSidebarTagIndexPath(index, 'alpha.md', '#new');
+
+    expect(index.paths.get('beta.md')).toBe(stableEntry);
+    expect(buildNotesSidebarTagsFromTagIndex(index).map((entry) => entry.tag)).toEqual([
+      'new',
+      'stable',
+    ]);
+  });
+
   it('extracts hash tags without treating markdown headings as tags', () => {
     expect(extractNotesSidebarTags([
       '# Heading',
