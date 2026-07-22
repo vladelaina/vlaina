@@ -1,4 +1,4 @@
-import { NodeSelection, Selection, type EditorState } from '@milkdown/kit/prose/state';
+import { NodeSelection, Selection, TextSelection, type EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { dispatchTailBlankClickAction } from './endBlankClickPlugin';
 import {
@@ -23,7 +23,7 @@ import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 import { focusCurrentEmptyUntitledDraftTitle } from '../../utils/emptyUntitledDraftTitleFocus';
 import { findBackslashHardBreakBlankClickTarget } from '../hard-break/backslashHardBreakCursor';
-import { resolveListParagraphEndPlainClick } from './listParagraphEndPlainClick';
+import { resolveTextblockLineEndPlainClick } from './listParagraphEndPlainClick';
 
 function snapshotSelection(state: EditorState) {
   return {
@@ -90,8 +90,8 @@ export function resolveInsideBlockTrailingPlainClick(view: EditorView, event: Mo
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
   if (findBackslashHardBreakBlankClickTarget(view, event) !== null) return null;
   const startedInsideEditor = event.target instanceof Node && view.dom.contains(event.target);
-  const listParagraphEndAction = resolveListParagraphEndPlainClick(view, event);
-  if (listParagraphEndAction) return listParagraphEndAction;
+  const textblockLineEndAction = resolveTextblockLineEndPlainClick(view, event);
+  if (textblockLineEndAction) return textblockLineEndAction;
   if (event.target instanceof HTMLElement) {
     const textLineHit = resolveTargetTextLinePointerHit(view, event.target, event.clientX, event.clientY);
     if (textLineHit?.type === 'content') {
@@ -215,8 +215,13 @@ export function clearTextSelectionForDragSession(view: EditorView): void {
   if (!state.selection.empty && !(state.selection instanceof NodeSelection)) {
     const docSize = state.doc.content.size;
     const collapsePos = Math.max(0, Math.min(state.selection.from, docSize));
+    const $collapsePos = state.doc.resolve(collapsePos);
     const tr = state.tr
-      .setSelection(Selection.near(state.doc.resolve(collapsePos), -1))
+      .setSelection(
+        $collapsePos.parent.inlineContent
+          ? TextSelection.create(state.doc, collapsePos)
+          : Selection.near($collapsePos, -1)
+      )
       .setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE })
       .setMeta('addToHistory', false);
     view.dispatch(tr);

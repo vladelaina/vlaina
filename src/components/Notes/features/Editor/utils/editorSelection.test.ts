@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Schema } from '@milkdown/kit/prose/model';
+import * as ProseModel from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { syncEditorSelectionFromDOM } from './editorSelection';
 
 function createView() {
-  const schema = new Schema({
+  const SchemaCtor = (ProseModel as any).Schema;
+  const schema = new SchemaCtor({
     nodes: {
       doc: { content: 'paragraph' },
       paragraph: { content: 'text*', toDOM: () => ['p', 0], parseDOM: [{ tag: 'p' }] },
@@ -62,6 +63,21 @@ describe('syncEditorSelectionFromDOM', () => {
     expect(syncEditorSelectionFromDOM(view as never)).toBe(false);
     expect(dispatch).not.toHaveBeenCalled();
     outside.remove();
+    dom.remove();
+  });
+
+  it('does not create a text selection from a structural DOM boundary', () => {
+    const { dispatch, dom, view } = createView();
+    const selection = document.getSelection()!;
+    const range = document.createRange();
+    range.setStart(dom, 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    view.posAtDOM = vi.fn(() => 0);
+
+    expect(syncEditorSelectionFromDOM(view as never)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
     dom.remove();
   });
 });

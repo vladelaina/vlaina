@@ -122,6 +122,69 @@ describe('collectSelectableBlockRanges', () => {
   });
 });
 
+describe('hard-break caret bounds', () => {
+  it('keeps inline line range boundaries as exact caret positions', () => {
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const firstLine = document.createTextNode('First');
+    const hardBreak = document.createElement('br');
+    const secondLine = document.createTextNode('Last');
+    paragraph.append(firstLine, hardBreak, secondLine);
+    dom.append(paragraph);
+    document.body.append(dom);
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    withRect(paragraph, { left: 60, top: 40, width: 120, height: 48 });
+    const paragraphNode = createNode('paragraph', 12, [
+      createNode('text', 5),
+      createNode('hardbreak', 1),
+      createNode('text', 4),
+    ]);
+    const doc = {
+      ...createDoc([paragraphNode]),
+      resolve: vi.fn((pos: number) => ({
+        index: () => 0,
+        posAtIndex: () => 0,
+        nodeBefore: pos === 7
+          ? { type: { name: 'hardbreak' }, nodeSize: 1 }
+          : { type: { name: 'text' }, nodeSize: 4 },
+      })),
+    };
+    const createRangeSpy = vi.spyOn(document, 'createRange').mockImplementation(() => ({
+      selectNodeContents: vi.fn(),
+      setStart: vi.fn(),
+      setEnd: vi.fn(),
+      getClientRects: vi.fn().mockReturnValue([{
+        left: 60,
+        top: 40,
+        right: 120,
+        bottom: 64,
+        width: 60,
+        height: 24,
+      }]),
+      detach: vi.fn(),
+    }) as any);
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM: vi.fn(() => paragraph),
+      domAtPos: vi.fn(() => ({ node: firstLine, offset: 0 })),
+    };
+
+    const rects = createBlockRectResolver({
+      view: view as any,
+      scrollRootSelector: '[data-note-scroll-root="true"]',
+    }).getTopLevelBlockRects();
+
+    expect(rects).toMatchObject([
+      { from: 1, to: 7, caretRange: { from: 1, to: 6 } },
+      { from: 7, to: 11, caretRange: { from: 7, to: 11 } },
+    ]);
+
+    createRangeSpy.mockRestore();
+    dom.remove();
+  });
+});
+
 describe('createBlockRectResolver', () => {
   it('collects text content bounds without materializing DOM rect lists', () => {
     const paragraph = document.createElement('p');

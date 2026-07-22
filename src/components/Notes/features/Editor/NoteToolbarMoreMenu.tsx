@@ -116,10 +116,14 @@ export function NoteToolbarMoreMenu({
       <DropdownMenuContent
         align="end"
         sideOffset={4}
-        onCloseAutoFocus={() => {
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
           moreButtonRef.current?.blur();
           window.requestAnimationFrame(() => {
             moreButtonRef.current?.blur();
+            moreButtonRef.current?.closest('[data-note-toolbar-root="true"]')
+              ?.querySelector<HTMLTextAreaElement>('[data-note-source-editor="true"]')
+              ?.focus({ preventScroll: true });
           });
         }}
         className={cn(

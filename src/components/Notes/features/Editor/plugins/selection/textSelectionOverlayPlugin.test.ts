@@ -22,6 +22,12 @@ import { dispatchBlockSelectionAction } from '../cursor/blockSelectionPluginStat
 import { mathPlugin } from '../math';
 import { tocPlugin } from '../toc';
 import { videoPlugin } from '../video';
+import { getCaretTargetFromPoint, getDomCaretTarget } from './textSelectionOverlayCaret';
+import {
+  cancelPointerClickCollapseReassertion,
+  collapsePointerNativeSelectionAt,
+  schedulePointerClickCollapseReassertion,
+} from './textSelectionOverlayPointerClick';
 
 const OVERLAY_ACTIVE_CLASS = 'editor-text-selection-overlay-active';
 const POINTER_NATIVE_SELECTION_CLASS = 'editor-pointer-native-selection';
@@ -94,6 +100,113 @@ function mockCaretRangeFromPoint(view: EditorView, textOffset: number) {
 }
 
 describe('textSelectionOverlayPlugin', () => {
+  it('rejects structural browser caret positions as text-selection targets', async () => {
+    const view = await createEditor('hello');
+    const originalElementFromPoint = document.elementFromPoint;
+    const documentWithCaretRange = document as Document & {
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    };
+    const originalCaretRangeFromPoint = documentWithCaretRange.caretRangeFromPoint;
+
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+    Object.defineProperty(document, 'caretRangeFromPoint', {
+      configurable: true,
+      value: () => {
+        const range = document.createRange();
+        range.setStart(view.dom, 0);
+        range.collapse(true);
+        return range;
+      },
+    });
+
+    try {
+      expect(getCaretTargetFromPoint(view, new MouseEvent('mousedown', {
+        clientX: 10,
+        clientY: 10,
+      }))).toBeNull();
+    } finally {
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+      Object.defineProperty(document, 'caretRangeFromPoint', {
+        configurable: true,
+        value: originalCaretRangeFromPoint,
+      });
+    }
+  });
+
+  it('does not replay a stale pointer target after it becomes a structural position', async () => {
+    const view = await createEditor('hello');
+    const dispatch = vi.spyOn(view, 'dispatch');
+    const syncActiveClass = vi.fn();
+
+    collapsePointerNativeSelectionAt({
+      view,
+      session: { syncActiveClass } as never,
+    }, { pos: 0 });
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(syncActiveClass).not.toHaveBeenCalled();
+  });
+
+  it('re-resolves a cached DOM endpoint that no longer maps to its document position', async () => {
+    const view = await createEditor('hello');
+    const textNode = document.createTreeWalker(view.dom, NodeFilter.SHOW_TEXT).nextNode();
+    expect(textNode).toBeInstanceOf(Text);
+
+    const target = getDomCaretTarget(view, {
+      node: textNode!,
+      offset: 0,
+      pos: 3,
+    });
+
+    expect(target).not.toBeNull();
+    expect(view.posAtDOM(target!.node!, target!.offset!)).toBe(3);
+  });
+
+  it('does not replay a pointer target after the document changes', async () => {
+    const view = await createEditor('hello');
+    const dispatch = vi.spyOn(view, 'dispatch');
+    const target = { pos: 3 };
+    const context = {
+      view,
+      session: {
+        pendingPointerClickCollapseTarget: target,
+        pointerClickCollapseFrame: null,
+        pointerClickCollapseTimeout: null,
+        pointerMovedSinceDown: false,
+        syncActiveClass: vi.fn(),
+      },
+    } as never;
+
+    schedulePointerClickCollapseReassertion(context, target);
+    view.dispatch(view.state.tr.insertText('x', 1));
+    dispatch.mockClear();
+    await Promise.resolve();
+
+    expect(dispatch).not.toHaveBeenCalled();
+    cancelPointerClickCollapseReassertion(context);
+  });
+
+  it('does not apply a caret target resolved against an older document', async () => {
+    const view = await createEditor('hello');
+    const dispatch = vi.spyOn(view, 'dispatch');
+    const target = { doc: view.state.doc, pos: 3 };
+    view.dispatch(view.state.tr.insertText('x', 1));
+    dispatch.mockClear();
+
+    collapsePointerNativeSelectionAt({
+      view,
+      session: { syncActiveClass: vi.fn() } as never,
+    }, target);
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it('enables overlay styling for ordinary text selections', async () => {
     const view = await createEditor('hello');
 

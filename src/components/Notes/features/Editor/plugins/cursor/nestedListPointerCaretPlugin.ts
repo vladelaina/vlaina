@@ -170,6 +170,7 @@ function resolveNestedListDragHeadAtPoint(
 
 function startNestedListPointerSelection(view: EditorView, event: MouseEvent, pos: number, scanRoot: HTMLElement): void {
   const { ownerDocument } = view.dom;
+  const sessionDoc = view.state.doc;
   const startX = event.clientX;
   const startY = event.clientY;
   let moved = false;
@@ -194,6 +195,10 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
   };
 
   const handleClick = (clickEvent: MouseEvent) => {
+    if (view.state.doc !== sessionDoc) {
+      stopClick();
+      return;
+    }
     clickEvent.preventDefault();
     clickEvent.stopPropagation();
     clickEvent.stopImmediatePropagation();
@@ -204,6 +209,11 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
   };
 
   const handleMouseMove = (moveEvent: MouseEvent) => {
+    if (view.state.doc !== sessionDoc) {
+      stop();
+      stopClick();
+      return;
+    }
     const hasDragged = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > CLICK_MOVE_THRESHOLD_PX;
     if (!moved && !hasDragged) return;
 
@@ -219,6 +229,10 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
 
   const handleMouseUp = (upEvent: MouseEvent) => {
     stop();
+    if (view.state.doc !== sessionDoc) {
+      stopClick();
+      return;
+    }
     scheduleClickStop();
     upEvent.preventDefault();
     upEvent.stopPropagation();
@@ -226,7 +240,9 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
     if (!moved) {
       dispatchNestedListTextSelection(view, pos);
       window.setTimeout(() => {
-        dispatchNestedListTextSelection(view, pos);
+        if (view.state.doc === sessionDoc) {
+          dispatchNestedListTextSelection(view, pos);
+        }
       }, 0);
       return;
     }

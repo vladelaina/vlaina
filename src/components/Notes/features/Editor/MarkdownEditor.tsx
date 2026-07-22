@@ -118,7 +118,10 @@ export function MarkdownEditor({
     openTabPathsKey,
   });
   const editorFind = useNoteEditorFind(currentNotePath);
-  useHeldPageScroll(scrollRootRef, { enabled: active });
+  useHeldPageScroll(scrollRootRef, {
+    enabled: active,
+    ignoreEditableTargets: true,
+  });
   const {
     getCurrentNoteContent,
     handleEditorViewReady,

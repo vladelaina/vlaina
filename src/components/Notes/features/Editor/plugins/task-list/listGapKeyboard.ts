@@ -147,10 +147,11 @@ export function handleInternalPlaceholderListDeletion(view: EditorView, event: K
         Math.min(tr.doc.content.size, tr.mapping.map(previousTextEnd, -1))
     );
 
-    try {
+    const $selectionPos = tr.doc.resolve(selectionPos);
+    if ($selectionPos.parent.inlineContent) {
         tr = tr.setSelection(TextSelection.create(tr.doc, selectionPos));
-    } catch {
-        tr = tr.setSelection(TextSelection.near(tr.doc.resolve(selectionPos), -1));
+    } else {
+        tr = tr.setSelection(TextSelection.near($selectionPos, -1));
     }
 
     markEditorUserInput(view);

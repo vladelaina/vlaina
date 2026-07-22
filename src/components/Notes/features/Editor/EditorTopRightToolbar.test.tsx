@@ -219,7 +219,7 @@ describe('EditorTopRightToolbar', () => {
   });
 
   function openMoreMenu(getByRole: ReturnType<typeof render>['getByRole']) {
-    fireEvent.click(getByRole('button', { name: /More note actions|更多笔记操作/ }));
+    fireEvent.click(getByRole('button', { name: /More|更多/ }));
   }
 
   function openExportMenu(getByRole: ReturnType<typeof render>['getByRole']) {
@@ -284,7 +284,7 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
-    fireEvent.click(getByRole('button', { name: 'Add to Starred' }));
+    fireEvent.click(getByRole('button', { name: 'Add Star' }));
 
     expect(toggleStarred).toHaveBeenCalledWith('/other/docs/alpha.md');
   });
@@ -358,21 +358,21 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
-    expect(getByRole('button', { name: 'Add to Starred' })).toHaveClass(
+    expect(getByRole('button', { name: 'Add Star' })).toHaveClass(
       'text-[var(--vlaina-color-titlebar-button)]',
     );
     expect(getByRole('button', { name: 'Right Chat' })).toHaveClass(
       'text-[var(--vlaina-color-titlebar-button)]',
     );
-    expect(getByRole('button', { name: 'More note actions' })).toHaveClass(
+    expect(getByRole('button', { name: 'More' })).toHaveClass(
       'text-[var(--vlaina-color-titlebar-button)]',
     );
   });
 
   it.each([
-    'Add to Starred',
+    'Add Star',
     'Right Chat',
-    'More note actions',
+    'More',
   ])('provides the localized hover label for %s', (label) => {
     const { getAllByRole } = render(
       <EditorTopRightToolbar
@@ -495,7 +495,7 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
-    const moreButton = getByRole('button', { name: '更多笔记操作' });
+    const moreButton = getByRole('button', { name: '更多' });
     moreButton.focus();
     expect(moreButton).toHaveFocus();
     fireEvent.click(moreButton);
@@ -506,7 +506,7 @@ describe('EditorTopRightToolbar', () => {
 
     expect(moreButton).toBeInTheDocument();
     expect(moreButton).not.toHaveFocus();
-    expect(mocks.lastCloseAutoFocusPreventDefault).not.toHaveBeenCalled();
+    expect(mocks.lastCloseAutoFocusPreventDefault).toHaveBeenCalledTimes(1);
     expect(onToggleSourceMode).toHaveBeenCalledTimes(1);
   });
 

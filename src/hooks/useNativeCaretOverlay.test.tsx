@@ -166,4 +166,27 @@ describe('useNativeCaretOverlay', () => {
 
     hook.unmount();
   });
+
+  it('leaves opted-out textareas on the native caret', () => {
+    const textarea = document.createElement('textarea');
+    textarea.setAttribute('data-native-caret-overlay-disabled', 'true');
+    textarea.value = 'source markdown';
+    textarea.selectionStart = 6;
+    textarea.selectionEnd = 6;
+    vi.spyOn(textarea, 'getBoundingClientRect').mockReturnValue(rect(120, 180, 240, 48));
+    document.body.appendChild(textarea);
+    elementFromPoint.mockReturnValue(textarea);
+
+    const hook = renderHook(() => useNativeCaretOverlay());
+
+    act(() => {
+      textarea.focus();
+      document.dispatchEvent(new Event(NATIVE_CARET_OVERLAY_REFRESH_EVENT));
+    });
+
+    expect(document.querySelector('.native-caret-overlay')).not.toBeInTheDocument();
+    expect(textarea).not.toHaveAttribute('data-native-caret-overlay-active');
+
+    hook.unmount();
+  });
 });

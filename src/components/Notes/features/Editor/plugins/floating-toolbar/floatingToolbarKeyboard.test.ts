@@ -6,7 +6,10 @@ import {
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { TextSelection } from '@milkdown/kit/prose/state';
-import { shouldHideToolbarForArrowNavigation } from './floatingToolbarPlugin';
+import {
+  moveSelectionForArrowNavigation,
+  shouldHideToolbarForArrowNavigation,
+} from './floatingToolbarPlugin';
 import { resolveDocumentHistoryShortcut } from './floatingToolbarPluginViewUtils';
 
 async function createTextSelection(from: number, to: number) {
@@ -100,5 +103,37 @@ describe('floating toolbar keyboard handling', () => {
       selection,
       new KeyboardEvent('keydown', { key: 'ArrowRight' })
     )).toBe(false);
+  });
+
+  it('moves a vertical arrow target past an atomic block without creating a structural text selection', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['before', '', '---', '', 'after'].join('\n'));
+      })
+      .use(commonmark);
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    let hrPos = -1;
+    view.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'hr') {
+        hrPos = pos;
+        return false;
+      }
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 7)));
+    view.coordsAtPos = (() => ({ left: 10, right: 10, top: 10, bottom: 30 })) as never;
+    view.posAtCoords = (() => ({ pos: hrPos, inside: hrPos })) as never;
+
+    expect(moveSelectionForArrowNavigation(
+      view,
+      new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true })
+    )).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent.inlineContent).toBe(true);
+    expect(view.state.selection.from).toBeGreaterThan(hrPos);
+
+    await editor.destroy();
   });
 });

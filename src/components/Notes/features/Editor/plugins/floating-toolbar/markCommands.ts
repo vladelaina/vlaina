@@ -6,15 +6,14 @@ import { markEditorUserInput } from '../shared/userInputEvents';
 
 function collapseSelectionAfterInlineApply(tr: EditorView['state']['tr'], pos: number): void {
   const clampedPos = Math.max(0, Math.min(pos, tr.doc.content.size));
+  const $pos = tr.doc.resolve(clampedPos);
 
-  try {
+  if ($pos.parent.inlineContent) {
     tr.setSelection(TextSelection.create(tr.doc, clampedPos));
     return;
-  } catch {
-    // Some selected ranges can end at a block boundary; keep the cursor near the applied text.
   }
 
-  tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
+  tr.setSelection(Selection.near($pos, -1));
 }
 
 export function toggleMark(view: EditorView, markName: string): void {

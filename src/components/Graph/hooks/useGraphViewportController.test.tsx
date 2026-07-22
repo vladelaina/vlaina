@@ -63,6 +63,23 @@ describe('useGraphViewportController', () => {
     expect(hook.result.current.viewport.x).toBeCloseTo(0);
   });
 
+  it('cancels a queued graph fit when user interaction takes over', () => {
+    const svgRef = { current: svg };
+    const nodes = [{ id: 'Alpha.md', label: 'Alpha', degree: 0, x: 1000, y: 800 }];
+    const hook = renderHook(() => useGraphViewportController({
+      nodeKey: 'graph',
+      nodes,
+      selectedPath: null,
+      svgRef,
+    }));
+    const fitFrameId = nextFrameId - 1;
+
+    act(() => hook.result.current.cancelPendingFit());
+
+    expect(frames.has(fitFrameId)).toBe(false);
+    expect(hook.result.current.viewport).toEqual({ x: 0, y: 0, zoom: 1 });
+  });
+
   it('cancels selected-node easing when wheel zoom takes over', () => {
     const svgRef = { current: svg };
     const nodes = [{ id: 'Alpha.md', label: 'Alpha', degree: 0, x: 400, y: 300 }];

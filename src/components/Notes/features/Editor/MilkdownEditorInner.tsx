@@ -21,6 +21,7 @@ import { getMilkdownEditorClassName } from './milkdownEditorClassName';
 import { focusCurrentEditorAtViewportPoint } from './utils/focusEditorAtPoint';
 import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
 import { HEADING_PLACEHOLDER_I18N_REFRESH_META } from './plugins/heading/headingPlugin';
+import { isBlockSelectionInteractionPending } from './plugins/cursor/blockSelectionInteractionState';
 import { syncEditorSelectionFromDOM } from './utils/editorSelection';
 
 export { createLargePlainMarkdownDocJSON, shouldUseLazyBlockVisibility } from './milkdownLargePlainMarkdown';
@@ -333,6 +334,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     }
 
     const editor = editorShellRef.current?.querySelector<HTMLElement>('.ProseMirror');
+    if (editor && isBlockSelectionInteractionPending(editor)) {
+      return;
+    }
     const editorRect = editor?.getBoundingClientRect();
     const clientX = editorRect && editorRect.width > 0
       ? Math.min(Math.max(event.clientX, editorRect.left + 1), editorRect.right - 1)

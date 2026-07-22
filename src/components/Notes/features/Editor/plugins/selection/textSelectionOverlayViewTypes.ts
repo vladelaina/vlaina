@@ -2,6 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { VerticalEdgeAutoScrollHandle } from '../cursor/edgeAutoScroll';
 
 export interface PointerCaretTarget {
+  doc?: EditorView['state']['doc'];
   node?: Node;
   offset?: number;
   pos: number;

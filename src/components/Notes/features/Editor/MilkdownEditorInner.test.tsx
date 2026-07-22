@@ -21,6 +21,7 @@ import {
   blankAreaDragBoxPluginKey,
   CLEAR_BLOCKS_ACTION,
 } from './plugins/cursor/blockSelectionPluginState';
+import { setBlockSelectionInteractionPending } from './plugins/cursor/blockSelectionInteractionState';
 
 const mocks = vi.hoisted(() => {
   const notesState = {
@@ -754,6 +755,23 @@ describe('MilkdownEditorInner shell focus', () => {
     fireEvent.mouseDown(chrome, { button: 0, clientX: 80, clientY: 120 });
 
     expect(mocks.focusCurrentEditorAtViewportPoint).not.toHaveBeenCalled();
+  });
+
+  it('does not focus shell blank space while block selection is pending', () => {
+    const { proseMirror, shell } = renderEditorShellWithProseMirror();
+    setBlockSelectionInteractionPending(proseMirror, true);
+
+    try {
+      fireEvent.mouseDown(shell, {
+        button: 0,
+        clientX: 80,
+        clientY: 120,
+      });
+
+      expect(mocks.focusCurrentEditorAtViewportPoint).not.toHaveBeenCalled();
+    } finally {
+      setBlockSelectionInteractionPending(proseMirror, false);
+    }
   });
 });
 

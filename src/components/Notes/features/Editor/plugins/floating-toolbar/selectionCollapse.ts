@@ -10,11 +10,12 @@ export function collapseSelectionAfterToolbarApply(view: EditorView): void {
 
   const tr = view.state.tr;
   const clampedPos = Math.max(0, Math.min(selection.to, tr.doc.content.size));
+  const $pos = tr.doc.resolve(clampedPos);
 
-  try {
+  if ($pos.parent.inlineContent) {
     tr.setSelection(TextSelection.create(tr.doc, clampedPos));
-  } catch {
-    tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
+  } else {
+    tr.setSelection(Selection.near($pos, -1));
   }
 
   view.dispatch(tr.setMeta('addToHistory', false));

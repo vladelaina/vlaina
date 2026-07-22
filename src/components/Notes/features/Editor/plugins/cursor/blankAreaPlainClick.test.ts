@@ -95,6 +95,35 @@ describe('resolveBlankAreaPlainClickAction', () => {
     });
   });
 
+  it('uses exact inline line boundaries for hard-break paragraph blocks', () => {
+    expect(
+      resolveBlankAreaPlainClickAction({
+        blockRects: [
+          {
+            from: 66,
+            to: 96,
+            caretRange: { from: 66, to: 96 },
+            left: 388,
+            right: 849,
+            contentLeft: 388,
+            contentRight: 460,
+            contentLineRects: [
+              { left: 388, top: 607, right: 460, bottom: 642 },
+            ],
+            top: 607,
+            bottom: 642,
+          },
+        ],
+        clientX: 546,
+        clientY: 636,
+      })
+    ).toEqual({
+      targetPos: 96,
+      bias: -1,
+      blockFrom: 66,
+    });
+  });
+
   it('chooses the nearest visual line when line slack overlaps', () => {
     expect(
       resolveBlankAreaPlainClickAction({
@@ -475,6 +504,78 @@ describe('resolveInsideBlockTrailingPlainClickAction', () => {
       blockFrom: 4,
     });
   });
+
+  it('uses the exact final inline line end for paragraph trailing clicks', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 106,
+            to: 112,
+            caretRange: { from: 106, to: 112 },
+            left: 388,
+            right: 849,
+            contentLeft: 388,
+            contentRight: 562,
+            top: 792,
+            bottom: 827,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 643,
+        clientY: 817,
+      })
+    ).toEqual({
+      targetPos: 112,
+      bias: -1,
+      blockFrom: 106,
+    });
+  });
+
+  it('uses the caret range for the clicked hard-break line when line rects share one paragraph', () => {
+    const sharedLineRects = [
+      { left: 388, top: 607, right: 460, bottom: 642 },
+      { left: 388, top: 650, right: 512, bottom: 685 },
+    ];
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 66,
+            to: 73,
+            caretRange: { from: 66, to: 72 },
+            left: 388,
+            right: 849,
+            contentLeft: 388,
+            contentRight: 512,
+            contentLineRects: sharedLineRects,
+            top: 607,
+            bottom: 642,
+            allowInsideTrailingClick: true,
+          },
+          {
+            from: 73,
+            to: 81,
+            caretRange: { from: 73, to: 80 },
+            left: 388,
+            right: 849,
+            contentLeft: 388,
+            contentRight: 512,
+            contentLineRects: sharedLineRects,
+            top: 650,
+            bottom: 685,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 600,
+        clientY: 668,
+      })
+    ).toEqual({
+      targetPos: 80,
+      bias: -1,
+      blockFrom: 73,
+    });
+  });
 });
 
 describe('applyBlankAreaPlainClickSelection', () => {
@@ -547,7 +648,7 @@ describe('applyBlankAreaPlainClickSelection', () => {
   });
 
   it('clamps the requested position into the current document before resolving selection', () => {
-    const resolved = { pos: 10 };
+    const resolved = { pos: 10, parent: { inlineContent: false } };
     const selection = { from: 10, to: 10, empty: true };
     const setSelection = vi.fn().mockImplementation(() => tr);
     const resolve = vi.fn().mockReturnValue(resolved);
@@ -570,6 +671,33 @@ describe('applyBlankAreaPlainClickSelection', () => {
     expect(resolve).toHaveBeenCalledWith(10);
     expect(nearSpy).toHaveBeenCalledWith(resolved, -1);
     expect(setSelection).toHaveBeenCalledWith(selection);
+    nearSpy.mockRestore();
+  });
+
+  it('keeps exact inline caret positions instead of resolving one character backward', () => {
+    const selection = Object.create(TextSelection.prototype);
+    const setSelection = vi.fn().mockImplementation(() => tr);
+    const createSpy = vi.spyOn(TextSelection, 'create').mockReturnValue(selection as any);
+    const nearSpy = vi.spyOn(Selection, 'near');
+    const tr = {
+      doc: {
+        content: { size: 120 },
+        nodeAt: vi.fn().mockReturnValue({ type: { name: 'paragraph' } }),
+        resolve: vi.fn().mockReturnValue({ parent: { inlineContent: true } }),
+      },
+      setSelection,
+    } as any;
+
+    applyBlankAreaPlainClickSelection(tr, {
+      targetPos: 112,
+      bias: -1,
+      blockFrom: 106,
+    });
+
+    expect(createSpy).toHaveBeenCalledWith(tr.doc, 112);
+    expect(setSelection).toHaveBeenCalledWith(selection);
+    expect(nearSpy).not.toHaveBeenCalled();
+    createSpy.mockRestore();
     nearSpy.mockRestore();
   });
 

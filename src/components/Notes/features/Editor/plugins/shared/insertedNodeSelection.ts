@@ -40,13 +40,13 @@ function isMarkdownBlankLineBlock(node: any): boolean {
 function setTextSelectionSafely(tr: any, pos: number) {
   const safePos = Math.max(0, Math.min(pos, tr.doc.content.size));
   try {
-    return tr.setSelection(TextSelection.create(tr.doc, safePos));
-  } catch {
-    try {
-      return tr.setSelection(Selection.near(tr.doc.resolve(safePos), 1));
-    } catch {
-      return tr;
+    const $safePos = tr.doc.resolve(safePos);
+    if ($safePos.parent.inlineContent) {
+      return tr.setSelection(TextSelection.create(tr.doc, safePos));
     }
+    return tr.setSelection(Selection.near($safePos, 1));
+  } catch {
+    return tr;
   }
 }
 

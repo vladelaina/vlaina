@@ -61,7 +61,10 @@ export function useNativeCaretOverlay(): void {
       frameId = null;
 
       const activeElement = doc.activeElement;
-      if (!isTextControl(activeElement) || activeElement.matches('[readonly], [disabled]')) {
+      if (
+        !isTextControl(activeElement) ||
+        activeElement.matches('[readonly], [disabled], [data-native-caret-overlay-disabled="true"]')
+      ) {
         hide();
         return;
       }

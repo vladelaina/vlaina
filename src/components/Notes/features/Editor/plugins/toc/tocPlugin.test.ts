@@ -118,6 +118,45 @@ describe('handleTocShortcutEnter', () => {
     }
   });
 
+  it('moves a toc click to the exact heading text start', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(tocPlugin);
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const toc = view.state.schema.nodes.toc.create({ maxLevel: 6 });
+      const heading = view.state.schema.nodes.heading.create(
+        { level: 1 },
+        view.state.schema.text('Exact heading target'),
+      );
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [toc, heading]));
+      let headingPos = -1;
+      view.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading') {
+          headingPos = pos;
+          return false;
+        }
+        return true;
+      });
+      const link = view.dom.querySelector<HTMLElement>('.toc-link[data-heading-pos]');
+      expect(link).not.toBeNull();
+
+      link!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.from).toBe(headingPos + 1);
+      expect(view.state.selection.to).toBe(headingPos + 1);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('converts a standalone {:toc} paragraph into a toc node on Enter', () => {
     const { view, tr } = createView();
     view.state.selection.$from.parent.textContent = '{:toc}';

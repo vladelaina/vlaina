@@ -1,5 +1,5 @@
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useUIStore } from '@/stores/uiSlice';
 import {
@@ -53,9 +53,11 @@ export const tocViewPlugin = $prose(() => {
         if (!Number.isFinite(headingPos)) return;
 
         const { doc } = editorView.state;
+        const heading = doc.nodeAt(headingPos);
+        if (!heading || heading.type.name !== 'heading' || !heading.inlineContent) return;
         const safePos = Math.max(0, Math.min(headingPos + 1, doc.content.size));
         const tr = editorView.state.tr
-          .setSelection(Selection.near(doc.resolve(safePos), 1))
+          .setSelection(TextSelection.create(doc, safePos))
           .scrollIntoView();
         editorView.dispatch(tr);
         editorView.focus();

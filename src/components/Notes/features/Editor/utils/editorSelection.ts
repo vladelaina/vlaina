@@ -19,6 +19,11 @@ export function syncEditorSelectionFromDOM(view: EditorView): boolean {
   try {
     const anchor = view.posAtDOM(anchorNode, domSelection.anchorOffset, 1);
     const head = view.posAtDOM(focusNode, domSelection.focusOffset, -1);
+    const $anchor = view.state.doc.resolve(anchor);
+    const $head = view.state.doc.resolve(head);
+    if (!$anchor.parent.inlineContent || !$head.parent.inlineContent) {
+      return false;
+    }
     const selection = TextSelection.create(view.state.doc, anchor, head);
     if (selection.eq(view.state.selection)) return false;
     view.dispatch(view.state.tr.setSelection(selection).setMeta('addToHistory', false));
@@ -39,11 +44,11 @@ function isInlineLineBreakNode(node: ProseNode): boolean {
 }
 
 function createCollapsedTextSelectionNear(doc: ProseNode, pos: number, bias: -1 | 1): Selection {
-  try {
+  const $pos = doc.resolve(pos);
+  if ($pos.parent.inlineContent) {
     return TextSelection.create(doc, pos);
-  } catch {
-    return Selection.near(doc.resolve(pos), bias);
   }
+  return Selection.near($pos, bias);
 }
 
 export function createDocumentStartTextSelection(doc: ProseNode): Selection {

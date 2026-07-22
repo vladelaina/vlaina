@@ -145,8 +145,8 @@ const WhiteboardContentLayer = memo(function WhiteboardContentLayer({
 
   return (
     <>
-      <WhiteboardElementList {...elementProps} elements={staticElements} />
-      <WhiteboardElementList {...elementProps} elements={movingElements} transform={transform} />
+      <WhiteboardElementList {...elementProps} elements={staticElements} moving={false} />
+      <WhiteboardElementList {...elementProps} elements={movingElements} moving transform={transform} />
       <WhiteboardStrokeLayer erasingStrokeIds={eraserPreview.strokeIds} strokes={staticStrokes} />
       {movingStrokes.length > 0 ? <WhiteboardStrokeLayer cssTransform={transform} erasingStrokeIds={eraserPreview.strokeIds} strokes={movingStrokes} /> : null}
       {tool === 'select' ? (
@@ -162,6 +162,7 @@ interface WhiteboardElementListProps {
   selectedElementIds: string[];
   selectedItemCount: number;
   tool: WhiteboardTool;
+  moving: boolean;
   transform?: string;
   onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: WhiteboardElement) => void;
 }
@@ -172,6 +173,7 @@ const WhiteboardElementList = memo(function WhiteboardElementList(props: Whitebo
       key={element.id}
       element={element}
       erasing={props.erasingElementIdSet.has(element.id)}
+      moving={props.moving}
       selected={props.tool === 'select' && props.selectedElementIds.includes(element.id)}
       showSelectionBorder={props.tool === 'select' && props.selectedItemCount <= 1 && props.selectedElementIds.includes(element.id)}
       tool={props.tool}

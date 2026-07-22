@@ -436,6 +436,8 @@ export const themeWhiteboardTokens = {
   brushWheelButtonDelta: 1,
   brushSizePresets: [0.5, 0.75, 1, 1.5, 2],
   brushSizePreviewBasePx: 6,
+  colorPickerHueGradient: 'linear-gradient(to bottom, #ef4444, #f59e0b, #ffff00, #10b981, #00ffff, #1e96eb, #8b5cf6, #ff00ff, #ef4444)',
+  colorPickerSaturationValueGradient: 'linear-gradient(to top, var(--vlaina-color-picker-black), transparent), linear-gradient(to right, var(--vlaina-color-picker-white), transparent)',
   strokePointMinDistancePx: 1.4,
   mousePressureSpeedPxPerMs: 1.2,
   mousePressureRange: {
@@ -471,7 +473,7 @@ export const themeWhiteboardTokens = {
   brushCursorStrokeWidthPx: 1,
   brushCursorInkOpacity: 1,
   brushCursorWashGuideOpacity: 0.2,
-  brushColorSwatches: ['#27272a', '#ef4444', '#f59e0b', '#10b981', '#1e96eb', '#8b5cf6'],
+  brushColorSwatches: ['#84cfff', '#f0a0b5', '#21c45d', '#ff8c38', '#fd5e5e', '#929292', '#000000'],
   exportPaddingPx: 56,
   exportEmptyWidthPx: 1200,
   exportEmptyHeightPx: 800,
@@ -490,8 +492,6 @@ export const themeGraphTokens = {
   viewportAnimationDurationMs: 180,
   savedLayoutEntranceDurationMs: 760,
   inverseZoomProperty: '--vlaina-graph-inverse-zoom',
-  enterIndexProperty: '--vlaina-graph-enter-index',
-  nodeEnterRadiusProperty: '--vlaina-graph-node-enter-radius',
   inverseZoomTransform: 'scale(var(--vlaina-graph-inverse-zoom))',
   nodeDefaultTransform: 'scale(1)',
   nodeActiveTransform: 'scale(1.6)',
@@ -534,9 +534,9 @@ export const themeGraphTokens = {
   forceLinkDistancePx: 120,
   forceCollisionRadiusPx: 18,
   forceCollisionStrength: 0.75,
-  forceVelocityDecay: 0.48,
-  forceDragAlpha: 0.32,
-  forceDragAlphaTarget: 0.08,
+  forceVelocityDecay: 0.4,
+  forceDragAlpha: 0.3,
+  forceDragAlphaTarget: 0.3,
   forceReleaseAlphaDecay: 0.1,
   forceReleaseVelocityDecay: 0.12,
   forceReleaseVelocityMaxPxPerFrame: 0.75,
@@ -565,6 +565,9 @@ export const themeBackdropTokens = {
 } as const;
 
 export const themeSidebarTokens = {
+  defaultViewportRatio: 0.28,
+  defaultMinWidthPx: 280,
+  defaultMaxWidthPx: 420,
   width: 'var(--vlaina-width-sidebar-default)',
   mobileWidth: 'var(--vlaina-width-sidebar-mobile)',
   iconWidth: 'var(--vlaina-width-sidebar-icon)',
@@ -836,9 +839,6 @@ export const themeFileTreeTokens = {
   virtualRowHorizontalChromePx: 72,
   virtualRowDepthIndentPx: 12,
   virtualRowAverageCharacterWidthPx: 8,
-  sidebarRowHorizontalChromePx: 136,
-  sidebarRowDepthIndentPx: 16,
-  sidebarMeasuredTextSafetyPx: 16,
 } as const;
 
 export const themeChatStreamTokens = {

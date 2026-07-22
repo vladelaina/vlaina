@@ -1,32 +1,26 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlankAreaPlainClickAction } from './blankAreaPlainClick';
+import { INTERACTIVE_SELECTOR } from './blankAreaTextLineHit';
 
 const MIN_END_GAP_PX = 8;
-const LIST_TEXTBLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, blockquote';
+const LINE_VERTICAL_SLACK_PX = 4;
 
-export function resolveListParagraphEndPlainClick(
+export function resolveTextblockLineEndAtPoint(
   view: EditorView,
-  event: MouseEvent,
+  clientX: number,
+  clientY: number,
 ): BlankAreaPlainClickAction | null {
-  const target = event.target instanceof Element
-    ? event.target
-    : event.target instanceof Node
-      ? event.target.parentElement
-      : null;
-  const textBlock = target?.closest(LIST_TEXTBLOCK_SELECTOR);
-  if (!(textBlock instanceof HTMLElement) || !view.dom.contains(textBlock)) return null;
-  const listItem = textBlock.closest('li');
-  if (!(listItem instanceof HTMLElement) || !view.dom.contains(listItem)) return null;
-  if (textBlock.parentElement !== listItem) return null;
-
   try {
-    const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+    const pos = view.posAtCoords({ left: clientX, top: clientY })?.pos;
     if (pos === undefined) return null;
     const $pos = view.state.doc.resolve(pos);
     if (!$pos.parent.isTextblock) return null;
-    if ($pos.parentOffset !== $pos.parent.content.size) return null;
     const endCoords = view.coordsAtPos(pos);
-    if (event.clientX < endCoords.right + MIN_END_GAP_PX) return null;
+    if (
+      clientY < endCoords.top - LINE_VERTICAL_SLACK_PX
+      || clientY > endCoords.bottom + LINE_VERTICAL_SLACK_PX
+    ) return null;
+    if (clientX < endCoords.right + MIN_END_GAP_PX) return null;
 
     return {
       targetPos: pos,
@@ -36,4 +30,15 @@ export function resolveListParagraphEndPlainClick(
   } catch {
     return null;
   }
+}
+
+export function resolveTextblockLineEndPlainClick(
+  view: EditorView,
+  event: MouseEvent,
+): BlankAreaPlainClickAction | null {
+  if (!(event.target instanceof Node)) return null;
+  const targetElement = event.target instanceof Element ? event.target : event.target.parentElement;
+  if (targetElement?.closest(INTERACTIVE_SELECTOR)) return null;
+
+  return resolveTextblockLineEndAtPoint(view, event.clientX, event.clientY);
 }

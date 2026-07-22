@@ -1,5 +1,5 @@
 import { Fragment, type Node as ProseNode } from '@milkdown/kit/prose/model';
-import { Selection } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
 import { findTailCursorPosInRange } from './pasteCursorUtils';
@@ -82,8 +82,13 @@ export function dispatchParagraphPasteFromEmptyTaskItem(
     const insertedEnd = Math.min(from + Fragment.fromArray(replacementNodes).size, tr.doc.content.size);
     const tailPos = findTailCursorPosInRange(tr.doc, from, insertedEnd) ?? insertedEnd;
     const safePos = Math.max(0, Math.min(tailPos, tr.doc.content.size));
+    const $safePos = tr.doc.resolve(safePos);
 
-    tr.setSelection(Selection.near(tr.doc.resolve(safePos), 1));
+    tr.setSelection(
+        $safePos.parent.inlineContent
+            ? TextSelection.create(tr.doc, safePos)
+            : Selection.near($safePos, 1)
+    );
     view.dispatch(tr.scrollIntoView());
     markEditorUserInput(view);
     return true;

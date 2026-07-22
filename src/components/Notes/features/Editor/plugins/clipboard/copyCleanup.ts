@@ -1,4 +1,4 @@
-import { Selection } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
@@ -26,7 +26,12 @@ export function collapseSelectionAndHideFloatingToolbar(view: EditorView): void 
   let tr = state.tr;
 
   try {
-    tr = tr.setSelection(Selection.near(state.doc.resolve(nextPos), -1));
+    const $nextPos = state.doc.resolve(nextPos);
+    tr = tr.setSelection(
+      $nextPos.parent.inlineContent
+        ? TextSelection.create(state.doc, nextPos)
+        : Selection.near($nextPos, -1)
+    );
   } catch {
   }
 

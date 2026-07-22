@@ -7,15 +7,14 @@ import { previewStyleState } from './previewStyleState';
 
 function setCollapsedSelectionNear(tr: EditorState['tr'], pos: number): void {
   const clampedPos = Math.max(0, Math.min(pos, tr.doc.content.size));
+  const $pos = tr.doc.resolve(clampedPos);
 
-  try {
+  if ($pos.parent.inlineContent) {
     tr.setSelection(TextSelection.create(tr.doc, clampedPos));
     return;
-  } catch {
-    // Fall back to the nearest valid cursor when the mapped end lands on a block boundary.
   }
 
-  tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
+  tr.setSelection(Selection.near($pos, -1));
 }
 
 function dispatchPreviewState(view: EditorView, previewState: EditorState): boolean {

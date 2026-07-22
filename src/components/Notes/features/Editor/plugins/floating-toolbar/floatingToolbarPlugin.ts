@@ -1,5 +1,5 @@
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, TextSelection, type Selection } from '@milkdown/kit/prose/state';
+import { Plugin, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState, type ToolbarMeta } from './types';
 import { getLinkUrl } from './selectionHelpers';
@@ -79,11 +79,19 @@ export function moveSelectionForArrowNavigation(view: EditorView, event: Keyboar
     : fallbackPos;
   const maxPos = view.state.doc.content.size;
   const cursorPos = Math.max(0, Math.min(targetPos, maxPos));
+  const $cursorPos = view.state.doc.resolve(cursorPos);
+  const nextSelection = $cursorPos.parent.inlineContent
+    ? TextSelection.create(view.state.doc, cursorPos)
+    : Selection.findFrom(
+        $cursorPos,
+        event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1,
+        true,
+      ) ?? TextSelection.create(view.state.doc, fallbackPos);
 
   event.preventDefault();
   view.dispatch(
     view.state.tr
-      .setSelection(TextSelection.create(view.state.doc, cursorPos))
+      .setSelection(nextSelection)
       .setMeta(floatingToolbarKey, {
         type: TOOLBAR_ACTIONS.HIDE,
       })

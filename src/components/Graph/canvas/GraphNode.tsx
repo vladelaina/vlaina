@@ -6,7 +6,6 @@ import type { GraphNodePosition } from '../store/useGraphUIStore';
 
 export const GraphNode = memo(function GraphNode(props: {
   dragging: boolean;
-  enterIndex: number;
   hovered: boolean;
   node: PositionedGraphNode;
   onHoverChange: (path: string | null) => void;
@@ -32,8 +31,7 @@ export const GraphNode = memo(function GraphNode(props: {
       role="button"
       tabIndex={0}
       aria-label={`${node.label}, ${node.degree}`}
-      className={cn('vlaina-graph-node-enter cursor-grab outline-none', props.dragging && 'cursor-grabbing')}
-      style={{ [themeGraphTokens.enterIndexProperty]: props.enterIndex } as CSSProperties}
+      className={cn('cursor-grab outline-none', props.dragging && 'cursor-grabbing')}
       onPointerDown={(event) => props.onStartDrag(event, node.id, { x: node.x, y: node.y })}
       onKeyDown={(event) => {
         if (event.key === 'Enter') { event.preventDefault(); props.onOpen(node.id); return; }
@@ -69,7 +67,6 @@ export const GraphNode = memo(function GraphNode(props: {
         cy={0}
         r={nodeRadius}
         style={{
-          [themeGraphTokens.nodeEnterRadiusProperty]: `calc(${nodeRadius}px * var(--vlaina-graph-inverse-zoom))`,
           r: `calc(${nodeRadius}px * var(--vlaina-graph-inverse-zoom))`,
           transform: props.selected || props.hovered
             ? themeGraphTokens.nodeActiveTransform
@@ -77,7 +74,7 @@ export const GraphNode = memo(function GraphNode(props: {
           opacity: props.dimmed ? themeGraphTokens.dimmedNodeOpacity : 1,
         } as CSSProperties}
         className={cn(
-          'vlaina-graph-node-dot vlaina-graph-node-dot-enter',
+          'vlaina-graph-node-dot',
           props.selected || props.hovered
             ? 'fill-[var(--vlaina-color-graph-node-active)] stroke-[var(--vlaina-color-graph-node-ring-active)]'
             : props.related

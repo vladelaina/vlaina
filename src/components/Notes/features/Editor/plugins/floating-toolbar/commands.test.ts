@@ -918,7 +918,10 @@ describe('floating toolbar commands', () => {
       create: vi.fn(() => 'text-color-mark'),
     };
     const tr: any = {
-      doc: { content: { size: 30 } },
+      doc: {
+        content: { size: 30 },
+        resolve: vi.fn((pos: number) => ({ pos, parent: { inlineContent: true } })),
+      },
       addMark: vi.fn(() => tr),
       removeMark: vi.fn(() => tr),
       setSelection: vi.fn(() => tr),
@@ -954,7 +957,10 @@ describe('floating toolbar commands', () => {
       create: vi.fn(() => 'bg-color-mark'),
     };
     const tr: any = {
-      doc: { content: { size: 30 } },
+      doc: {
+        content: { size: 30 },
+        resolve: vi.fn((pos: number) => ({ pos, parent: { inlineContent: true } })),
+      },
       addMark: vi.fn(() => tr),
       removeMark: vi.fn(() => tr),
       setSelection: vi.fn(() => tr),
@@ -991,7 +997,10 @@ describe('floating toolbar commands', () => {
     };
     const bgColorMark = { name: 'bgColor' };
     const tr: any = {
-      doc: { content: { size: 30 } },
+      doc: {
+        content: { size: 30 },
+        resolve: vi.fn((pos: number) => ({ pos, parent: { inlineContent: true } })),
+      },
       addMark: vi.fn(() => tr),
       removeMark: vi.fn(() => tr),
       setSelection: vi.fn(() => tr),
@@ -1025,7 +1034,10 @@ describe('floating toolbar commands', () => {
       create: vi.fn(() => 'bg-color-mark'),
     };
     const tr: any = {
-      doc: { content: { size: 30 } },
+      doc: {
+        content: { size: 30 },
+        resolve: vi.fn((pos: number) => ({ pos, parent: { inlineContent: true } })),
+      },
       addMark: vi.fn(() => tr),
       removeMark: vi.fn(() => tr),
       setSelection: vi.fn(() => tr),

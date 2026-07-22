@@ -1,6 +1,7 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
+import { focusCurrentEditorAtViewportPoint } from '@/components/Notes/features/Editor/utils/focusEditorAtPoint';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import {
   blankAreaDragBoxPluginKey,
@@ -30,6 +31,9 @@ type EditorBridgeActions = Pick<
   | 'getNoteSelectableBlocks'
   | 'selectEditorTextByText'
   | 'getEditorSelectionSummary'
+  | 'getEditorPositionAtPoint'
+  | 'getEditorTextRange'
+  | 'focusEditorAtPoint'
   | 'setEditorSelectionRange'
   | 'focusCurrentEditor'
   | 'focusCurrentEditorAtEnd'
@@ -71,6 +75,17 @@ export function createSyncE2EEditorActions(): EditorBridgeActions {
         to: target.range.to,
       }));
     },
+    getEditorPositionAtPoint: (clientX, clientY) => {
+      const view = getCurrentEditorView();
+      if (!view) return null;
+      try {
+        return view.posAtCoords({ left: clientX, top: clientY })?.pos ?? null;
+      } catch {
+        return null;
+      }
+    },
+    getEditorTextRange: (text, anchorText) => findEditorTextRange(text, anchorText),
+    focusEditorAtPoint: (clientX, clientY) => focusCurrentEditorAtViewportPoint({ clientX, clientY }),
     selectEditorTextByText: async (text, anchorText) => {
       const startedAt = performance.now();
       const view = getCurrentEditorView();

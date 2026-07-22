@@ -120,10 +120,6 @@ export function resolveVisualLineEdgePos(
     },
   });
 
-  const blockContentStart = action.blockFrom + 1;
-  const blockContentEnd = blockNode
-    ? Math.max(blockContentStart, action.blockFrom + blockNode.nodeSize - 1)
-    : Math.max(blockContentStart, action.targetPos);
   let lineEdgeRect: DOMRect | null = null;
   let measuredTextNodes = 0;
   let measuredRects = 0;
@@ -188,9 +184,8 @@ export function resolveVisualLineEdgePos(
   }
 
   const forcedCaretX = action.bias === -1 ? lineEdgeRect.right : lineEdgeRect.left;
-  const pos = action.bias === -1 ? blockContentEnd : blockContentStart;
   const serializedTextRect = serializeRect(lineEdgeRect);
-  return { pos, textRect: serializedTextRect, forcedCaretX };
+  return { pos: action.targetPos, textRect: serializedTextRect, forcedCaretX };
 }
 
 function refineBlankAreaPlainClickAction(

@@ -154,7 +154,11 @@ export function MarkdownSourceEditor({
 
   useEffect(() => {
     if (textareaRef.current && textareaRef.current.value !== currentNoteContent) {
+      const textarea = textareaRef.current;
+      const selection = textarea.ownerDocument.activeElement === textarea && lastFlushedSourceDraftRef.current.path === currentNotePath
+        ? [textarea.selectionStart, textarea.selectionEnd, textarea.selectionDirection] as const : null;
       textareaRef.current.value = currentNoteContent;
+      if (selection) textarea.setSelectionRange(...selection);
     }
     draftRef.current = currentNoteContent;
     committedDraftRef.current = currentNoteContent;
@@ -241,8 +245,7 @@ export function MarkdownSourceEditor({
     }
   }, []);
 
-  return (
-    <div
+  return <div
       className={cn(
         'milkdown-editor theme-vlaina is-live-preview max is-readable-line-width min-h-[var(--vlaina-height-editor-min)]',
         showBodyLineNumbers && 'markdown-body-line-numbers',
@@ -261,7 +264,9 @@ export function MarkdownSourceEditor({
       <textarea
         ref={textareaRef}
         data-note-source-editor="true"
+        data-native-caret-overlay-disabled="true"
         defaultValue={currentNoteContent}
+        autoFocus={mode === 'source'}
         onCompositionStart={() => {
           isComposingRef.current = true;
         }}
@@ -291,6 +296,5 @@ export function MarkdownSourceEditor({
         aria-label={t('editor.markdownSourceEditor')}
         className="block min-h-[var(--vlaina-height-prosemirror-min)] w-full resize-none overflow-hidden bg-transparent px-0 py-2 pb-[var(--vlaina-height-prosemirror-bottom-padding)] font-mono text-[length:var(--vlaina-markdown-font-body-size)] leading-[var(--vlaina-markdown-line-height-body)] text-[var(--vlaina-text-primary)] outline-none"
       />
-    </div>
-  );
+    </div>;
 }

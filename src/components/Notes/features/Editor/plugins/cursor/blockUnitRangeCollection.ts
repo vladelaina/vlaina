@@ -48,6 +48,16 @@ export function resolveTopLevelRangeAtPos(doc: EditorState['doc'], pos: number):
   return topLevelNode ? { from: topLevelNode.from, to: topLevelNode.to } : null;
 }
 
+export function resolveInlineCaretRange(doc: EditorDoc, range: BlockRange): BlockRange | null {
+  const topLevelNode = resolveTopLevelNodeAtPos(doc, range.from);
+  if (!topLevelNode || topLevelNode.name !== 'paragraph') return null;
+  if (range.from <= topLevelNode.from && range.to >= topLevelNode.to) return null;
+  const nodeBefore = doc.resolve(range.to).nodeBefore;
+  const caretTo = nodeBefore && (nodeBefore.type.name === 'hardbreak' || nodeBefore.type.name === 'hard_break')
+    ? range.to - nodeBefore.nodeSize : range.to;
+  return { from: range.from, to: caretTo };
+}
+
 export function findFirstRangeStartingAtOrAfter(ranges: readonly BlockRange[], from: number): number {
   let low = 0;
   let high = ranges.length;

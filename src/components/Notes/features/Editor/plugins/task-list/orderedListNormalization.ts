@@ -146,11 +146,13 @@ function preserveSelectionAfterOrderedListMerge(
     const clampedFrom = Math.max(0, Math.min(maxPos, from));
     const clampedTo = Math.max(0, Math.min(maxPos, to));
 
-    try {
+    const $from = tr.doc.resolve(clampedFrom);
+    const $to = tr.doc.resolve(clampedTo);
+    if ($from.parent.inlineContent && $to.parent.inlineContent) {
         return tr.setSelection(TextSelection.create(tr.doc, clampedFrom, clampedTo));
-    } catch {
-        return tr.setSelection(TextSelection.near(tr.doc.resolve(clampedFrom), 1));
     }
+
+    return tr.setSelection(TextSelection.near($from, 1));
 }
 
 const ORDERED_LIST_NORMALIZATION_NODE_NAMES = new Set(['ordered_list', 'bullet_list', 'list_item']);
