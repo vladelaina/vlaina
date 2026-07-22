@@ -85,6 +85,8 @@
   "whiteboard.undo": "復原",
   "whiteboard.redo": "重做",
   "whiteboard.brushSize": "筆刷大小",
+  "whiteboard.customColor": "自訂顏色",
+  "whiteboard.pickColor": "取色",
   "whiteboard.decreaseBrushSize": "縮小筆刷",
   "whiteboard.increaseBrushSize": "放大筆刷",
   "whiteboard.copy": "複製",
