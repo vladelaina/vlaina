@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   userDataPath: '',
   encryptionAvailable: true,
+  storageBackend: 'gnome_libsecret',
+  decryptFails: false,
 }));
 
 vi.mock('electron', () => ({
@@ -22,10 +24,16 @@ vi.mock('electron', () => ({
       isEncryptionAvailable() {
         return mocks.encryptionAvailable;
       },
+      getSelectedStorageBackend() {
+        return mocks.storageBackend;
+      },
       encryptString(value: string) {
         return Buffer.from(`enc:${value}`, 'utf8');
       },
       decryptString(buffer: Buffer) {
+        if (mocks.decryptFails) {
+          throw new Error('decrypt failed');
+        }
         const decoded = buffer.toString('utf8');
         return decoded.startsWith('enc:') ? decoded.slice(4) : decoded;
       },
@@ -39,6 +47,8 @@ describe('accountCredentialStore', () => {
     vi.doUnmock('node:fs/promises');
     mocks.userDataPath = await mkdtemp(path.join(os.tmpdir(), 'vlaina-account-store-'));
     mocks.encryptionAvailable = true;
+    mocks.storageBackend = 'gnome_libsecret';
+    mocks.decryptFails = false;
   });
 
   afterEach(async () => {
@@ -216,6 +226,52 @@ describe('accountCredentialStore', () => {
 
     const secretsPath = path.join(mocks.userDataPath, '.vlaina', 'app', 'secrets', 'account.json');
     await expect(readFile(secretsPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('does not persist account session tokens with the Linux basic text backend', async () => {
+    mocks.storageBackend = 'basic_text';
+    const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');
+    const store = createAccountCredentialStore({
+      desktopLegacySessionHeader: 'x-app-session-token',
+      platform: 'linux',
+    });
+
+    await expect(store.writeStoredAccountCredentials({
+      appSessionToken: 'nts_super_secret_token',
+      provider: 'google',
+      username: 'alice',
+      primaryEmail: 'alice@example.com',
+      avatarUrl: null,
+      authenticatedAt: 1,
+    })).resolves.toBe(false);
+
+    const secretsPath = path.join(mocks.userDataPath, '.vlaina', 'app', 'secrets', 'account.json');
+    await expect(readFile(secretsPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('preserves encrypted credentials when decryption temporarily fails', async () => {
+    const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');
+    const storeDir = path.join(mocks.userDataPath, '.vlaina', 'app');
+    const metaPath = path.join(storeDir, 'account', 'profile.json');
+    const secretsPath = path.join(storeDir, 'secrets', 'account.json');
+    const rawSecrets = JSON.stringify({
+      appSessionToken: {
+        __secure: 'electron.safeStorage.v1',
+        ciphertext: Buffer.from('enc:nts_session', 'utf8').toString('base64'),
+      },
+    });
+    await mkdir(path.dirname(metaPath), { recursive: true });
+    await mkdir(path.dirname(secretsPath), { recursive: true });
+    await writeFile(metaPath, JSON.stringify({ provider: 'google', username: 'alice' }), 'utf8');
+    await writeFile(secretsPath, rawSecrets, 'utf8');
+    mocks.decryptFails = true;
+
+    const store = createAccountCredentialStore({
+      desktopLegacySessionHeader: 'x-app-session-token',
+    });
+
+    await expect(store.readStoredAccountCredentials()).resolves.toBeNull();
+    await expect(readFile(secretsPath, 'utf8')).resolves.toBe(rawSecrets);
   });
 
   it('ignores and removes plaintext account session token records', async () => {

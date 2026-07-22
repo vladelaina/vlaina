@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export function getDevelopmentUserDataPath(repoRoot, port) {
-  return path.join(repoRoot, 'temp', `electron-user-data-${port}`);
+export function getDevelopmentUserDataPath(repoRoot) {
+  return path.join(repoRoot, 'temp', 'electron-user-data-dev');
 }
 
 export function ensureIsolatedDevelopmentUserDataPath(targetUserDataPath, options = {}) {
@@ -39,7 +39,7 @@ export function configureDevelopmentProfileEnv(env, port, options = {}) {
   const {
     log: logFn = () => {},
     repoRoot,
-    targetUserDataPath = getDevelopmentUserDataPath(repoRoot, port),
+    targetUserDataPath = getDevelopmentUserDataPath(repoRoot),
   } = options;
   ensureIsolatedDevelopmentUserDataPath(targetUserDataPath, { log: logFn });
 

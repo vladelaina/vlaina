@@ -5,6 +5,7 @@ import { normalizeAccountProvider } from '@/lib/account/provider';
 import { webAccountCommands } from '@/lib/account/webCommands';
 import type { AccountSessionActions, AccountSessionState } from './state';
 import {
+  clearPersistedUser,
   normalizeAuthError,
   normalizePersistedUser,
   persistUser,
@@ -106,15 +107,19 @@ async function verifyEmailCode(set: Set, get: Get, email: string, code: string):
           hasCheckedStatus: true,
           error: null,
         });
-        persistUser({
-          isConnected: true,
-          provider,
-          username,
-          primaryEmail,
-          avatarUrl,
-          membershipTier: null,
-          membershipName: null,
-        });
+        if (result.persistent === false) {
+          clearPersistedUser();
+        } else {
+          persistUser({
+            isConnected: true,
+            provider,
+            username,
+            primaryEmail,
+            avatarUrl,
+            membershipTier: null,
+            membershipName: null,
+          });
+        }
         void get().checkStatus({ force: true }).catch(() => undefined);
         void refreshAvatar(set, get, username, avatarUrl);
         return true;

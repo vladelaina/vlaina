@@ -55,7 +55,7 @@ export function createDesktopAuthPersistence({
         membershipName: resolvedMembershipName,
         authenticatedAt,
       };
-      await writeStoredAccountCredentials(credentials);
+      const persistent = await writeStoredAccountCredentials(credentials);
 
       return {
         success: true,
@@ -65,6 +65,7 @@ export function createDesktopAuthPersistence({
         avatarUrl: credentials.avatarUrl,
         membershipTier: credentials.membershipTier,
         membershipName: credentials.membershipName,
+        persistent: persistent !== false,
         error: null,
       };
     }
@@ -77,7 +78,7 @@ export function createDesktopAuthPersistence({
       avatarUrl: fallbackAvatarUrl,
       authenticatedAt,
     };
-    await writeStoredAccountCredentials(credentials);
+    const persistent = await writeStoredAccountCredentials(credentials);
 
     return {
       success: true,
@@ -85,6 +86,7 @@ export function createDesktopAuthPersistence({
       username: fallbackUsername,
       primaryEmail: credentials.primaryEmail,
       avatarUrl: credentials.avatarUrl,
+      persistent: persistent !== false,
       error: null,
     };
   }

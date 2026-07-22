@@ -32,4 +32,21 @@ describe('desktop account auth persistence', () => {
       avatarUrl: null,
     }));
   });
+
+  it('reports when secure storage could not persist the session', async () => {
+    const persistence = createDesktopAuthPersistence({
+      readDesktopSessionIdentity: vi.fn(),
+      writeStoredAccountCredentials: vi.fn(async () => false),
+    });
+
+    await expect(persistence.persistDesktopAuthResult('google', {
+      success: true,
+      appSessionToken: 'nts_session',
+      provider: 'google',
+      username: 'alice',
+    })).resolves.toMatchObject({
+      success: true,
+      persistent: false,
+    });
+  });
 });

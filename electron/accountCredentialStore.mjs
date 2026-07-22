@@ -3,6 +3,7 @@ import { readFile, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
 import { ensurePrivateDirectory, writePrivateFile } from './privateFilePermissions.mjs';
+import { isSafeStoragePersistenceAvailable } from './linuxSafeStorage.mjs';
 import {
   normalizeDesktopAccountAvatarUrl,
   normalizeDesktopAccountEmail,
@@ -101,7 +102,10 @@ async function getAccountStorePaths() {
   };
 }
 
-export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
+export function createAccountCredentialStore({
+  desktopLegacySessionHeader,
+  platform = process.platform,
+}) {
   let memoryStoredAccountCredentials = null;
   let credentialMutationQueue = Promise.resolve();
 
@@ -119,9 +123,15 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
     const { metaPath, secretsPath } = await getAccountStorePaths();
     const meta = await readJsonFile(metaPath, null);
     const rawSecrets = await readJsonFile(secretsPath, null);
-    const { record: secrets, needsMigration } = decodeSecretRecord(rawSecrets, safeStorage, {
+    if (!isSafeStoragePersistenceAvailable(safeStorage, platform)) {
+      return null;
+    }
+    const { record: secrets, needsMigration, decryptionFailed } = decodeSecretRecord(rawSecrets, safeStorage, {
       allowPlaintext: false,
     });
+    if (decryptionFailed) {
+      return null;
+    }
     if (needsMigration) {
       if (Object.keys(secrets).length === 0) {
         await rm(secretsPath, { force: true });
@@ -167,6 +177,9 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
     const { metaPath, secretsPath } = await getAccountStorePaths();
     let encodedSecrets = null;
     try {
+      if (!isSafeStoragePersistenceAvailable(safeStorage, platform)) {
+        throw new Error('System secure storage is unavailable');
+      }
       encodedSecrets = encodeSecretRecord(
         {
           appSessionToken: normalizedCredentials.appSessionToken,
@@ -184,7 +197,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
       };
       await rm(metaPath, { force: true });
       await rm(secretsPath, { force: true });
-      return;
+      return false;
     }
 
     memoryStoredAccountCredentials = null;
@@ -208,6 +221,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
       secretsPath,
       JSON.stringify(encodedSecrets, null, 2)
     );
+    return true;
   }
 
   async function writeStoredAccountCredentials(credentials) {

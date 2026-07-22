@@ -96,7 +96,7 @@ export function getDevelopmentRepoUserDataRootPath(candidatePath) {
   }
 
   const [firstSegment] = relativePath.split(path.sep);
-  if (!/^electron-user-data-\d+$/.test(firstSegment ?? '')) {
+  if (!/^electron-user-data-(?:\d+|dev)$/.test(firstSegment ?? '')) {
     return null;
   }
 

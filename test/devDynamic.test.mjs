@@ -2,10 +2,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  assertDevelopmentProfileAvailable,
   chooseAvailablePort,
   configureDevelopmentProfileEnv,
   ensureIsolatedDevelopmentUserDataPath,
+  getDevelopmentUserDataPath,
 } from '../scripts/dev-dynamic.js';
+
+describe('development profile lock', () => {
+  it('allows startup when the worktree profile is not locked', () => {
+    expect(() => assertDevelopmentProfileAvailable({
+      userDataPath: '/repo/temp/electron-user-data-dev',
+      readLockPid: () => null,
+    })).not.toThrow();
+  });
+
+  it('reports one clear error when the same worktree is already running', () => {
+    expect(() => assertDevelopmentProfileAvailable({
+      userDataPath: '/repo/temp/electron-user-data-dev',
+      readLockPid: () => 1234,
+    })).toThrow('This worktree already has a running Electron instance (PID 1234)');
+  });
+});
 
 describe('chooseAvailablePort', () => {
   it('uses the preferred port immediately when it is available', async () => {
@@ -105,6 +123,12 @@ describe('chooseAvailablePort', () => {
 });
 
 describe('configureDevelopmentProfileEnv', () => {
+  it('uses a stable profile path when the renderer port changes', () => {
+    const expectedPath = path.join(process.cwd(), 'temp', 'electron-user-data-dev');
+    expect(getDevelopmentUserDataPath(3000)).toBe(expectedPath);
+    expect(getDevelopmentUserDataPath(3007)).toBe(expectedPath);
+  });
+
   it('uses isolated Electron userData for the preferred dev port too', () => {
     const mkdirSync = vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
     const log = vi.fn();

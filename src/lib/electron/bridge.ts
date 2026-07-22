@@ -427,6 +427,7 @@ export interface ElectronAccountApi {
     username: string | null;
     primaryEmail: string | null;
     avatarUrl: string | null;
+    persistent?: boolean;
     error: string | null;
   }>;
   cancelAuth?(): Promise<boolean>;
@@ -437,6 +438,7 @@ export interface ElectronAccountApi {
     username: string | null;
     primaryEmail: string | null;
     avatarUrl: string | null;
+    persistent?: boolean;
     error: string | null;
   }>;
   disconnect(): Promise<void>;

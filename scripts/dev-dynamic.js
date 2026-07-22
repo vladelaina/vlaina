@@ -58,7 +58,6 @@ function log(colorCode, message) {
 }
 async function findAvailablePort(startPort) {
   return chooseAvailablePort(startPort, {
-    isPortUsable: isDevelopmentPortUsable,
     isShutdownRequested: () => shutdownRequested,
     log,
   });
@@ -97,15 +96,17 @@ function readActiveElectronLockPid(userDataPath) {
   }
 }
 
-function isDevelopmentPortUsable(port) {
-  const userDataPath = getDevelopmentUserDataPath(port);
-  const lockPid = readActiveElectronLockPid(userDataPath);
+export function assertDevelopmentProfileAvailable(options = {}) {
+  const userDataPath = options.userDataPath ?? getDevelopmentUserDataPath();
+  const readLockPid = options.readLockPid ?? readActiveElectronLockPid;
+  const lockPid = readLockPid(userDataPath);
   if (lockPid === null) {
-    return true;
+    return;
   }
 
-  log('33', `Skipping renderer port ${port}; Electron userData is locked by PID ${lockPid}.`);
-  return false;
+  throw new Error(
+    `This worktree already has a running Electron instance (PID ${lockPid}). Stop it before starting another one.`,
+  );
 }
 
 export { chooseAvailablePort, ensureIsolatedDevelopmentUserDataPath };
@@ -257,6 +258,7 @@ async function shutdown(exitCode = 0) {
 }
 
 async function startDev() {
+  assertDevelopmentProfileAvailable();
   const port = await findAvailablePort(DEFAULT_PORT);
   const devUrl = `http://127.0.0.1:${port}`;
   const env = configureDevelopmentProfileEnv({

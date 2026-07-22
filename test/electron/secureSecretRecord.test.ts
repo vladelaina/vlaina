@@ -146,6 +146,7 @@ describe('secure secret record codec', () => {
         openai: 'sk-live',
       },
       needsMigration: true,
+      decryptionFailed: true,
     });
   });
 });
