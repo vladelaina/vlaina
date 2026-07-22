@@ -183,8 +183,8 @@ export function WhiteboardColorPicker({ color, onChange }: WhiteboardColorPicker
       <PopoverContent side="top" align="center" sideOffset={8} role="dialog" aria-busy={appColorPicking} aria-label={t('whiteboard.customColor')} className={cn('max-h-[var(--vlaina-whiteboard-color-picker-max-height)] w-[var(--vlaina-size-560px)] max-w-[var(--vlaina-whiteboard-panel-max-width)] overflow-y-auto rounded-[var(--vlaina-radius-26px)] p-3', whiteboardFloatingPanelClassName)}>
 
         <div className="grid gap-3 sm:h-[var(--vlaina-size-280px)] sm:grid-cols-[minmax(0,1fr)_var(--vlaina-size-28px)_var(--vlaina-size-160px)]">
-          <SaturationValueField hsv={hsv} onChange={setHsv} />
-          <HueField hsv={hsv} onChange={setHsv} />
+          <SaturationValueField label={t('whiteboard.saturationAndBrightness')} hsv={hsv} onChange={setHsv} />
+          <HueField label={t('whiteboard.hue')} hsv={hsv} onChange={setHsv} />
 
           <div className="grid content-start gap-2 sm:grid-cols-[var(--vlaina-size-24px)_minmax(0,1fr)]">
             <div aria-hidden="true" className="col-span-full h-[var(--vlaina-size-48px)] rounded-[var(--vlaina-radius-8px)]" style={{ backgroundColor: resolvedHex }} />
@@ -210,7 +210,7 @@ export function WhiteboardColorPicker({ color, onChange }: WhiteboardColorPicker
   );
 }
 
-function SaturationValueField({ hsv, onChange }: { hsv: HsvColor; onChange: (color: HsvColor) => void }) {
+function SaturationValueField({ label, hsv, onChange }: { label: string; hsv: HsvColor; onChange: (color: HsvColor) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const hueColor = rgbToHex(hsvToRgb({ h: hsv.h, s: 1, v: 1 }));
   const update = (event: PointerEvent<HTMLDivElement>) => {
@@ -227,13 +227,13 @@ function SaturationValueField({ hsv, onChange }: { hsv: HsvColor; onChange: (col
     onChange({ ...hsv, s: Math.min(1, Math.max(0, nextSaturation)), v: Math.min(1, Math.max(0, nextValue)) });
   };
   return (
-    <div ref={ref} role="slider" tabIndex={0} aria-label="Saturation and brightness" aria-valuetext={`${Math.round(hsv.s * 100)}%, ${Math.round(hsv.v * 100)}%`} onKeyDown={handleKeyDown} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); update(event); }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) update(event); }} className="relative min-h-[var(--vlaina-size-240px)] touch-none overflow-hidden rounded-[var(--vlaina-radius-8px)] border border-[var(--vlaina-color-subtle-border-strong)] sm:min-h-0" style={{ backgroundColor: hueColor, backgroundImage: themeWhiteboardTokens.colorPickerSaturationValueGradient }}>
+    <div ref={ref} role="slider" tabIndex={0} aria-label={label} aria-valuetext={`${Math.round(hsv.s * 100)}%, ${Math.round(hsv.v * 100)}%`} onKeyDown={handleKeyDown} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); update(event); }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) update(event); }} className="relative min-h-[var(--vlaina-size-240px)] touch-none overflow-hidden rounded-[var(--vlaina-radius-8px)] border border-[var(--vlaina-color-subtle-border-strong)] sm:min-h-0" style={{ backgroundColor: hueColor, backgroundImage: themeWhiteboardTokens.colorPickerSaturationValueGradient }}>
       <span aria-hidden="true" className="pointer-events-none absolute size-[var(--vlaina-size-18px)] -translate-x-1/2 -translate-y-1/2 rounded-[var(--vlaina-radius-circle)] border-2 border-[var(--vlaina-color-picker-white)] shadow-[var(--vlaina-shadow-sm)]" style={{ backgroundColor: rgbToHex(hsvToRgb(hsv)), left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%` }} />
     </div>
   );
 }
 
-function HueField({ hsv, onChange }: { hsv: HsvColor; onChange: (color: HsvColor) => void }) {
+function HueField({ label, hsv, onChange }: { label: string; hsv: HsvColor; onChange: (color: HsvColor) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const hueColor = rgbToHex(hsvToRgb({ h: hsv.h, s: 1, v: 1 }));
   const update = (event: PointerEvent<HTMLDivElement>) => {
@@ -246,7 +246,7 @@ function HueField({ hsv, onChange }: { hsv: HsvColor; onChange: (color: HsvColor
     onChange({ ...hsv, h: (hsv.h + (event.key === 'ArrowDown' ? 2 : 358)) % 360 });
   };
   return (
-    <div ref={ref} role="slider" tabIndex={0} aria-label="Hue" aria-valuenow={Math.round(hsv.h)} aria-valuemin={0} aria-valuemax={360} onKeyDown={handleKeyDown} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); update(event); }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) update(event); }} className="relative min-h-[var(--vlaina-size-48px)] touch-none rounded-[var(--vlaina-radius-8px)]" style={{ backgroundImage: themeWhiteboardTokens.colorPickerHueGradient }}>
+    <div ref={ref} role="slider" tabIndex={0} aria-label={label} aria-valuenow={Math.round(hsv.h)} aria-valuemin={0} aria-valuemax={360} onKeyDown={handleKeyDown} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); update(event); }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) update(event); }} className="relative min-h-[var(--vlaina-size-48px)] touch-none rounded-[var(--vlaina-radius-8px)]" style={{ backgroundImage: themeWhiteboardTokens.colorPickerHueGradient }}>
       <span aria-hidden="true" className="pointer-events-none absolute inset-x-[-2px] h-[var(--vlaina-size-6px)] -translate-y-1/2 rounded-[var(--vlaina-radius-pill)] border-2 border-[var(--vlaina-color-picker-white)] shadow-[var(--vlaina-shadow-sm)]" style={{ backgroundColor: hueColor, top: `${hsv.h / 360 * 100}%` }} />
     </div>
   );

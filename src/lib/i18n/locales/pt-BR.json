@@ -87,6 +87,8 @@
   "whiteboard.brushSize": "Brush size",
   "whiteboard.customColor": "Custom color",
   "whiteboard.pickColor": "Pick color",
+  "whiteboard.hue": "Matiz",
+  "whiteboard.saturationAndBrightness": "Saturação e brilho",
   "whiteboard.decreaseBrushSize": "Decrease brush size",
   "whiteboard.increaseBrushSize": "Increase brush size",
   "whiteboard.copy": "Copy",

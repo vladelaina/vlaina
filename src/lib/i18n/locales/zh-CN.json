@@ -87,6 +87,8 @@
   "whiteboard.brushSize": "笔刷大小",
   "whiteboard.customColor": "自定义颜色",
   "whiteboard.pickColor": "取色",
+  "whiteboard.hue": "色相",
+  "whiteboard.saturationAndBrightness": "饱和度和亮度",
   "whiteboard.decreaseBrushSize": "减小笔刷",
   "whiteboard.increaseBrushSize": "增大笔刷",
   "whiteboard.copy": "复制",

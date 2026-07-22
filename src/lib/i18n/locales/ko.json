@@ -87,6 +87,8 @@
   "whiteboard.brushSize": "Brush size",
   "whiteboard.customColor": "Custom color",
   "whiteboard.pickColor": "Pick color",
+  "whiteboard.hue": "색조",
+  "whiteboard.saturationAndBrightness": "채도 및 밝기",
   "whiteboard.decreaseBrushSize": "Decrease brush size",
   "whiteboard.increaseBrushSize": "Increase brush size",
   "whiteboard.copy": "Copy",
