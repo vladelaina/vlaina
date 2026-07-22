@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import type { Decoration } from '@milkdown/kit/prose/view';
+import type { Decoration, EditorView } from '@milkdown/kit/prose/view';
 import {
   TAG_TOKEN_HAS_NEXT_CLASS,
   collectTagTokenDecorationsInRange,
@@ -390,7 +390,7 @@ describe('tagTokenPlugin', () => {
     Object.defineProperty(event, 'target', { value: token });
     let handled = false;
 
-    view.someProp('handleDOMEvents', (handlers) => {
+    view.someProp('handleDOMEvents', (handlers: { click?: (editorView: EditorView, event: MouseEvent) => boolean }) => {
       handled = handlers.click?.(view, event) ?? handled;
     });
 

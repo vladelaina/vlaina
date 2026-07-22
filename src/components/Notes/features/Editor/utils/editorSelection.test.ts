@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Schema } from '@milkdown/kit/prose/model';
+import * as ProseModel from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { syncEditorSelectionFromDOM } from './editorSelection';
 
 function createView() {
-  const schema = new Schema({
+  const SchemaCtor = (ProseModel as any).Schema;
+  const schema = new SchemaCtor({
     nodes: {
       doc: { content: 'paragraph' },
       paragraph: { content: 'text*', toDOM: () => ['p', 0], parseDOM: [{ tag: 'p' }] },

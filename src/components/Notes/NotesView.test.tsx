@@ -163,6 +163,7 @@ const mocks = vi.hoisted(() => {
   };
 
   const editorViewRegistry = {
+    getCurrentEditorNotePath: vi.fn(() => notesState.currentNote?.path ?? null),
     getCurrentEditorView: vi.fn(),
   };
 
@@ -414,6 +415,7 @@ vi.mock('@/components/Chat/features/Temporary/temporaryChatCommands', () => ({
 }));
 
 vi.mock('@/components/Notes/features/Editor/utils/editorViewRegistry', () => ({
+  getCurrentEditorNotePath: mocks.editorViewRegistry.getCurrentEditorNotePath,
   getCurrentEditorView: mocks.editorViewRegistry.getCurrentEditorView,
 }));
 
@@ -584,6 +586,10 @@ describe('NotesView', () => {
     notesState.confirmPendingDraftDiscard.mockClear();
     notesState.getDisplayName.mockClear();
     mocks.toastState.addToast.mockClear();
+    mocks.editorViewRegistry.getCurrentEditorNotePath.mockReset();
+    mocks.editorViewRegistry.getCurrentEditorNotePath.mockImplementation(
+      () => notesState.currentNote?.path ?? null,
+    );
     mocks.editorViewRegistry.getCurrentEditorView.mockReset();
     mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection.mockReset();
     mocks.sidebarDiscussion.openSidebarDiscussionForSelection.mockReset();
@@ -716,21 +722,21 @@ describe('NotesView', () => {
     expect(screen.getByText('Beta body')).toBeInTheDocument();
 
     const betaPane = document.querySelector('[data-notes-split-leaf-path="docs/beta.md"] [data-notes-split-preview-pane="true"]') as HTMLElement | null;
-    const starButton = betaPane?.querySelector<HTMLButtonElement>('button[aria-label="Add to Starred"]') ?? null;
+    const starButton = betaPane?.querySelector<HTMLButtonElement>('button[aria-label="Add Star"]') ?? null;
     const chatButton = betaPane?.querySelector<HTMLButtonElement>('button[aria-label="Right Chat"]') ?? null;
     const chromeChatButton = betaPane?.querySelector<HTMLButtonElement>('[data-notes-split-pane-chrome="true"] button[aria-label="Right Chat"]') ?? null;
     expect(starButton).not.toBeNull();
     expect(chatButton).not.toBeNull();
     expect(chromeChatButton).not.toBeNull();
     expect(chatButton).toBe(chromeChatButton);
-    expect(betaPane?.querySelector('button[aria-label="More note actions"]')).not.toBeNull();
+    expect(betaPane?.querySelector('button[aria-label="More"]')).not.toBeNull();
     const primaryChrome = document.querySelector('[data-notes-split-pane="primary"] [data-notes-split-pane-chrome="true"]') as HTMLElement | null;
     const primaryPane = document.querySelector('[data-notes-split-pane="primary"]') as HTMLElement | null;
     expect(betaPane?.querySelector('[data-notes-split-pane-chrome="true"] [data-notes-split-pane-icon="true"]')?.textContent).toBe('🌲');
     expect(primaryChrome?.querySelector('[data-notes-split-pane-icon="true"]')?.textContent).toBe('✨');
-    expect(primaryChrome?.querySelector('button[aria-label="Add to Starred"]')).not.toBeNull();
+    expect(primaryChrome?.querySelector('button[aria-label="Add Star"]')).not.toBeNull();
     expect(primaryChrome?.querySelector('button[aria-label="Right Chat"]')).not.toBeNull();
-    expect(primaryChrome?.querySelector('button[aria-label="More note actions"]')).not.toBeNull();
+    expect(primaryChrome?.querySelector('button[aria-label="More"]')).not.toBeNull();
     expect(primaryChrome?.querySelector('button[aria-label="Close"]')).not.toBeNull();
     expect(primaryPane?.querySelector('button[aria-label="Right Chat"]')).toBe(primaryChrome?.querySelector('button[aria-label="Right Chat"]'));
     expect(uiState.setNotesSplitPanesActive).toHaveBeenCalledWith(true);

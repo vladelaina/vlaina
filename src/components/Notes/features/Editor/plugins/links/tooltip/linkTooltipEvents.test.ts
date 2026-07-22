@@ -336,7 +336,7 @@ describe('installLinkTooltipEvents', () => {
         text.textContent = 'plain text';
         editorDom.appendChild(text);
         const { doc } = useTextSelectionCapableView(editorDom, handlers, () => 5);
-        doc.resolve.mockImplementation((pos: number) => ({
+        doc.resolve.mockImplementation((pos?: number) => ({
             parent: { inlineContent: pos === 7 },
         }));
         handlers.view.state.selection = { empty: false, from: 1, to: 7 };

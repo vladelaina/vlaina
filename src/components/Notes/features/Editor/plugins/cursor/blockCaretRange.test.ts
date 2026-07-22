@@ -8,7 +8,7 @@ import {
 } from './blockUnitRangeCollection';
 
 describe('inline caret range contract', () => {
-  const editors: Editor[] = [];
+  const editors: ReturnType<typeof Editor.make>[] = [];
 
   afterEach(async () => {
     await Promise.all(editors.splice(0).map((editor) => editor.destroy()));
