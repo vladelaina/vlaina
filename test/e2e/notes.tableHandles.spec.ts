@@ -139,7 +139,7 @@ function getMarkdownTableShape(markdown: string) {
   const rows = tableLines
     .map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()))
     .filter((cells) =>
-      cells.length > 0 && !cells.every((cell) => /^:?-{3,}:?$/.test(cell))
+      cells.length > 0 && !cells.every((cell) => /^:?-+:?$/.test(cell))
     );
 
   return {

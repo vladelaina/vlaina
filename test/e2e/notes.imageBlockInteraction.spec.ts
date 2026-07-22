@@ -1310,6 +1310,26 @@ test.describe('notes image block interaction', () => {
         const danger = await readButtonPaint('delete');
         return { active, hover, danger };
       };
+      const waitForToolbarThemeSettled = async () => {
+        await expect.poll(async () => {
+          const active = await readButtonPaint('align-center');
+          const expected = await page.evaluate(() => {
+            const probe = document.createElement('span');
+            probe.style.color = 'var(--vlaina-accent)';
+            probe.style.backgroundColor = 'var(--vlaina-accent-soft)';
+            document.body.appendChild(probe);
+            const style = getComputedStyle(probe);
+            const paint = {
+              color: style.color,
+              backgroundColor: style.backgroundColor,
+            };
+            probe.remove();
+            return paint;
+          });
+          return active.color === expected.color
+            && active.backgroundColor === expected.backgroundColor;
+        }).toBe(true);
+      };
 
       const selectableBlocks = await page.evaluate(() =>
         (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
@@ -1330,6 +1350,7 @@ test.describe('notes image block interaction', () => {
         }, dark);
         await hoverImageBlockContent(imageBlock);
         await waitForImageToolbarInteractive(imageBlock);
+        await waitForToolbarThemeSettled();
         const hoveredPaint = await readToolbarPaint();
 
         await page.evaluate(async (targetIndex) => {
