@@ -34,6 +34,31 @@ export function UnifiedSidebarContainer({
   useEffect(() => {
     if (!collapsed) sidebarPointerInsideRef.current = false;
   }, [collapsed]);
+  useEffect(() => {
+    if (!collapsed || !peeking) return;
+
+    const closeSidebarPeek = () => {
+      sidebarPointerInsideRef.current = false;
+      onPeekChange?.(false);
+    };
+    const handleWindowMouseOut = (event: MouseEvent) => {
+      if (
+        event.relatedTarget === null
+        && !document.documentElement.matches(':hover')
+      ) {
+        closeSidebarPeek();
+      }
+    };
+
+    window.addEventListener('mouseleave', closeSidebarPeek);
+    window.addEventListener('mouseout', handleWindowMouseOut, true);
+    window.addEventListener('blur', closeSidebarPeek);
+    return () => {
+      window.removeEventListener('mouseleave', closeSidebarPeek);
+      window.removeEventListener('mouseout', handleWindowMouseOut, true);
+      window.removeEventListener('blur', closeSidebarPeek);
+    };
+  }, [collapsed, onPeekChange, peeking]);
   const { isDragging, handleDragStart, handleDoubleClick } = useShellSidebarResize({
     width,
     onWidthChange: onLiveWidthChange ?? onWidthChange,
@@ -43,7 +68,6 @@ export function UnifiedSidebarContainer({
 
   const handleMouseLeave = () => {
     sidebarPointerInsideRef.current = false;
-    if (!document.hasFocus()) return;
 
     const activeElement = document.activeElement;
     if (

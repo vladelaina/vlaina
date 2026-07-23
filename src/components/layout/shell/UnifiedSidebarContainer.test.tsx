@@ -7,6 +7,31 @@ vi.mock('./useShellSidebarResize', () => ({
 }));
 
 describe('UnifiedSidebarContainer', () => {
+  it('closes a peeking sidebar only after the pointer leaves the application window', () => {
+    const onPeekChange = vi.fn();
+    const rootMatches = vi.spyOn(document.documentElement, 'matches');
+    render(
+      <UnifiedSidebarContainer
+        width={260}
+        collapsed
+        peeking
+        onPeekChange={onPeekChange}
+        onWidthChange={() => {}}
+      >
+        <button type="button">Open file</button>
+      </UnifiedSidebarContainer>,
+    );
+
+    rootMatches.mockReturnValue(true);
+    fireEvent.mouseOut(window, { relatedTarget: null });
+    expect(onPeekChange).not.toHaveBeenCalled();
+
+    rootMatches.mockReturnValue(false);
+    fireEvent.mouseOut(window, { relatedTarget: null });
+
+    expect(onPeekChange).toHaveBeenCalledWith(false);
+  });
+
   it('keeps a peeking sidebar open when navigation moves focus while the pointer remains inside', () => {
     const onPeekChange = vi.fn();
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
@@ -94,10 +119,11 @@ describe('UnifiedSidebarContainer', () => {
     );
 
     const input = screen.getByRole('textbox', { name: 'Rename' });
+    const outsideButton = screen.getByRole('button', { name: 'Outside' });
     const sidebar = input.closest('aside');
     input.focus();
 
-    fireEvent.mouseLeave(sidebar!);
+    fireEvent.mouseLeave(sidebar!, { relatedTarget: outsideButton });
     expect(onPeekChange).not.toHaveBeenCalled();
 
     hasFocus.mockReturnValue(false);
@@ -105,7 +131,7 @@ describe('UnifiedSidebarContainer', () => {
     expect(onPeekChange).not.toHaveBeenCalled();
 
     hasFocus.mockReturnValue(true);
-    fireEvent.focusOut(input, { relatedTarget: screen.getByRole('button', { name: 'Outside' }) });
+    fireEvent.focusOut(input, { relatedTarget: outsideButton });
     expect(onPeekChange).toHaveBeenCalledWith(false);
   });
 });
