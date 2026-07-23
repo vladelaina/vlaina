@@ -1,4 +1,5 @@
 import { resolveInternalMoveDropTargetPath, resolveStarredDropTargetFromElements } from './dropTargetDom';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import type { FileTreePointerDragSession, FileTreePointerDropTargetKind } from './fileTreePointerDragTypes';
 
 interface FileTreePointerDragDropTargetResult {
@@ -11,7 +12,8 @@ export function resolveFileTreePointerDragDropTarget(
   session: FileTreePointerDragSession,
 ): FileTreePointerDragDropTargetResult {
   const elements = document.elementsFromPoint(session.lastClientX, session.lastClientY);
-  const isStarredDropTarget = resolveStarredDropTargetFromElements(elements);
+  const canStarSource = session.sourceKind === 'folder' || isSupportedMarkdownPath(session.sourcePath);
+  const isStarredDropTarget = canStarSource && resolveStarredDropTargetFromElements(elements);
 
   if (isStarredDropTarget) {
     return {

@@ -50,7 +50,7 @@ export function StarredSection({
     }
   }, [activeDragSourcePath, hasEntries, isExpanded]);
 
-  if (!starredLoaded && !hasEntries) {
+  if (!starredLoaded && !hasEntries && !hasActiveDrag) {
     return null;
   }
 

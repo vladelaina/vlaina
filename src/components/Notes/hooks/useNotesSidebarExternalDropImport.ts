@@ -48,7 +48,6 @@ function isFileDrag(event: DragEvent) {
 function getSidebarDropState(event: DragEvent) {
   const elements = document.elementsFromPoint?.(event.clientX, event.clientY) ?? [];
   const isOverSidebar = elements.some((element) => (
-    element instanceof HTMLElement &&
     element.closest(SIDEBAR_SCROLL_ROOT_SELECTOR)
   ));
 
@@ -114,6 +113,12 @@ export function useNotesSidebarExternalDropImport({
     let cancelled = false;
     let preview: ExternalDragPreviewHandle | null = null;
 
+    const clearDropFeedback = () => {
+      preview?.dispose();
+      preview = null;
+      clearExternalFileTreeDropTarget();
+    };
+
     const updateTarget = (event: DragEvent, paths: string[]) => {
       const clientX = event.clientX;
       const clientY = event.clientY;
@@ -139,7 +144,12 @@ export function useNotesSidebarExternalDropImport({
     const handleDragEnter = (event: DragEvent) => {
       const paths = getDroppedExternalPaths(event.dataTransfer);
       const dropState = getSidebarDropState(event);
-      if (!isFileDrag(event) || !dropState.isOverSidebar) {
+      if (!isFileDrag(event)) {
+        return;
+      }
+
+      if (!dropState.isOverSidebar) {
+        clearDropFeedback();
         return;
       }
 
@@ -150,7 +160,12 @@ export function useNotesSidebarExternalDropImport({
     const handleDragOver = (event: DragEvent) => {
       const paths = getDroppedExternalPaths(event.dataTransfer);
       const dropState = getSidebarDropState(event);
-      if (!isFileDrag(event) || !dropState.isOverSidebar) {
+      if (!isFileDrag(event)) {
+        return;
+      }
+
+      if (!dropState.isOverSidebar) {
+        clearDropFeedback();
         return;
       }
 
@@ -158,25 +173,30 @@ export function useNotesSidebarExternalDropImport({
       updateTarget(event, paths);
     };
 
-    const handleDragLeave = () => {
-      preview?.dispose();
-      preview = null;
-      clearExternalFileTreeDropTarget();
+    const handleDragLeave = (event: DragEvent) => {
+      const relatedTarget = event.relatedTarget;
+      if (
+        relatedTarget instanceof Element &&
+        relatedTarget.closest(SIDEBAR_SCROLL_ROOT_SELECTOR)
+      ) {
+        return;
+      }
+
+      clearDropFeedback();
     };
 
     const handleDrop = (event: DragEvent) => {
       const paths = getDroppedExternalPaths(event.dataTransfer);
       const dropState = getSidebarDropState(event);
       if (paths.length === 0 || !dropState.isOverSidebar) {
+        clearDropFeedback();
         return;
       }
 
       event.preventDefault();
       const { dropTargetPath, isOverStarred } = updateTarget(event, paths);
       const importTargetPath = dropTargetPath ?? '';
-      preview?.dispose();
-      preview = null;
-      clearExternalFileTreeDropTarget();
+      clearDropFeedback();
 
       void (async () => {
         if (isOverStarred) {
@@ -240,8 +260,7 @@ export function useNotesSidebarExternalDropImport({
 
     return () => {
       cancelled = true;
-      preview?.dispose();
-      clearExternalFileTreeDropTarget();
+      clearDropFeedback();
       window.removeEventListener('dragenter', handleDragEnter);
       window.removeEventListener('dragover', handleDragOver);
       window.removeEventListener('dragleave', handleDragLeave);

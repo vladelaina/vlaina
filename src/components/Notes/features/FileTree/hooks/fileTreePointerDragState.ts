@@ -225,7 +225,7 @@ function finishPointerDrag(shouldCommit: boolean) {
   }
 
   teardownPointerDrag();
-  if (shouldSplit || shouldDropToChat) {
+  if (shouldSplit || shouldDropToChat || shouldStar) {
     previewElement?.remove();
   }
 
@@ -236,7 +236,7 @@ function finishPointerDrag(shouldCommit: boolean) {
         kind: sourceKind,
       },
     }));
-  } else if (!shouldSplit) {
+  } else if (!shouldSplit && !shouldStar) {
     animatePreviewBackToSource(previewElement, sourceElement);
   }
 
