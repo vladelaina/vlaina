@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   resolveExternalFolderDropTargetPath,
   resolveInternalMoveDropTargetPath,
+  resolveStarredDropTargetFromElements,
 } from './dropTargetDom';
 
 const originalElementsFromPoint = document.elementsFromPoint;
@@ -108,5 +109,15 @@ describe('dropTargetDom', () => {
 
     setElementsFromPoint([root]);
     expect(resolveInternalMoveDropTargetPath(1, 1, 'docs/a.md')).toBe('');
+  });
+
+  it('resolves the starred target from an SVG icon descendant', () => {
+    const starredTarget = document.createElement('div');
+    starredTarget.dataset.fileTreeStarredDropTarget = 'true';
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    starredTarget.appendChild(icon);
+    document.body.appendChild(starredTarget);
+
+    expect(resolveStarredDropTargetFromElements([icon])).toBe(true);
   });
 });

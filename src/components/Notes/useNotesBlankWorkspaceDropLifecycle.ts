@@ -173,7 +173,7 @@ export function useNotesBlankWorkspaceDropLifecycle(args: {
   ]);
 
   useNotesSidebarExternalDropImport({
-    enabled: active && !acceptsBlankWorkspaceDrop && Boolean(
+    enabled: active && Boolean(
       currentNotesRoot?.path &&
       rootFolder &&
       rootFolderPath === currentNotesRoot.path &&
