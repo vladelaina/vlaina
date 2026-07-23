@@ -23,12 +23,12 @@ const EMPTY_MODELS: never[] = [];
 
 export { MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY };
 
-export function useChatService() {
+export function useChatService(active = true) {
   const { t } = useI18n();
   const { generateAutoTitle } = useAutoTitle();
-  const currentSessionId = useAIUIStore((state) => state.currentSessionId);
+  const currentSessionId = useAIUIStore((state) => active ? state.currentSessionId : null);
   const messages = useUnifiedStore((state) => {
-    if (!currentSessionId) {
+    if (!active || !currentSessionId) {
       return EMPTY_MESSAGES;
     }
 
