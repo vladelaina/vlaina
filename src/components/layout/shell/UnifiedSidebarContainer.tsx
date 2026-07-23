@@ -1,4 +1,4 @@
-import { useRef, type FocusEvent, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, type FocusEvent, type ReactNode, type Ref } from 'react';
 import { cn } from '@/lib/utils';
 import { useShellSidebarResize } from './useShellSidebarResize';
 import { RESIZE_HANDLE_HALF_WIDTH } from './ResizeDividerVisual';
@@ -30,6 +30,10 @@ export function UnifiedSidebarContainer({
   backgroundColor = 'transparent',
 }: UnifiedSidebarContainerProps) {
   const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarPointerInsideRef = useRef(false);
+  useEffect(() => {
+    if (!collapsed) sidebarPointerInsideRef.current = false;
+  }, [collapsed]);
   const { isDragging, handleDragStart, handleDoubleClick } = useShellSidebarResize({
     width,
     onWidthChange: onLiveWidthChange ?? onWidthChange,
@@ -38,6 +42,7 @@ export function UnifiedSidebarContainer({
   });
 
   const handleMouseLeave = () => {
+    sidebarPointerInsideRef.current = false;
     if (!document.hasFocus()) return;
 
     const activeElement = document.activeElement;
@@ -57,7 +62,13 @@ export function UnifiedSidebarContainer({
 
     const nextTarget = event.relatedTarget;
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+    if (sidebarPointerInsideRef.current) return;
     onPeekChange?.(false);
+  };
+
+  const handleMouseEnter = () => {
+    sidebarPointerInsideRef.current = true;
+    onPeekChange?.(true);
   };
 
   return (
@@ -88,7 +99,7 @@ export function UnifiedSidebarContainer({
           backgroundColor,
           width: 'var(--vlaina-shell-sidebar-width)',
         }}
-        onMouseEnter={collapsed ? () => onPeekChange?.(true) : undefined}
+        onMouseEnter={collapsed ? handleMouseEnter : undefined}
         onMouseLeave={collapsed ? handleMouseLeave : undefined}
         onBlur={collapsed ? handleFocusOut : undefined}
       >

@@ -57,11 +57,30 @@ describe('EditorOutlineRail', () => {
   });
 
   it('keeps every outline row keyboard focusable', () => {
-    render(<EditorOutlineRail enabled />);
-    const rows = screen.getAllByRole('button');
+    const { container } = render(<EditorOutlineRail enabled />);
+    const rows = Array.from(container.querySelectorAll<HTMLButtonElement>('.editor-outline-row'));
 
     expect(rows).toHaveLength(3);
     rows.forEach((row) => expect(row).not.toHaveAttribute('tabindex', '-1'));
+  });
+
+  it('collapses to the outline icon and expands again from the same control', () => {
+    const { container } = render(<EditorOutlineRail enabled />);
+    const toggle = screen.getByRole('button', { name: 'notes.documentOutline' });
+    const outline = screen.getByRole('navigation', { name: 'notes.documentOutline' });
+    const rail = container.querySelector<HTMLElement>('[data-editor-outline-rail="true"]');
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(rail).toHaveAttribute('data-collapsed', 'false');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(rail).toHaveAttribute('data-collapsed', 'true');
+    expect(outline).toHaveAttribute('aria-hidden', 'true');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(outline).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('does not render without an editable outline', () => {
@@ -87,7 +106,7 @@ describe('EditorOutlineRail', () => {
 
     render(<EditorOutlineRail enabled />);
 
-    expect(screen.getAllByRole('button')).toHaveLength(30);
+    expect(document.querySelectorAll('.editor-outline-row')).toHaveLength(30);
     expect(screen.getByRole('button', { name: 'Heading 22' })).toHaveAttribute(
       'aria-current',
       'location',

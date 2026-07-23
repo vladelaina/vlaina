@@ -24,15 +24,32 @@
 
 .editor-outline-header {
   display: flex;
+  width: 100%;
   height: var(--vlaina-size-28px);
   flex: 0 0 var(--vlaina-size-28px);
   align-items: center;
   gap: var(--vlaina-space-6px);
   padding-inline: var(--vlaina-space-8px) var(--vlaina-space-4px);
+  border: 0;
+  background: transparent;
   color: var(--vlaina-color-text-tertiary);
+  cursor: pointer;
   font-size: var(--vlaina-font-11);
   font-weight: var(--vlaina-font-weight-medium);
   line-height: var(--vlaina-leading-1);
+  text-align: start;
+  transition: color var(--vlaina-duration-100) var(--vlaina-ease-css-default);
+}
+
+.editor-outline-header:hover,
+.editor-outline-header:focus-visible {
+  color: var(--vlaina-sidebar-row-selected-text);
+}
+
+.editor-outline-header:focus-visible {
+  border-radius: var(--vlaina-radius-4px);
+  outline: var(--vlaina-size-2px) solid var(--vlaina-color-accent-soft);
+  outline-offset: calc(0px - var(--vlaina-size-2px));
 }
 
 .editor-outline-header-icon {
@@ -42,8 +59,35 @@
 
 .editor-outline-header-text {
   overflow: hidden;
+  flex: 1 1 auto;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.editor-outline-header-toggle {
+  flex: 0 0 auto;
+  opacity: var(--vlaina-opacity-60);
+  transition: opacity var(--vlaina-duration-100) var(--vlaina-ease-css-default);
+}
+
+.editor-outline-header:hover .editor-outline-header-toggle,
+.editor-outline-header:focus-visible .editor-outline-header-toggle {
+  opacity: var(--vlaina-opacity-100);
+}
+
+.editor-outline-rail-collapsed {
+  max-height: var(--vlaina-size-28px);
+}
+
+.editor-outline-rail-collapsed .editor-outline-header {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.editor-outline-rail-collapsed .editor-outline-header-text,
+.editor-outline-rail-collapsed .editor-outline-header-toggle,
+.editor-outline-rail-collapsed .editor-outline-list {
+  display: none;
 }
 
 .editor-outline-list {
@@ -118,7 +162,7 @@
 
 .editor-outline-row:hover,
 .editor-outline-row:focus-visible {
-  color: var(--vlaina-color-text-primary);
+  color: var(--vlaina-sidebar-row-selected-text);
 }
 
 .editor-outline-row:focus-visible {
@@ -138,7 +182,7 @@
 
 .editor-outline-row-active:hover,
 .editor-outline-row-active:focus-visible {
-  color: var(--vlaina-color-accent-hover);
+  color: var(--vlaina-sidebar-row-selected-text);
 }
 
 .editor-outline-row-text {
@@ -157,6 +201,10 @@
 
   .editor-outline-header {
     padding-inline: var(--vlaina-space-4px);
+  }
+
+  .editor-outline-header-toggle {
+    display: none;
   }
 
   .editor-outline-row {
@@ -192,6 +240,10 @@
 
   .editor-outline-header-text {
     display: none;
+  }
+
+  .editor-outline-rail-collapsed .editor-outline-header-toggle {
+    display: inline-block;
   }
 
   .editor-outline-row {
@@ -273,6 +325,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .editor-outline-header,
+  .editor-outline-header-toggle,
   .editor-outline-row,
   .editor-outline-row::before {
     transition: none;

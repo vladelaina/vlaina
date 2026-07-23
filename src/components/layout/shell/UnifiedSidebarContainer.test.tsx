@@ -7,6 +7,73 @@ vi.mock('./useShellSidebarResize', () => ({
 }));
 
 describe('UnifiedSidebarContainer', () => {
+  it('keeps a peeking sidebar open when navigation moves focus while the pointer remains inside', () => {
+    const onPeekChange = vi.fn();
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+
+    render(
+      <>
+        <UnifiedSidebarContainer
+          width={260}
+          collapsed
+          peeking
+          onPeekChange={onPeekChange}
+          onWidthChange={() => {}}
+        >
+          <button type="button">Open file</button>
+        </UnifiedSidebarContainer>
+        <button type="button">Editor</button>
+      </>,
+    );
+
+    const navigationButton = screen.getByRole('button', { name: 'Open file' });
+    const editor = screen.getByRole('button', { name: 'Editor' });
+    const sidebar = navigationButton.closest('aside');
+
+    fireEvent.mouseEnter(sidebar!);
+    onPeekChange.mockClear();
+    navigationButton.focus();
+
+    fireEvent.focusOut(navigationButton, { relatedTarget: editor });
+    expect(onPeekChange).not.toHaveBeenCalled();
+
+    editor.focus();
+    fireEvent.mouseLeave(sidebar!);
+    expect(onPeekChange).toHaveBeenCalledWith(false);
+  });
+
+  it('clears stale pointer state after the sidebar returns to its expanded layout', () => {
+    const onPeekChange = vi.fn();
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    const renderSidebar = (collapsed: boolean) => (
+      <>
+        <UnifiedSidebarContainer
+          width={260}
+          collapsed={collapsed}
+          peeking={collapsed}
+          onPeekChange={onPeekChange}
+          onWidthChange={() => {}}
+        >
+          <button type="button">Open file</button>
+        </UnifiedSidebarContainer>
+        <button type="button">Editor</button>
+      </>
+    );
+    const { rerender } = render(renderSidebar(true));
+    const navigationButton = screen.getByRole('button', { name: 'Open file' });
+    const sidebar = navigationButton.closest('aside');
+
+    fireEvent.mouseEnter(sidebar!);
+    rerender(renderSidebar(false));
+    rerender(renderSidebar(true));
+    onPeekChange.mockClear();
+
+    fireEvent.focusOut(navigationButton, {
+      relatedTarget: screen.getByRole('button', { name: 'Editor' }),
+    });
+    expect(onPeekChange).toHaveBeenCalledWith(false);
+  });
+
   it('keeps a peeking sidebar open while its editor has focus', () => {
     const onPeekChange = vi.fn();
     const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);

@@ -40,6 +40,7 @@ test.describe('notes editor outline rail', () => {
       });
 
       const rail = page.locator(OUTLINE_RAIL_SELECTOR);
+      const toggle = rail.getByRole('button', { name: 'Document outline' });
       const outline = rail.getByRole('navigation', { name: 'Document outline' });
       const getGeometry = () => page.evaluate((selector) => {
         const railElement = document.querySelector<HTMLElement>(selector);
@@ -65,6 +66,7 @@ test.describe('notes editor outline rail', () => {
 
       await expect(rail).toBeVisible({ timeout: 10_000 });
       await expect(outline).toBeVisible();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
       await expect(rail.locator('.editor-outline-header-icon')).toBeVisible();
       await expect(outline.getByRole('button')).toHaveText([
         'Introduction',
@@ -83,6 +85,13 @@ test.describe('notes editor outline rail', () => {
       expect(geometry!.rowTextLefts[0]).toBeLessThan(geometry!.rowTextLefts[1]);
       expect(geometry!.rowTextLefts[1]).toBeLessThan(geometry!.rowTextLefts[2]);
       expect(geometry!.rowTextLefts[2]).toBeLessThan(geometry!.rowTextLefts[3]);
+
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(outline).toBeHidden();
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(outline).toBeVisible();
 
       await outline.getByRole('button', { name: 'Deep Dive' }).click();
 

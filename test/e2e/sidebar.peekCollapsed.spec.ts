@@ -113,7 +113,9 @@ test.describe('collapsed sidebar peek', () => {
 
       const metrics = await page.evaluate(() => {
         const sidebar = document.querySelector<HTMLElement>('[data-shell-sidebar-width-scope="true"] > aside');
-        const capsule = sidebar?.querySelector<HTMLElement>('[data-sidebar-capsule-panel="true"]') ?? null;
+        const capsule = sidebar?.querySelector<HTMLElement>(
+          '[aria-hidden="false"] [data-sidebar-capsule-panel="true"]',
+        ) ?? null;
         const tablist = capsule?.querySelector<HTMLElement>('[role="tablist"]') ?? null;
         if (!sidebar || !capsule || !tablist) return null;
 
@@ -190,10 +192,14 @@ test.describe('collapsed sidebar peek', () => {
       await expect(peekSidebar).toHaveAttribute('data-open', 'true');
       await expect(peekSidebar).toHaveAttribute('aria-hidden', 'false');
       const peekCapsule = page
-        .locator('[data-shell-sidebar-peek="true"] [data-sidebar-capsule-panel="true"]')
+        .locator(
+          '[data-shell-sidebar-peek="true"] [aria-hidden="false"] [data-sidebar-capsule-panel="true"]',
+        )
         .first();
       const peekSurface = page
-        .locator('[data-shell-sidebar-peek="true"] [data-sidebar-surface="true"]')
+        .locator(
+          '[data-shell-sidebar-peek="true"] [aria-hidden="false"] [data-sidebar-surface="true"]',
+        )
         .first();
       await expect(peekSurface).toBeVisible();
       await expect(peekCapsule).toBeVisible();
@@ -226,6 +232,8 @@ test.describe('collapsed sidebar peek', () => {
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('PEEK_BETA_SENTINEL', {
         timeout: 30_000,
       });
+      await expect(peekSidebar).toHaveAttribute('data-open', 'true');
+      await expect(peekSidebar).toHaveAttribute('aria-hidden', 'false');
 
       await page.mouse.move(700, 120);
       await expect(peekSidebar).toHaveAttribute('data-open', 'false');
