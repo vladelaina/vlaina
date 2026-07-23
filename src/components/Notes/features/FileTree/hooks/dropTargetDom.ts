@@ -2,10 +2,6 @@ import { isInvalidMoveTarget } from '@/stores/notes/utils/fs/moveValidation';
 
 function resolveFolderDropTargetPathFromElements(elements: Element[]) {
   for (const element of elements) {
-    if (!(element instanceof HTMLElement)) {
-      continue;
-    }
-
     const folderElement = element.closest<HTMLElement>('[data-file-tree-kind="folder"]');
     const targetPath = folderElement?.dataset.fileTreePath;
     if (targetPath) {
@@ -23,7 +19,6 @@ function resolveFolderDropTargetPathFromElements(elements: Element[]) {
 
 export function resolveStarredDropTargetFromElements(elements: Element[]) {
   return elements.some((element) => (
-    element instanceof HTMLElement &&
     element.closest('[data-file-tree-starred-drop-target="true"]')
   ));
 }

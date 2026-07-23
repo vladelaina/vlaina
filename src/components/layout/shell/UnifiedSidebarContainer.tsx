@@ -1,4 +1,4 @@
-import { useRef, type FocusEvent, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, type FocusEvent, type ReactNode, type Ref } from 'react';
 import { cn } from '@/lib/utils';
 import { useShellSidebarResize } from './useShellSidebarResize';
 import { RESIZE_HANDLE_HALF_WIDTH } from './ResizeDividerVisual';
@@ -30,6 +30,35 @@ export function UnifiedSidebarContainer({
   backgroundColor = 'transparent',
 }: UnifiedSidebarContainerProps) {
   const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarPointerInsideRef = useRef(false);
+  useEffect(() => {
+    if (!collapsed) sidebarPointerInsideRef.current = false;
+  }, [collapsed]);
+  useEffect(() => {
+    if (!collapsed || !peeking) return;
+
+    const closeSidebarPeek = () => {
+      sidebarPointerInsideRef.current = false;
+      onPeekChange?.(false);
+    };
+    const handleWindowMouseOut = (event: MouseEvent) => {
+      if (
+        event.relatedTarget === null
+        && !document.documentElement.matches(':hover')
+      ) {
+        closeSidebarPeek();
+      }
+    };
+
+    window.addEventListener('mouseleave', closeSidebarPeek);
+    window.addEventListener('mouseout', handleWindowMouseOut, true);
+    window.addEventListener('blur', closeSidebarPeek);
+    return () => {
+      window.removeEventListener('mouseleave', closeSidebarPeek);
+      window.removeEventListener('mouseout', handleWindowMouseOut, true);
+      window.removeEventListener('blur', closeSidebarPeek);
+    };
+  }, [collapsed, onPeekChange, peeking]);
   const { isDragging, handleDragStart, handleDoubleClick } = useShellSidebarResize({
     width,
     onWidthChange: onLiveWidthChange ?? onWidthChange,
@@ -38,7 +67,7 @@ export function UnifiedSidebarContainer({
   });
 
   const handleMouseLeave = () => {
-    if (!document.hasFocus()) return;
+    sidebarPointerInsideRef.current = false;
 
     const activeElement = document.activeElement;
     if (
@@ -57,7 +86,13 @@ export function UnifiedSidebarContainer({
 
     const nextTarget = event.relatedTarget;
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+    if (sidebarPointerInsideRef.current) return;
     onPeekChange?.(false);
+  };
+
+  const handleMouseEnter = () => {
+    sidebarPointerInsideRef.current = true;
+    onPeekChange?.(true);
   };
 
   return (
@@ -88,7 +123,7 @@ export function UnifiedSidebarContainer({
           backgroundColor,
           width: 'var(--vlaina-shell-sidebar-width)',
         }}
-        onMouseEnter={collapsed ? () => onPeekChange?.(true) : undefined}
+        onMouseEnter={collapsed ? handleMouseEnter : undefined}
         onMouseLeave={collapsed ? handleMouseLeave : undefined}
         onBlur={collapsed ? handleFocusOut : undefined}
       >

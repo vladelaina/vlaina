@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -8,14 +8,20 @@ export function EditorOutlineRail({ enabled }: { enabled: boolean }) {
   const { t } = useI18n();
   const { headings, activeId, jumpToHeading } = useNotesOutline(enabled);
   const activeRowRef = useRef<HTMLButtonElement | null>(null);
+  const outlineId = useId();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
+    if (isCollapsed) {
+      return;
+    }
+
     const frame = window.requestAnimationFrame(() => {
       activeRowRef.current?.scrollIntoView?.({ block: 'nearest' });
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [activeId]);
+  }, [activeId, isCollapsed]);
 
   if (!enabled || headings.length === 0) {
     return null;
@@ -23,17 +29,32 @@ export function EditorOutlineRail({ enabled }: { enabled: boolean }) {
 
   return (
     <aside
-      className="editor-outline-rail"
+      className={cn('editor-outline-rail', isCollapsed && 'editor-outline-rail-collapsed')}
       data-editor-outline-rail="true"
+      data-collapsed={isCollapsed ? 'true' : 'false'}
       data-no-editor-drag-box="true"
     >
-      <div className="editor-outline-header" aria-hidden="true">
+      <button
+        type="button"
+        className="editor-outline-header"
+        aria-label={t('notes.documentOutline')}
+        aria-controls={outlineId}
+        aria-expanded={!isCollapsed}
+        onClick={() => setIsCollapsed((previous) => !previous)}
+      >
         <Icon name="editor.toc" size="xs" className="editor-outline-header-icon" />
         <span className="editor-outline-header-text">{t('notes.documentOutline')}</span>
-      </div>
+        <Icon
+          name={isCollapsed ? 'nav.chevronLeft' : 'nav.chevronRight'}
+          size="xs"
+          className="editor-outline-header-toggle"
+        />
+      </button>
       <nav
+        id={outlineId}
         className="editor-outline-list"
         aria-label={t('notes.documentOutline')}
+        aria-hidden={isCollapsed}
       >
         {headings.map((heading) => (
           <button

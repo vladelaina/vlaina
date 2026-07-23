@@ -575,8 +575,59 @@ describe('fileTreePointerDragState', () => {
     });
   });
 
-  it('ignores non-markdown notes dropped on the starred target', async () => {
-    const { source, starredTarget } = setupHarness({
+  it('removes the preview without a return animation after starring', async () => {
+    const animateMock = vi.fn(() => ({
+      finished: Promise.resolve(),
+    }));
+    const animateDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
+    Object.defineProperty(HTMLElement.prototype, 'animate', {
+      configurable: true,
+      value: animateMock,
+    });
+
+    try {
+      const { source, starredTarget } = setupHarness({
+        path: 'Source.md',
+        showStarredTarget: true,
+      });
+
+      document.elementsFromPoint = vi.fn(() => [starredTarget as Element]);
+
+      fireEvent.pointerDown(source, {
+        button: 0,
+        clientX: 40,
+        clientY: 40,
+        pointerType: 'mouse',
+      });
+      dispatchDocumentPointerEvent('pointermove', {
+        clientX: 40,
+        clientY: 52,
+        buttons: 1,
+      });
+      dispatchDocumentPointerEvent('pointerup', {
+        clientX: 40,
+        clientY: 52,
+        buttons: 0,
+      });
+
+      await waitFor(() => {
+        expect(setStateMock).toHaveBeenCalledWith(expect.objectContaining({
+          starredNotes: ['Source.md'],
+        }));
+        expect(animateMock).not.toHaveBeenCalled();
+        expect(document.querySelector('[data-file-tree-drag-star-badge="true"]')).toBeNull();
+      });
+    } finally {
+      if (animateDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'animate', animateDescriptor);
+      } else {
+        delete (HTMLElement.prototype as { animate?: unknown }).animate;
+      }
+    }
+  });
+
+  it('does not mark a non-markdown note as a valid starred drop target', async () => {
+    const { source, starredTarget, dropTargetKind } = setupHarness({
       path: 'image.png',
       showStarredTarget: true,
     });
@@ -594,6 +645,12 @@ describe('fileTreePointerDragState', () => {
       clientY: 52,
       buttons: 1,
     });
+
+    await waitFor(() => {
+      expect(dropTargetKind.textContent).toBe('');
+      expect(document.querySelector('[data-file-tree-drag-star-badge="true"]')).toBeNull();
+    });
+
     dispatchDocumentPointerEvent('pointerup', {
       clientX: 40,
       clientY: 52,
