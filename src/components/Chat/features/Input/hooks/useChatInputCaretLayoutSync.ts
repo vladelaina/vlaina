@@ -1,14 +1,17 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
+import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 
 interface CaretLayoutRect {
   height: number;
   left: number;
   top: number;
+  width: number;
 }
 
 interface UseChatInputCaretLayoutSyncOptions {
   composerRootRef: RefObject<HTMLElement | null>;
   isComposing: boolean;
+  message: string;
   scheduleComposerRefocus: (position?: number) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 }
@@ -21,6 +24,7 @@ function measureCaretLayout(element: HTMLElement): CaretLayoutRect {
     height: rect.height,
     left: rect.left,
     top: rect.top,
+    width: rect.width,
   };
 }
 
@@ -35,6 +39,10 @@ export function shouldRefocusMovedCaret(
   }
 
   const textareaResized = Math.abs(current.height - previous.height) > LAYOUT_CHANGE_EPSILON_PX;
+  const textareaWidthChanged = Math.abs(current.width - previous.width) > LAYOUT_CHANGE_EPSILON_PX;
+  if (textareaWidthChanged) {
+    return true;
+  }
   if (textareaResized) {
     return false;
   }
@@ -48,9 +56,25 @@ export function shouldRefocusMovedCaret(
 export function useChatInputCaretLayoutSync({
   composerRootRef,
   isComposing,
+  message,
   scheduleComposerRefocus,
   textareaRef,
 }: UseChatInputCaretLayoutSyncOptions): void {
+  const previousMessageRef = useRef(message);
+
+  useLayoutEffect(() => {
+    const previousMessage = previousMessageRef.current;
+    previousMessageRef.current = message;
+    if (
+      previousMessage.length > 0 &&
+      message.length === 0 &&
+      !isComposing &&
+      document.activeElement === textareaRef.current
+    ) {
+      requestNativeCaretOverlayRefresh();
+    }
+  }, [isComposing, message, textareaRef]);
+
   useEffect(() => {
     const composer = composerRootRef.current;
     const textarea = textareaRef.current;

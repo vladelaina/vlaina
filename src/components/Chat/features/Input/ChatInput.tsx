@@ -110,6 +110,7 @@ export const ChatInput = memo(function ChatInput({
   useChatInputCaretLayoutSync({
     composerRootRef,
     isComposing,
+    message,
     scheduleComposerRefocus,
     textareaRef,
   });
