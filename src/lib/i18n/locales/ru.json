@@ -303,7 +303,7 @@
   "notes.discardDraftDescription": "Вы уверены, что хотите отменить этот несохраненный черновик? Любой контент, который не был сохранен с помощью Ctrl+S, будет потерян.",
   "notes.discardDraftTitle": "Отменить черновик",
   "notes.saveOrDiscardDraftsBeforeOpeningAnotherFolder": "Сохраните или удалите черновики перед открытием другой папки.",
-  "notes.documentOutline": "Структура документа",
+  "notes.documentOutline": "Структура",
   "notes.file": "Файл",
   "notes.openFile": "Открыть файл",
   "notes.folder": "Папка",
