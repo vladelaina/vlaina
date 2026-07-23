@@ -18,6 +18,11 @@ const mocks = vi.hoisted(() => ({
   setNotesChatPanelCollapsed: vi.fn(),
   setNotesChatFloatingOpen: vi.fn(),
   setLanguagePreference: vi.fn(),
+  preloadEmbeddedChatViewModule: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock('@/components/Notes/notesViewLazyComponents', () => ({
+  preloadEmbeddedChatViewModule: mocks.preloadEmbeddedChatViewModule,
 }));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
@@ -216,6 +221,7 @@ describe('EditorTopRightToolbar', () => {
     mocks.notesChatFloatingOpen = false;
     mocks.setNotesChatPanelCollapsed.mockReset();
     mocks.setNotesChatFloatingOpen.mockReset();
+    mocks.preloadEmbeddedChatViewModule.mockClear();
   });
 
   function openMoreMenu(getByRole: ReturnType<typeof render>['getByRole']) {
@@ -411,6 +417,25 @@ describe('EditorTopRightToolbar', () => {
     expect(getByTestId('note-menu-content')).not.toHaveTextContent('Right Chat');
     expect(mocks.setNotesChatFloatingOpen).toHaveBeenCalledWith(true);
     expect(mocks.setNotesChatPanelCollapsed).not.toHaveBeenCalled();
+  });
+
+  it('preloads the right Chat view when the toolbar action is hovered', () => {
+    const { getByRole } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
+        notesPath="/notesRoot"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+      />,
+    );
+
+    fireEvent.pointerEnter(getByRole('button', { name: 'Right Chat' }));
+
+    expect(mocks.preloadEmbeddedChatViewModule).toHaveBeenCalledTimes(1);
   });
 
   it('hides the right Chat toolbar action while the panel is open', () => {

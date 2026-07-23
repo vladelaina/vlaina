@@ -9,6 +9,31 @@ import { useAIUIStore } from './chatState';
 import { ensureManagedProvider } from './providerStoreUtils';
 import { resolveRestoredChatSessionId } from './runtimeSelection';
 
+interface AIStoreRuntimeSnapshot {
+  loaded: boolean;
+  lastChatSessionId: string | null | undefined;
+  models: unknown;
+  providers: unknown;
+  sessions: unknown;
+  temporaryChatEnabled: boolean | undefined;
+  unreadSessionIds: unknown;
+}
+
+export function getAIStoreRuntimeChangeFlags(
+  previous: AIStoreRuntimeSnapshot,
+  current: AIStoreRuntimeSnapshot,
+) {
+  return {
+    loadedChanged: previous.loaded !== current.loaded,
+    modelsChanged: previous.models !== current.models,
+    providersChanged: previous.providers !== current.providers,
+    sessionsChanged: previous.sessions !== current.sessions,
+    temporaryChatChanged: previous.temporaryChatEnabled !== current.temporaryChatEnabled,
+    unreadSessionsChanged: previous.unreadSessionIds !== current.unreadSessionIds,
+    lastChatSessionChanged: previous.lastChatSessionId !== current.lastChatSessionId,
+  };
+}
+
 let didStartAIStoreRuntimeEffects = false;
 
 export function startAIStoreRuntimeEffects(): void {
@@ -133,22 +158,46 @@ export function startAIStoreRuntimeEffects(): void {
   syncManagedProvider();
   syncManagedService();
 
-  let wasUnifiedLoaded = useUnifiedStore.getState().loaded;
-  let previousModels = useUnifiedStore.getState().data.ai?.models;
+  const initialStore = useUnifiedStore.getState();
+  let previousSnapshot: AIStoreRuntimeSnapshot = {
+    loaded: initialStore.loaded,
+    lastChatSessionId: initialStore.data.settings.ui?.lastChatSessionId,
+    models: initialStore.data.ai?.models,
+    providers: initialStore.data.ai?.providers,
+    sessions: initialStore.data.ai?.sessions,
+    temporaryChatEnabled: initialStore.data.ai?.temporaryChatEnabled,
+    unreadSessionIds: initialStore.data.ai?.unreadSessionIds,
+  };
   useUnifiedStore.subscribe(() => {
     const store = useUnifiedStore.getState();
-    const loadedChangedToReady = !wasUnifiedLoaded && store.loaded;
-    const modelsChanged = previousModels !== store.data.ai?.models;
-    wasUnifiedLoaded = store.loaded;
-    previousModels = store.data.ai?.models;
+    const currentSnapshot: AIStoreRuntimeSnapshot = {
+      loaded: store.loaded,
+      lastChatSessionId: store.data.settings.ui?.lastChatSessionId,
+      models: store.data.ai?.models,
+      providers: store.data.ai?.providers,
+      sessions: store.data.ai?.sessions,
+      temporaryChatEnabled: store.data.ai?.temporaryChatEnabled,
+      unreadSessionIds: store.data.ai?.unreadSessionIds,
+    };
+    const changes = getAIStoreRuntimeChangeFlags(previousSnapshot, currentSnapshot);
+    previousSnapshot = currentSnapshot;
 
-    ensureLoaded();
-    syncSelection();
-    syncIntegrity();
-    syncManagedProvider();
-    if (loadedChangedToReady) {
+    if (!store.loaded) {
+      ensureLoaded();
+      return;
+    }
+    if (changes.loadedChanged || changes.sessionsChanged || changes.temporaryChatChanged || changes.lastChatSessionChanged) {
+      syncSelection();
+    }
+    if (changes.loadedChanged || changes.sessionsChanged || changes.unreadSessionsChanged || changes.temporaryChatChanged) {
+      syncIntegrity();
+    }
+    if (changes.loadedChanged || changes.providersChanged) {
+      syncManagedProvider();
+    }
+    if (changes.loadedChanged) {
       syncManagedService();
-    } else if (store.loaded && modelsChanged) {
+    } else if (changes.modelsChanged) {
       managedProviderSync.reconcileAfterStoreChange();
     }
   });

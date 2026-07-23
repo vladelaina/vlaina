@@ -21,6 +21,7 @@ import {
   themeUiFeedbackTokens,
 } from '@/styles/themeTokens';
 import { NoteToolbarMoreMenu } from './NoteToolbarMoreMenu';
+import { preloadEmbeddedChatViewModule } from '../../notesViewLazyComponents';
 
 export interface NoteToolbarActionsProps {
   currentNotePath: string | null | undefined;
@@ -174,6 +175,9 @@ export function NoteToolbarActions({
         <NoteToolbarTooltip label={t('notes.rightChat')}>
           <button
             type="button"
+            onPointerEnter={() => {
+              void preloadEmbeddedChatViewModule().catch(() => undefined);
+            }}
             onClick={(event) => {
               event.stopPropagation();
               const openFloatingChat = () => {

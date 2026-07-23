@@ -354,7 +354,9 @@ vi.mock('@/components/common/ModuleShortcutsDialog', () => ({
 }));
 
 vi.mock('@/components/Chat/ChatView', () => ({
-  ChatView: () => <div data-testid="embedded-chat-view" />,
+  ChatView: ({ active }: { active?: boolean }) => (
+    <div data-testid="embedded-chat-view" data-active={String(active)} />
+  ),
 }));
 
 vi.mock('@/lib/desktop/launchContext', () => ({
@@ -2029,6 +2031,24 @@ describe('NotesView', () => {
     expect(document.querySelector('[data-notes-chat-floating-resize-handle="left"]')).toBeInTheDocument();
     expect(document.querySelector('[data-notes-chat-floating-resize-handle="top"]')).toBeInTheDocument();
     expect(document.querySelector('[data-notes-chat-floating-resize-handle="top-left"]')).toBeInTheDocument();
+  });
+
+  it('keeps the floating chat mounted and inactive while it is closed', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+
+    const { rerender } = render(<NotesView />);
+    await waitForNotesRootInitializationEffects();
+
+    const chatView = await screen.findByTestId('embedded-chat-view');
+    expect(chatView).toHaveAttribute('data-active', 'false');
+    expect(document.querySelector('[data-notes-chat-floating="true"]')).toBeNull();
+
+    uiState.notesChatFloatingOpen = true;
+    rerender(<NotesView />);
+
+    expect(screen.getByTestId('embedded-chat-view')).toBe(chatView);
+    expect(chatView).toHaveAttribute('data-active', 'true');
+    expect(document.querySelector('[data-notes-chat-floating="true"]')).toBeInTheDocument();
   });
 
   it('opens a new chat from the floating notes chat panel without docking it', async () => {

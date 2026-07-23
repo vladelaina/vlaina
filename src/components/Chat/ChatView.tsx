@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { actions as aiActions } from '@/stores/useAIStore';
-import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
@@ -10,6 +9,7 @@ import { useComposerClickFocus } from './hooks/useComposerClickFocus';
 import { useChatEmbeddedSidebar } from './hooks/useChatEmbeddedSidebar';
 import { useChatViewFocusLifecycle } from './hooks/useChatViewFocusLifecycle';
 import { useStableChatMessageDerivatives } from './hooks/useStableChatMessageDerivatives';
+import { useChatViewStoreState } from './hooks/useChatViewStoreState';
 import { useChatViewMessageActions } from './hooks/useChatViewMessageActions';
 import { useChatViewModelSelection } from './hooks/useChatViewModelSelection';
 import { useEmbeddedComposerInsert } from './hooks/useEmbeddedComposerInsert';
@@ -31,7 +31,7 @@ import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/cha
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { ChatEmbeddedHeader } from './ChatEmbeddedHeader';
 import { ChatEmbeddedSidebarOverlay } from './ChatEmbeddedSidebarOverlay';
-import { EMPTY_MESSAGES, EMPTY_MODELS, EMPTY_PROVIDERS, EMPTY_SESSIONS, type ChatViewProps } from './ChatViewState';
+import { EMPTY_MODELS, EMPTY_PROVIDERS, type ChatViewProps } from './ChatViewState';
 
 export function ChatView({
   mode = 'full',
@@ -44,28 +44,12 @@ export function ChatView({
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
   const isEmbedded = mode === 'embedded';
-  const currentSessionId = useAIUIStore((state) => state.currentSessionId);
-  const sessions = useUnifiedStore((state) => state.data.ai?.sessions || EMPTY_SESSIONS);
-  const messages = useUnifiedStore((state) => {
-    const sessionId = currentSessionId;
-    if (!sessionId) {
-      return EMPTY_MESSAGES;
-    }
-
-    return state.data.ai?.messages?.[sessionId] || EMPTY_MESSAGES;
-  });
-  const isMessagesLoaded = useUnifiedStore((state) => {
-    const sessionId = currentSessionId;
-    if (!sessionId) {
-      return true;
-    }
-
-    if (!sessions.some((session) => session.id === sessionId)) {
-      return true;
-    }
-
-    return state.data.ai?.messages?.[sessionId] !== undefined;
-  });
+  const {
+    currentSessionId,
+    isMessagesLoaded,
+    isSessionActive,
+    messages,
+  } = useChatViewStoreState(active, isEmbedded);
   const providers = useUnifiedStore((s) => s.data.ai?.providers || EMPTY_PROVIDERS);
   const models = useUnifiedStore((s) => s.data.ai?.models || EMPTY_MODELS);
   const selectedModelId = useUnifiedStore((s) => s.data.ai?.selectedModelId || null);
@@ -98,11 +82,7 @@ export function ChatView({
     stopAndRecallLastUserMessage,
     recalledComposerDraft,
     clearRecalledComposerDraft,
-  } = useChatService();
-  
-  const isSessionActive = useAIUIStore((state) =>
-    currentSessionId ? !!state.generatingSessions[currentSessionId] : false
-  );
+  } = useChatService(active);
   const lastMessage = messages[messages.length - 1];
   const showLoading = isSessionActive && (
       lastMessage?.role === 'user' ||

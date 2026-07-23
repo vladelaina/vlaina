@@ -132,14 +132,16 @@ export function NotesViewLayout({
           </ResizablePanel>
         )}
 
-        {active && chatPanelCollapsed && chatFloatingOpen && isEmbeddedChatViewReady && unifiedLoaded && (
+        {active && chatPanelCollapsed && isEmbeddedChatViewReady && unifiedLoaded && (
           <Suspense fallback={null}>
             <div
               ref={floatingChatPanelRef}
-              data-notes-chat-floating="true"
+              data-notes-chat-floating={chatFloatingOpen ? 'true' : undefined}
               data-notes-external-block-selection-root="true"
+              aria-hidden={!chatFloatingOpen}
               className={cn(
                 'absolute bottom-4 right-4 z-[var(--vlaina-z-40)] overflow-hidden !rounded-[var(--vlaina-notes-ui-radius-panel)]',
+                !chatFloatingOpen && 'hidden',
                 isFloatingChatResizing && 'will-change-[width,height]',
                 raisedPillSurfaceClass,
               )}
@@ -188,7 +190,7 @@ export function NotesViewLayout({
               />
               <EmbeddedChatView
                 mode="embedded"
-                active={active}
+                active={active && chatFloatingOpen}
                 onCloseEmbeddedPanel={closeFloatingChat}
                 onPromoteEmbeddedPanel={promoteFloatingChatToSidePanel}
               />
