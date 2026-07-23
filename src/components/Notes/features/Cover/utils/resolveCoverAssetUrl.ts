@@ -1,4 +1,8 @@
-import { loadImageAsBlob, loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
+import {
+  loadImageAsBlob,
+  loadImageThumbnailAsBlob,
+} from '@/lib/assets/io/reader';
+import { getImageCacheGeneration } from '@/lib/assets/io/imageCacheGeneration';
 import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import { resolveExistingNotesRootAssetPath } from '@/lib/assets/core/paths';
 import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
@@ -25,11 +29,17 @@ interface PendingCoverAssetUrlResolve {
 interface CompletedCoverAssetUrlResolve {
   url: string;
   resolvedAt: number;
+  imageCacheGeneration: number;
+}
+
+interface DisplayedCoverAssetUrlResolve {
+  url: string;
+  imageCacheGeneration: number;
 }
 
 const pendingCoverAssetUrlResolves = new Map<string, PendingCoverAssetUrlResolve>();
 const completedCoverAssetUrlResolves = new Map<string, CompletedCoverAssetUrlResolve>();
-const displayedCoverAssetUrlResolves = new Map<string, string>();
+const displayedCoverAssetUrlResolves = new Map<string, DisplayedCoverAssetUrlResolve>();
 const COVER_RESOLVE_REUSE_WINDOW_MS = 30_000;
 export const MAX_PENDING_COVER_ASSET_URL_RESOLVES = 100;
 const MAX_COMPLETED_COVER_ASSET_URL_RESOLVES = 500;
@@ -67,7 +77,10 @@ function getCompletedCoverAssetUrlResolve(resolveKey: string, now: number): stri
     return null;
   }
 
-  if (now - cached.resolvedAt > COVER_RESOLVE_REUSE_WINDOW_MS) {
+  if (
+    cached.imageCacheGeneration !== getImageCacheGeneration()
+    || now - cached.resolvedAt > COVER_RESOLVE_REUSE_WINDOW_MS
+  ) {
     completedCoverAssetUrlResolves.delete(resolveKey);
     return null;
   }
@@ -79,7 +92,11 @@ function getCompletedCoverAssetUrlResolve(resolveKey: string, now: number): stri
 
 function setCompletedCoverAssetUrlResolve(resolveKey: string, url: string, now: number): void {
   completedCoverAssetUrlResolves.delete(resolveKey);
-  completedCoverAssetUrlResolves.set(resolveKey, { url, resolvedAt: now });
+  completedCoverAssetUrlResolves.set(resolveKey, {
+    url,
+    resolvedAt: now,
+    imageCacheGeneration: getImageCacheGeneration(),
+  });
 
   while (completedCoverAssetUrlResolves.size > MAX_COMPLETED_COVER_ASSET_URL_RESOLVES) {
     const oldestKey = completedCoverAssetUrlResolves.keys().next().value;
@@ -91,14 +108,18 @@ function setCompletedCoverAssetUrlResolve(resolveKey: string, url: string, now: 
 }
 
 function getDisplayedCoverAssetUrlResolve(resolveKey: string): string | null {
-  const displayedUrl = displayedCoverAssetUrlResolves.get(resolveKey);
-  if (!displayedUrl) {
+  const displayed = displayedCoverAssetUrlResolves.get(resolveKey);
+  if (!displayed) {
+    return null;
+  }
+  if (displayed.imageCacheGeneration !== getImageCacheGeneration()) {
+    displayedCoverAssetUrlResolves.delete(resolveKey);
     return null;
   }
 
   displayedCoverAssetUrlResolves.delete(resolveKey);
-  displayedCoverAssetUrlResolves.set(resolveKey, displayedUrl);
-  return displayedUrl;
+  displayedCoverAssetUrlResolves.set(resolveKey, displayed);
+  return displayed.url;
 }
 
 export async function resolveCoverAssetUrl({
@@ -205,7 +226,10 @@ export function rememberDisplayedCoverAssetUrl({
     thumbnailMaxEdgePx,
   });
   displayedCoverAssetUrlResolves.delete(resolveKey);
-  displayedCoverAssetUrlResolves.set(resolveKey, resolvedUrl);
+  displayedCoverAssetUrlResolves.set(resolveKey, {
+    url: resolvedUrl,
+    imageCacheGeneration: getImageCacheGeneration(),
+  });
 
   while (displayedCoverAssetUrlResolves.size > MAX_DISPLAYED_COVER_ASSET_URL_RESOLVES) {
     const oldestKey = displayedCoverAssetUrlResolves.keys().next().value;

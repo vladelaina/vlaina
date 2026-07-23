@@ -3,6 +3,7 @@ import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { createBoundedAsyncQueue } from '@/lib/boundedAsyncQueue';
 import { resolveNotesRootRelativeFullPath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { themeFileTreeTokens } from '@/styles/themeTokens';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 
 const MAX_CONCURRENT_FILE_TREE_BACKGROUNDS = 4;
 const FILE_TREE_BACKGROUND_LOAD_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 1000 : 15_000;
@@ -29,9 +30,11 @@ export const ImageFileNameBackground = memo(function ImageFileNameBackground({
 }) {
   const rootRef = useRef<HTMLSpanElement>(null);
   const [src, setSrc] = useState<string | null>(null);
+  const imageCacheGeneration = useImageCacheGeneration();
 
   useEffect(() => {
     let active = true;
+    setSrc(null);
     const abortController = new AbortController();
     const load = async () => {
       try {
@@ -68,7 +71,7 @@ export const ImageFileNameBackground = memo(function ImageFileNameBackground({
       active = false;
       abortController.abort();
     };
-  }, [imagePath, notesPath]);
+  }, [imageCacheGeneration, imagePath, notesPath]);
 
   return (
     <span

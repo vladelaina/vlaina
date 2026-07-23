@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { UniversalIcon } from './UniversalIcon';
+import { incrementImageCacheGeneration } from '@/lib/assets/io/imageCacheGeneration';
 
 describe('UniversalIcon', () => {
   it('does not render arbitrary text icon values', () => {
@@ -68,6 +69,24 @@ describe('UniversalIcon', () => {
     });
 
     expect(imageLoader).toHaveBeenCalledWith('assets/icons/logo.png');
+  });
+
+  it('reloads a mounted image icon after the image cache is invalidated', async () => {
+    const imageLoader = vi.fn()
+      .mockResolvedValueOnce('blob:stale-logo')
+      .mockResolvedValueOnce('blob:fresh-logo');
+
+    render(<UniversalIcon icon="assets/icons/logo.png" imageLoader={imageLoader} />);
+    await waitFor(() => {
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:stale-logo');
+    });
+
+    act(() => incrementImageCacheGeneration());
+
+    await waitFor(() => {
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:fresh-logo');
+    });
+    expect(imageLoader).toHaveBeenCalledTimes(2);
   });
 
   it('hides an image icon when the resolved image source fails to load', async () => {

@@ -10,6 +10,7 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { themeFileTreeTokens } from '@/styles/themeTokens';
 import { secondaryPillButtonClass } from '@/components/ui/surfaceStyles';
 import { collectOpenedFolderImagePaths } from './slashImageLibraryPaths';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 
 const IMAGE_LIBRARY_COLUMNS = 3;
 
@@ -17,6 +18,7 @@ function LibraryImage({ notesPath, path, onSelect }: { notesPath: string; path: 
   const rootRef = useRef<HTMLButtonElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
+  const imageCacheGeneration = useImageCacheGeneration();
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined' || !rootRef.current) {
       setShouldLoad(true);
@@ -34,6 +36,7 @@ function LibraryImage({ notesPath, path, onSelect }: { notesPath: string; path: 
   useEffect(() => {
     if (!shouldLoad) return;
     let active = true;
+    setSrc(null);
     void resolveNotesRootRelativeFullPath(notesPath, path)
       .then(({ fullPath }) => loadImageThumbnailAsBlob(fullPath, {
         maxEdgePx: themeFileTreeTokens.imageLibraryThumbnailDecodeEdgePx,
@@ -45,7 +48,7 @@ function LibraryImage({ notesPath, path, onSelect }: { notesPath: string; path: 
     return () => {
       active = false;
     };
-  }, [notesPath, path, shouldLoad]);
+  }, [imageCacheGeneration, notesPath, path, shouldLoad]);
 
   const name = path.split('/').pop() ?? path;
   return (

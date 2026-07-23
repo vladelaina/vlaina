@@ -5,6 +5,7 @@ import { getStorageAdapter } from '@/lib/storage/adapter';
 import { normalizePublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import { getImageSourceBase, getLocalImageSourcePath, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
 import { getCachedRemoteImageSrc, resolveRemoteImageFromMemoryCache } from '../utils/remoteImageMemoryCache';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 
 interface UseLocalImageResult {
     resolvedSrc: string;
@@ -55,7 +56,8 @@ export function useLocalImage(
     currentNotePath: string | undefined,
     enabled = true
 ): UseLocalImageResult {
-    const resolutionKey = `${enabled ? '1' : '0'}\0${rawSrc}\0${notesPath}\0${currentNotePath ?? ''}`;
+    const imageCacheGeneration = useImageCacheGeneration();
+    const resolutionKey = `${imageCacheGeneration}\0${enabled ? '1' : '0'}\0${rawSrc}\0${notesPath}\0${currentNotePath ?? ''}`;
     const initialResolvedSrc = getInitialResolvedImageSrc(rawSrc, enabled);
     const initialState: LocalImageState = {
         key: resolutionKey,

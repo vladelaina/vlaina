@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImageFileNameBackground } from './ImageFileNameBackground';
+import { incrementImageCacheGeneration } from '@/lib/assets/io/imageCacheGeneration';
 
 const hoisted = vi.hoisted(() => ({
   loadImageThumbnailAsBlob: vi.fn(async () => 'blob:tree-background'),
@@ -37,5 +38,25 @@ describe('ImageFileNameBackground', () => {
       { maxEdgePx: 64 },
     );
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('reloads a mounted file background after the image cache is invalidated', async () => {
+    hoisted.loadImageThumbnailAsBlob
+      .mockResolvedValueOnce('blob:stale-background')
+      .mockResolvedValueOnce('blob:fresh-background');
+    const { container } = render(
+      <ImageFileNameBackground notesPath="/notesRoot" imagePath="assets/cover.png" />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('[style*="blob:stale-background"]')).toBeInTheDocument();
+    });
+
+    act(() => incrementImageCacheGeneration());
+
+    await waitFor(() => {
+      expect(container.querySelector('[style*="blob:fresh-background"]')).toBeInTheDocument();
+    });
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(2);
   });
 });

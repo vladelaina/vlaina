@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { resolveNotesRootAssetPath } from '@/lib/assets/core/paths';
 import { themeDomStyleTokens, themeLazyLoadTokens } from '@/styles/themeTokens';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 
 const MAX_CONCURRENT_THUMBNAIL_LOADS = 4;
 const THUMBNAIL_LOAD_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 1000 : 15_000;
@@ -83,6 +84,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
   const mountIdRef = useRef(0);
+  const imageCacheGeneration = useImageCacheGeneration();
 
   useEffect(() => {
     const currentMountId = ++mountIdRef.current;
@@ -138,7 +140,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
       cancelQueuedLoad?.();
       observer.disconnect();
     };
-  }, [currentNotePath, filename, loadPriority, notesRootPath]);
+  }, [currentNotePath, filename, imageCacheGeneration, loadPriority, notesRootPath]);
 
   const handleImageError = useCallback(() => {
     setHasError(true);

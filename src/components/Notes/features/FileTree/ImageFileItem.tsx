@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useState, type MouseEvent } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 import { resolveNotesRootRelativeFullPath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { useNotesStore, type ImageFile } from '@/stores/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -59,7 +60,9 @@ export const ImageFileItem = memo(function ImageFileItem({
   const currentNotePath = useNotesStore((state) => state.currentNote?.path);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const addToast = useToastStore((state) => state.addToast);
+  const imageCacheGeneration = useImageCacheGeneration();
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const previewGenerationRef = useRef(imageCacheGeneration);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [references, setReferences] = useState<ImageFileReference[]>([]);
@@ -124,6 +127,7 @@ export const ImageFileItem = memo(function ImageFileItem({
     try {
       const { fullPath } = await resolveNotesRootRelativeFullPath(notesPath, node.path);
       const src = await loadImageAsBlob(fullPath);
+      previewGenerationRef.current = imageCacheGeneration;
       setPreviewSrc(src);
       setIsPreviewOpen(true);
     } catch {
@@ -131,7 +135,28 @@ export const ImageFileItem = memo(function ImageFileItem({
     } finally {
       setIsLoadingPreview(false);
     }
-  }, [addToast, isLoadingPreview, node.path, notesPath, setShowMenu, t]);
+  }, [addToast, imageCacheGeneration, isLoadingPreview, node.path, notesPath, setShowMenu, t]);
+
+  useEffect(() => {
+    if (!isPreviewOpen || !previewSrc || previewGenerationRef.current === imageCacheGeneration) return;
+    let active = true;
+    void resolveNotesRootRelativeFullPath(notesPath, node.path)
+      .then(({ fullPath }) => loadImageAsBlob(fullPath))
+      .then((src) => {
+        if (!active) return;
+        previewGenerationRef.current = imageCacheGeneration;
+        setPreviewSrc(src);
+      })
+      .catch(() => {
+        if (!active) return;
+        setIsPreviewOpen(false);
+        setPreviewSrc(null);
+        addToast(t('editor.imageFailedToLoad'), 'error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [addToast, imageCacheGeneration, isPreviewOpen, node.path, notesPath, previewSrc, t]);
 
   const handleRenameSubmit = useCallback(async () => {
     const trimmedValue = renameValue.trim();

@@ -8,6 +8,7 @@ import {
   normalizeWhiteboardSnapshot,
   type WhiteboardSnapshot,
 } from './whiteboardDocument';
+import type { WhiteboardElement } from './whiteboardModel';
 import { readRecoverableText, writeRecoverableText } from './whiteboardTextStorage';
 import {
   DEFAULT_WHITEBOARD_TITLE,
@@ -185,18 +186,31 @@ async function hydrateWhiteboardAssets(
   board: WhiteboardIndexEntry,
   snapshot: WhiteboardSnapshot,
 ): Promise<WhiteboardSnapshot> {
-  const elements = await Promise.all(snapshot.elements.map(async (element) => {
-    if (element.type !== 'image' || !element.imageAssetPath || element.imageSrc) return element;
+  const elements = await refreshWhiteboardAssetUrls(notesRootPath, board, snapshot.elements);
+  return { ...snapshot, elements };
+}
+
+export async function refreshWhiteboardAssetUrls(
+  notesRootPath: string,
+  board: WhiteboardIndexEntry,
+  elements: WhiteboardElement[],
+): Promise<WhiteboardElement[]> {
+  return Promise.all(elements.map(async (element) => {
+    if (
+      element.type !== 'image' ||
+      !element.imageAssetPath ||
+      (element.imageSrc && !element.imageSrc.startsWith('blob:'))
+    ) return element;
     const fileName = getAssetFileName(element.imageAssetPath);
     if (!fileName) return element;
     try {
       const fullPath = await joinPath(await getWhiteboardAssetsPath(notesRootPath, board), fileName);
       return { ...element, imageSrc: await loadImageAsBlob(fullPath) };
     } catch {
-      return element;
+      const { imageSrc: _staleImageSrc, ...elementWithoutStaleSrc } = element;
+      return elementWithoutStaleSrc;
     }
   }));
-  return { ...snapshot, elements };
 }
 
 function getAssetFileName(assetPath: string): string | null {

@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImageFileItem } from './ImageFileItem';
+import { incrementImageCacheGeneration } from '@/lib/assets/io/imageCacheGeneration';
 
 const hoisted = vi.hoisted(() => ({
   addToast: vi.fn(),
@@ -131,6 +132,38 @@ describe('ImageFileItem', () => {
       expect(hoisted.addToast).toHaveBeenCalledWith('editor.imageFailedToLoad', 'error');
     });
     expect(screen.queryByTestId('image-viewer')).not.toBeInTheDocument();
+  });
+
+  it('reloads an open preview after cached Blob URLs are revoked', async () => {
+    hoisted.loadImageAsBlob
+      .mockResolvedValueOnce('blob:image-preview-stale')
+      .mockResolvedValueOnce('blob:image-preview-fresh');
+    render(
+      <ImageFileItem
+        node={{
+          id: 'images/cover.png',
+          name: 'cover.png',
+          path: 'images/cover.png',
+          isFolder: false,
+          kind: 'image',
+        }}
+        depth={1}
+      />
+    );
+
+    fireEvent.click(screen.getByText('cover.png'));
+    await waitFor(() => expect(screen.getByTestId('image-viewer')).toHaveAttribute(
+      'data-src',
+      'blob:image-preview-stale',
+    ));
+
+    act(() => incrementImageCacheGeneration());
+
+    await waitFor(() => expect(screen.getByTestId('image-viewer')).toHaveAttribute(
+      'data-src',
+      'blob:image-preview-fresh',
+    ));
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(2);
   });
 
   it('replaces the reference loading state when the scan completes', async () => {

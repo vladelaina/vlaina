@@ -6,6 +6,7 @@ import {
   loadWhiteboardIndex,
   normalizeWhiteboardIndex,
   readWhiteboardBoard,
+  refreshWhiteboardAssetUrls,
   writeWhiteboardAsset,
   writeWhiteboardBoard,
   writeWhiteboardIndex,
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => {
   return {
     dirs,
     files,
+    loadImageAsBlob: vi.fn(),
     storage: {
       exists: vi.fn(async (path: string) => files.has(normalizePath(path, true)) || dirs.has(normalizePath(path, true))),
       getBasePath: vi.fn(async () => '/app'),
@@ -75,6 +77,10 @@ vi.mock('@/lib/storage/adapter', () => ({
   joinPath: async (...segments: string[]) => normalizePath(segments.filter(Boolean).join('/'), true),
 }));
 
+vi.mock('@/lib/assets/io/reader', () => ({
+  loadImageAsBlob: mocks.loadImageAsBlob,
+}));
+
 const SYSTEM_ROOT = `/app/.vlaina/whiteboards/notes-roots/${getNotesRootStorageKey('/notesRoot')}`;
 
 describe('whiteboardRepository', () => {
@@ -82,6 +88,7 @@ describe('whiteboardRepository', () => {
     mocks.files.clear();
     mocks.dirs.clear();
     vi.clearAllMocks();
+    mocks.loadImageAsBlob.mockResolvedValue('blob:fresh');
   });
 
   it('loads a default index when the whiteboard index does not exist', async () => {
@@ -148,6 +155,52 @@ describe('whiteboardRepository', () => {
     const rawBoard = mocks.files.get(`${SYSTEM_ROOT}/boards/sketch/board.vlwb.json`);
     expect(rawBoard).toContain('"format": "vlaina.whiteboard"');
     expect(rawBoard).toContain('"image-1"');
+  });
+
+  it('refreshes revoked whiteboard Blob URLs without replacing element edits', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    const elements = normalizeWhiteboardSnapshot({
+      elements: [{
+        height: 80,
+        id: 'image-1',
+        imageAssetPath: 'assets/photo.png',
+        imageSrc: 'blob:stale',
+        text: 'photo.png',
+        type: 'image',
+        width: 120,
+        x: 17,
+        y: 23,
+      }],
+    }).elements;
+
+    const refreshed = await refreshWhiteboardAssetUrls('/notesRoot', entry, elements);
+
+    expect(mocks.loadImageAsBlob).toHaveBeenCalledWith(
+      `${SYSTEM_ROOT}/boards/sketch/assets/photo.png`,
+    );
+    expect(refreshed[0]).toMatchObject({ imageSrc: 'blob:fresh', x: 17, y: 23 });
+  });
+
+  it('removes a revoked whiteboard Blob URL when its asset cannot be reloaded', async () => {
+    const { entry } = await createWhiteboardEntry('/notesRoot', 'Sketch');
+    mocks.loadImageAsBlob.mockRejectedValueOnce(new Error('missing asset'));
+    const elements = normalizeWhiteboardSnapshot({
+      elements: [{
+        height: 80,
+        id: 'image-1',
+        imageAssetPath: 'assets/missing.png',
+        imageSrc: 'blob:stale',
+        text: 'missing.png',
+        type: 'image',
+        width: 120,
+        x: 1,
+        y: 2,
+      }],
+    }).elements;
+
+    const refreshed = await refreshWhiteboardAssetUrls('/notesRoot', entry, elements);
+
+    expect(refreshed[0]).not.toHaveProperty('imageSrc');
   });
 
   it('recovers a board from its backup when the primary file is malformed', async () => {
