@@ -170,6 +170,12 @@ vi.mock('./find', () => ({
   NoteEditorFindBar: () => <div data-testid="find-bar" />,
 }));
 
+vi.mock('./EditorOutlineRail', () => ({
+  EditorOutlineRail: ({ enabled }: { enabled: boolean }) => (
+    enabled ? <button type="button" data-testid="outline-toolbar-button">Outline</button> : null
+  ),
+}));
+
 function createEditorFindController(
   overrides: Partial<NoteEditorFindController> = {},
 ): NoteEditorFindController {
@@ -247,6 +253,27 @@ describe('EditorTopRightToolbar', () => {
     expect(container.firstElementChild).toHaveClass('translate-x-[var(--vlaina-window-resize-compensation-x)]');
     expect(getByTestId('note-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
     expect(getByTestId('note-export-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
+  });
+
+  it('places the outline control immediately before the favorite action', () => {
+    const { getByRole, getByTestId } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="alpha.md"
+        currentNoteTitle="Alpha"
+        getCurrentNoteContent={() => '# Alpha'}
+        notesPath="/notesRoot"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+        showOutline
+      />,
+    );
+
+    const outlineButton = getByTestId('outline-toolbar-button');
+    const favoriteButton = getByRole('button', { name: 'Add Star' });
+    expect(outlineButton.compareDocumentPosition(favoriteButton) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
   });
 
   it('shows the remove-star button for starred external notes outside the opened folder', () => {

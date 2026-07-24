@@ -154,6 +154,7 @@ export function NoteToolbarActions({
               }
             }}
             aria-label={starButtonLabel}
+            data-note-star-button="true"
             className={cn(
               toolbarButtonClassName,
               starred
