@@ -303,7 +303,7 @@
   "notes.discardDraftDescription": "Kaydedilmemiş bu taslağı atmak istediğinizden emin misiniz? Ctrl+S ile kaydedilmeyen tüm içerikler kaybolacaktır.",
   "notes.discardDraftTitle": "Taslağı At",
   "notes.saveOrDiscardDraftsBeforeOpeningAnotherFolder": "Başka bir klasör açmadan önce taslak notları kaydedin veya atın.",
-  "notes.documentOutline": "Belge ana hattı",
+  "notes.documentOutline": "Ana Hat",
   "notes.file": "Dosya",
   "notes.openFile": "Dosya aç",
   "notes.folder": "Klasör",

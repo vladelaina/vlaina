@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCoverDimensionProbeSrc, getCoverResolveOptions, useCoverSource } from './useCoverSource';
 import { clearCoverAssetUrlResolveCacheForTests, resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
+import { incrementImageCacheGeneration } from '@/lib/assets/io/imageCacheGeneration';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
@@ -66,6 +67,24 @@ describe('useCoverSource', () => {
       allowMainThreadFallback: false,
     });
     expect(result.current.isError).toBe(false);
+  });
+
+  it('re-resolves a mounted cover after the image blob cache is invalidated', async () => {
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
+    hoisted.loadImageThumbnailAsBlob
+      .mockResolvedValueOnce('blob:stale-cover')
+      .mockResolvedValueOnce('blob:fresh-cover');
+
+    const { result } = renderHook(() =>
+      useCoverSource({ url: 'assets/a.png', notesRootPath: '/notes-root-a' })
+    );
+
+    await waitFor(() => expect(result.current.resolvedSrc).toBe('blob:stale-cover'));
+
+    act(() => incrementImageCacheGeneration());
+
+    await waitFor(() => expect(result.current.resolvedSrc).toBe('blob:fresh-cover'));
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(2);
   });
 
   it('reuses the preview thumbnail when the same cover is committed', async () => {

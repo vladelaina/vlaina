@@ -3,11 +3,13 @@ import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { resolveNotesRootRelativeFullPath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { themeFileTreeTokens } from '@/styles/themeTokens';
 import { useImageFileHoverPreviewTarget } from './imageFileHoverPreviewState';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 
 const IMAGE_HOVER_PREVIEW_ACTIVE_ATTRIBUTE = 'data-image-file-hover-preview-active';
 
 export function ImageFileHoverPreview() {
   const target = useImageFileHoverPreviewTarget();
+  const imageCacheGeneration = useImageCacheGeneration();
   const [preview, setPreview] = useState<{
     imagePath: string;
     notesPath: string;
@@ -58,7 +60,7 @@ export function ImageFileHoverPreview() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [target]);
+  }, [imageCacheGeneration, target]);
 
   if (!activePreview) {
     return null;

@@ -303,7 +303,7 @@
   "notes.discardDraftDescription": "この保存されていない下書きを破棄してもよろしいですか？Ctrl+Sで保存されなかったコンテンツは失われます。",
   "notes.discardDraftTitle": "下書きを破棄",
   "notes.saveOrDiscardDraftsBeforeOpeningAnotherFolder": "別のフォルダを開く前に下書きノートを保存または破棄してください。",
-  "notes.documentOutline": "ドキュメントアウトライン",
+  "notes.documentOutline": "アウトライン",
   "notes.file": "ファイル",
   "notes.openFile": "ファイルを開く",
   "notes.folder": "フォルダー",

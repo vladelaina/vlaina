@@ -6,7 +6,6 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { selectMarkdownBodyLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
 import { cn } from '@/lib/utils';
 import { NoteHeader } from './NoteHeader';
-import { EditorOutlineRail } from './EditorOutlineRail';
 import { EditorTopRightToolbar, MilkdownEditorRuntime } from './MarkdownEditorLazyComponents';
 import { MarkdownSourceEditor } from './MarkdownSourceEditor';
 import { NoteCoverCanvas } from '../Cover';
@@ -190,13 +189,10 @@ export function MarkdownEditor({
             toggleStarred={toggleStarred}
             currentNoteMetadata={currentNoteMetadata}
             showNoteActions={!hideNoteActions}
+            showOutline={isEditorViewReady && !isSourceMode && !shouldUseSourceFallback}
           />
         </Suspense>
       ) : null}
-
-      <EditorOutlineRail
-        enabled={hasActiveNote && isEditorViewReady && !isSourceMode && !shouldUseSourceFallback}
-      />
 
       <OverlayScrollArea
         ref={scrollRootRef}

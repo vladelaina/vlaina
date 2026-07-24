@@ -1,5 +1,6 @@
 import { NoteEditorFindBar } from './find/NoteEditorFindBar';
 import type { NoteEditorFindController } from './find/types';
+import { EditorOutlineRail } from './EditorOutlineRail';
 import { NoteToolbarActions } from './NoteToolbarActions';
 import { NoteSaveStatus } from './NoteSaveStatus';
 
@@ -20,6 +21,7 @@ export interface EditorTopRightToolbarProps {
       }
     | undefined;
   showNoteActions?: boolean;
+  showOutline?: boolean;
 }
 
 export function EditorTopRightToolbar({
@@ -34,6 +36,7 @@ export function EditorTopRightToolbar({
   toggleStarred,
   currentNoteMetadata,
   showNoteActions = true,
+  showOutline = false,
 }: EditorTopRightToolbarProps) {
   return (
     <div
@@ -44,18 +47,23 @@ export function EditorTopRightToolbar({
 
       {!editorFind.isOpen ? <NoteSaveStatus notePath={currentNotePath} /> : null}
 
-      {!editorFind.isOpen && showNoteActions ? (
-        <NoteToolbarActions
-          currentNotePath={currentNotePath}
-          currentNoteTitle={currentNoteTitle}
-          getCurrentNoteContent={getCurrentNoteContent}
-          isSourceMode={isSourceMode}
-          onToggleSourceMode={onToggleSourceMode}
-          notesPath={notesPath}
-          starred={starred}
-          toggleStarred={toggleStarred}
-          currentNoteMetadata={currentNoteMetadata}
-        />
+      {showOutline || showNoteActions ? (
+        <div className="flex items-center gap-1">
+          <EditorOutlineRail enabled={!editorFind.isOpen && showOutline} />
+          {!editorFind.isOpen && showNoteActions ? (
+            <NoteToolbarActions
+              currentNotePath={currentNotePath}
+              currentNoteTitle={currentNoteTitle}
+              getCurrentNoteContent={getCurrentNoteContent}
+              isSourceMode={isSourceMode}
+              onToggleSourceMode={onToggleSourceMode}
+              notesPath={notesPath}
+              starred={starred}
+              toggleStarred={toggleStarred}
+              currentNoteMetadata={currentNoteMetadata}
+            />
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

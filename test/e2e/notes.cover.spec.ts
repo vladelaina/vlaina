@@ -863,7 +863,7 @@ test.describe('notes top cover e2e coverage', () => {
         name: 'gif-cover-restart',
         files: [{
           filename: 'gif-cover.md',
-          content: createCoveredMarkdown('GIF Cover Restart', 2, 'assets/animated.gif'),
+          content: createCoveredMarkdown('GIF Cover Restart', 2, './assets/animated.gif'),
         }],
       });
       const assetDirectory = path.join(fixture.notesRootPath, 'assets');
@@ -879,7 +879,7 @@ test.describe('notes top cover e2e coverage', () => {
         minFileCount: 1,
       });
       await expect.poll(() => page.locator(
-        '[data-file-tree-image-background="assets/animated.gif"] [style*="background-image"]'
+        '[data-file-tree-image-background="./assets/animated.gif"] [style*="background-image"]'
       ).count(), { timeout: 30_000 }).toBe(1);
       await page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'gif-cover' }).first().click();
       await expect.poll(async () => page.locator(NOTE_COVER_IMAGE_SELECTOR).evaluateAll((images) => {
@@ -893,15 +893,15 @@ test.describe('notes top cover e2e coverage', () => {
       });
       await second.app.firstWindow();
       const [restoredPage] = await getOpenBridgePages(second.app, 1);
-      await openNotesRootInNotes(restoredPage, {
-        notesRootPath: fixture.notesRootPath,
-        name: 'GIF Cover Restart',
-        minFileCount: 1,
+      await expect.poll(() => restoredPage.evaluate(() => (
+        (window as any).__vlainaE2E.getNotesRootState().currentNotesRoot?.path ?? null
+      )), { timeout: 30_000 }).toBe(fixture.notesRootPath);
+      await expect(restoredPage.locator(EDITOR_SELECTOR)).toContainText('GIF Cover Restart', {
+        timeout: 30_000,
       });
       await expect.poll(() => restoredPage.locator(
-        '[data-file-tree-image-background="assets/animated.gif"] [style*="background-image"]'
+        '[data-file-tree-image-background="./assets/animated.gif"] [style*="background-image"]'
       ).count(), { timeout: 30_000 }).toBe(1);
-      await restoredPage.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'gif-cover' }).first().click();
 
       await expect.poll(async () => restoredPage.locator(NOTE_COVER_IMAGE_SELECTOR).evaluateAll((images) => {
         const image = images[0] as HTMLImageElement | undefined;

@@ -1,7 +1,9 @@
-import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { WHITEBOARD_SYSTEM_STORAGE_SCOPE } from '@/lib/storage/whiteboardStoragePaths';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 import { getNextWhiteboardIdSequence } from '../model/whiteboardIds';
+import { refreshWhiteboardAssetUrls } from '../model/whiteboardRepository';
 import type {
   WhiteboardElement,
   WhiteboardPaperStyle,
@@ -13,6 +15,7 @@ import { useWhiteboardStore } from '../stores/useWhiteboardStore';
 interface WhiteboardStorageBridgeOptions {
   active: boolean;
   appliedBoardKeyRef: MutableRefObject<string | null>;
+  elements: WhiteboardElement[];
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>;
   setPaper: Dispatch<SetStateAction<WhiteboardPaperStyle>>;
   setSelectedElementIds: Dispatch<SetStateAction<string[]>>;
@@ -25,6 +28,7 @@ interface WhiteboardStorageBridgeOptions {
 export function useWhiteboardStorageBridge({
   active,
   appliedBoardKeyRef,
+  elements,
   setElements,
   setPaper,
   setSelectedElementIds,
@@ -38,6 +42,10 @@ export function useWhiteboardStorageBridge({
   const activeSnapshot = useWhiteboardStore((state) => state.activeSnapshot);
   const loadedNotesRootPath = useWhiteboardStore((state) => state.loadedNotesRootPath);
   const loadWhiteboards = useWhiteboardStore((state) => state.loadForNotesRoot);
+  const imageCacheGeneration = useImageCacheGeneration();
+  const elementsRef = useRef(elements);
+  const appliedImageCacheGenerationRef = useRef(imageCacheGeneration);
+  elementsRef.current = elements;
 
   useEffect(() => {
     if (!active) return;
@@ -60,4 +68,32 @@ export function useWhiteboardStorageBridge({
     setElements, setPaper, setSelectedElementIds, setSelectedStrokeIds, setStrokes,
     setViewport, strokeIdRef,
   ]);
+
+  useEffect(() => {
+    if (!active || appliedImageCacheGenerationRef.current === imageCacheGeneration) return;
+    appliedImageCacheGenerationRef.current = imageCacheGeneration;
+    const refreshState = useWhiteboardStore.getState();
+    const refreshBoardId = refreshState.activeBoardId;
+    const board = refreshState.boards.find((item) => item.id === refreshBoardId);
+    if (!board || refreshState.loadedNotesRootPath !== notesRootPath) return;
+    let current = true;
+    void refreshWhiteboardAssetUrls(notesRootPath, board, elementsRef.current).then((refreshed) => {
+      const latestState = useWhiteboardStore.getState();
+      if (
+        !current ||
+        latestState.activeBoardId !== refreshBoardId ||
+        latestState.loadedNotesRootPath !== notesRootPath
+      ) return;
+      setElements((latest) => {
+        const refreshedSrcById = new Map(refreshed.map((element) => [element.id, element.imageSrc]));
+        return latest.map((element) => {
+          const imageSrc = refreshedSrcById.get(element.id);
+          return imageSrc && imageSrc !== element.imageSrc ? { ...element, imageSrc } : element;
+        });
+      });
+    }).catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [active, imageCacheGeneration, notesRootPath, setElements]);
 }

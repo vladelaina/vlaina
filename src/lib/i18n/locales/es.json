@@ -303,7 +303,7 @@
   "notes.discardDraftDescription": "¿Estás seguro de que quieres descartar este borrador sin guardar? Se perderá cualquier contenido que no se haya guardado con Ctrl+S.",
   "notes.discardDraftTitle": "Descartar Borrador",
   "notes.saveOrDiscardDraftsBeforeOpeningAnotherFolder": "Guarda o descarta los borradores antes de abrir otra carpeta.",
-  "notes.documentOutline": "Esquema del documento",
+  "notes.documentOutline": "Esquema",
   "notes.file": "Archivo",
   "notes.openFile": "Abrir archivo",
   "notes.folder": "Carpeta",

@@ -66,7 +66,7 @@ export function useWhiteboardController({
   const eraser = useWhiteboardEraserGesture({ elements, pushHistory, setElements, setStrokes, strokes });
   const strokeEraser = useWhiteboardStrokeEraserGesture({ pushHistory, setStrokes, strokes });
   useWhiteboardStorageBridge({
-    active, appliedBoardKeyRef, setElements, setPaper: setPaperStyle,
+    active, appliedBoardKeyRef, elements, setElements, setPaper: setPaperStyle,
     setSelectedElementIds, setSelectedStrokeIds, setStrokes, setViewport, strokeIdRef,
   });
   useWhiteboardReady(onStartupReady, onPrimaryContentReady);

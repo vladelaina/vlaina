@@ -1,5 +1,9 @@
 import { isImageFilename } from '../core/naming';
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
+import {
+  getImageCacheGeneration,
+  incrementImageCacheGeneration as incrementSharedImageCacheGeneration,
+} from './imageCacheGeneration';
 
 export const MAX_LOCAL_IMAGE_BYTES = 50 * 1024 * 1024;
 
@@ -9,7 +13,6 @@ export interface BlobUrlCacheEntry {
   size: number | null;
 }
 
-let imageCacheGeneration = 0;
 const imagePathGenerations = new Map<string, number>();
 const IMAGE_CACHE_INVALIDATED_ERROR_MESSAGE = 'Image cache was invalidated while loading.';
 
@@ -50,7 +53,7 @@ export function bumpImagePathGeneration(fullPath: string): void {
 }
 
 export function incrementImageCacheGeneration(): void {
-  imageCacheGeneration += 1;
+  incrementSharedImageCacheGeneration();
 }
 
 export function clearImagePathGenerations(): void {
@@ -64,7 +67,7 @@ export function revokeLoadedUrlIfInvalidated(
   url: string,
 ): void {
   if (
-    loadGeneration === imageCacheGeneration
+    loadGeneration === getImageCacheGeneration()
     && loadPathGeneration === getImagePathGeneration(fullPath)
   ) {
     return;
@@ -75,7 +78,7 @@ export function revokeLoadedUrlIfInvalidated(
 }
 
 export function getCurrentImageCacheGeneration(): number {
-  return imageCacheGeneration;
+  return getImageCacheGeneration();
 }
 
 export function getCurrentImagePathGeneration(fullPath: string): number {

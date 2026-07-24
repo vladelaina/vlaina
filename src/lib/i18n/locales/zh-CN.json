@@ -303,7 +303,7 @@
   "notes.discardDraftDescription": "确定要丢弃这个未保存的草稿吗？未通过 Ctrl+S 保存的内容都会丢失。",
   "notes.discardDraftTitle": "丢弃草稿",
   "notes.saveOrDiscardDraftsBeforeOpeningAnotherFolder": "打开其他文件夹前请先保存或丢弃草稿笔记。",
-  "notes.documentOutline": "文档大纲",
+  "notes.documentOutline": "大纲",
   "notes.file": "文件",
   "notes.openFile": "打开文件",
   "notes.folder": "文件夹",

@@ -6,6 +6,7 @@ import {
   rememberDisplayedCoverAssetUrl,
   resolveCoverAssetUrl,
 } from './resolveCoverAssetUrl';
+import { incrementImageCacheGeneration } from '@/lib/assets/io/imageCacheGeneration';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
@@ -268,6 +269,27 @@ describe('resolveCoverAssetUrl', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('drops displayed cover urls after the image blob cache is invalidated', async () => {
+    const options = {
+      assetPath: './assets/animated.gif',
+      notesRootPath: '/notes-root-a',
+      currentNotePath: 'notes/today.md',
+      replayAnimated: true,
+    };
+    hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/animated.gif');
+    hoisted.loadImageAsBlob
+      .mockResolvedValueOnce('blob:stale-cover')
+      .mockResolvedValueOnce('blob:fresh-cover');
+
+    const displayedUrl = await resolveCoverAssetUrl(options);
+    rememberDisplayedCoverAssetUrl(options, displayedUrl);
+    incrementImageCacheGeneration();
+
+    expect(getCachedResolvedCoverAssetUrl(options)).toBeNull();
+    await expect(resolveCoverAssetUrl(options)).resolves.toMatch(/^blob:fresh-cover#/);
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(2);
   });
 
   it('returns displayed animated cover urls without adding another replay token', async () => {

@@ -303,7 +303,7 @@
   "notes.discardDraftDescription": "คุณแน่ใจหรือไม่ว่าต้องการทิ้งร่างที่ยังไม่ได้บันทึกนี้? เนื้อหาใดๆ ที่ไม่ได้บันทึกด้วย Ctrl+S จะสูญหาย",
   "notes.discardDraftTitle": "ทิ้งร่าง",
   "notes.saveOrDiscardDraftsBeforeOpeningAnotherFolder": "บันทึกหรือทิ้งโน้ตฉบับร่างก่อนเปิดโฟลเดอร์อื่น",
-  "notes.documentOutline": "โครงร่างเอกสาร",
+  "notes.documentOutline": "โครงร่าง",
   "notes.file": "ไฟล์",
   "notes.openFile": "เปิดไฟล์",
   "notes.folder": "โฟลเดอร์",

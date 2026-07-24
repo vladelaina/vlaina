@@ -8,6 +8,7 @@ import {
 } from '../utils/resolveCoverAssetUrl';
 import { coverSourceReducer, initialCoverSourceState, type CoverSourceState } from './coverSourceState';
 import { logNotesSplitDiagnostic } from '@/lib/diagnostics/notesSplitDiagnostics';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 
 const COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX = 1280;
 const ANIMATED_COVER_DIMENSION_PROBE_TOKEN = 'vlaina-dimension-probe=1';
@@ -42,13 +43,15 @@ function getCoverSourceKey({
     url,
     notesRootPath,
     currentNotePath,
+    imageCacheGeneration,
 }: {
     url: string | null;
     notesRootPath: string;
     currentNotePath?: string;
+    imageCacheGeneration: number;
 }) {
     if (!url) return null;
-    return `${notesRootPath}\u0000${currentNotePath ?? ''}\u0000${url}`;
+    return `${imageCacheGeneration}\u0000${notesRootPath}\u0000${currentNotePath ?? ''}\u0000${url}`;
 }
 
 interface UseCoverSourceProps {
@@ -58,9 +61,10 @@ interface UseCoverSourceProps {
 }
 
 export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCoverSourceProps) {
+    const imageCacheGeneration = useImageCacheGeneration();
     const [state, dispatch] = useReducer(
         coverSourceReducer,
-        { url, notesRootPath, currentNotePath },
+        { url, notesRootPath, currentNotePath, imageCacheGeneration },
         (initial): CoverSourceState => {
             if (!initial.url) {
                 return initialCoverSourceState;
@@ -76,6 +80,7 @@ export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCover
                 url: initial.url,
                 notesRootPath: initial.notesRootPath,
                 currentNotePath: initial.currentNotePath,
+                imageCacheGeneration: initial.imageCacheGeneration,
             });
             if (!resolvedSrc) {
                 return initialCoverSourceState;
@@ -95,13 +100,20 @@ export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCover
         sourceKey: string | null;
         notesRootPath: string;
         currentNotePath?: string;
+        imageCacheGeneration: number;
     }>({
-        sourceKey: getCoverSourceKey({ url, notesRootPath, currentNotePath }),
+        sourceKey: getCoverSourceKey({ url, notesRootPath, currentNotePath, imageCacheGeneration }),
         notesRootPath,
         currentNotePath,
+        imageCacheGeneration,
     });
 
-    const currentSourceKey = getCoverSourceKey({ url, notesRootPath, currentNotePath });
+    const currentSourceKey = getCoverSourceKey({
+        url,
+        notesRootPath,
+        currentNotePath,
+        imageCacheGeneration,
+    });
     const cachedResolvedSrc = url && currentSourceKey && state.resolvedSourceKey !== currentSourceKey
         ? getCachedResolvedCoverAssetUrl(getCoverResolveOptions({ url, notesRootPath, currentNotePath }))
         : null;
@@ -118,7 +130,8 @@ export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCover
         url &&
         prevSrcRef.current &&
         previousSource.notesRootPath === notesRootPath &&
-        previousSource.currentNotePath === currentNotePath
+        previousSource.currentNotePath === currentNotePath &&
+        previousSource.imageCacheGeneration === imageCacheGeneration
     );
 
     const setPreviewSrc = useCallback((src: string | null) => {
@@ -156,7 +169,8 @@ export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCover
         const sameNoteContext = Boolean(
             url &&
             previousSourceRef.current.notesRootPath === notesRootPath &&
-            previousSourceRef.current.currentNotePath === currentNotePath
+            previousSourceRef.current.currentNotePath === currentNotePath &&
+            previousSourceRef.current.imageCacheGeneration === imageCacheGeneration
         );
         if (sameNoteContext) {
             const fallbackSrc = state.previewSrc || resolvedSrc || prevSrcRef.current;
@@ -171,6 +185,7 @@ export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCover
             sourceKey: currentSourceKey,
             notesRootPath,
             currentNotePath,
+            imageCacheGeneration,
         };
 
         if (url && currentSourceKey) {
@@ -190,7 +205,7 @@ export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCover
         }
 
         dispatch({ type: 'url-switch-reset', preservePreview: sameNoteContext });
-    }, [currentNotePath, currentSourceKey, notesRootPath, resolvedSrc, state.previewSrc, url]);
+    }, [currentNotePath, currentSourceKey, imageCacheGeneration, notesRootPath, resolvedSrc, state.previewSrc, url]);
 
     useEffect(() => {
         let ignore = false;
@@ -231,14 +246,19 @@ export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCover
                 type: 'resolve-success',
                 imageUrl,
                 assetPath: url,
-                sourceKey: getCoverSourceKey({ url, notesRootPath, currentNotePath }) ?? url,
+                sourceKey: getCoverSourceKey({
+                    url,
+                    notesRootPath,
+                    currentNotePath,
+                    imageCacheGeneration,
+                }) ?? url,
             });
         }
         resolve();
         return () => {
             ignore = true;
         };
-    }, [url, notesRootPath, currentNotePath]);
+    }, [url, notesRootPath, currentNotePath, imageCacheGeneration]);
 
     return {
         resolvedSrc,

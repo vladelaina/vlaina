@@ -10,7 +10,7 @@ import {
 const OUTLINE_RAIL_SELECTOR = '[data-editor-outline-rail="true"]';
 
 test.describe('notes editor outline rail', () => {
-  test('stays in the right-side whitespace and tracks the active heading', async () => {
+  test('opens below the toolbar control left of favorite and tracks the active heading', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-editor-outline-rail');
 
     try {
@@ -40,34 +40,47 @@ test.describe('notes editor outline rail', () => {
       });
 
       const rail = page.locator(OUTLINE_RAIL_SELECTOR);
-      const toggle = rail.getByRole('button', { name: 'Document outline' });
-      const outline = rail.getByRole('navigation', { name: 'Document outline' });
+      const toggle = rail.getByRole('button', { name: 'Outline' });
+      const outline = rail.getByRole('navigation', { name: 'Outline' });
       const getGeometry = () => page.evaluate((selector) => {
         const railElement = document.querySelector<HTMLElement>(selector);
-        const editorElement = document.querySelector<HTMLElement>('[data-note-content-root="true"]');
-        const editorTextElement = editorElement?.querySelector<HTMLElement>('.ProseMirror');
+        const triggerElement = railElement?.querySelector<HTMLElement>('[data-editor-outline-trigger="true"]');
+        const panelElement = railElement?.querySelector<HTMLElement>('[data-editor-outline-panel="true"]');
+        const favoriteElement = document.querySelector<HTMLElement>('[data-note-star-button="true"]');
+        const toolbarElement = railElement?.parentElement?.closest<HTMLElement>('[data-no-editor-drag-box="true"]');
         const rows = Array.from(
           railElement?.querySelectorAll<HTMLElement>('.editor-outline-row') ?? [],
         );
-        if (!railElement || !editorTextElement || rows.length === 0) return null;
+        if (!railElement || !triggerElement || !panelElement || !favoriteElement || !toolbarElement || rows.length === 0) return null;
         const railRect = railElement.getBoundingClientRect();
-        const editorTextRect = editorTextElement.getBoundingClientRect();
+        const triggerRect = triggerElement.getBoundingClientRect();
+        const panelRect = panelElement.getBoundingClientRect();
+        const favoriteRect = favoriteElement.getBoundingClientRect();
+        const toolbarRect = toolbarElement.getBoundingClientRect();
         return {
-          editorTextRight: editorTextRect.right,
+          favoriteLeft: favoriteRect.left,
+          panelRight: panelRect.right,
+          panelTop: panelRect.top,
           railLeft: railRect.left,
           railRight: railRect.right,
           rowHeights: rows.map((row) => Math.round(row.getBoundingClientRect().height)),
           rowTextLefts: rows.map((row) => Math.round(
             row.querySelector<HTMLElement>('.editor-outline-row-text')?.getBoundingClientRect().left ?? 0,
           )),
+          triggerBottom: triggerRect.bottom,
+          triggerRight: triggerRect.right,
+          toolbarRight: toolbarRect.right,
           viewportWidth: window.innerWidth,
         };
       }, OUTLINE_RAIL_SELECTOR);
 
       await expect(rail).toBeVisible({ timeout: 10_000 });
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(toggle).toBeVisible();
+      await expect(outline).toBeHidden();
+      await toggle.click();
       await expect(outline).toBeVisible();
       await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-      await expect(rail.locator('.editor-outline-header-icon')).toBeVisible();
       await expect(outline.getByRole('button')).toHaveText([
         'Introduction',
         'Overview',
@@ -79,7 +92,10 @@ test.describe('notes editor outline rail', () => {
       const geometry = await getGeometry();
 
       expect(geometry).not.toBeNull();
-      expect(geometry!.railLeft).toBeGreaterThanOrEqual(geometry!.editorTextRight);
+      expect(geometry!.triggerRight).toBeLessThanOrEqual(geometry!.favoriteLeft);
+      expect(geometry!.panelTop).toBeGreaterThanOrEqual(geometry!.triggerBottom);
+      expect(Math.abs(geometry!.panelRight - geometry!.toolbarRight)).toBeLessThanOrEqual(1);
+      expect(geometry!.panelRight).toBeLessThanOrEqual(geometry!.viewportWidth);
       expect(geometry!.railRight).toBeLessThan(geometry!.viewportWidth);
       expect(new Set(geometry!.rowHeights)).toEqual(new Set([28]));
       expect(geometry!.rowTextLefts[0]).toBeLessThan(geometry!.rowTextLefts[1]);
@@ -104,7 +120,8 @@ test.describe('notes editor outline rail', () => {
       await expect(rail).toBeVisible();
       const narrowGeometry = await getGeometry();
       expect(narrowGeometry).not.toBeNull();
-      expect(narrowGeometry!.railLeft).toBeGreaterThanOrEqual(narrowGeometry!.editorTextRight);
+      expect(narrowGeometry!.triggerRight).toBeLessThanOrEqual(narrowGeometry!.favoriteLeft);
+      expect(narrowGeometry!.panelTop).toBeGreaterThanOrEqual(narrowGeometry!.triggerBottom);
       expect(narrowGeometry!.railRight).toBeLessThan(narrowGeometry!.viewportWidth);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);

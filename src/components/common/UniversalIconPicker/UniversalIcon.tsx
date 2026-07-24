@@ -14,6 +14,7 @@ import {
   ImageIconRenderer,
   resolveIconSize,
 } from './UniversalIconRenderers';
+import { useImageCacheGeneration } from '@/hooks/useImageCacheGeneration';
 
 export interface UniversalIconProps {
   icon: string;
@@ -80,12 +81,22 @@ export function UniversalIcon({
   imageLoader,
   allowLegacyImageScheme,
 }: UniversalIconProps) {
+  const imageCacheGeneration = useImageCacheGeneration();
   const imageSrcCache = getImageSrcCache(imageLoader);
-  const [loadedImage, setLoadedImage] = useState<{ icon: string; src: string | null }>(() => {
+  const imageCacheKey = `${imageCacheGeneration}\0${icon}`;
+  const [loadedImage, setLoadedImage] = useState<{
+    icon: string;
+    imageCacheGeneration: number;
+    src: string | null;
+  }>(() => {
     if (!isRenderableImageIcon(icon, allowLegacyImageScheme)) {
-      return { icon, src: null };
+      return { icon, imageCacheGeneration, src: null };
     }
-    return { icon, src: getCachedImageSrc(imageSrcCache, icon) };
+    return {
+      icon,
+      imageCacheGeneration,
+      src: getCachedImageSrc(imageSrcCache, imageCacheKey),
+    };
   });
   const resolvedSize = resolveIconSize(size);
 
@@ -93,39 +104,39 @@ export function UniversalIcon({
     let active = true;
     const load = async () => {
       if (icon && isRenderableImageIcon(icon, allowLegacyImageScheme)) {
-        const cachedSrc = getCachedImageSrc(imageSrcCache, icon);
+        const cachedSrc = getCachedImageSrc(imageSrcCache, imageCacheKey);
         if (cachedSrc) {
-          setLoadedImage({ icon, src: cachedSrc });
+          setLoadedImage({ icon, imageCacheGeneration, src: cachedSrc });
           return;
         }
 
         if (imageLoader) {
           try {
             const url = await imageLoader(icon);
-            if (url) setCachedImageSrc(imageSrcCache, icon, url);
-            if (active) setLoadedImage({ icon, src: url || null });
+            if (url) setCachedImageSrc(imageSrcCache, imageCacheKey, url);
+            if (active) setLoadedImage({ icon, imageCacheGeneration, src: url || null });
           } catch {
-            if (active) setLoadedImage({ icon, src: null });
+            if (active) setLoadedImage({ icon, imageCacheGeneration, src: null });
           }
         } else {
           const url = hasIconImageScheme(icon) ? icon.substring(4) : icon;
-          if (url) setCachedImageSrc(imageSrcCache, icon, url);
-          if (active) setLoadedImage({ icon, src: url || null });
+          if (url) setCachedImageSrc(imageSrcCache, imageCacheKey, url);
+          if (active) setLoadedImage({ icon, imageCacheGeneration, src: url || null });
         }
       } else {
-        setLoadedImage({ icon, src: null });
+        setLoadedImage({ icon, imageCacheGeneration, src: null });
       }
     };
     load();
     return () => { active = false; };
-  }, [allowLegacyImageScheme, icon, imageLoader, imageSrcCache]);
+  }, [allowLegacyImageScheme, icon, imageCacheGeneration, imageCacheKey, imageLoader, imageSrcCache]);
 
   if (!icon) return null;
 
   if (isRenderableImageIcon(icon, allowLegacyImageScheme)) {
-    const imgSrc = loadedImage.icon === icon
+    const imgSrc = loadedImage.icon === icon && loadedImage.imageCacheGeneration === imageCacheGeneration
       ? loadedImage.src
-      : getCachedImageSrc(imageSrcCache, icon);
+      : getCachedImageSrc(imageSrcCache, imageCacheKey);
 
     return imgSrc ? (
       <ImageIconRenderer
