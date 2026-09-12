@@ -317,7 +317,7 @@ export function MarkdownEditor({
                   ) : (
                     <ErrorBoundary
                       onError={handleEditorRenderError}
-                      resetKey={currentNotePath}
+                      resetKey={`${currentNotePath ?? ''}:${editorRuntimeRevision}`}
                       fallback={(
                         <MarkdownSourceFallback
                           active={hasActiveNote}
