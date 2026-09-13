@@ -107,3 +107,55 @@ it('publishes committed text once instead of earlier pinyin snapshots', async ()
     host.remove();
   }
 });
+
+it('does not publish a stale edit after a replacement excluded from history', async () => {
+  const { editor, view, host, updates } = await createEditor();
+  vi.useFakeTimers();
+  try {
+    view.dispatch(view.state.tr.insertText('s', 2));
+    view.dispatch(view.state.tr.insertText('replacement', 1, 3).setMeta('addToHistory', false));
+    await vi.runAllTimersAsync();
+    expect(updates).toEqual(['replacement\n']);
+    expect(view.state.doc.textContent).toBe('replacement');
+  } finally {
+    await editor.destroy();
+    host.remove();
+  }
+});
+
+it.each(['next composition', 'destroy'])('invalidates delayed input rules on %s', async (action) => {
+  const { editor, view, host } = await createEditor();
+  vi.useFakeTimers();
+  try {
+    const rule = new InputRule(/ok!$/, (state, _match, from, to) => state.tr.insertText('done', from, to));
+    const plugin = customInputRules({ rules: [rule] });
+    const tr = view.state.tr.insertText('ok!', 1, 2);
+    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, 4)));
+    // Invoke the DOM handlers directly so the test also covers a new session
+    // whose native composing flag has already returned to false.
+    plugin.props.handleDOMEvents!.compositionend!(view, new CompositionEvent('compositionend', { data: 'ok!' }));
+    if (action === 'next composition') {
+      plugin.props.handleDOMEvents!.compositionstart!(view, new CompositionEvent('compositionstart'));
+    } else {
+      plugin.spec.view!(view).destroy!();
+    }
+    await vi.runAllTimersAsync();
+    expect(view.state.doc.textContent).toBe('ok!');
+  } finally {
+    await editor.destroy();
+    host.remove();
+  }
+});
+
+it('does not start markdown notifications for history-excluded changes alone', async () => {
+  const { editor, view, host, updates } = await createEditor();
+  vi.useFakeTimers();
+  try {
+    view.dispatch(view.state.tr.insertText('replacement', 1, 2).setMeta('addToHistory', false));
+    await vi.runAllTimersAsync();
+    expect(updates).toEqual([]);
+  } finally {
+    await editor.destroy();
+    host.remove();
+  }
+});

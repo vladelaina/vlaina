@@ -160,8 +160,11 @@ export const listener: MilkdownPlugin = (ctx) => {
     let prevDoc: ProseNode | null = null
     let prevMarkdown: string | null = null
     let prevSelection: Selection | null = null
+    let latestDoc: ProseNode | null = null
 
-    const notifyDocument = debounce((doc: ProseNode) => {
+    const notifyDocument = debounce(() => {
+      const doc = latestDoc
+      if (!doc) return
       if (listeners.updated.length > 0 && prevDoc && !prevDoc.eq(doc)) {
         listeners.updated.forEach((fn) => fn(ctx, doc, prevDoc!))
       }
@@ -197,10 +200,12 @@ export const listener: MilkdownPlugin = (ctx) => {
       },
       state: {
         init: (_, instance) => {
+          latestDoc = instance.doc
           prevDoc = instance.doc
           prevMarkdown = serializer(instance.doc)
         },
         apply: (tr) => {
+          latestDoc = tr.doc
           const currentSelection = tr.selection
           if (
             (!prevSelection && currentSelection) ||
@@ -218,7 +223,7 @@ export const listener: MilkdownPlugin = (ctx) => {
           )
             return
 
-          return notifyDocument(tr.doc)
+          return notifyDocument()
         },
       },
     })
