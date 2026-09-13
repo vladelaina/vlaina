@@ -358,6 +358,10 @@ function handleEmptyParagraphBesideMarkdownBlankLineDelete(view: EditorView, dir
 }
 
 export function handleMarkdownBlankLineDeletion(view: EditorView, event: KeyboardEvent): boolean {
+  // Some IMEs report Backspace with `isComposing: false`; ProseMirror's
+  // composing state is the reliable signal for suppressing structural deletes.
+  if (view.composing) return false;
+
   const direction = getPlainDeleteDirection(event);
   if (!direction) return false;
 

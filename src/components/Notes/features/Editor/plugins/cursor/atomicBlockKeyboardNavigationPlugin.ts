@@ -84,6 +84,8 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
     },
     props: {
       handleKeyDown(view, event) {
+        if (event.isComposing || view.composing) return false;
+
         if (handleMarkdownBlankLineDeletion(view, event)) {
           return true;
         }

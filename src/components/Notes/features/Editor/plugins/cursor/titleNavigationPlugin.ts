@@ -13,6 +13,7 @@ export const titleNavigationPlugin = $prose(() => {
                 if (
                     event.defaultPrevented ||
                     event.isComposing ||
+                    view.composing ||
                     event.shiftKey ||
                     event.ctrlKey ||
                     event.metaKey ||

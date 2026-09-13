@@ -190,7 +190,9 @@ export function customInputRules({ rules }: { rules: InputRule[] }): Plugin {
         return run(view, from, to, text, rules, plugin)
       },
       handleDOMEvents: {
-        compositionend: (view) => {
+        compositionend: (view, event) => {
+          // Cancelling preedit must not reinterpret text that preceded it.
+          if (!event.data) return false
           setTimeout(() => {
             if (!view.dom.isConnected) return
             const { $cursor } = view.state.selection as TextSelection

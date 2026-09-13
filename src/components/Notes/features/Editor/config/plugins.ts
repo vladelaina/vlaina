@@ -65,6 +65,7 @@ import { structuralStyleDecorationsPlugin } from '../plugins/structural/structur
 import { typoraCompatibilityDomClassesPlugin } from '../theme-compatibility/typora/domClassesPlugin';
 import { themeCompatibilityDecorationsPlugin } from '../theme-compatibility/typora/decorationsPlugin';
 import { historyBoundaryPlugin } from '../plugins/history/historyBoundaryPlugin';
+import { inputDiagnosticsPlugin } from '../plugins/shared/inputDiagnosticsPlugin';
 
 export const customPluginGroups = [
   {
@@ -169,6 +170,7 @@ export const customPluginGroups = [
       typewriterModePlugin,
       editorShortcutsPlugin,
       historyBoundaryPlugin,
+      inputDiagnosticsPlugin,
       gapCursorPlugin,
     ],
   },
