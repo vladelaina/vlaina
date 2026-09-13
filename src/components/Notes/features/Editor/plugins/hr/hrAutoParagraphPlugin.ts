@@ -169,7 +169,7 @@ export const hrAutoParagraphPlugin = $prose(() => {
     props: {
       handleKeyDown(view, event) {
         if (event.metaKey || event.ctrlKey || event.altKey) return false;
-        if (event.isComposing) return false;
+        if (event.isComposing || view.composing) return false;
 
         if (event.key === 'Enter') {
           const handled = event.shiftKey

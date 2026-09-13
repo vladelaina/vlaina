@@ -161,11 +161,24 @@ export const listener: MilkdownPlugin = (ctx) => {
     let prevMarkdown: string | null = null
     let prevSelection: Selection | null = null
 
+    const notifyDocument = debounce((doc: ProseNode) => {
+      if (listeners.updated.length > 0 && prevDoc && !prevDoc.eq(doc)) {
+        listeners.updated.forEach((fn) => fn(ctx, doc, prevDoc!))
+      }
+      if (listeners.markdownUpdated.length > 0 && prevDoc && !prevDoc.eq(doc)) {
+        const markdown = serializer(doc)
+        listeners.markdownUpdated.forEach((fn) => fn(ctx, markdown, prevMarkdown!))
+        prevMarkdown = markdown
+      }
+      prevDoc = doc
+    }, 200)
+
     const plugin = new Plugin({
       key,
       view: () => {
         return {
           destroy: () => {
+            notifyDocument.cancel()
             listeners.destroy.forEach((fn) => fn(ctx))
           },
         }
@@ -205,30 +218,7 @@ export const listener: MilkdownPlugin = (ctx) => {
           )
             return
 
-          const handler = debounce(() => {
-            const { doc } = tr
-            if (listeners.updated.length > 0 && prevDoc && !prevDoc.eq(doc)) {
-              listeners.updated.forEach((fn) => {
-                fn(ctx, doc, prevDoc!)
-              })
-            }
-
-            if (
-              listeners.markdownUpdated.length > 0 &&
-              prevDoc &&
-              !prevDoc.eq(doc)
-            ) {
-              const markdown = serializer(doc)
-              listeners.markdownUpdated.forEach((fn) => {
-                fn(ctx, markdown, prevMarkdown!)
-              })
-              prevMarkdown = markdown
-            }
-
-            prevDoc = doc
-          }, 200)
-
-          return handler()
+          return notifyDocument(tr.doc)
         },
       },
     })
