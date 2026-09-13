@@ -171,9 +171,15 @@ function run(
 
 export const customInputRulesKey = new PluginKey('MILKDOWN_CUSTOM_INPUTRULES')
 export function customInputRules({ rules }: { rules: InputRule[] }): Plugin {
+  let pendingComposition: ReturnType<typeof setTimeout> | undefined
+  const cancelPendingComposition = () => {
+    clearTimeout(pendingComposition)
+    pendingComposition = undefined
+  }
   const plugin: Plugin = new Plugin({
     key: customInputRulesKey,
     isInputRules: true,
+    view: () => ({ destroy: cancelPendingComposition }),
 
     state: {
       init() {
@@ -190,10 +196,16 @@ export function customInputRules({ rules }: { rules: InputRule[] }): Plugin {
         return run(view, from, to, text, rules, plugin)
       },
       handleDOMEvents: {
+        compositionstart: () => {
+          cancelPendingComposition()
+          return false
+        },
         compositionend: (view, event) => {
+          cancelPendingComposition()
           // Cancelling preedit must not reinterpret text that preceded it.
           if (!event.data) return false
-          setTimeout(() => {
+          pendingComposition = setTimeout(() => {
+            pendingComposition = undefined
             if (!view.dom.isConnected) return
             const { $cursor } = view.state.selection as TextSelection
             if ($cursor) run(view, $cursor.pos, $cursor.pos, '', rules, plugin)
