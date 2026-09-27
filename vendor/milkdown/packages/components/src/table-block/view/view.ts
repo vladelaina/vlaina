@@ -15,6 +15,7 @@ import { withMeta } from '../../__internal__/meta'
 import { TableBlock } from './component'
 
 const VLOOK_TABLE_COMPATIBILITY_CLASSES = ['v-freeze', 'auto'] as const
+const TABLE_CONTEXT_MENU_OPEN_EVENT = 'editor:table-context-menu-open'
 
 export class TableNodeView implements NodeView {
   dom: HTMLElement
@@ -47,6 +48,7 @@ export class TableNodeView implements NodeView {
   ) {
     const dom = document.createElement('div')
     dom.className = 'milkdown-table-block table-figure'
+    dom.addEventListener('contextmenu', this.openTableContextMenu)
     this.dom = dom
 
     const contentDOM = document.createElement('tbody')
@@ -103,6 +105,40 @@ export class TableNodeView implements NodeView {
     return false
   }
 
+  private openTableContextMenu = (event: MouseEvent) => {
+    if (!this.view.editable || !(event.target instanceof Element)) return
+    const cell = event.target.closest('td, th')
+    if (!cell || !this.dom.contains(cell)) return
+
+    try {
+      const domPos = this.view.posAtDOM(cell, 0)
+      const nodeAtPos = this.view.state.doc.nodeAt(domPos)
+      let cellPos: number | null =
+        nodeAtPos?.type.name === 'table_cell' || nodeAtPos?.type.name === 'table_header'
+          ? domPos
+          : null
+
+      if (cellPos === null) {
+        const resolved = this.view.state.doc.resolve(domPos)
+        for (let depth = resolved.depth; depth > 0; depth -= 1) {
+          const typeName = resolved.node(depth).type.name
+          if (typeName === 'table_cell' || typeName === 'table_header') {
+            cellPos = resolved.before(depth)
+            break
+          }
+        }
+      }
+
+      if (cellPos === null) return
+      event.preventDefault()
+      event.stopPropagation()
+      this.view.dom.dispatchEvent(new CustomEvent(TABLE_CONTEXT_MENU_OPEN_EVENT, {
+        detail: { cellPos, x: event.clientX, y: event.clientY },
+      }))
+    } catch {
+    }
+  }
+
   ignoreMutation(mutation: ViewMutationRecord) {
     if (!this.dom || !this.contentDOM) return true
 
@@ -128,6 +164,7 @@ export class TableNodeView implements NodeView {
   }
 
   destroy() {
+    this.dom.removeEventListener('contextmenu', this.openTableContextMenu)
     this.app.unmount()
     this.dom.remove()
     this.contentDOM.remove()

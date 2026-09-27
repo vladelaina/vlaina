@@ -145,6 +145,20 @@ describe('floating toolbar command markdown persistence', () => {
     await expect(persist(editor)).resolves.toBe(expected);
   });
 
+  it.each([
+    ['bold', toggleBold, '**typed**'],
+    ['italic', toggleItalic, '*typed*'],
+    ['inline code', toggleCode, '`typed`'],
+  ] as const)('applies %s to text typed from an empty selection', async (_name, command, expected) => {
+    const editor = await createEditor('');
+    const view = selectBlockStart(editor);
+
+    command(view);
+    typeText(view, 'typed');
+
+    await expect(persist(editor)).resolves.toBe(expected);
+  });
+
   it('persists links as standard markdown links and rejects unsafe hrefs', async () => {
     const linked = await createEditor('link text');
     setLink(selectText(linked, 'link'), 'https://example.com/path?q=1');

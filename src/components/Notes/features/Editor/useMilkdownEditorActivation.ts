@@ -6,6 +6,7 @@ import {
   clearCurrentMarkdownRuntime,
   getCurrentEditorView,
   setCurrentEditorBlockSelectionClearer,
+  setCurrentEditorAction,
   setCurrentEditorView,
   setCurrentMarkdownRuntime,
 } from './utils/editorViewRegistry';
@@ -68,6 +69,7 @@ export function useMilkdownEditorActivation(args: {
     const view = editor.ctx.get(editorViewCtx) as EditorView;
     if (getCurrentEditorView() === view) {
       setCurrentEditorView(view, currentNotePath);
+      setCurrentEditorAction(editor.action ? (callback) => editor.action?.(callback) : null);
     }
     onEditorViewReadyRef.current?.();
     readyReportedRef.current = {
@@ -106,6 +108,7 @@ export function useMilkdownEditorActivation(args: {
       }
 
       setCurrentEditorView(view, currentNotePath);
+      setCurrentEditorAction(editor.action ? (callback) => editor.action?.(callback) : null);
       setCurrentEditorBlockSelectionClearer(() => clearBlockSelection(view));
       try {
         normalizeInitialEditorSelection(view);
@@ -155,6 +158,7 @@ export function useMilkdownEditorActivation(args: {
         blockPositionController.destroy();
         if (getCurrentEditorView() === view) {
           setCurrentEditorView(null);
+          setCurrentEditorAction(null);
           setCurrentEditorBlockSelectionClearer(null);
           clearCurrentEditorBlockPositionSnapshot();
           clearCurrentMarkdownRuntime();
@@ -163,6 +167,7 @@ export function useMilkdownEditorActivation(args: {
     } catch {
       if (activatedView && getCurrentEditorView() === activatedView) {
         setCurrentEditorView(null);
+        setCurrentEditorAction(null);
         setCurrentEditorBlockSelectionClearer(null);
         clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();

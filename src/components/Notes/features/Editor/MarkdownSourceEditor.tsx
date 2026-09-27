@@ -14,6 +14,7 @@ import { useSourceEditorFocus } from './hooks/useSourceEditorFocus';
 import { useSourceEditorImageTransfer } from './hooks/useSourceEditorImageTransfer';
 import { useSourceTextareaResize } from './hooks/useSourceTextareaResize';
 import { useSourceEditorHistory } from './hooks/useSourceEditorHistory';
+import { handleSourceEditorShortcut } from './noteEditorSourceShortcuts';
 
 export function MarkdownSourceEditor({
   active = true,
@@ -329,16 +330,22 @@ export function MarkdownSourceEditor({
         onBlur={flushSave}
         onKeyDown={(event) => {
           const result = takeSourceHistoryShortcut(event.nativeEvent);
-          if (!result.handled) return;
+          if (result.handled) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!result.snapshot) return;
+            const nextValue = result.snapshot.value;
+            updateSourceDraft(nextValue);
+            updateCommittedSourceDraft(nextValue);
+            scheduleContentCommit();
+            scheduleTextareaResize();
+            scheduleSave();
+            return;
+          }
+
+          if (!handleSourceEditorShortcut(event.currentTarget, event.nativeEvent)) return;
           event.preventDefault();
           event.stopPropagation();
-          if (!result.snapshot) return;
-          const nextValue = result.snapshot.value;
-          updateSourceDraft(nextValue);
-          updateCommittedSourceDraft(nextValue);
-          scheduleContentCommit();
-          scheduleTextareaResize();
-          scheduleSave();
         }}
         onPaste={handleSourcePaste}
         onDrop={handleSourceDrop}

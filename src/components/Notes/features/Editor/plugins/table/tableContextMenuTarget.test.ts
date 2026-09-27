@@ -49,6 +49,16 @@ describe('table context menu target', () => {
     });
   });
 
+  it('keeps an open table context menu through selection-only right-click transactions', () => {
+    const state = {
+      isOpen: true,
+      position: { x: 120, y: 80 },
+      cellPos: 12,
+    };
+
+    expect(applyTableMenuState(state, undefined, false)).toBe(state);
+  });
+
   it('keeps table context menu positioning inside the viewport', () => {
     expect(
       resolveTableContextMenuPosition({
@@ -65,11 +75,23 @@ describe('table context menu target', () => {
     });
   });
 
+  it('reserves room for visible table shortcut labels', () => {
+    const css = readFileSync(
+      resolve(
+        process.cwd(),
+        'src/components/Notes/features/Editor/styles/table-block.css',
+      ),
+      'utf8',
+    );
+
+    expect(css).toContain('width: var(--vlaina-size-260px);');
+  });
+
   it('marks the table context menu as non-editor chrome for blank-area pointer handling', () => {
     const source = readFileSync(
       resolve(
         process.cwd(),
-        'src/components/Notes/features/Editor/plugins/table/tableContextMenuPlugin.ts',
+        'src/components/Notes/features/Editor/plugins/table/tableContextMenuView.ts',
       ),
       'utf8',
     );
@@ -103,6 +125,7 @@ describe('table context menu target', () => {
     expect(css).toContain('.table-context-menu {');
     expect(css).toContain('position: fixed;');
     expect(css).toContain('.table-context-menu .table-menu-item {');
+    expect(css).toContain('.table-context-menu .table-menu-shortcut {');
     expect(css).toContain('.table-context-menu .table-menu-item.danger');
   });
 
@@ -148,5 +171,18 @@ describe('table context menu target', () => {
     const paragraph = document.createElement('p');
 
     expect(shouldIgnoreTableContextMenuTarget(paragraph)).toBe(false);
+  });
+
+  it('resolves table cells from DOM before falling back to coordinate mapping', () => {
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        'src/components/Notes/features/Editor/plugins/table/tableContextMenuPlugin.ts',
+      ),
+      'utf8',
+    );
+
+    expect(source).toContain('const domCellPos = getTableCellPosFromDom(view, event.target);');
+    expect(source.indexOf('const domCellPos')).toBeLessThan(source.indexOf('const pos = view.posAtCoords'));
   });
 });

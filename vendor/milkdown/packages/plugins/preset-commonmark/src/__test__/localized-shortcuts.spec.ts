@@ -187,6 +187,21 @@ it.each([
   }
 )
 
+it('should keep inline code active when it is intentionally stored for caret input', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  view.dispatch(
+    view.state.tr.addStoredMark(view.state.schema.marks.inlineCode.create())
+  )
+  typeText(view, 'typed')
+
+  const markdown = editor.action(getMarkdown())
+  expect(markdown).toBe('`typed`\n')
+})
+
 it.each(['Backspace', 'Delete'])(
   'should not preserve bold after deleting a selected bold range with %s',
   async (key) => {

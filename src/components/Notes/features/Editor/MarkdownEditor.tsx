@@ -29,6 +29,7 @@ import {
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { themeEditorLayoutTokens, themeRenderingTokens } from '@/styles/themeTokens';
 import { focusEditorFromNoteUpperBlankArea } from './utils/focusEditorFromNoteUpperBlankArea';
+import { NoteEditorContextMenu } from './NoteEditorContextMenu';
 import 'katex/dist/katex.min.css';
 import './styles/index.css';
 
@@ -122,6 +123,7 @@ export function MarkdownEditor({
     startAtTop: shouldStartWorkspaceRestoredNoteAtTop,
   });
   const handleEditorClick = useMarkdownEditorFocus({ active, hasActiveNote });
+  const editorRootRef = useRef<HTMLDivElement | null>(null);
   const editorModeShellRef = useRef<HTMLDivElement | null>(null);
   const [editorModeShellMinHeight, setEditorModeShellMinHeight] = useState<number | null>(null);
   const handleModeSwitchStart = useCallback(() => {
@@ -176,10 +178,12 @@ export function MarkdownEditor({
 
   return (
     <div
+      ref={editorRootRef}
       className="h-full flex flex-col relative"
       data-note-toolbar-root="true"
       onClick={handleEditorClick}
     >
+      <NoteEditorContextMenu active={active} rootRef={editorRootRef} />
       {hasActiveNote ? (
         <Suspense fallback={null}>
           <EditorTopRightToolbar

@@ -56,6 +56,9 @@ export interface ElectronDialogApi {
 }
 
 export interface ElectronClipboardApi {
+  readText?(): Promise<string>;
+  readHTML?(): Promise<string>;
+  writeContent?(text: string, html: string): Promise<void>;
   readImage?(): Promise<string | null>;
   writeText(text: string): Promise<void>;
   writeTextSync?(text: string): boolean;

@@ -54,6 +54,7 @@ function createView(
 
     return {
       depth: path.length - 1,
+      marks: () => [],
       node: (depth: number) => ({
         type: { name: path[depth].type },
         attrs: path[depth].attrs ?? {},
@@ -149,6 +150,20 @@ describe('selection helpers', () => {
     );
 
     expect(getActiveMarks(view)).toEqual(new Set(['strong']));
+  });
+
+  it('reports stored marks at an empty selection', () => {
+    const view = createView(
+      [],
+      { from: 0, to: 0 },
+      { 0: [{ type: 'doc' }, { type: 'paragraph', before: 1 }] },
+    );
+    view.state.storedMarks = [
+      { type: { name: 'strong' } },
+      { type: { name: 'emphasis' } },
+    ];
+
+    expect(getActiveMarks(view)).toEqual(new Set(['strong', 'emphasis']));
   });
 
   it('clears a mark when the selection mixes formatted and plain text', () => {

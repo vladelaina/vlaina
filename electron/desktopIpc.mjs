@@ -73,6 +73,17 @@ export function registerDesktopIpc({
     clipboard.writeText(typeof text === 'string' ? text : '');
   });
 
+  handleIpc('desktop:clipboard:read-text', async () => clipboard.readText());
+
+  handleIpc('desktop:clipboard:read-html', async () => clipboard.readHTML());
+
+  handleIpc('desktop:clipboard:write-content', async (_event, text, html) => {
+    clipboard.write({
+      text: typeof text === 'string' ? text : '',
+      html: typeof html === 'string' ? html : '',
+    });
+  });
+
   handleSyncIpc('desktop:clipboard:write-text-sync', (_event, text) => {
     clipboard.writeText(typeof text === 'string' ? text : '');
     return true;

@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   sinkListItem: vi.fn(),
   liftListItem: vi.fn(),
   textSelectionCreate: vi.fn(),
+  copySelectionToClipboard: vi.fn(),
+  pasteIntoEditor: vi.fn(),
 }));
 
 vi.mock('@milkdown/kit/utils', () => ({
@@ -61,6 +63,14 @@ vi.mock('./table/pipeTableShortcut', () => ({
 
 vi.mock('./math/mathEditorState', () => ({
   createOpenMathEditorState: mocks.createOpenMathEditorState,
+}));
+
+vi.mock('./floating-toolbar/clipboardCommands', () => ({
+  copySelectionToClipboard: mocks.copySelectionToClipboard,
+}));
+
+vi.mock('../noteEditorContextMenuClipboardActions', () => ({
+  pasteIntoEditor: mocks.pasteIntoEditor,
 }));
 
 import { handleEditorShortcut } from './editorShortcutsPlugin';
@@ -267,6 +277,8 @@ describe('handleEditorShortcut', () => {
   it('handles block conversion shortcuts', () => {
     for (const [key, blockType] of [
       ['K', 'codeBlock'],
+      ['Q', 'blockquote'],
+      ['X', 'taskList'],
       ['[', 'orderedList'],
       [']', 'bulletList'],
     ] as const) {
@@ -341,15 +353,39 @@ describe('handleEditorShortcut', () => {
 
   it('handles format shortcuts owned by the editor plugin', () => {
     for (const [key, markName] of [
+      ['u', 'underline'],
+      ['h', 'highlight'],
       ['5', 'strike_through'],
       ['`', 'inlineCode'],
     ] as const) {
       const view = createView();
-      const event = createEvent(key, { shiftKey: true });
+      const event = createEvent(key, { shiftKey: key === '5' || key === '`' });
       expect(handleEditorShortcut(view as never, event)).toBe(true);
       expect(mocks.toggleMark).toHaveBeenLastCalledWith(view, markName);
       expectHandled(event);
     }
+  });
+
+  it('handles the advertised context-menu clipboard and image shortcuts', () => {
+    const copyView = createView();
+    const copyEvent = createEvent('C', { shiftKey: true });
+    expect(handleEditorShortcut(copyView as never, copyEvent)).toBe(true);
+    expect(mocks.copySelectionToClipboard).toHaveBeenCalledWith(copyView, {
+      collapseAfterCopy: false,
+    });
+    expectHandled(copyEvent);
+
+    const insertImage = vi.fn();
+    const imageEvent = createEvent('I', { shiftKey: true });
+    expect(handleEditorShortcut(createView() as never, imageEvent, insertImage)).toBe(true);
+    expect(insertImage).toHaveBeenCalledOnce();
+    expectHandled(imageEvent);
+
+    const pasteView = createView();
+    const pasteEvent = createEvent('V', { shiftKey: true });
+    expect(handleEditorShortcut(pasteView as never, pasteEvent)).toBe(true);
+    expect(mocks.pasteIntoEditor).toHaveBeenCalledWith(pasteView, true);
+    expectHandled(pasteEvent);
   });
 
   it('handles clear formatting and ignores non-modifier keys', () => {

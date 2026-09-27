@@ -231,6 +231,81 @@ describe('TableNodeView', () => {
     expect(nodeView.stopEvent(event)).toBe(true)
   })
 
+  it('resolves the containing cell when the DOM position points at its paragraph', () => {
+    const editorDom = document.createElement('div')
+    const view = {
+      dom: editorDom,
+      editable: true,
+      posAtDOM: vi.fn(() => 8),
+      state: {
+        doc: {
+          nodeAt: vi.fn(() => ({ type: { name: 'paragraph' } })),
+          resolve: vi.fn(() => ({
+            depth: 4,
+            node: (depth: number) => ({
+              type: { name: depth === 3 ? 'table_cell' : 'paragraph' },
+            }),
+            before: vi.fn(() => 7),
+          })),
+        },
+      },
+    } as unknown as EditorView
+    const nodeView = new TableNodeView({} as never, createMockNode('table'), view, () => 1)
+    const table = document.createElement('table')
+    const cell = document.createElement('td')
+    const paragraph = document.createElement('p')
+    cell.appendChild(paragraph)
+    table.appendChild(cell)
+    nodeView.dom.appendChild(table)
+    const open = vi.fn()
+    editorDom.addEventListener('editor:table-context-menu-open', open)
+
+    paragraph.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 120,
+      clientY: 80,
+    }))
+
+    expect(open).toHaveBeenCalledTimes(1)
+    expect((open.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({
+      cellPos: 7,
+      x: 120,
+      y: 80,
+    })
+  })
+
+  it('forwards a cell position returned directly by the DOM mapper', () => {
+    const editorDom = document.createElement('div')
+    const view = {
+      dom: editorDom,
+      editable: true,
+      posAtDOM: vi.fn(() => 8),
+      state: {
+        doc: {
+          nodeAt: vi.fn(() => ({ type: { name: 'table_cell' } })),
+        },
+      },
+    } as unknown as EditorView
+    const nodeView = new TableNodeView({} as never, createMockNode('table'), view, () => 1)
+    const table = document.createElement('table')
+    const cell = document.createElement('td')
+    table.appendChild(cell)
+    nodeView.dom.appendChild(table)
+    const open = vi.fn()
+    editorDom.addEventListener('editor:table-context-menu-open', open)
+
+    cell.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 120,
+      clientY: 80,
+    }))
+
+    expect(open).toHaveBeenCalledTimes(1)
+    expect((open.mock.calls[0]?.[0] as CustomEvent).detail.cellPos).toBe(8)
+  })
+
   it('does not ignore child mutations reported on the table host itself', () => {
     const nodeView = new TableNodeView(
       {} as never,

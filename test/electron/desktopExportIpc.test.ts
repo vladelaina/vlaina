@@ -109,7 +109,10 @@ vi.mock('electron', () => ({
     },
     BrowserWindow: hoisted.MockBrowserWindow,
     clipboard: {
+      readHTML: vi.fn(),
       readImage: vi.fn(),
+      readText: vi.fn(),
+      write: vi.fn(),
       writeText: vi.fn(),
       writeImage: vi.fn(),
     },
@@ -476,6 +479,21 @@ describe('desktop export ipc', () => {
 
     expect(syncHandlers.get('desktop:clipboard:write-text-sync')?.({}, 'fresh clipboard text')).toBe(true);
     expect(electron.clipboard.writeText).toHaveBeenCalledWith('fresh clipboard text');
+  });
+
+  it('reads and writes text plus HTML through the native clipboard', async () => {
+    const { handlers } = registerHarness();
+    vi.mocked(electron.clipboard.readText).mockReturnValueOnce('plain text');
+    vi.mocked(electron.clipboard.readHTML).mockReturnValueOnce('<strong>rich text</strong>');
+
+    await expect(handlers.get('desktop:clipboard:read-text')?.({})).resolves.toBe('plain text');
+    await expect(handlers.get('desktop:clipboard:read-html')?.({})).resolves.toBe('<strong>rich text</strong>');
+    await handlers.get('desktop:clipboard:write-content')?.({}, 'plain text', '<strong>rich text</strong>');
+
+    expect(electron.clipboard.write).toHaveBeenCalledWith({
+      text: 'plain text',
+      html: '<strong>rich text</strong>',
+    });
   });
 
   it('writes data URL images to the native clipboard', async () => {
