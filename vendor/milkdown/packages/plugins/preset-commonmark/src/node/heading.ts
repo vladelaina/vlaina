@@ -200,10 +200,18 @@ export const downgradeHeadingCommand = $command(
   (ctx) => () => (state, dispatch, view) => {
     const { $from } = state.selection
     const node = $from.node()
+    const hasEditableMarkdownPrefix = node.type === headingSchema.type(ctx)
+      && node.firstChild?.isText
+      && node.firstChild.marks.some((mark) => (
+        mark.type.name === markdownSyntaxSchema.type(ctx).name
+        && mark.attrs.edge === 'prefix'
+        && mark.attrs.kind === 'heading'
+      ))
     if (
       node.type !== headingSchema.type(ctx) ||
       !state.selection.empty ||
-      $from.parentOffset !== 0
+      $from.parentOffset !== 0 ||
+      hasEditableMarkdownPrefix
     )
       return false
 
