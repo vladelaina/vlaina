@@ -142,6 +142,70 @@ async function destroyEditor(editor: { destroy: () => Promise<unknown> | unknown
 }
 
 describe('MarkdownEditor compatibility', () => {
+  it('deletes slash-created heading text without removing the heading', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      typeText(view, '/2');
+      expect(pressEnter(view)).toBe(true);
+      typeText(view, 'a');
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+      view.dom.dispatchEvent(event);
+      expect(view.state.doc.firstChild?.type.name).toBe('heading');
+      expect(view.state.doc.firstChild?.attrs.level).toBe(2);
+      expect(view.state.doc.firstChild?.textContent).toBe('## ');
+    } finally {
+      await destroyEditor(editor);
+    }
+  });
+
+  it('does not downgrade a slash-created heading when Backspace starts at its source prefix', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      typeText(view, '/2');
+      expect(pressEnter(view)).toBe(true);
+      typeText(view, 'a');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)));
+      const event = new KeyboardEvent('keydown', {
+        key: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+      view.dom.dispatchEvent(event);
+
+      expect(view.state.doc.firstChild?.type.name).toBe('heading');
+      expect(view.state.doc.firstChild?.attrs.level).toBe(2);
+      expect(view.state.doc.firstChild?.textContent).toBe('## a');
+    } finally {
+      await destroyEditor(editor);
+    }
+  });
+
+  it('deletes visible heading text with forward Delete at its start', async () => {
+    const editor = await createEditor('## a');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 4)));
+      const event = pressDelete(view);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(view.state.doc.firstChild?.type.name).toBe('heading');
+      expect(view.state.doc.firstChild?.attrs.level).toBe(2);
+      expect(view.state.doc.firstChild?.textContent).toBe('## ');
+    } finally {
+      await destroyEditor(editor);
+    }
+  });
+
   it('keeps malformed nested inline html visible and editable', async () => {
     const source = 'Text color: <span style="color: rgb(15, 118, 110)"><em>nested RGB emphasis</em></span>.';
     const malformed = source.replace('<em>', '<em');
