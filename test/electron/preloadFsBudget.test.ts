@@ -22,6 +22,11 @@ interface PreloadFsApi {
 }
 
 interface PreloadApi {
+  clipboard: {
+    readHTML(): Promise<unknown>;
+    readText(): Promise<unknown>;
+    writeContent(text: string, html: string): Promise<unknown>;
+  };
   app: {
     onOpenMarkdownFile(callback: (filePath: string) => void | Promise<void>): () => void;
   };
@@ -122,6 +127,23 @@ async function loadPreloadApi(hostPlatform = 'linux'): Promise<{
 }
 
 describe('preload filesystem budgets', () => {
+  it('forwards rich clipboard reads and writes through dedicated IPC channels', async () => {
+    const { api, ipcRenderer } = await loadPreloadApi();
+
+    await api.clipboard.readText();
+    await api.clipboard.readHTML();
+    await api.clipboard.writeContent('plain text', '<strong>rich text</strong>');
+
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(1, 'desktop:clipboard:read-text');
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(2, 'desktop:clipboard:read-html');
+    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(
+      3,
+      'desktop:clipboard:write-content',
+      'plain text',
+      '<strong>rich text</strong>',
+    );
+  });
+
   it('exposes managed web search only through the authenticated account bridge', async () => {
     const { api, ipcRenderer } = await loadPreloadApi();
     const body = { action: 'search', query: 'latest news' };

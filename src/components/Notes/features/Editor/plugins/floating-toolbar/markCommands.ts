@@ -55,11 +55,18 @@ export function toggleMark(view: EditorView, markName: string): void {
     return;
   }
 
-  const { from, to } = state.selection;
-  const hasMark = state.doc.rangeHasMark(from, to, markType);
-  const tr = hasMark
-    ? state.tr.removeMark(from, to, markType)
-    : state.tr.addMark(from, to, markType.create());
+  const { empty, from, to, $from } = state.selection;
+  const activeMarks = state.storedMarks ?? $from.marks();
+  const hasMark = empty
+    ? Boolean(markType.isInSet(activeMarks))
+    : state.doc.rangeHasMark(from, to, markType);
+  const tr = empty
+    ? hasMark
+      ? state.tr.removeStoredMark(markType)
+      : state.tr.addStoredMark(markType.create())
+    : hasMark
+      ? state.tr.removeMark(from, to, markType)
+      : state.tr.addMark(from, to, markType.create());
 
   markEditorUserInput(view);
   dispatch(tr);

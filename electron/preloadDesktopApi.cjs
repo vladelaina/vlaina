@@ -112,6 +112,15 @@ function createDesktopApi(deps) {
       },
     },
     clipboard: {
+      readText() {
+        return ipcRenderer.invoke('desktop:clipboard:read-text');
+      },
+      readHTML() {
+        return ipcRenderer.invoke('desktop:clipboard:read-html');
+      },
+      writeContent(text, html) {
+        return ipcRenderer.invoke('desktop:clipboard:write-content', text, html);
+      },
       readImage() {
         return ipcRenderer.invoke('desktop:clipboard:read-image');
       },

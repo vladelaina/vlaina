@@ -29,8 +29,10 @@ describe("getModuleShortcutPreset", () => {
         expect.objectContaining({ action: "Heading 1", keys: ["Ctrl", "1"] }),
         expect.objectContaining({ action: "Insert table", keys: ["Ctrl", "T"] }),
         expect.objectContaining({ action: "Math block", keys: ["Ctrl", "Shift", "M"] }),
+        expect.objectContaining({ action: "Blockquote", keys: ["Ctrl", "Shift", "Q"] }),
         expect.objectContaining({ action: "Ordered list", keys: ["Ctrl", "Shift", "["] }),
         expect.objectContaining({ action: "Bullet list", keys: ["Ctrl", "Shift", "]"] }),
+        expect.objectContaining({ action: "Task list", keys: ["Ctrl", "Shift", "X"] }),
       ]),
     );
     expect(formatSection?.shortcuts).toEqual(

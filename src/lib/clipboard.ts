@@ -75,6 +75,33 @@ export async function writeTextToClipboard(text: string): Promise<boolean> {
   return tryExecCommandCopy(text);
 }
 
+export async function writeHtmlAndTextToClipboard(html: string, text: string): Promise<boolean> {
+  const desktopClipboard = getElectronBridge()?.clipboard;
+  if (desktopClipboard?.writeContent) {
+    try {
+      await desktopClipboard.writeContent(text, html);
+      return true;
+    } catch {
+    }
+  }
+
+  const ClipboardItemCtor = getClipboardItemCtor();
+  if (ClipboardItemCtor && typeof navigator !== 'undefined' && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItemCtor({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+        }),
+      ]);
+      return true;
+    } catch {
+    }
+  }
+
+  return writeTextToClipboard(text);
+}
+
 function getClipboardItemCtor(): typeof ClipboardItem | null {
   if (typeof ClipboardItem !== 'undefined') {
     return ClipboardItem;

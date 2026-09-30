@@ -1,0 +1,163 @@
+.editor-context-menu {
+  position: fixed;
+  z-index: var(--vlaina-z-modal-max);
+  min-width: var(--vlaina-size-240px);
+  max-height: var(--vlaina-height-context-menu-max);
+  overflow-y: auto;
+  padding: var(--vlaina-space-05rem);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-sidebar-notes-menu-border);
+  border-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-sidebar-notes-menu-bg);
+  box-shadow: var(--vlaina-sidebar-notes-menu-shadow);
+  color: var(--vlaina-text-primary);
+  font-size: var(--vlaina-font-13);
+  user-select: none;
+}
+
+.editor-context-menu-submenu {
+  min-width: var(--vlaina-size-240px);
+  max-width: min(var(--vlaina-size-320px), calc(100vw - var(--vlaina-size-16px)));
+}
+
+.editor-context-menu-icon-row,
+.editor-context-menu-format-grid {
+  display: grid;
+  gap: var(--vlaina-space-025rem);
+}
+
+.editor-context-menu-icon-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.editor-context-menu-format-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.editor-context-menu-icon-trigger {
+  display: block;
+  min-width: 0;
+}
+
+.editor-context-menu-icon-trigger-disabled {
+  cursor: default;
+}
+
+.editor-context-menu-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: var(--vlaina-size-30px);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-color-menu-border);
+  border-radius: var(--vlaina-radius-4px);
+  background: var(--vlaina-color-surface-secondary);
+  color: var(--vlaina-text-primary);
+  cursor: pointer;
+  transition: background-color var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default), color var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default);
+}
+
+.editor-context-menu-icon-button:disabled {
+  pointer-events: none;
+}
+
+.editor-context-menu-icon-button:not(:disabled):hover,
+.editor-context-menu-icon-button:not(:disabled):focus-visible,
+.editor-context-menu-icon-button-active {
+  background: var(--vlaina-sidebar-notes-row-active);
+  color: var(--vlaina-sidebar-row-selected-text);
+  outline: none;
+}
+
+.editor-context-menu-item {
+  display: grid;
+  grid-template-columns: var(--vlaina-size-20px) minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: var(--vlaina-size-30px);
+  gap: var(--vlaina-space-05rem);
+  padding: var(--vlaina-space-025rem) var(--vlaina-space-05rem);
+  border: 0;
+  border-radius: var(--vlaina-radius-4px);
+  background: transparent;
+  color: var(--vlaina-text-primary);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.editor-context-menu-item:hover,
+.editor-context-menu-item:focus-visible,
+.editor-context-menu-item-active {
+  background: var(--vlaina-sidebar-notes-row-active);
+  color: var(--vlaina-sidebar-row-selected-text);
+  outline: none;
+}
+
+.editor-context-menu-item-disabled,
+.editor-context-menu-item:disabled {
+  opacity: var(--vlaina-opacity-50);
+  cursor: default;
+}
+
+.editor-context-menu-item-leading {
+  display: inline-flex;
+  width: var(--vlaina-size-20px);
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+.editor-context-menu-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-context-menu-shortcut {
+  color: var(--vlaina-text-secondary);
+  font-size: var(--vlaina-font-11);
+  white-space: nowrap;
+}
+
+.editor-context-menu-check {
+  font-size: var(--vlaina-font-13);
+}
+
+.editor-context-menu-arrow {
+  color: var(--vlaina-text-secondary);
+  font-size: var(--vlaina-font-18);
+  line-height: 1;
+}
+
+.editor-context-menu-divider {
+  height: var(--vlaina-border-width-1);
+  margin: var(--vlaina-space-025rem) calc(var(--vlaina-space-05rem) * -1);
+  background: var(--vlaina-sidebar-notes-menu-border);
+}
+
+.editor-context-menu-submenu-trigger {
+  position: relative;
+}
+
+[data-slot="tooltip-content"].editor-context-menu-icon-tooltip {
+  z-index: var(--vlaina-z-modal-max);
+  display: flex;
+  align-items: center;
+  gap: var(--vlaina-space-0375rem);
+  padding: var(--vlaina-space-0375rem) var(--vlaina-space-075rem);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-sidebar-notes-menu-border);
+  border-radius: var(--vlaina-radius-0375rem);
+  background: var(--vlaina-toolbar-tooltip-bg);
+  box-shadow: var(--vlaina-shadow-toolbar-tooltip);
+  color: var(--vlaina-toolbar-tooltip-fg);
+  font-size: var(--vlaina-font-075rem);
+  font-weight: var(--vlaina-font-weight-medium);
+  line-height: var(--vlaina-leading-125);
+  white-space: nowrap;
+}
+
+.editor-context-menu-icon-tooltip kbd {
+  color: inherit;
+  font: inherit;
+}

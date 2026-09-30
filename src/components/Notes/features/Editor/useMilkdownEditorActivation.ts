@@ -6,6 +6,7 @@ import {
   clearCurrentMarkdownRuntime,
   getCurrentEditorView,
   setCurrentEditorBlockSelectionClearer,
+  setCurrentEditorAction,
   setCurrentEditorView,
   setCurrentMarkdownRuntime,
 } from './utils/editorViewRegistry';
@@ -75,12 +76,19 @@ export function useMilkdownEditorActivation(args: {
       return;
     }
 
+<<<<<<< HEAD
     let view: EditorView;
     try {
       view = editor.ctx.get(editorViewCtx) as EditorView;
     } catch {
       // The provider can invalidate its context while a stale readiness callback is in flight.
       return;
+=======
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+    if (getCurrentEditorView() === view) {
+      setCurrentEditorView(view, currentNotePath);
+      setCurrentEditorAction(editor.action ? (callback) => editor.action?.(callback) : null);
+>>>>>>> 5
     }
     if (getCurrentEditorView() !== view) {
       return;
@@ -124,6 +132,7 @@ export function useMilkdownEditorActivation(args: {
       }
 
       setCurrentEditorView(view, currentNotePath);
+      setCurrentEditorAction(editor.action ? (callback) => editor.action?.(callback) : null);
       setCurrentEditorBlockSelectionClearer(() => clearBlockSelection(view));
       try {
         normalizeInitialEditorSelection(view);
@@ -160,6 +169,7 @@ export function useMilkdownEditorActivation(args: {
         blockPositionController?.destroy();
         if (getCurrentEditorView() === view) {
           setCurrentEditorView(null);
+          setCurrentEditorAction(null);
           setCurrentEditorBlockSelectionClearer(null);
           clearCurrentEditorBlockPositionSnapshot();
           clearCurrentMarkdownRuntime();
@@ -189,6 +199,7 @@ export function useMilkdownEditorActivation(args: {
       }
       if (activatedView && getCurrentEditorView() === activatedView) {
         setCurrentEditorView(null);
+        setCurrentEditorAction(null);
         setCurrentEditorBlockSelectionClearer(null);
         clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();

@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tryWriteTextToClipboardSynchronously, writeTextToClipboard } from './clipboard';
+import {
+  tryWriteTextToClipboardSynchronously,
+  writeHtmlAndTextToClipboard,
+  writeTextToClipboard,
+} from './clipboard';
 
 const electronBridgeMocks = vi.hoisted(() => ({
   getElectronBridge: vi.fn(() => null as any),
@@ -80,6 +84,18 @@ describe('writeTextToClipboard', () => {
     await expect(writeTextToClipboard('fresh desktop clipboard text')).resolves.toBe(true);
     expect(writeTextSync).toHaveBeenCalledWith('fresh desktop clipboard text');
     expect(writeText).not.toHaveBeenCalled();
+    expect(document.execCommand).not.toHaveBeenCalled();
+  });
+
+  it('writes rich clipboard content through the desktop bridge', async () => {
+    const writeContent = vi.fn().mockResolvedValue(undefined);
+    electronBridgeMocks.getElectronBridge.mockReturnValue({
+      platform: 'electron',
+      clipboard: { writeContent },
+    });
+
+    await expect(writeHtmlAndTextToClipboard('<strong>Text</strong>', 'Text')).resolves.toBe(true);
+    expect(writeContent).toHaveBeenCalledWith('Text', '<strong>Text</strong>');
     expect(document.execCommand).not.toHaveBeenCalled();
   });
 });

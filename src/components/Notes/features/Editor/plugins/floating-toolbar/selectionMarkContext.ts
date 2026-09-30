@@ -9,6 +9,13 @@ import { forEachSelectedTextNode } from './selectionTraversal';
 import type { TextRange } from './selectionHelperTypes';
 
 export function getActiveMarks(view: EditorView): Set<string> {
+  if (view.state.selection.empty) {
+    return new Set(
+      (view.state.storedMarks ?? view.state.selection.$from.marks())
+        .map((mark) => mark.type.name),
+    );
+  }
+
   let activeMarks: Set<string> | null = null;
 
   const hasSelectedText = forEachSelectedTextNode(view, ({ node }) => {

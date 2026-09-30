@@ -1,5 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser, Serializer } from '@milkdown/kit/transformer';
+import type { Ctx } from '@milkdown/kit/ctx';
 import { normalizeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
 import {
   normalizeAlternativeMathBlockFences,
@@ -8,6 +9,7 @@ import {
 
 let currentEditorView: EditorView | null = null;
 let currentEditorNotePath: string | null = null;
+let currentEditorAction: ((action: (ctx: Ctx) => unknown) => unknown) | null = null;
 let currentMarkdownParser: Parser | null = null;
 let currentMarkdownSerializer: Serializer | null = null;
 let currentEditorBlockSelectionClearer: (() => void) | null = null;
@@ -18,6 +20,7 @@ export function setCurrentEditorView(view: EditorView | null, notePath?: string)
   currentEditorNotePath = view ? notePath ?? null : null;
   if (view === null) {
     currentEditorBlockSelectionClearer = null;
+    currentEditorAction = null;
   }
   editorViewListeners.forEach((listener) => {
     listener(view);
@@ -30,6 +33,16 @@ export function getCurrentEditorView(): EditorView | null {
 
 export function getCurrentEditorNotePath(): string | null {
   return currentEditorNotePath;
+}
+
+export function setCurrentEditorAction(
+  action: ((callback: (ctx: Ctx) => unknown) => unknown) | null,
+): void {
+  currentEditorAction = action;
+}
+
+export function getCurrentEditorAction(): ((action: (ctx: Ctx) => unknown) => unknown) | null {
+  return currentEditorAction;
 }
 
 export function setCurrentEditorBlockSelectionClearer(clearer: (() => void) | null): void {

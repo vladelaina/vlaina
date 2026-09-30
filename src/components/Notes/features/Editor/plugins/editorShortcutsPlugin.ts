@@ -12,6 +12,7 @@ import { toggleMark } from './floating-toolbar/markCommands';
 import { createEmptyTableNode } from './table/pipeTableShortcut';
 import { mathEditorPluginKey } from './math/mathEditorPluginKey';
 import { createOpenMathEditorState } from './math/mathEditorState';
+import { copySelectionToClipboard } from './floating-toolbar/clipboardCommands';
 import { markEditorUserInput } from './shared/userInputEvents';
 import { getBoundedTextBetween, isEditorTextRangeTooLarge } from './shared/selectionTextLimits';
 import {
@@ -19,6 +20,7 @@ import {
   moveSelectionAfterInsertedNode,
 } from './shared/insertedNodeSelection';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
+import { pasteIntoEditor } from '../noteEditorContextMenuClipboardActions';
 
 function isModShortcut(event: KeyboardEvent): boolean {
   return (event.ctrlKey || event.metaKey) && !event.altKey && !event.isComposing;
@@ -200,15 +202,23 @@ function clearFormatting(view: EditorView): boolean {
   return true;
 }
 
-export const editorShortcutsPlugin = $prose(() => {
+export const editorShortcutsPlugin = $prose((ctx) => {
   return new Plugin({
     props: {
-      handleKeyDown: handleEditorShortcut,
+      handleKeyDown: (view, event) => handleEditorShortcut(view, event, () => {
+        void import('./slash/slashCommands').then(({ applySlashCommand }) => {
+          applySlashCommand(ctx, 'image');
+        }).catch(() => undefined);
+      }),
     },
   });
 });
 
-export function handleEditorShortcut(view: EditorView, event: KeyboardEvent): boolean {
+export function handleEditorShortcut(
+  view: EditorView,
+  event: KeyboardEvent,
+  insertImage: () => void = () => undefined,
+): boolean {
   if (!isModShortcut(event)) return false;
 
   if (!event.shiftKey) {
@@ -225,17 +235,28 @@ export function handleEditorShortcut(view: EditorView, event: KeyboardEvent): bo
     if (keyIs(event, 'enter')) return handled(event, () => runTableCommand(view, addRowAfter));
     if (keyIs(event, ']')) return handled(event, () => setListIndent(view, 'in'));
     if (keyIs(event, '[')) return handled(event, () => setListIndent(view, 'out'));
+    if (keyIs(event, 'u')) return handled(event, () => toggleMark(view, 'underline'));
+    if (keyIs(event, 'h')) return handled(event, () => toggleMark(view, 'highlight'));
     if (keyIs(event, '\\')) return handled(event, () => clearFormatting(view));
   }
 
   if (event.shiftKey) {
     if (keyIs(event, 'backspace')) return handled(event, () => runTableCommand(view, deleteRow));
+    if (keyIs(event, 'c')) return handled(event, () => {
+      void copySelectionToClipboard(view, { collapseAfterCopy: false });
+    });
+    if (keyIs(event, 'i')) return handled(event, insertImage);
     if (keyIs(event, 'k')) return handled(event, () => convertBlockType(view, 'codeBlock'));
     if (keyIs(event, 'm')) return handled(event, () => createMathBlock(view));
+    if (keyIs(event, 'q')) return handled(event, () => convertBlockType(view, 'blockquote'));
+    if (keyIs(event, 'x')) return handled(event, () => convertBlockType(view, 'taskList'));
     if (keyIs(event, '[', '{')) return handled(event, () => convertBlockType(view, 'orderedList'));
     if (keyIs(event, ']', '}')) return handled(event, () => convertBlockType(view, 'bulletList'));
     if (keyIs(event, '5', '%')) return handled(event, () => toggleMark(view, 'strike_through'));
     if (keyIs(event, '`', '~')) return handled(event, () => toggleMark(view, 'inlineCode'));
+    if (keyIs(event, 'v')) return handled(event, () => {
+      void pasteIntoEditor(view, true);
+    });
   }
 
   return false;

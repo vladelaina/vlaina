@@ -181,6 +181,14 @@ export const themeRadiusTokens = {
   px8Var: 'var(--vlaina-radius-8px)',
 } as const;
 
+export const themeContextMenuTokens = {
+  closeDelayMs: 120,
+  submenuGap: 4,
+  tableMenuWidth: 260,
+  tooltipOffset: 4,
+  viewportMargin: 8,
+} as const;
+
 export const themeFontWeightTokens = {
   normal: '400',
   medium: '500',

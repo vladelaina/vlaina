@@ -34,7 +34,7 @@ export const inlineCodeSchema = $markSchema('inlineCode', (ctx) => ({
   markdownSyntaxDelimited: true,
   priority: 100,
   code: true,
-  inclusive: false,
+  inclusive: true,
   parseDOM: [{ tag: 'code' }],
   toDOM: (mark) => ['code', ctx.get(inlineCodeAttr.key)(mark)],
   parseMarkdown: {
