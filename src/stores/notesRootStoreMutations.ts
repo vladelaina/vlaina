@@ -251,14 +251,17 @@ export function createNotesRootMutationActions(
     },
 
     closeNotesRoot: async () => {
-      const prepared = await prepareNotesForNotesRootExit();
+      const prepared = await prepareNotesForNotesRootExit({ blockUnsavedDrafts: false });
       if (!prepared.ok) {
         set({ error: prepared.error });
         return false;
       }
 
       closeCurrentNotesRootAction(set, get().recentNotesRoots);
-      resetNotesWorkspaceForNotesRootTransition('', { preserveExternalNotes: true });
+      resetNotesWorkspaceForNotesRootTransition('', {
+        preserveDrafts: true,
+        preserveExternalNotes: true,
+      });
       set({ error: null });
       return true;
     },

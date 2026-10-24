@@ -589,6 +589,39 @@ describe('useNotesRootStore dirty note protection', () => {
     });
   });
 
+  it('closes the opened folder while preserving unsaved draft tabs', async () => {
+    useNotesStore.setState({
+      currentNote: { path: 'draft:alpha', content: 'Draft body' },
+      currentNoteRevision: 4,
+      isDirty: true,
+      openTabs: [{ path: 'draft:alpha', name: '', isDirty: true }],
+      draftNotes: { 'draft:alpha': { parentPath: null, name: 'Draft title' } },
+      noteContentsCache: new Map([['draft:alpha', { content: 'Draft body', modifiedAt: null }]]),
+    });
+
+    const closed = await useNotesRootStore.getState().closeNotesRoot();
+
+    expect(closed).toBe(true);
+    expect(useNotesRootStore.getState().currentNotesRoot).toBeNull();
+    expect(useNotesRootStore.getState().error).toBeNull();
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '',
+      currentNote: { path: 'draft:alpha', content: 'Draft body' },
+      currentNoteRevision: 4,
+      isDirty: true,
+      openTabs: [{ path: 'draft:alpha', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:alpha': {
+          parentPath: null,
+          name: 'Draft title',
+          originNotesPath: '/notesRoot/old',
+        },
+      },
+      rootFolder: null,
+      rootFolderPath: null,
+    });
+  });
+
   it('closes the notesRoot sidebar without replacing the active external starred note', async () => {
     useNotesStore.setState({
       notesPath: '/notesRoot/old',
